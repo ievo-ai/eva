@@ -16,3 +16,6 @@
 | D-012 | 2026-02-28 | Escalation patterns → MEMORY_UPDATE | Severity trending up needs immediate context injection | Active |
 | D-013 | 2026-02-28 | Documentation in docs/ not README | README = overview, docs/ = reference. No duplication | Active |
 | D-014 | 2026-02-28 | All repos follow same doc standard | README.md + CLAUDE.md + docs/ across cli, marketplace, sdk, eva, ievo.ai | Active |
+| D-015 | 2026-02-28 | Eva pushes evolutions to ievo.ai | Single flow: merged mutation → publish-evolution.yml → evolutions.json in ievo.ai → site renders | Active |
+| D-016 | 2026-02-28 | evolutions.json in ievo.ai repo (not Eva) | Site reads local file, no runtime API dependency. Eva pushes via Action | Active |
+| D-017 | 2026-02-28 | Every merged mutation must be published | Public accountability — evolutions feed is the record of platform evolution | Active |

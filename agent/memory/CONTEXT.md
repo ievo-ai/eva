@@ -71,6 +71,13 @@
 All repos must follow: `README.md` (overview) + `CLAUDE.md` (AI context) + `docs/` (detailed reference).
 No README.md inside docs/. No duplicate content between README and docs/.
 
+## Evolutions Feed
+
+- Public evolution log: `ievo-ai/ievo.ai/docs/evolutions.json`
+- Website renders it at ievo.ai (Evolutions section)
+- `publish-evolution.yml` workflow pushes new entries after merged mutations
+- `scripts/publish-evolution.py` handles append + commit to ievo.ai
+
 ## Known Patterns
 
 <!-- Eva fills this section as she detects patterns across runs -->

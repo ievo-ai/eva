@@ -1,0 +1,77 @@
+name: Publish Evolution
+
+# Triggered when Eva's mutation PR is merged to the target repo.
+# Eva's scan workflow should call this after a live mutation succeeds.
+on:
+  workflow_dispatch:
+    inputs:
+      evo_id:
+        description: 'Evolution ID (e.g. EVO-001)'
+        required: true
+      title:
+        description: 'Short title of the evolution'
+        required: true
+      agent:
+        description: 'Agent that made the mutation'
+        default: 'eva'
+      type:
+        description: 'Mutation type (role_patch, skill_patch, memory_update, milestone)'
+        default: 'role_patch'
+      target:
+        description: 'Target file path'
+        default: ''
+      description:
+        description: 'Description of the evolution'
+        default: ''
+      confidence:
+        description: 'Confidence score (0.0-1.0)'
+        default: '0.0'
+      pr_url:
+        description: 'PR URL'
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Eva
+        uses: actions/checkout@v4
+
+      - name: Checkout ievo.ai site
+        uses: actions/checkout@v4
+        with:
+          repository: ievo-ai/ievo.ai
+          path: site
+          token: ${{ secrets.IEVO_BOT_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Publish evolution entry
+        run: |
+          python scripts/publish-evolution.py \
+            --id "${{ inputs.evo_id }}" \
+            --title "${{ inputs.title }}" \
+            --agent "${{ inputs.agent }}" \
+            --type "${{ inputs.type }}" \
+            --target "${{ inputs.target }}" \
+            --description "${{ inputs.description }}" \
+            --confidence "${{ inputs.confidence }}" \
+            --pr "${{ inputs.pr_url }}" \
+            --file site/docs/evolutions.json
+
+      - name: Push to ievo.ai
+        working-directory: site
+        run: |
+          git config user.name "ievo-bot"
+          git config user.email "bot@ievo.ai"
+          git add docs/evolutions.json
+          git diff --cached --quiet && echo "No changes" && exit 0
+          git commit -m "evo: ${{ inputs.evo_id }} — ${{ inputs.title }}"
+          git push

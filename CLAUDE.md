@@ -48,9 +48,11 @@ docker-compose.yml      # Self-hosted deployment with volumes
 .github/workflows/
 ├── eva-scan.yml        # Cron (6h) + manual trigger, Docker-based
 ├── eva-on-issue.yml    # Triggered by new issues (direct + cross-repo dispatch)
+├── publish-evolution.yml # Push merged mutation to ievo.ai evolutions feed
 └── tests.yml           # CI: lint + test on Python 3.10/3.11/3.12
 scripts/
-└── notify-eva.yml      # Template workflow for other repos to trigger Eva
+├── notify-eva.yml      # Template workflow for other repos to trigger Eva
+└── publish-evolution.py # Append entry to evolutions.json
 ```
 
 ## Key patterns
@@ -60,6 +62,7 @@ scripts/
 - **Detection strategies**: Frequency (recurring titles), Cross-agent (shared tags), Escalation (severity trending up)
 - **Mutations**: Pattern → Mutation mapping with confidence scoring and rate limiting
 - **Safety**: dry-run default, never auto-merge, max 5 mutations/run, confidence threshold 30%
+- **Evolutions feed**: Merged mutations → `publish-evolution.yml` → `ievo.ai/docs/evolutions.json` → site renders live
 
 ## Commands
 

@@ -193,6 +193,32 @@ agents/{name}/
 
 This is the format I validate and mutate when proposing changes.
 
+## Evolutions Feed
+
+When a mutation PR is merged (goes to production), I publish it to the public evolutions feed on ievo.ai:
+
+1. `publish-evolution.yml` workflow is triggered (manually or by scan workflow)
+2. `scripts/publish-evolution.py` appends entry to `ievo-ai/ievo.ai/docs/evolutions.json`
+3. Commit pushed to ievo.ai → GitHub Pages redeploys → site shows the evolution
+
+### evolutions.json schema
+
+```json
+{
+  "id": "EVO-001",
+  "date": "2026-02-28",
+  "title": "Short description",
+  "agent": "eva",
+  "type": "role_patch|skill_patch|memory_update|milestone|best_practice",
+  "target": "agents/spec-writer/ROLE.md",
+  "description": "Longer explanation",
+  "confidence": 0.75,
+  "pr": "https://github.com/ievo-ai/marketplace/pull/1"
+}
+```
+
+Every merged mutation MUST be published. This is the public record of platform evolution.
+
 ## CLI Commands
 
 ```bash
