@@ -42,6 +42,15 @@ tests/                  # 14 tests
 ├── test_detector.py
 ├── test_models.py
 └── test_mutations.py
+
+Dockerfile              # Python 3.12-slim, entrypoint: eva scan
+docker-compose.yml      # Self-hosted deployment with volumes
+.github/workflows/
+├── eva-scan.yml        # Cron (6h) + manual trigger, Docker-based
+├── eva-on-issue.yml    # Triggered by new issues (direct + cross-repo dispatch)
+└── tests.yml           # CI: lint + test on Python 3.10/3.11/3.12
+scripts/
+└── notify-eva.yml      # Template workflow for other repos to trigger Eva
 ```
 
 ## Key patterns
@@ -62,6 +71,13 @@ eva scan --live              # Create real PRs
 eva status                   # Show config and source health
 eva approve <mutation-id>    # Approve a mutation (Phase 2)
 ```
+
+## Deployment
+
+- **GitHub Actions**: cron (6h), on-issue (cross-repo dispatch), manual
+- **Docker**: `docker build -t eva . && docker run eva scan`
+- **Self-hosted**: `docker compose up -d` (uses .env for tokens)
+- All workflows use Docker for reproducible environment
 
 ## Env vars
 

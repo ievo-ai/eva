@@ -1,0 +1,72 @@
+# Eva — scheduled scan
+# Runs on cron (every 6 hours) and manual trigger.
+# Uses Docker container for reproducible environment.
+
+name: Eva Scan
+
+on:
+  schedule:
+    # Every 6 hours
+    - cron: "0 */6 * * *"
+
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run mode (no PRs)"
+        type: boolean
+        default: true
+      marketplace_ref:
+        description: "Marketplace repo ref (branch/tag)"
+        type: string
+        default: "main"
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  scan:
+    name: "Eva: Observe → Analyze → Mutate"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Eva
+        uses: actions/checkout@v4
+
+      - name: Checkout Marketplace
+        uses: actions/checkout@v4
+        with:
+          repository: ievo-ai/marketplace
+          ref: ${{ github.event.inputs.marketplace_ref || 'main' }}
+          path: marketplace
+
+      - name: Build Eva container
+        run: docker build -t eva:local .
+
+      - name: Run Eva scan
+        env:
+          EVA_GITHUB_TOKEN: ${{ secrets.EVA_GITHUB_TOKEN }}
+          EVA_SENTRY_TOKEN: ${{ secrets.EVA_SENTRY_TOKEN }}
+        run: |
+          DRY_RUN_FLAG=""
+          if [ "${{ github.event.inputs.dry_run }}" = "false" ]; then
+            DRY_RUN_FLAG="--live"
+          fi
+
+          docker run --rm \
+            -e EVA_GITHUB_TOKEN \
+            -e EVA_SENTRY_TOKEN \
+            -v ${{ github.workspace }}/marketplace:/app/marketplace:ro \
+            eva:local \
+            scan --marketplace /app/marketplace $DRY_RUN_FLAG
+
+      - name: Upload scan results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eva-scan-${{ github.run_number }}
+          path: |
+            eva-report.json
+          retention-days: 30
+          if-no-files-found: ignore

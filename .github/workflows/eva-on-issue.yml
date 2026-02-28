@@ -1,0 +1,63 @@
+# Eva — triggered by new issues across iEvo repos
+# Listens via repository_dispatch from other repos,
+# or directly on issues in the Eva repo itself.
+
+name: Eva on Issue
+
+on:
+  # Direct: issue opened in this repo
+  issues:
+    types: [opened, labeled]
+
+  # Cross-repo: dispatched from other iEvo repos
+  # Other repos send: gh api repos/ievo-ai/eva/dispatches -f event_type=new-issue ...
+  repository_dispatch:
+    types: [new-issue]
+
+permissions:
+  contents: read
+  issues: read
+
+jobs:
+  react:
+    name: "Eva: React to issue"
+    runs-on: ubuntu-latest
+
+    # Skip bot-created issues to prevent loops
+    if: >
+      github.event_name == 'repository_dispatch' ||
+      (github.event_name == 'issues' && github.event.issue.user.login != 'github-actions[bot]')
+
+    steps:
+      - name: Checkout Eva
+        uses: actions/checkout@v4
+
+      - name: Checkout Marketplace
+        uses: actions/checkout@v4
+        with:
+          repository: ievo-ai/marketplace
+          path: marketplace
+
+      - name: Build Eva container
+        run: docker build -t eva:local .
+
+      - name: Prepare issue context
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            echo "ISSUE_SOURCE=${{ github.event.client_payload.repo }}" >> $GITHUB_ENV
+            echo "ISSUE_NUMBER=${{ github.event.client_payload.issue_number }}" >> $GITHUB_ENV
+          else
+            echo "ISSUE_SOURCE=${{ github.repository }}" >> $GITHUB_ENV
+            echo "ISSUE_NUMBER=${{ github.event.issue.number }}" >> $GITHUB_ENV
+          fi
+
+      - name: Run Eva scan (dry-run)
+        env:
+          EVA_GITHUB_TOKEN: ${{ secrets.EVA_GITHUB_TOKEN }}
+        run: |
+          echo "Eva triggered by issue #${ISSUE_NUMBER} in ${ISSUE_SOURCE}"
+          docker run --rm \
+            -e EVA_GITHUB_TOKEN \
+            -v ${{ github.workspace }}/marketplace:/app/marketplace:ro \
+            eva:local \
+            scan --marketplace /app/marketplace

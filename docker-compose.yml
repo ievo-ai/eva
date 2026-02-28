@@ -1,0 +1,45 @@
+# Self-hosted Eva deployment
+# Usage:
+#   cp .env.example .env   # fill in tokens
+#   docker compose up -d   # start Eva on cron
+#   docker compose logs -f  # watch logs
+
+services:
+  eva:
+    build: .
+    container_name: eva
+    restart: unless-stopped
+    environment:
+      - EVA_GITHUB_TOKEN=${EVA_GITHUB_TOKEN}
+      - EVA_SENTRY_TOKEN=${EVA_SENTRY_TOKEN:-}
+      - EVA_CONFIG=/app/eva.yaml
+    volumes:
+      - ./eva.yaml:/app/eva.yaml:ro
+      - eva-cache:/app/.eva_cache
+    # Run scan every 6 hours via cron-like entrypoint
+    command: ["scan", "--marketplace", "/app/marketplace"]
+
+  # Optional: cron scheduler wrapping Eva
+  # Uncomment to run on schedule instead of one-shot
+  # eva-cron:
+  #   build: .
+  #   container_name: eva-cron
+  #   restart: unless-stopped
+  #   entrypoint: ["/bin/sh", "-c"]
+  #   command:
+  #     - |
+  #       while true; do
+  #         echo "=== Eva scan: $$(date) ==="
+  #         eva scan
+  #         echo "=== Sleeping 6h ==="
+  #         sleep 21600
+  #       done
+  #   environment:
+  #     - EVA_GITHUB_TOKEN=${EVA_GITHUB_TOKEN}
+  #     - EVA_SENTRY_TOKEN=${EVA_SENTRY_TOKEN:-}
+  #   volumes:
+  #     - ./eva.yaml:/app/eva.yaml:ro
+  #     - eva-cache:/app/.eva_cache
+
+volumes:
+  eva-cache:

@@ -1,0 +1,26 @@
+# Eva configuration
+# Docs: https://github.com/ievo-ai/eva
+
+repos:
+  cli: ievo-ai/cli
+  marketplace: ievo-ai/marketplace
+  sdk: ievo-ai/sdk
+  eva: ievo-ai/eva
+  landing: ievo-ai/ievo.ai
+
+sources:
+  sentry:
+    enabled: false
+    # org: your-sentry-org
+    # project: your-project
+  github_issues:
+    enabled: true
+  reviews:
+    enabled: false
+  evolution_logs:
+    enabled: true
+
+# Safety
+dry_run: true
+max_mutations_per_run: 5
+auto_merge: false
