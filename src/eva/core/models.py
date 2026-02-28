@@ -16,6 +16,7 @@ class SignalType(str, Enum):
     USER_REVIEW = "user_review"
     EVOLUTION_LOG = "evolution_log"
     PR_COMMENT = "pr_comment"
+    RESEARCH_PROPOSAL = "research_proposal"
 
 
 class Severity(str, Enum):

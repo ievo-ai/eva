@@ -47,6 +47,9 @@ class EvaConfig:
     evolution_logs: SourceConfig = field(default_factory=lambda: SourceConfig(
         enabled=True,
     ))
+    research: SourceConfig = field(default_factory=lambda: SourceConfig(
+        enabled=True,
+    ))
 
     # Safety
     auto_merge: bool = False  # never auto-merge without human review
@@ -70,7 +73,7 @@ class EvaConfig:
             config.repos = data["repos"]
 
         # Override sources
-        for source_name in ("sentry", "github_issues", "reviews", "evolution_logs"):
+        for source_name in ("sentry", "github_issues", "reviews", "evolution_logs", "research"):
             if source_name in data.get("sources", {}):
                 src_data = data["sources"][source_name]
                 src_config = getattr(config, source_name)
@@ -94,6 +97,7 @@ class EvaConfig:
                 "github_issues": {"enabled": self.github_issues.enabled},
                 "reviews": {"enabled": self.reviews.enabled},
                 "evolution_logs": {"enabled": self.evolution_logs.enabled},
+                "research": {"enabled": self.research.enabled},
             },
             "auto_merge": self.auto_merge,
             "max_mutations_per_run": self.max_mutations_per_run,

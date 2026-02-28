@@ -1,0 +1,48 @@
+name: Eva Research
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly, Monday 6am UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Eva
+        run: pip install -e ".[dev]"
+
+      - name: Run Researcher agent
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          claude -p "Read agents/researcher/ROLE.md. You are the Researcher agent.
+          Load your memory files first.
+          Scan recent AI/SDD papers, blogs, and GitHub repos from the last 2 weeks.
+          Generate improvement proposals for the iEvo system.
+          Save findings to spec/research/ as PROP-*.md files."
+
+      - name: Run Eva scan with research
+        env:
+          EVA_GITHUB_TOKEN: ${{ secrets.EVA_GITHUB_TOKEN }}
+        run: |
+          eva scan --include-research spec/research/
+
+      - name: Upload proposals
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-proposals
+          path: spec/research/PROP-*.md
+          if-no-files-found: ignore
