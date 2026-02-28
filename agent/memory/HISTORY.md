@@ -43,4 +43,5 @@ Eva was built from scratch in a single session:
 - Configure Sentry integration (org + project)
 - Create test issues to verify Eva picks them up
 - Apply same docs/ structure to other iEvo repos
-- Build Curator (Level 2 evolution) — Phase 3
+- ~~Build Curator (Level 2 evolution)~~ — DONE (`ievo-ai/curator`)
+- Eva ↔ Curator cross-repo dispatch integration

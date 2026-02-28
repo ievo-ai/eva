@@ -16,6 +16,7 @@
 | `ievo-ai/marketplace` | Agent registry, shared skills, agent packages | Active |
 | `ievo-ai/sdk` | Developer toolkit: scaffold, validate, inspect agents | Active |
 | `ievo-ai/eva` | Me — meta-evolution pipeline | Active |
+| `ievo-ai/curator` | Level 2 — cross-agent pattern detection | Active |
 | `ievo-ai/ievo.ai` | Landing page / project homepage | Active |
 
 ## Architecture Context
@@ -78,5 +79,5 @@ No README.md inside docs/. No duplicate content between README and docs/.
 
 - All repos are freshly created (Feb 2026) — expect few signals initially
 - Sentry integration pending (org/project not yet configured)
-- Curator (Level 2 evolution) is Phase 3 — not yet implemented
+- Curator (Level 2 evolution) — built and ready (`ievo-ai/curator`)
 - Cross-repo dispatch (`notify-eva.yml`) needs to be copied to cli, marketplace, sdk repos

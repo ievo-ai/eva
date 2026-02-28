@@ -15,7 +15,7 @@
 | Term | Definition | Context |
 |------|-----------|---------|
 | EVO | Local agent self-correction skill embedded in every agent | Level 1 evolution |
-| Curator | Cross-agent learning system (Phase 3, planned) | Level 2 evolution |
+| Curator | Cross-agent pattern detection (`ievo-ai/curator`). Pipeline: COLLECT → ANALYZE → PROPOSE. 3 strategies: error class clustering, tag overlap, rule convergence | Level 2 evolution |
 | Eva | Meta-evolution of the entire platform | Level 3 evolution (me) |
 
 ## Signal Types

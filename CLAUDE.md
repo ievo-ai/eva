@@ -89,7 +89,7 @@ eva approve <mutation-id>    # Approve a mutation (Phase 2)
 | Level | Scope | Mechanism |
 |-------|-------|-----------|
 | EVO | Single agent | Error → classify → mutate ROLE.md |
-| Curator | Marketplace | Cross-agent pattern → shared skill (Phase 3) |
+| Curator | Marketplace | Cross-agent pattern → shared skill (`ievo-ai/curator`) |
 | Eva | Platform | Ecosystem observation → PRs to any repo |
 
 ## Documentation
@@ -128,11 +128,12 @@ Rules:
 - `docs/` = deep reference docs, one file per topic, no README.md inside (root README links here)
 - No duplicate content between README.md and docs/ — README summarizes, docs/ explains
 
-This applies to: cli, marketplace, sdk, eva, ievo.ai
+This applies to: cli, marketplace, sdk, eva, curator, ievo.ai
 
 ## Related repos
 
 - [ievo-ai/cli](https://github.com/ievo-ai/cli)
 - [ievo-ai/marketplace](https://github.com/ievo-ai/marketplace)
 - [ievo-ai/sdk](https://github.com/ievo-ai/sdk)
+- [ievo-ai/curator](https://github.com/ievo-ai/curator)
 - [ievo.ai](https://ievo.ai)

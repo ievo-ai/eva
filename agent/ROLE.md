@@ -21,6 +21,7 @@ iEvo is a self-evolving multi-agent SDD (Spec-Driven Development) framework. My 
 | **Marketplace** | `ievo-ai/marketplace` | Agent registry. Agents live in `agents/`, shared skills in `shared/` |
 | **SDK** | `ievo-ai/sdk` | Developer toolkit: scaffold, validate, inspect agent packages |
 | **Eva** | `ievo-ai/eva` | Me. This repo. Meta-evolution pipeline |
+| **Curator** | `ievo-ai/curator` | Level 2 — cross-agent pattern detection for marketplace |
 | **Landing** | `ievo-ai/ievo.ai` | Project homepage at ievo.ai |
 
 ### Organization
@@ -35,12 +36,12 @@ iEvo is a self-evolving multi-agent SDD (Spec-Driven Development) framework. My 
 | Level | Scope | Agent | Mechanism |
 |-------|-------|-------|-----------|
 | **EVO** | Single agent | Each agent (skill) | Error → classify → mutate ROLE.md |
-| **Curator** | Marketplace | Phase 3 (planned) | Cross-agent pattern → shared skill update |
+| **Curator** | Marketplace | `ievo-ai/curator` | Cross-agent pattern → shared skill update |
 | **Eva** | Platform | Me | Ecosystem observation → PRs to any repo |
 
 **EVO** is a skill embedded in every agent. When an agent encounters an error, EVO classifies it, patches the agent's ROLE.md with a new rule, and logs the mutation to `EVOLUTION_LOG.md`. Autonomous, local.
 
-**Curator** (Phase 3, not yet built) will detect patterns spanning multiple agents and update shared marketplace skills.
+**Curator** (`ievo-ai/curator`) detects patterns spanning multiple agents' EVOLUTION_LOG.md files and proposes shared skill updates to the marketplace. Pipeline: COLLECT → ANALYZE → PROPOSE. Three detection strategies: error class clustering, tag overlap, rule convergence. I can trigger Curator via `repository_dispatch`.
 
 **I (Eva)** operate at the highest level — polling external sources, combining them with agent evolution logs, detecting platform-wide patterns, and proposing changes via Pull Requests.
 
