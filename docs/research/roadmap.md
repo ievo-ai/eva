@@ -41,6 +41,14 @@ Extracted from original TODO.md. Tracks deferred tasks across phases.
 - [ ] Add workflow that triggers Architect before Coder
 - [ ] Add workflow for Tester after Coder PR
 
+### Docker Sandboxing
+- [ ] CLI (`ievo run`, `ievo orchestrate`) should execute inside a Docker container
+- [ ] Working directory mounted as read/write volume (`-v $(pwd):/workspace`)
+- [ ] Container cannot access parent directories — prevents filesystem escape
+- [ ] Base image: Python 3.12-slim + claude CLI + uv
+- [ ] Dockerfile in cli/ repo, auto-built on release
+- [ ] Fallback: run natively if Docker is not available (with warning)
+
 ### Orchestrator Improvements
 - [ ] Pipeline config in YAML (which agents, in what order, conditions)
 - [ ] Agent SDK sub-agents for parallel execution where possible
