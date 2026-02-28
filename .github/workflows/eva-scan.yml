@@ -1,6 +1,10 @@
 # Eva — scheduled scan
 # Runs on cron (every 6 hours) and manual trigger.
 # Uses Docker container for reproducible environment.
+#
+# Auth: supports both GitHub App (recommended) and PAT.
+#   GitHub App: set APP_ID + APP_PRIVATE_KEY secrets
+#   PAT: set EVA_GITHUB_TOKEN secret
 
 name: Eva Scan
 
@@ -41,12 +45,34 @@ jobs:
           ref: ${{ github.event.inputs.marketplace_ref || 'main' }}
           path: marketplace
 
+      # --- Auth: GitHub App (preferred) or PAT fallback ---
+      - name: Generate App token
+        if: ${{ vars.USE_GITHUB_APP == 'true' }}
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ievo-ai
+
+      - name: Set GitHub token
+        id: auth
+        run: |
+          if [ -n "${{ steps.app-token.outputs.token }}" ]; then
+            echo "token=${{ steps.app-token.outputs.token }}" >> $GITHUB_OUTPUT
+            echo "✓ Using GitHub App token"
+          else
+            echo "token=${{ secrets.EVA_GITHUB_TOKEN }}" >> $GITHUB_OUTPUT
+            echo "✓ Using PAT token"
+          fi
+
+      # --- Build & Run ---
       - name: Build Eva container
         run: docker build -t eva:local .
 
       - name: Run Eva scan
         env:
-          EVA_GITHUB_TOKEN: ${{ secrets.EVA_GITHUB_TOKEN }}
+          EVA_GITHUB_TOKEN: ${{ steps.auth.outputs.token }}
           EVA_SENTRY_TOKEN: ${{ secrets.EVA_SENTRY_TOKEN }}
         run: |
           DRY_RUN_FLAG=""
