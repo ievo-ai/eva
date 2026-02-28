@@ -84,15 +84,15 @@ jobs:
             -e EVA_GITHUB_TOKEN \
             -e EVA_SENTRY_TOKEN \
             -v ${{ github.workspace }}/marketplace:/app/marketplace:ro \
+            -v ${{ github.workspace }}/output:/app/output \
             eva:local \
-            scan --marketplace /app/marketplace $DRY_RUN_FLAG
+            scan --marketplace /app/marketplace --report /app/output/eva-report.json $DRY_RUN_FLAG
 
       - name: Upload scan results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: eva-scan-${{ github.run_number }}
-          path: |
-            eva-report.json
+          path: output/eva-report.json
           retention-days: 30
           if-no-files-found: ignore

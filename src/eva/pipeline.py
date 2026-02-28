@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 
 from rich.console import Console
@@ -144,6 +146,57 @@ class EvaPipeline:
 
         console.print(table)
         console.print()
+
+
+    def save_report(self, run: EvaRun, path: Path) -> None:
+        """Save run results to JSON report for CI artifacts."""
+        report = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "mode": "dry-run" if self.config.dry_run else "live",
+            "summary": {
+                "signals_collected": len(run.signals),
+                "patterns_detected": len(run.patterns),
+                "mutations_proposed": len(run.mutations),
+            },
+            "signals": [
+                {
+                    "id": s.id,
+                    "type": s.type.value,
+                    "source": s.source,
+                    "title": s.title,
+                    "severity": s.severity.value,
+                    "tags": s.tags,
+                }
+                for s in run.signals
+            ],
+            "patterns": [
+                {
+                    "id": p.id,
+                    "title": p.title,
+                    "confidence": round(p.confidence, 3),
+                    "severity": p.severity.value,
+                    "affected_repos": p.affected_repos,
+                    "signal_ids": p.signal_ids,
+                }
+                for p in run.patterns
+            ],
+            "mutations": [
+                {
+                    "id": m.id,
+                    "type": m.type.value,
+                    "title": m.title,
+                    "target_repo": m.target_repo,
+                    "target_path": m.target_path,
+                    "confidence": round(m.confidence, 3),
+                    "pattern_id": m.pattern_id,
+                    "pr_url": m.pr_url or None,
+                }
+                for m in run.mutations
+            ],
+        }
+
+        path.write_text(json.dumps(report, indent=2, ensure_ascii=False))
+        console.print(f"  [green]✓[/green] Report saved → {path}")
 
 
 def _severity_color(s) -> str:

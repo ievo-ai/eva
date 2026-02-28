@@ -46,7 +46,8 @@ def main(ctx: click.Context, version: bool) -> None:
 @click.option("--config", "-c", type=click.Path(), default="eva.yaml", help="Config file path.")
 @click.option("--marketplace", "-m", type=click.Path(), default=None, help="Marketplace dir.")
 @click.option("--dry-run/--live", default=True, help="Dry run mode (default: dry-run).")
-def scan(config: str, marketplace: str | None, dry_run: bool) -> None:
+@click.option("--report", "-r", type=click.Path(), default="eva-report.json", help="Report output path.")
+def scan(config: str, marketplace: str | None, dry_run: bool, report: str) -> None:
     """Run one observe → analyze → mutate cycle."""
     cfg = EvaConfig.load(Path(config))
     cfg.dry_run = dry_run
@@ -58,6 +59,7 @@ def scan(config: str, marketplace: str | None, dry_run: bool) -> None:
     pipeline = EvaPipeline(cfg, marketplace_dir=marketplace_dir)
     result = asyncio.run(pipeline.run())
     pipeline.print_summary(result)
+    pipeline.save_report(result, Path(report))
 
 
 @main.command()
