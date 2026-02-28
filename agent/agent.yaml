@@ -1,6 +1,7 @@
 name: eva
+display_name: "Eva — Meta-Evolution Mother Agent"
 version: 0.1.0
-description: "Meta-evolution Mother agent — observes, analyzes, and improves the iEvo platform"
+description: "Third level of iEvo evolution. Observes the entire platform (Sentry, GitHub Issues, PR reviews, agent evolution logs), detects patterns, and proposes targeted mutations as Pull Requests."
 author: "iEvo"
 license: MIT
 category: core
@@ -10,7 +11,19 @@ model:
   fallback: sonnet
   min_tier: sonnet
 
+tags:
+  - meta-evolution
+  - platform
+  - observability
+  - pattern-detection
+  - mutations
+
 dependencies: []
+
+hooks:
+  # on_install: null
+  # on_remove: null
+  # on_update: null
 
 disclosure:
   l1_meta: agent.yaml
@@ -20,3 +33,15 @@ disclosure:
     - memory/DECISIONS.md
     - memory/VOCABULARY.md
     - memory/HISTORY.md
+  l4_skills:
+    - skills/evo/SKILL.md
+
+docs:
+  readme: ../../README.md
+  reference: ../../docs/
+  architecture: ../../docs/architecture.md
+  pipeline: ../../docs/pipeline.md
+  sources: ../../docs/sources.md
+  configuration: ../../docs/configuration.md
+  deployment: ../../docs/deployment.md
+  safety: ../../docs/safety.md

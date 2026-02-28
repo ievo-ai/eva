@@ -130,6 +130,18 @@ The GitHub Actions workflows build and run the Docker container. Same image work
 - **Atomic changes** — one concern per mutation
 - **Bot loop prevention** — ignores issues from `github-actions[bot]`
 
+## Documentation
+
+Full technical documentation is in [`docs/`](docs/):
+
+- [Architecture](docs/architecture.md) — system design, evolution levels, domain models
+- [Pipeline](docs/pipeline.md) — OBSERVE → ANALYZE → MUTATE in detail
+- [Sources](docs/sources.md) — Sentry, GitHub Issues, Reviews, Evolution Logs
+- [Configuration](docs/configuration.md) — eva.yaml reference, env variables
+- [Deployment](docs/deployment.md) — GitHub Actions, Docker, cross-repo triggers
+- [Safety](docs/safety.md) — safety rules, confidence thresholds, failure modes
+- [GitHub App Setup](docs/GITHUB_APP_SETUP.md) — step-by-step auth setup
+
 ## Related
 
 - [ievo-ai/cli](https://github.com/ievo-ai/cli) — CLI tool

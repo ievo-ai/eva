@@ -92,6 +92,44 @@ eva approve <mutation-id>    # Approve a mutation (Phase 2)
 | Curator | Marketplace | Cross-agent pattern → shared skill (Phase 3) |
 | Eva | Platform | Ecosystem observation → PRs to any repo |
 
+## Documentation
+
+Detailed technical docs live in `docs/`:
+
+| File | Contents |
+|------|----------|
+| `docs/architecture.md` | System design, 3 evolution levels, domain models, project structure |
+| `docs/pipeline.md` | OBSERVE → ANALYZE → MUTATE phases, confidence formulas, dry-run vs live |
+| `docs/sources.md` | All 4 signal sources (Sentry, Issues, Reviews, Evo Logs), how to add new |
+| `docs/configuration.md` | eva.yaml reference, env variables, secrets |
+| `docs/deployment.md` | GitHub Actions, Docker, cross-repo triggers, live mode |
+| `docs/safety.md` | 8 safety rules, confidence thresholds, failure modes |
+| `docs/GITHUB_APP_SETUP.md` | Step-by-step GitHub App setup |
+
+Root `README.md` is the public-facing overview for GitHub. `docs/` is the full reference.
+
+## Documentation standard (all iEvo repos)
+
+Every ievo-ai/* repo MUST follow this structure:
+
+```
+repo/
+├── README.md          # Public overview (GitHub landing page)
+├── CLAUDE.md          # AI context (this file)
+└── docs/              # Detailed technical documentation
+    ├── architecture.md
+    ├── ...
+    └── (topic).md
+```
+
+Rules:
+- `README.md` = concise overview, install, quick start, links to docs/
+- `CLAUDE.md` = project context for AI agents, links to docs/
+- `docs/` = deep reference docs, one file per topic, no README.md inside (root README links here)
+- No duplicate content between README.md and docs/ — README summarizes, docs/ explains
+
+This applies to: cli, marketplace, sdk, eva, ievo.ai
+
 ## Related repos
 
 - [ievo-ai/cli](https://github.com/ievo-ai/cli)

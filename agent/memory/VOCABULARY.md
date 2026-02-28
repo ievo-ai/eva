@@ -1,11 +1,74 @@
 # Eva Vocabulary
 
+## Core Concepts
+
 | Term | Definition | Context |
 |------|-----------|---------|
-| Signal | Raw observation from a source (error, issue, review) | Input to Eva |
-| Pattern | Recurring theme detected across signals | Analysis output |
-| Mutation | Proposed concrete change to a file in a repo | Eva's output |
-| EVO | Local agent self-correction skill | Level 1 evolution |
-| Curator | Cross-agent learning (Phase 3) | Level 2 evolution |
-| Eva | Meta-evolution of the platform | Level 3 evolution |
+| Signal | Raw observation from a source (error, issue, review, log entry) | Input to Eva pipeline |
+| Pattern | Recurring theme detected across multiple signals | Analysis output |
+| Mutation | Proposed concrete change to a file in a repo, PR-ready | Eva's output |
+| Confidence | 0.0–1.0 score indicating strength of evidence for a pattern | Threshold: 30% |
 | Dry-run | Mode where mutations are proposed but no PRs created | Default safe mode |
+
+## Evolution Levels
+
+| Term | Definition | Context |
+|------|-----------|---------|
+| EVO | Local agent self-correction skill embedded in every agent | Level 1 evolution |
+| Curator | Cross-agent learning system (Phase 3, planned) | Level 2 evolution |
+| Eva | Meta-evolution of the entire platform | Level 3 evolution (me) |
+
+## Signal Types
+
+| Term | Definition | Source |
+|------|-----------|-------|
+| `sentry_error` | Runtime error tracked in Sentry | SentrySource |
+| `github_issue` | Bug report or feature request on GitHub | GitHubIssuesSource |
+| `user_review` | User feedback or review | ReviewsSource |
+| `evolution_log` | Agent self-correction entry from EVOLUTION_LOG.md | EvolutionLogsSource |
+| `pr_comment` | Code review comment on a Pull Request | ReviewsSource |
+
+## Mutation Types
+
+| Term | Definition | Target |
+|------|-----------|-------|
+| `ROLE_PATCH` | Update agent instructions | `agents/*/ROLE.md` |
+| `SKILL_PATCH` | Update agent or shared skill | `agents/*/skills/` or `shared/skills/` |
+| `MEMORY_UPDATE` | Update agent memory/context | `agents/*/memory/CONTEXT.md` |
+| `REGISTRY_UPDATE` | Update marketplace index | `registry.yaml` |
+| `CONFIG_PATCH` | Update platform configuration | Platform config files |
+| `NEW_AGENT` | Propose creation of a new agent | `agents/new-agent/` |
+| `DEPRECATE` | Mark an agent or skill for deprecation | Agent package |
+
+## Detection Strategies
+
+| Term | Definition | Trigger |
+|------|-----------|---------|
+| Frequency | Same error/issue title appearing repeatedly | ≥2 signals with similar title |
+| Cross-agent | Same tag/issue across different agents/repos | ≥2 agents sharing a tag |
+| Escalation | Severity trending upward over time | ≥2 level jump in recent signals |
+
+## Platform Terms
+
+| Term | Definition | Context |
+|------|-----------|---------|
+| SDD | Spec-Driven Development — iEvo's core methodology | Agent workflow |
+| Agent package | Standard directory structure for an iEvo agent | `agent.yaml` + `ROLE.md` + `memory/` + `skills/` |
+| Marketplace | Registry of available agents | `ievo-ai/marketplace` repo |
+| TUI | Terminal User Interface — Textual-based dashboard | `ievo` command without args |
+| Scaffold | Generate new agent package from templates | `ievo-sdk new {name}` |
+
+## Infrastructure
+
+| Term | Definition | Context |
+|------|-----------|---------|
+| GitHub App | `ievo-eva` — dedicated app for Eva's GitHub auth | Recommended auth method |
+| PAT | Personal Access Token — fallback auth | `EVA_GITHUB_TOKEN` |
+| `repository_dispatch` | GitHub event for cross-repo workflow triggers | Used by `notify-eva.yml` |
+| `USE_GITHUB_APP` | Repo variable that switches auth mode | `true` = App, `false` = PAT |
+
+## People
+
+| Name | Role | Contact |
+|------|------|---------|
+| Denis | Creator, founder of 27Tech / Amplifier.AI | denis@27tech.co |
