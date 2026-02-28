@@ -10,8 +10,11 @@ import click
 from rich.console import Console
 from rich.panel import Panel
 
+import sentry_sdk
+
 from eva import __version__
 from eva.core.config import EvaConfig
+from eva.telemetry import init_sentry, capture_scan_context
 
 console = Console()
 
@@ -29,6 +32,9 @@ LOGO = r"""[bold magenta]
 @click.pass_context
 def main(ctx: click.Context, version: bool) -> None:
     """Eva — meta-evolution Mother agent for iEvo."""
+    # Initialize Sentry early (silent if DSN not set)
+    init_sentry()
+
     if version:
         console.print(f"eva {__version__}")
         return
@@ -57,9 +63,28 @@ def scan(config: str, marketplace: str | None, dry_run: bool, report: str) -> No
     from eva.pipeline import EvaPipeline
 
     pipeline = EvaPipeline(cfg, marketplace_dir=marketplace_dir)
-    result = asyncio.run(pipeline.run())
-    pipeline.print_summary(result)
-    pipeline.save_report(result, Path(report))
+
+    try:
+        with sentry_sdk.start_transaction(op="eva.scan", name="Eva Scan"):
+            sentry_sdk.set_tag("mode", "dry-run" if dry_run else "live")
+            result = asyncio.run(pipeline.run())
+
+            # Report scan metrics to Sentry context
+            capture_scan_context(
+                mode="dry-run" if dry_run else "live",
+                signals=len(result.signals),
+                patterns=len(result.patterns),
+                mutations=len(result.mutations),
+                prs_created=sum(1 for r in result.pr_results if r.success),
+            )
+
+        pipeline.print_summary(result)
+        pipeline.save_report(result, Path(report))
+
+    except Exception as e:
+        sentry_sdk.capture_exception(e)
+        console.print(f"\n[red bold]Eva scan failed:[/red bold] {e}")
+        raise
 
 
 @main.command()

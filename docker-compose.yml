@@ -1,45 +1,80 @@
-# Self-hosted Eva deployment
-# Usage:
-#   cp .env.example .env   # fill in tokens
-#   docker compose up -d   # start Eva on cron
-#   docker compose logs -f  # watch logs
+# Eva — local Docker Compose
+#
+# Quick start:
+#   cp .env.example .env            # fill in tokens
+#   git clone https://github.com/ievo-ai/marketplace ../marketplace
+#
+# Commands:
+#   docker compose run --rm eva-scan       # dry-run (safe, no PRs)
+#   docker compose run --rm eva-live       # live mode (creates PRs + publishes evolutions)
+#   docker compose run --rm eva-status     # show status & source health
+#
+# Env vars (.env):
+#   EVA_GITHUB_TOKEN  — GitHub PAT or App token (required)
+#   EVA_SENTRY_TOKEN  — Sentry auth token for reading issues (optional)
+#   EVA_SENTRY_DSN    — Sentry DSN for Eva's own error reporting (optional)
+#   MARKETPLACE_DIR   — path to marketplace repo (default: ../marketplace)
 
 services:
-  eva:
+  # ── Dry-run scan (safe, no PRs) ────────────────────────
+  eva-scan:
     build: .
-    container_name: eva
-    restart: unless-stopped
-    environment:
-      - EVA_GITHUB_TOKEN=${EVA_GITHUB_TOKEN}
-      - EVA_SENTRY_TOKEN=${EVA_SENTRY_TOKEN:-}
-      - EVA_CONFIG=/app/eva.yaml
+    container_name: eva-scan
+    env_file: .env
     volumes:
       - ./eva.yaml:/app/eva.yaml:ro
-      - eva-cache:/app/.eva_cache
-    # Run scan every 6 hours via cron-like entrypoint
-    command: ["scan", "--marketplace", "/app/marketplace"]
+      - ./output:/app/output
+      - ${MARKETPLACE_DIR:-../marketplace}:/app/marketplace:ro
+    command:
+      - scan
+      - --config=/app/eva.yaml
+      - --marketplace=/app/marketplace
+      - --report=/app/output/eva-report.json
 
-  # Optional: cron scheduler wrapping Eva
-  # Uncomment to run on schedule instead of one-shot
+  # ── Live mode (creates PRs + publishes evolutions) ─────
+  eva-live:
+    build: .
+    container_name: eva-live
+    env_file: .env
+    volumes:
+      - ./eva.yaml:/app/eva.yaml:ro
+      - ./output:/app/output
+      - ${MARKETPLACE_DIR:-../marketplace}:/app/marketplace:ro
+    command:
+      - scan
+      - --config=/app/eva.yaml
+      - --marketplace=/app/marketplace
+      - --report=/app/output/eva-report.json
+      - --live
+
+  # ── Status check ───────────────────────────────────────
+  eva-status:
+    build: .
+    container_name: eva-status
+    env_file: .env
+    volumes:
+      - ./eva.yaml:/app/eva.yaml:ro
+    command:
+      - status
+      - --config=/app/eva.yaml
+
+  # ── Scheduled scan (cron-like loop, opt-in) ────────────
+  # Uncomment to run Eva on a 6-hour loop.
   # eva-cron:
   #   build: .
   #   container_name: eva-cron
   #   restart: unless-stopped
+  #   env_file: .env
   #   entrypoint: ["/bin/sh", "-c"]
   #   command:
   #     - |
   #       while true; do
   #         echo "=== Eva scan: $$(date) ==="
-  #         eva scan
+  #         eva scan --config=/app/eva.yaml --marketplace=/app/marketplace --report=/app/output/eva-report.json
   #         echo "=== Sleeping 6h ==="
   #         sleep 21600
   #       done
-  #   environment:
-  #     - EVA_GITHUB_TOKEN=${EVA_GITHUB_TOKEN}
-  #     - EVA_SENTRY_TOKEN=${EVA_SENTRY_TOKEN:-}
   #   volumes:
   #     - ./eva.yaml:/app/eva.yaml:ro
-  #     - eva-cache:/app/.eva_cache
-
-volumes:
-  eva-cache:
+  #     - ./output:/app/output
+  #     - ${MARKETPLACE_DIR:-../marketplace}:/app/marketplace:ro

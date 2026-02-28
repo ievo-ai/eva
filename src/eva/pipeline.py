@@ -19,6 +19,8 @@ from eva.sources.evolution_logs import EvolutionLogsSource
 from eva.sources.reviews import ReviewsSource
 from eva.analysis.detector import PatternDetector
 from eva.mutations.engine import MutationEngine
+from eva.github.pr_creator import PRCreator, PRCreationResult
+from eva.github.evolution_publisher import EvolutionPublisher
 
 console = Console()
 
@@ -30,6 +32,7 @@ class EvaRun:
     signals: list[Signal] = field(default_factory=list)
     patterns: list[Pattern] = field(default_factory=list)
     mutations: list[Mutation] = field(default_factory=list)
+    pr_results: list[PRCreationResult] = field(default_factory=list)
 
 
 class EvaPipeline:
@@ -121,14 +124,43 @@ class EvaPipeline:
         result.mutations = self.mutator.generate(result.patterns)
         console.print(f"  Mutations proposed: {len(result.mutations)}")
 
-        if self.config.dry_run:
-            console.print("  [yellow]⚠ DRY RUN — no PRs created[/yellow]")
-
         for m in result.mutations:
             console.print(
                 f"  [bold]{m.id}[/bold] [{m.type.value}] {m.title[:60]} "
                 f"[dim]→ {m.target_repo}[/dim]"
             )
+
+        # Phase 4: Create PRs (live mode only)
+        if self.config.dry_run:
+            console.print("  [yellow]⚠ DRY RUN — no PRs created[/yellow]")
+        elif result.mutations:
+            console.print("\n[bold cyan]Phase 4: Create PRs[/bold cyan]")
+            try:
+                pr_creator = PRCreator()
+                result.pr_results = await pr_creator.create_all(result.mutations)
+
+                created = sum(1 for r in result.pr_results if r.success)
+                failed = sum(1 for r in result.pr_results if not r.success)
+
+                if created:
+                    console.print(f"  [green]✓ {created} PR(s) created[/green]")
+                if failed:
+                    console.print(f"  [red]✗ {failed} PR(s) failed[/red]")
+
+            except ValueError as e:
+                console.print(f"  [red]✗ Cannot create PRs: {e}[/red]")
+                console.print("  [dim]Set EVA_GITHUB_TOKEN to enable live mode.[/dim]")
+
+            # Phase 5: Publish evolutions to ievo.ai
+            if any(r.success for r in result.pr_results):
+                console.print("\n[bold cyan]Phase 5: Publish Evolutions[/bold cyan]")
+                try:
+                    publisher = EvolutionPublisher()
+                    count = await publisher.publish(result.mutations)
+                    if count:
+                        console.print(f"  [green]✓[/green] {count} evolution(s) published to ievo.ai")
+                except Exception as e:
+                    console.print(f"  [yellow]⚠[/yellow] Evolution publish skipped: {e}")
 
         return result
 
@@ -142,6 +174,9 @@ class EvaPipeline:
         table.add_row("Signals collected", str(len(run.signals)))
         table.add_row("Patterns detected", str(len(run.patterns)))
         table.add_row("Mutations proposed", str(len(run.mutations)))
+        if run.pr_results:
+            created = sum(1 for r in run.pr_results if r.success)
+            table.add_row("PRs created", f"[green]{created}[/green] / {len(run.pr_results)}")
         table.add_row("Mode", "[yellow]dry-run[/yellow]" if self.config.dry_run else "[green]live[/green]")
 
         console.print(table)
@@ -157,6 +192,8 @@ class EvaPipeline:
                 "signals_collected": len(run.signals),
                 "patterns_detected": len(run.patterns),
                 "mutations_proposed": len(run.mutations),
+                "prs_created": sum(1 for r in run.pr_results if r.success),
+                "prs_failed": sum(1 for r in run.pr_results if not r.success),
             },
             "signals": [
                 {

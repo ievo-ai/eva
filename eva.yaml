@@ -10,9 +10,13 @@ repos:
 
 sources:
   sentry:
-    enabled: false
-    # org: your-sentry-org
-    # project: your-project
+    enabled: true
+    extra:
+      org: ievo
+      projects:
+        cli: cli
+        sdk: sdk
+        eva: eva
   github_issues:
     enabled: true
   reviews:

@@ -25,9 +25,9 @@ on:
         default: "main"
 
 permissions:
-  contents: read
+  contents: write
   issues: read
-  pull-requests: read
+  pull-requests: write
 
 jobs:
   scan:
@@ -74,6 +74,8 @@ jobs:
         env:
           EVA_GITHUB_TOKEN: ${{ steps.auth.outputs.token }}
           EVA_SENTRY_TOKEN: ${{ secrets.EVA_SENTRY_TOKEN }}
+          EVA_SENTRY_DSN: ${{ secrets.EVA_SENTRY_DSN }}
+          EVA_ENVIRONMENT: production
         run: |
           DRY_RUN_FLAG=""
           if [ "${{ github.event.inputs.dry_run }}" = "false" ]; then
@@ -83,6 +85,8 @@ jobs:
           docker run --rm \
             -e EVA_GITHUB_TOKEN \
             -e EVA_SENTRY_TOKEN \
+            -e EVA_SENTRY_DSN \
+            -e EVA_ENVIRONMENT \
             -v ${{ github.workspace }}/marketplace:/app/marketplace:ro \
             -v ${{ github.workspace }}/output:/app/output \
             eva:local \
