@@ -1,37 +1,38 @@
-# Настройка GitHub App для Eva
+![ievo-eva](ievo-eva-logo.png)
 
-## Зачем GitHub App, а не PAT?
+# GitHub App Setup for Eva
+## Why GitHub App instead of PAT?
 
-- Не привязан к человеку (не сломается при уходе из команды)
-- Отдельный identity: коммиты от `ievo-eva[bot]`
-- Гранулярные permissions (только то, что нужно)
-- Не занимает seat в организации
-- Rate limit выше чем у PAT (5000 → 15000 req/h)
+- Not tied to a person (won't break when someone leaves the team)
+- Separate identity: commits from `ievo-eva[bot]`
+- Granular permissions (only what's needed)
+- Doesn't occupy a seat in the organization
+- Higher rate limit than PAT (5000 → 15000 req/h)
 
 ---
 
-## Шаг 1: Создать App
+## Step 1: Create the App
 
-1. Открой: https://github.com/organizations/ievo-ai/settings/apps/new
-   (или GitHub → ievo-ai → Settings → Developer settings → GitHub Apps → New)
+1. Open: https://github.com/organizations/ievo-ai/settings/apps/new
+   (or GitHub → ievo-ai → Settings → Developer settings → GitHub Apps → New)
 
-2. Заполни:
+2. Fill in:
 
-| Поле | Значение |
-|------|----------|
+| Field | Value |
+|-------|-------|
 | **App name** | `ievo-eva` |
 | **Description** | Meta-evolution Mother agent for iEvo platform |
 | **Homepage URL** | `https://ievo.ai` |
-| **Webhook** | ❌ Убери галку "Active" (Eva сама поллит, не нужен webhook) |
+| **Webhook** | ❌ Uncheck "Active" (Eva polls on its own, no webhook needed) |
 
 3. **Permissions** (Repository permissions):
 
-| Permission | Access | Зачем |
-|-----------|--------|-------|
-| **Issues** | Read | Читать issues для анализа |
-| **Pull requests** | Read & Write | Читать PR comments + создавать PR |
-| **Contents** | Read & Write | Читать файлы + пушить ветки для PR |
-| **Metadata** | Read | Базовая инфо о репо (автоматически) |
+| Permission | Access | Why |
+|-----------|--------|-----|
+| **Issues** | Read | Read issues for analysis |
+| **Pull requests** | Read & Write | Read PR comments + create PRs |
+| **Contents** | Read & Write | Read files + push branches for PRs |
+| **Metadata** | Read | Basic repo info (automatic) |
 
 4. **Where can this app be installed?** → Only on this account
 
@@ -39,20 +40,20 @@
 
 ---
 
-## Шаг 2: Сгенерировать Private Key
+## Step 2: Generate Private Key
 
-1. После создания → в настройках App
-2. Прокрутить до **Private keys**
-3. **Generate a private key** → скачается `.pem` файл
-4. Сохрани его в безопасное место
+1. After creation → go to App settings
+2. Scroll down to **Private keys**
+3. **Generate a private key** → a `.pem` file will be downloaded
+4. Store it in a safe location
 
 ---
 
-## Шаг 3: Установить App на репозитории
+## Step 3: Install App on repositories
 
-1. В настройках App → **Install App** (левая панель)
-2. Выбрать организацию **ievo-ai**
-3. **Only select repositories** → выбрать:
+1. In App settings → **Install App** (left panel)
+2. Select organization **ievo-ai**
+3. **Only select repositories** → select:
    - `cli`
    - `marketplace`
    - `sdk`
@@ -62,28 +63,28 @@
 
 ---
 
-## Шаг 4: Получить Installation Token
+## Step 4: Obtain Installation Token
 
-GitHub App аутентифицируется через JWT → Installation Token.
-Для GitHub Actions это проще всего через action:
+GitHub App authenticates via JWT → Installation Token.
+For GitHub Actions the easiest way is through an action:
 
-### В GitHub Actions (рекомендуемый способ)
+### GitHub Actions (recommended)
 
-Добавить секреты в `ievo-ai/eva` → Settings → Secrets → Actions:
+Add secrets to `ievo-ai/eva` → Settings → Secrets → Actions:
 
-| Secret | Значение |
-|--------|----------|
-| `APP_ID` | ID приложения (видно на странице App) |
-| `APP_PRIVATE_KEY` | Содержимое `.pem` файла |
+| Secret | Value |
+|--------|-------|
+| `APP_ID` | App ID (visible on the App page) |
+| `APP_PRIVATE_KEY` | Contents of the `.pem` file |
 
-Затем обновить workflows — заменить PAT на App token:
+Then update workflows — replace PAT with App token:
 
 ```yaml
-# Вместо:
+# Instead of:
 # env:
 #   EVA_GITHUB_TOKEN: ${{ secrets.EVA_GITHUB_TOKEN }}
 
-# Используем:
+# Use:
 - name: Generate token
   id: app-token
   uses: actions/create-github-app-token@v1
@@ -99,15 +100,15 @@ GitHub App аутентифицируется через JWT → Installation To
     docker run --rm -e EVA_GITHUB_TOKEN eva:local scan
 ```
 
-### Для локального тестирования / self-hosted
+### Local testing / self-hosted
 
-Можно сгенерировать токен через скрипт:
+You can generate the token via a script:
 
 ```bash
-# Установить
+# Install
 pip install PyJWT cryptography
 
-# Сгенерировать (см. scripts/generate-app-token.py)
+# Generate (see scripts/generate-app-token.py)
 python scripts/generate-app-token.py \
   --app-id 123456 \
   --private-key path/to/key.pem \
@@ -116,13 +117,13 @@ python scripts/generate-app-token.py \
 
 ---
 
-## Шаг 5: Обновить секреты
+## Step 5: Update secrets
 
-### Для GitHub Actions
-- Удалить: `EVA_GITHUB_TOKEN`
-- Добавить: `APP_ID`, `APP_PRIVATE_KEY`
+### For GitHub Actions
+- Remove: `EVA_GITHUB_TOKEN`
+- Add: `APP_ID`, `APP_PRIVATE_KEY`
 
-### Для self-hosted Docker
+### For self-hosted Docker
 ```env
 # .env
 EVA_APP_ID=123456
@@ -131,27 +132,27 @@ EVA_APP_PRIVATE_KEY_PATH=/path/to/key.pem
 
 ---
 
-## Проверка
+## Verification
 
 ```bash
-# В Actions: запусти workflow вручную
-# В Eva логах должно быть:
+# In Actions: trigger the workflow manually
+# Eva logs should show:
 #   ✓ github_issues: N signals
-#   (не 401/403 ошибки)
+#   (no 401/403 errors)
 ```
 
 ---
 
-## Quick start (PAT для быстрого тестирования)
+## Quick start (PAT for quick testing)
 
-Если хочешь начать быстро, можно пока использовать Fine-grained PAT:
+If you want to get started quickly, you can use a Fine-grained PAT for now:
 
 1. https://github.com/settings/tokens?type=beta
 2. **Token name**: `eva-test`
 3. **Resource owner**: `ievo-ai`
-4. **Repository access**: Only select → все ievo repos
+4. **Repository access**: Only select → all ievo repos
 5. **Permissions**: Issues (read), Pull requests (read), Contents (read)
 6. **Generate token**
-7. Добавить в секреты как `EVA_GITHUB_TOKEN`
+7. Add to secrets as `EVA_GITHUB_TOKEN`
 
-Потом перейти на GitHub App когда всё заработает.
+Switch to GitHub App once everything is working.
