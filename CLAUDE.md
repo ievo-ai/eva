@@ -44,7 +44,7 @@ Third level of iEvo evolution. Observes platform → detects patterns → propos
 ## Project
 
 - **Name**: ievo-eva
-- **Language**: Python 3.10+
+- **Language**: Python 3.13+
 - **Framework**: Click (CLI) + httpx (async sources) + Rich (output)
 - **Package manager**: uv (hatchling build)
 - **Entry point**: `eva` → `src/eva/cli.py`
