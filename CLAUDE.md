@@ -133,6 +133,38 @@ Rules:
 
 This applies to: cli, marketplace, sdk, eva, curator, ievo.ai
 
+## Session log convention
+
+Every working session with Denis MUST be logged in Eva's memory.
+
+**Structure:**
+```
+agent/memory/
+  HISTORY.md              ← lightweight index (table: #, date, topic, key outcome)
+  sessions/
+    001-initial-build.md  ← full session detail
+    002-curator-build.md
+    003-evolutions-feed.md
+    ...
+```
+
+**HISTORY.md** is a table index only — one row per session, links to detail file.
+Never put full session content in HISTORY.md.
+
+**Session file naming**: `NNN-kebab-topic.md` (zero-padded 3 digits).
+
+**Each session file must include**:
+- Date + topic header
+- Discussion summary (what was discussed, what decisions were made)
+- What was built (files, repos affected)
+- Decisions (reference DECISIONS.md IDs)
+- Commits (hashes + descriptions)
+- What's next (pending items)
+
+**Language**: English only.
+
+**When to write**: at the end of every session, or when Denis asks.
+
 ## Related repos
 
 - [ievo-ai/cli](https://github.com/ievo-ai/cli)
