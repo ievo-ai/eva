@@ -1,0 +1,22 @@
+name: eva
+version: 0.1.0
+description: "Meta-evolution Mother agent — observes, analyzes, and improves the iEvo platform"
+author: "iEvo"
+license: MIT
+category: core
+
+model:
+  primary: opus
+  fallback: sonnet
+  min_tier: sonnet
+
+dependencies: []
+
+disclosure:
+  l1_meta: agent.yaml
+  l2_instructions: ROLE.md
+  l3_resources:
+    - memory/CONTEXT.md
+    - memory/DECISIONS.md
+    - memory/VOCABULARY.md
+    - memory/HISTORY.md
