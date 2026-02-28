@@ -1,3 +1,42 @@
+# iEvo — Global Project Context
+
+Eva is the mother repo for the iEvo ecosystem. This CLAUDE.md contains both global project context and Eva-specific details.
+
+## iEvo Ecosystem
+
+| Repo | Purpose | Key Files |
+|------|---------|-----------|
+| **eva** (this) | Mother repo, platform-level evolution | src/eva/, agent/, docs/ |
+| **cli** | `ievo` CLI + TUI dashboard | src/ievo/commands/, src/ievo/tui/ |
+| **marketplace** | Agent registry (spec-writer, architect, coder) | agents/*/ROLE.md, registry.yaml |
+| **sdk** | Agent development kit | src/ievo_sdk/scaffold/ |
+| **curator** | Cross-agent pattern curator | src/curator/pipeline.py |
+| **ievo.ai** | Landing page | docs/index.html |
+
+## SDD Pipeline
+
+```
+User → Spec Writer → REQ-xxx.md → Architect → PLAN-REQ-xxx.md → Coder → code + tests (TDD)
+```
+
+Key concepts:
+- **Atomic REQs**: 3-7 testable acceptance criteria each
+- **Priority scoring**: formula in PRIORITY.md, agents auto-select highest-value task
+- **Change Requests**: modifications with impact analysis + cascade safety
+- **3-tier evolution**: EVO (local) → Curator (cross-agent) → Eva (platform)
+- **Persistent memory**: agents maintain CONTEXT, DECISIONS, VOCABULARY, HISTORY across sessions
+
+## Global Docs (in this repo)
+
+| File | Contents |
+|------|----------|
+| `docs/global-architecture.md` | Full iEvo system design (ADR) |
+| `docs/research/competitive-analysis.md` | 8 competing frameworks analysis |
+| `docs/research/roadmap.md` | Phase 2-4 plans and deferred tasks |
+| `docs/getting-started.md` | First Spec Writer session guide |
+
+---
+
 # Eva — Meta-Evolution Mother Agent
 
 Third level of iEvo evolution. Observes platform → detects patterns → proposes mutations.

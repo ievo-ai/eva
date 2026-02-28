@@ -1,10 +1,70 @@
-# Eva — Meta-Evolution Mother Agent
+# iEvo — Self-Evolving AI Agent Framework
 
-Eva is the third level of evolution in the iEvo ecosystem. She observes the entire platform — Sentry errors, GitHub issues, user reviews, agent evolution logs — and proposes targeted improvements as Pull Requests.
+A multi-agent Spec-Driven Development (SDD) framework where AI agents write specs, plan architecture, implement code via strict TDD, and evolve from their mistakes.
+
+Eva is the mother repo — she hosts global documentation and the platform-level evolution engine.
+
+## iEvo Ecosystem
+
+| Repo | Purpose | Status |
+|------|---------|--------|
+| **eva** (this repo) | Mother repo + platform-level evolution | Phase 1 |
+| **cli** | `ievo` CLI + TUI dashboard (Typer/Rich/Textual) | Phase 1 |
+| **marketplace** | Agent registry — spec-writer, architect, coder | Phase 1 |
+| **sdk** | Agent development kit (scaffold, test, publish) | Phase 1 |
+| **curator** | Cross-agent pattern curator | Phase 1 |
+| **ievo.ai** | Landing page | Phase 1 |
+
+## Quick Start
+
+```bash
+pip install ievo-cli
+ievo init my-project && cd my-project
+ievo add spec-writer architect coder
+ievo run spec-writer -m "Let's design a REST API for user management"
+ievo orchestrate --max 5 --agent coder
+```
+
+## Agent Pipeline
+
+```
+User (Product Owner)
+  ↓ free-form description
+Spec Writer → REQ-xxx.md (atomic requirements)
+  ↓ human reviews & approves
+Architect → PLAN-REQ-xxx.md (implementation plan)
+  ↓
+Coder → code + tests (strict TDD)
+  ↓
+Tester → integration/acceptance (Phase 2)
+  ↓
+Reviewer → code quality (Phase 4)
+```
+
+## 3-Tier Evolution
 
 ```
 EVO (local) → Curator (collective) → Eva (meta/platform)
 ```
+
+| Level | Scope | Mechanism |
+|-------|-------|-----------|
+| EVO | Single agent | Error → classify → mutate ROLE.md |
+| Curator | Marketplace | Cross-agent pattern → shared skill |
+| Eva | Platform | Ecosystem observation → PRs to any repo |
+
+## Global Docs
+
+- [Global Architecture](docs/global-architecture.md) — full iEvo system design
+- [Competitive Analysis](docs/research/competitive-analysis.md) — 8 competing frameworks
+- [Roadmap](docs/research/roadmap.md) — Phase 2-4 plans
+- [Getting Started](docs/getting-started.md) — first Spec Writer session guide
+
+---
+
+# Eva — Meta-Evolution Engine
+
+Eva is the third level of evolution in the iEvo ecosystem. She observes the entire platform — Sentry errors, GitHub issues, user reviews, agent evolution logs — and proposes targeted improvements as Pull Requests.
 
 ## Pipeline
 

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 220" fill="none">
+  <style>
+    text { font-family: 'SF Mono', 'Fira Code', 'Cascadia Mono', Consolas, monospace; fill: #4ade80; }
+    .glow { filter: drop-shadow(0 0 8px rgba(74,222,128,0.3)) drop-shadow(0 0 20px rgba(74,222,128,0.1)); }
+  </style>
+  <g class="glow">
+    <text x="40" y="40"  font-size="26" font-weight="bold">      ███████╗██╗   ██╗ ██████╗ </text>
+    <text x="40" y="70"  font-size="26" font-weight="bold">  ██╗ ██╔════╝██║   ██║██╔═══██╗</text>
+    <text x="40" y="100" font-size="26" font-weight="bold">  ██║ █████╗  ██║   ██║██║   ██║</text>
+    <text x="40" y="130" font-size="26" font-weight="bold">  ██║ ██╔══╝  ╚██╗ ██╔╝██║   ██║</text>
+    <text x="40" y="160" font-size="26" font-weight="bold">  ██║ ███████╗ ╚████╔╝ ╚██████╔╝</text>
+    <text x="40" y="190" font-size="26" font-weight="bold">  ╚═╝ ╚══════╝  ╚═══╝   ╚═════╝ </text>
+  </g>
+</svg>
