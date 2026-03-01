@@ -237,3 +237,36 @@ class TestNotifyTelegram:
         # Should not raise — just skips Telegram
         count = await publisher.publish_entries([_make_entry()])
         assert count == 1
+
+    @pytest.mark.asyncio
+    async def test_sends_to_evolutions_topic(self):
+        mock_tg = AsyncMock()
+        mock_tg.send_message.return_value = TelegramResult(success=True, message_id=55)
+
+        with patch.dict("os.environ", {"TELEGRAM_EVOLUTIONS_TOPIC": "10"}):
+            publisher = EvolutionPublisher(token="test", telegram=mock_tg)
+
+        mock_client = publisher._client
+        mock_client.get_file_content = AsyncMock(return_value=None)
+        mock_client.create_or_update_file = AsyncMock()
+
+        await publisher.publish_entries([_make_entry()])
+        call_kwargs = mock_tg.send_message.call_args[1]
+        assert call_kwargs["message_thread_id"] == 10
+
+    @pytest.mark.asyncio
+    async def test_no_topic_env_sends_without_thread(self):
+        mock_tg = AsyncMock()
+        mock_tg.send_message.return_value = TelegramResult(success=True, message_id=56)
+
+        with patch.dict("os.environ", {}, clear=False):
+            publisher = EvolutionPublisher(token="test", telegram=mock_tg)
+            publisher._evolutions_topic = None
+
+        mock_client = publisher._client
+        mock_client.get_file_content = AsyncMock(return_value=None)
+        mock_client.create_or_update_file = AsyncMock()
+
+        await publisher.publish_entries([_make_entry()])
+        call_kwargs = mock_tg.send_message.call_args[1]
+        assert call_kwargs["message_thread_id"] is None

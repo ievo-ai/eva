@@ -38,6 +38,8 @@ class EvolutionPublisher:
             raise ValueError("No token for evolution publishing. Set EVA_GITHUB_TOKEN.")
         self._client = GitHubClient(self._token)
         self._telegram = telegram
+        topic_env = os.environ.get("TELEGRAM_EVOLUTIONS_TOPIC", "")
+        self._evolutions_topic: int | None = int(topic_env) if topic_env else None
 
     async def publish(self, mutations: list[Mutation]) -> int:
         """Publish successful mutations as evolution entries.
@@ -121,9 +123,11 @@ class EvolutionPublisher:
         if not self._telegram:
             return
 
+        topic_id = self._evolutions_topic
+
         for entry in entries:
             msg = format_telegram_message(entry)
-            result = await self._telegram.send_message(msg)
+            result = await self._telegram.send_message(msg, message_thread_id=topic_id)
             if result.success:
                 console.print(f"  [green]\u2713[/green] Telegram: {entry.id}")
             else:
