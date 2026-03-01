@@ -39,3 +39,5 @@
 | D-035 | 2026-03-01 | LF line endings enforced via .gitattributes | Eliminates CRLF warnings, consistent across platforms | Active |
 | D-036 | 2026-03-01 | Machine user @ievo for GitHub (pending) | Real assignee support; email ievo@ievo.ai; issue #2 tracks | Pending |
 | D-037 | 2026-03-01 | New repos must include .gitattributes from first commit | Prevent CRLF accumulation over project lifecycle | Active |
+| D-038 | 2026-03-01 | Children symlinks in .claude/children/ (not agent/) | .claude/ is Claude Code's directory, natural discovery | Active |
+| D-039 | 2026-03-01 | Symlinks local-only, gitignored | Never commit symlinks — machine-specific paths | Active |
