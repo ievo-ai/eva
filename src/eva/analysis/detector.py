@@ -1,11 +1,9 @@
 """Pattern detection — finds recurring themes across signals."""
 
-from __future__ import annotations
-
 from collections import defaultdict
 from dataclasses import dataclass, field
 
-from eva.core.models import Pattern, Signal, Severity
+from eva.core.models import Pattern, Severity, Signal
 
 
 @dataclass
@@ -134,7 +132,9 @@ class PatternDetector:
             p = Pattern(
                 id=pid,
                 title=f"Cross-agent issue: {tag}",
-                description=f"Tag '{tag}' appears in {len(agents)} agents: {', '.join(sorted(agents))}",
+                description=(
+                    f"Tag '{tag}' appears in {len(agents)} agents: {', '.join(sorted(agents))}"
+                ),
                 signal_ids=[s.id for s in group],
                 frequency=len(group),
                 severity=Severity.HIGH,
@@ -169,13 +169,17 @@ class PatternDetector:
                     p = Pattern(
                         id=pid,
                         title=f"Escalating issues in {agent}",
-                        description=f"Severity trending up: {' → '.join(s.severity.value for s in recent)}",
+                        description=(
+                            f"Severity trending up: {' → '.join(s.severity.value for s in recent)}"
+                        ),
                         signal_ids=[s.id for s in recent],
                         frequency=len(recent),
                         severity=Severity.CRITICAL,
                         affected_agents=[agent],
                         confidence=min(0.5 + trend_delta * 0.1, 0.9),
-                        suggested_action=f"Investigate root cause in {agent} — issues getting worse",
+                        suggested_action=(
+                            f"Investigate root cause in {agent} — issues getting worse"
+                        ),
                     )
                     self._patterns[pid] = p
                     patterns.append(p)

@@ -1,7 +1,7 @@
 """Tests for mutation engine."""
 
+from eva.core.models import MutationType, Pattern, Severity
 from eva.mutations.engine import MutationEngine
-from eva.core.models import Pattern, Severity, MutationType
 
 
 def test_generates_role_patch_for_frequency():

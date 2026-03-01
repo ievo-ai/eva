@@ -1,13 +1,10 @@
 """Evolution logs source — reads EVO entries from marketplace agents."""
 
-from __future__ import annotations
-
 import re
-from datetime import datetime
 from pathlib import Path
 
 from eva.core.config import SourceConfig
-from eva.core.models import Signal, SignalType, Severity
+from eva.core.models import Severity, Signal, SignalType
 from eva.sources.base import BaseSource
 
 # Regex for parsing EVO entries

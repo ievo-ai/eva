@@ -4,14 +4,11 @@ Handles: branch creation, file commits, and pull request management.
 Uses httpx (async) — same as the rest of Eva's sources.
 """
 
-from __future__ import annotations
-
 import base64
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
-
 
 API_BASE = "https://api.github.com"
 

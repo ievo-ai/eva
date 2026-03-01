@@ -4,12 +4,10 @@ After Eva creates PRs, it records each successful mutation as an evolution
 entry on the ievo.ai site so the public can see the platform evolving.
 """
 
-from __future__ import annotations
-
 import base64
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from rich.console import Console
 
@@ -44,9 +42,7 @@ class EvolutionPublisher:
 
         try:
             # Read current evolutions.json
-            existing = await self._client.get_file_content(
-                SITE_REPO, EVOLUTIONS_PATH, "main"
-            )
+            existing = await self._client.get_file_content(SITE_REPO, EVOLUTIONS_PATH, "main")
 
             if existing and "content" in existing:
                 raw = base64.b64decode(existing["content"]).decode()
@@ -66,7 +62,7 @@ class EvolutionPublisher:
                         pass
 
             # Add new entries
-            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            today = datetime.now(UTC).strftime("%Y-%m-%d")
             for mutation in successful:
                 max_id += 1
                 entry = {
@@ -92,9 +88,7 @@ class EvolutionPublisher:
                 branch="main",
             )
 
-            console.print(
-                f"  [green]✓[/green] Published {len(successful)} evolution(s) to ievo.ai"
-            )
+            console.print(f"  [green]✓[/green] Published {len(successful)} evolution(s) to ievo.ai")
             return len(successful)
 
         except Exception as e:

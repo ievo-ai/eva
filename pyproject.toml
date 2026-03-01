@@ -37,5 +37,18 @@ packages = ["src/eva"]
 target-version = "py313"
 line-length = 100
 
+[tool.ruff.lint]
+select = ["F", "E", "I", "UP", "TID"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"__future__.annotations".msg = "Python 3.13+ — use PEP 604/585 natively, no __future__ needed"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["E501"]
+
+[tool.ruff.lint.pyupgrade]
+# Forbid from __future__ import annotations (Python 3.13+ doesn't need it)
+keep-runtime-typing = true
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

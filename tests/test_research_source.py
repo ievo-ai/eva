@@ -1,7 +1,5 @@
 """Tests for ResearchSource — reads researcher agent proposals."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import pytest
@@ -9,7 +7,6 @@ import pytest
 from eva.core.config import SourceConfig
 from eva.core.models import Severity, SignalType
 from eva.sources.research import ResearchSource, _extract_title
-
 
 SAMPLE_PROPOSAL = """\
 # PROP: Add vector search to agent memory
@@ -62,7 +59,8 @@ async def test_poll_empty(source: ResearchSource) -> None:
 
 @pytest.mark.asyncio
 async def test_poll_reads_proposal(
-    source: ResearchSource, research_dir: Path,
+    source: ResearchSource,
+    research_dir: Path,
 ) -> None:
     (research_dir / "PROP-2026-03-01-vector-search.md").write_text(SAMPLE_PROPOSAL)
 
@@ -80,7 +78,8 @@ async def test_poll_reads_proposal(
 
 @pytest.mark.asyncio
 async def test_poll_deduplicates(
-    source: ResearchSource, research_dir: Path,
+    source: ResearchSource,
+    research_dir: Path,
 ) -> None:
     (research_dir / "PROP-2026-03-01-test.md").write_text(SAMPLE_PROPOSAL)
 
@@ -92,7 +91,8 @@ async def test_poll_deduplicates(
 
 @pytest.mark.asyncio
 async def test_poll_multiple_proposals(
-    source: ResearchSource, research_dir: Path,
+    source: ResearchSource,
+    research_dir: Path,
 ) -> None:
     (research_dir / "PROP-2026-03-01-a.md").write_text(SAMPLE_PROPOSAL)
     (research_dir / "PROP-2026-03-02-b.md").write_text(
@@ -105,9 +105,12 @@ async def test_poll_multiple_proposals(
 
 @pytest.mark.asyncio
 async def test_poll_low_effort_high_severity(
-    source: ResearchSource, research_dir: Path,
+    source: ResearchSource,
+    research_dir: Path,
 ) -> None:
-    content = "# PROP: Quick fix\n\n## Scores\n- Applicability: 3/5\n- Effort: low\n- Impact: speed\n"
+    content = (
+        "# PROP: Quick fix\n\n## Scores\n- Applicability: 3/5\n- Effort: low\n- Impact: speed\n"
+    )
     (research_dir / "PROP-2026-03-01-quick.md").write_text(content)
 
     signals = await source.poll()

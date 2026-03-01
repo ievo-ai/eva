@@ -1,17 +1,15 @@
 """Tests for Sentry source."""
 
-from __future__ import annotations
-
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from eva.core.config import SourceConfig
-from eva.core.models import SignalType, Severity
+from eva.core.models import Severity, SignalType
 from eva.sources.sentry import SentrySource, _parse_timestamp
 
-
 # --- Config ---
+
 
 class TestSentryConfig:
     def test_multi_project_config(self):
@@ -50,6 +48,7 @@ class TestSentryConfig:
 
 
 # --- Poll ---
+
 
 class TestSentryPoll:
     @pytest.mark.asyncio
@@ -150,6 +149,7 @@ class TestSentryPoll:
             source = SentrySource(config)
 
         import httpx
+
         mock_client = AsyncMock()
         mock_client.get.side_effect = httpx.HTTPError("Connection refused")
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
@@ -162,6 +162,7 @@ class TestSentryPoll:
 
 
 # --- Helpers ---
+
 
 class TestParseTimestamp:
     def test_valid_iso(self):
@@ -179,6 +180,7 @@ class TestParseTimestamp:
 
 
 # --- Healthcheck ---
+
 
 class TestSentryHealthcheck:
     @pytest.mark.asyncio

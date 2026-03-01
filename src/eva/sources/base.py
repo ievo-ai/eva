@@ -1,7 +1,5 @@
 """Base class for all signal sources."""
 
-from __future__ import annotations
-
 from abc import ABC, abstractmethod
 
 from eva.core.config import SourceConfig

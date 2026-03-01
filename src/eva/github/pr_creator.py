@@ -8,16 +8,14 @@ Flow per mutation:
 5. Update mutation.pr_url
 """
 
-from __future__ import annotations
-
+import base64
 import os
 from dataclasses import dataclass
-from datetime import datetime, timezone
 
 from rich.console import Console
 
 from eva.core.models import Mutation
-from eva.github.client import GitHubClient, PRResult
+from eva.github.client import GitHubClient
 
 console = Console()
 
@@ -78,8 +76,7 @@ class PRCreator:
         self._token = token or os.environ.get("EVA_GITHUB_TOKEN", "")
         if not self._token:
             raise ValueError(
-                "No GitHub token available. "
-                "Set EVA_GITHUB_TOKEN or pass token explicitly."
+                "No GitHub token available. Set EVA_GITHUB_TOKEN or pass token explicitly."
             )
         self._client = GitHubClient(self._token)
 
@@ -97,8 +94,7 @@ class PRCreator:
             base_sha = await self._client.get_ref_sha(repo, default_branch)
 
             console.print(
-                f"    [dim]Creating branch {branch} "
-                f"from {default_branch} ({base_sha[:8]})[/dim]"
+                f"    [dim]Creating branch {branch} from {default_branch} ({base_sha[:8]})[/dim]"
             )
 
             # 2. Create branch
@@ -118,7 +114,6 @@ class PRCreator:
                 repo, mutation.target_path, default_branch
             )
             if existing and "content" in existing:
-                import base64
                 current_content = base64.b64decode(existing["content"]).decode()
                 new_content = _apply_mutation(current_content, mutation)
             else:
@@ -154,16 +149,15 @@ class PRCreator:
 
             # 5. Label
             await self._client.add_labels(
-                repo, pr_result.pr_number,
+                repo,
+                pr_result.pr_number,
                 EVA_LABELS + [f"eva:{mutation.type.value}"],
             )
 
             # 6. Update mutation
             mutation.pr_url = pr_result.pr_url
 
-            console.print(
-                f"    [green]✓[/green] PR created: {pr_result.pr_url}"
-            )
+            console.print(f"    [green]✓[/green] PR created: {pr_result.pr_url}")
 
             return PRCreationResult(
                 mutation_id=mutation.id,
@@ -195,7 +189,6 @@ def _apply_mutation(current_content: str, mutation: Mutation) -> str:
     Future: parse unified diff and apply properly.
     """
     separator = "\n\n"
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     # Extract the actual content from the diff (skip comment lines)
     diff_lines = mutation.diff.strip().split("\n")

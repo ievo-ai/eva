@@ -86,7 +86,11 @@ agent/                  # Eva's own agent identity
 ├── ROLE.md             # Eva's instructions
 ├── EVOLUTION_LOG.md    # Self-evolution history
 ├── memory/             # Context, decisions, vocabulary, history
-└── skills/evo/SKILL.md # Eva's self-evolution skill
+└── skills/evo/SKILL.md # Eva's self-evolution skill (pipeline)
+
+.claude/skills/         # Claude Code interactive skills
+├── evo/SKILL.md        # /evo — self-evolution (error → rule update)
+└── extract-best-practices/SKILL.md  # /extract-best-practices — pattern extraction
 
 tests/                  # 14 tests
 ├── test_config.py
@@ -105,6 +109,19 @@ scripts/
 ├── notify-eva.yml      # Template workflow for other repos to trigger Eva
 └── publish-evolution.py # Append entry to evolutions.json
 ```
+
+## Claude Code Skills
+
+Eva has two layers of skills:
+
+| Layer | Location | Purpose |
+|-------|----------|---------|
+| **Claude Code** | `.claude/skills/` | Interactive `/slash` commands for sessions with Denis |
+| **Agent pipeline** | `agent/skills/` | Programmatic skills read by iEvo pipeline |
+
+Available Claude Code skills:
+- `/evo` — self-evolution: error → classify → root cause → rule update → log
+- `/extract-best-practices` — session pattern extraction → new skills or rules
 
 ## Key patterns
 
@@ -215,6 +232,12 @@ Never put full session content in HISTORY.md.
 **Language**: English only.
 
 **When to write**: at the end of every session, or when Denis asks.
+
+## MeddyLib Symbiosis
+
+Eva maintains a symbiotic learning relationship with MeddyLib (`/Users/denis/projects/amplifier.ai/meddylib`). At session start, Eva checks MeddyLib for new skills, evolution log entries, and agent patterns that could improve her operation. Evaluates each: adopt (with adaptation) or reject (with reason).
+
+Protocol and adoption decisions: `agent/memory/CONTEXT.md` → "Symbiosis: MeddyLib".
 
 ## Related repos
 

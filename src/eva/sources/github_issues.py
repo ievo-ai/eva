@@ -1,14 +1,12 @@
 """GitHub Issues source."""
 
-from __future__ import annotations
-
 import os
 from datetime import datetime
 
 import httpx
 
 from eva.core.config import SourceConfig
-from eva.core.models import Signal, SignalType, Severity
+from eva.core.models import Severity, Signal, SignalType
 from eva.sources.base import BaseSource
 
 # Label-based severity mapping
@@ -63,7 +61,7 @@ class GitHubIssuesSource(BaseSource):
                     if "pull_request" in issue:
                         continue
 
-                    labels = [l["name"] for l in issue.get("labels", [])]
+                    labels = [label["name"] for label in issue.get("labels", [])]
                     severity = _classify_severity(labels)
 
                     signal = Signal(

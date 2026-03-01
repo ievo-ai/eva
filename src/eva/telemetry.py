@@ -8,8 +8,6 @@ Env vars:
     EVA_ENVIRONMENT — environment tag: production, staging, development (default: production)
 """
 
-from __future__ import annotations
-
 import os
 
 import sentry_sdk
@@ -62,13 +60,16 @@ def capture_scan_context(
     prs_created: int = 0,
 ) -> None:
     """Set Sentry context for the current scan run."""
-    sentry_sdk.set_context("eva_scan", {
-        "mode": mode,
-        "signals_collected": signals,
-        "patterns_detected": patterns,
-        "mutations_proposed": mutations,
-        "prs_created": prs_created,
-    })
+    sentry_sdk.set_context(
+        "eva_scan",
+        {
+            "mode": mode,
+            "signals_collected": signals,
+            "patterns_detected": patterns,
+            "mutations_proposed": mutations,
+            "prs_created": prs_created,
+        },
+    )
 
 
 def _before_send(event: dict, hint: dict) -> dict:

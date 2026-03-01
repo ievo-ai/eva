@@ -1,7 +1,5 @@
 """Eva configuration and paths."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -25,31 +23,43 @@ class EvaConfig:
     """Top-level Eva configuration."""
 
     # Target repos Eva can submit PRs to
-    repos: dict[str, str] = field(default_factory=lambda: {
-        "cli": "ievo-ai/cli",
-        "marketplace": "ievo-ai/marketplace",
-        "sdk": "ievo-ai/sdk",
-        "eva": "ievo-ai/eva",
-        "landing": "ievo-ai/ievo.ai",
-    })
+    repos: dict[str, str] = field(
+        default_factory=lambda: {
+            "cli": "ievo-ai/cli",
+            "marketplace": "ievo-ai/marketplace",
+            "sdk": "ievo-ai/sdk",
+            "eva": "ievo-ai/eva",
+            "landing": "ievo-ai/ievo.ai",
+        }
+    )
 
     # Signal sources
-    sentry: SourceConfig = field(default_factory=lambda: SourceConfig(
-        token_env="EVA_SENTRY_TOKEN",
-    ))
-    github_issues: SourceConfig = field(default_factory=lambda: SourceConfig(
-        token_env="EVA_GITHUB_TOKEN",
-        enabled=True,
-    ))
-    reviews: SourceConfig = field(default_factory=lambda: SourceConfig(
-        token_env="EVA_GITHUB_TOKEN",
-    ))
-    evolution_logs: SourceConfig = field(default_factory=lambda: SourceConfig(
-        enabled=True,
-    ))
-    research: SourceConfig = field(default_factory=lambda: SourceConfig(
-        enabled=True,
-    ))
+    sentry: SourceConfig = field(
+        default_factory=lambda: SourceConfig(
+            token_env="EVA_SENTRY_TOKEN",
+        )
+    )
+    github_issues: SourceConfig = field(
+        default_factory=lambda: SourceConfig(
+            token_env="EVA_GITHUB_TOKEN",
+            enabled=True,
+        )
+    )
+    reviews: SourceConfig = field(
+        default_factory=lambda: SourceConfig(
+            token_env="EVA_GITHUB_TOKEN",
+        )
+    )
+    evolution_logs: SourceConfig = field(
+        default_factory=lambda: SourceConfig(
+            enabled=True,
+        )
+    )
+    research: SourceConfig = field(
+        default_factory=lambda: SourceConfig(
+            enabled=True,
+        )
+    )
 
     # Safety
     auto_merge: bool = False  # never auto-merge without human review
@@ -61,7 +71,7 @@ class EvaConfig:
     cache_dir: Path = field(default_factory=lambda: Path.home() / ".eva" / "cache")
 
     @classmethod
-    def load(cls, path: Path) -> EvaConfig:
+    def load(cls, path: Path) -> "EvaConfig":
         """Load config from eva.yaml."""
         if not path.exists():
             return cls()

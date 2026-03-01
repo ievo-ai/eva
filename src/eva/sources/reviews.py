@@ -1,14 +1,12 @@
 """User reviews and PR comment source."""
 
-from __future__ import annotations
-
 import os
 from datetime import datetime
 
 import httpx
 
 from eva.core.config import SourceConfig
-from eva.core.models import Signal, SignalType, Severity
+from eva.core.models import Severity, Signal, SignalType
 from eva.sources.base import BaseSource
 
 

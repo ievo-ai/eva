@@ -1,7 +1,5 @@
 """Mutation engine — converts patterns into concrete platform changes."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -58,7 +56,7 @@ class MutationEngine:
             mutations.extend(new_mutations)
 
         self._mutations.extend(mutations)
-        return mutations[:self.max_per_run]
+        return mutations[: self.max_per_run]
 
     def _pattern_to_mutations(self, pattern: Pattern) -> list[Mutation]:
         """Convert a single pattern into one or more mutations."""
@@ -69,63 +67,69 @@ class MutationEngine:
             # Recurring issue in specific agent → patch ROLE.md
             for agent in pattern.affected_agents:
                 self._counter += 1
-                mutations.append(Mutation(
-                    id=f"mut-{self._counter:04d}",
-                    type=MutationType.ROLE_PATCH,
-                    title=f"Fix recurring issue in {agent}: {pattern.title[:50]}",
-                    description=(
-                        f"Pattern detected: {pattern.description}\n\n"
-                        f"Suggested action: Add a rule to {agent}/ROLE.md "
-                        f"to prevent this recurring issue.\n\n"
-                        f"Signals: {len(pattern.signal_ids)} occurrences"
-                    ),
-                    target_repo=_agent_to_repo(agent),
-                    target_path=f"agents/{agent}/ROLE.md",
-                    diff=_generate_role_patch(agent, pattern),
-                    pattern_id=pattern.id,
-                    confidence=pattern.confidence,
-                ))
+                mutations.append(
+                    Mutation(
+                        id=f"mut-{self._counter:04d}",
+                        type=MutationType.ROLE_PATCH,
+                        title=f"Fix recurring issue in {agent}: {pattern.title[:50]}",
+                        description=(
+                            f"Pattern detected: {pattern.description}\n\n"
+                            f"Suggested action: Add a rule to {agent}/ROLE.md "
+                            f"to prevent this recurring issue.\n\n"
+                            f"Signals: {len(pattern.signal_ids)} occurrences"
+                        ),
+                        target_repo=_agent_to_repo(agent),
+                        target_path=f"agents/{agent}/ROLE.md",
+                        diff=_generate_role_patch(agent, pattern),
+                        pattern_id=pattern.id,
+                        confidence=pattern.confidence,
+                    )
+                )
 
         elif pattern.id.startswith("cross:"):
             # Cross-agent issue → update shared skill or create new one
             self._counter += 1
-            mutations.append(Mutation(
-                id=f"mut-{self._counter:04d}",
-                type=MutationType.SKILL_PATCH,
-                title=f"Cross-agent fix: {pattern.title[:50]}",
-                description=(
-                    f"Issue affects {len(pattern.affected_agents)} agents: "
-                    f"{', '.join(pattern.affected_agents)}\n\n"
-                    f"{pattern.description}\n\n"
-                    f"Suggested: Update shared EVO skill to handle this pattern."
-                ),
-                target_repo="ievo-ai/marketplace",
-                target_path="shared/skills/evo/SKILL.md",
-                diff=_generate_skill_patch(pattern),
-                pattern_id=pattern.id,
-                confidence=pattern.confidence * 0.8,  # Lower confidence for cross-agent
-            ))
+            mutations.append(
+                Mutation(
+                    id=f"mut-{self._counter:04d}",
+                    type=MutationType.SKILL_PATCH,
+                    title=f"Cross-agent fix: {pattern.title[:50]}",
+                    description=(
+                        f"Issue affects {len(pattern.affected_agents)} agents: "
+                        f"{', '.join(pattern.affected_agents)}\n\n"
+                        f"{pattern.description}\n\n"
+                        f"Suggested: Update shared EVO skill to handle this pattern."
+                    ),
+                    target_repo="ievo-ai/marketplace",
+                    target_path="shared/skills/evo/SKILL.md",
+                    diff=_generate_skill_patch(pattern),
+                    pattern_id=pattern.id,
+                    confidence=pattern.confidence * 0.8,  # Lower confidence for cross-agent
+                )
+            )
 
         elif pattern.id.startswith("escalation:"):
             # Escalating severity → urgent review + memory update
             agent = pattern.affected_agents[0] if pattern.affected_agents else "unknown"
             self._counter += 1
-            mutations.append(Mutation(
-                id=f"mut-{self._counter:04d}",
-                type=MutationType.MEMORY_UPDATE,
-                title=f"Urgent: escalating issues in {agent}",
-                description=(
-                    f"Severity trending up in {agent}.\n\n"
-                    f"{pattern.description}\n\n"
-                    f"Action: Update memory/CONTEXT.md with known issues "
-                    f"and add guardrails to ROLE.md."
-                ),
-                target_repo=_agent_to_repo(agent),
-                target_path=f"agents/{agent}/memory/CONTEXT.md",
-                diff=_generate_context_update(agent, pattern),
-                pattern_id=pattern.id,
-                confidence=pattern.confidence,
-            ))
+            mutations.append(
+                Mutation(
+                    id=f"mut-{self._counter:04d}",
+                    type=MutationType.MEMORY_UPDATE,
+                    title=f"Urgent: escalating issues in {agent}",
+                    description=(
+                        f"Severity trending up in {agent}.\n\n"
+                        f"{pattern.description}\n\n"
+                        f"Action: Update memory/CONTEXT.md with known issues "
+                        f"and add guardrails to ROLE.md."
+                    ),
+                    target_repo=_agent_to_repo(agent),
+                    target_path=f"agents/{agent}/memory/CONTEXT.md",
+                    diff=_generate_context_update(agent, pattern),
+                    pattern_id=pattern.id,
+                    confidence=pattern.confidence,
+                )
+            )
 
         return mutations
 

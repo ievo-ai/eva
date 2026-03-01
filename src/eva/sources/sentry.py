@@ -16,15 +16,13 @@ Config in eva.yaml:
             sdk: ievo-sdk
 """
 
-from __future__ import annotations
-
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 
 from eva.core.config import SourceConfig
-from eva.core.models import Signal, SignalType, Severity
+from eva.core.models import Severity, Signal, SignalType
 from eva.sources.base import BaseSource
 
 # Sentry level → Eva severity
@@ -77,7 +75,10 @@ class SentrySource(BaseSource):
                 url = f"{self._base_url}/projects/{self._org}/{project_slug}/issues/"
                 try:
                     resp = await client.get(
-                        url, headers=headers, params=params, timeout=30,
+                        url,
+                        headers=headers,
+                        params=params,
+                        timeout=30,
                     )
                     resp.raise_for_status()
                 except httpx.HTTPError:
@@ -85,7 +86,8 @@ class SentrySource(BaseSource):
 
                 for issue in resp.json():
                     severity = _SEVERITY_MAP.get(
-                        issue.get("level", "error"), Severity.MEDIUM,
+                        issue.get("level", "error"),
+                        Severity.MEDIUM,
                     )
 
                     # Build readable body from Sentry metadata
@@ -128,7 +130,7 @@ class SentrySource(BaseSource):
                     signals.append(signal)
 
         if signals:
-            self._last_seen = datetime.now(timezone.utc).isoformat()
+            self._last_seen = datetime.now(UTC).isoformat()
 
         return signals
 
@@ -151,8 +153,8 @@ class SentrySource(BaseSource):
 def _parse_timestamp(value: str) -> datetime:
     """Parse Sentry ISO 8601 timestamp."""
     if not value:
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
     try:
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
     except (ValueError, AttributeError):
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)

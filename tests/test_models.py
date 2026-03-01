@@ -1,6 +1,6 @@
 """Tests for core domain models."""
 
-from eva.core.models import Signal, SignalType, Severity, Mutation, MutationType
+from eva.core.models import Mutation, MutationType, Severity, Signal, SignalType
 
 
 def test_signal_key():

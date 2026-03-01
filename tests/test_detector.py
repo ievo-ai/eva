@@ -1,7 +1,7 @@
 """Tests for pattern detection."""
 
 from eva.analysis.detector import PatternDetector
-from eva.core.models import Signal, SignalType, Severity
+from eva.core.models import Severity, Signal, SignalType
 
 
 def _make_signal(id: str, title: str, agent: str = "", tags: list[str] | None = None) -> Signal:
@@ -64,20 +64,32 @@ def test_escalation_detection():
 
     signals = [
         Signal(
-            id="1", type=SignalType.GITHUB_ISSUE, source="t:1",
-            title="Minor issue", body="", severity=Severity.LOW,
+            id="1",
+            type=SignalType.GITHUB_ISSUE,
+            source="t:1",
+            title="Minor issue",
+            body="",
+            severity=Severity.LOW,
             metadata={"agent": "coder"},
             tags=[],
         ),
         Signal(
-            id="2", type=SignalType.GITHUB_ISSUE, source="t:2",
-            title="Medium issue", body="", severity=Severity.MEDIUM,
+            id="2",
+            type=SignalType.GITHUB_ISSUE,
+            source="t:2",
+            title="Medium issue",
+            body="",
+            severity=Severity.MEDIUM,
             metadata={"agent": "coder"},
             tags=[],
         ),
         Signal(
-            id="3", type=SignalType.GITHUB_ISSUE, source="t:3",
-            title="Critical issue", body="", severity=Severity.CRITICAL,
+            id="3",
+            type=SignalType.GITHUB_ISSUE,
+            source="t:3",
+            title="Critical issue",
+            body="",
+            severity=Severity.CRITICAL,
             metadata={"agent": "coder"},
             tags=[],
         ),

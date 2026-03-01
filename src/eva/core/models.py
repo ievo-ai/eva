@@ -1,14 +1,12 @@
 """Core domain models for Eva."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass, field
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
-class SignalType(str, Enum):
+class SignalType(StrEnum):
     """Type of incoming signal."""
 
     SENTRY_ERROR = "sentry_error"
@@ -19,7 +17,7 @@ class SignalType(str, Enum):
     RESEARCH_PROPOSAL = "research_proposal"
 
 
-class Severity(str, Enum):
+class Severity(StrEnum):
     """Signal severity."""
 
     CRITICAL = "critical"
@@ -29,16 +27,16 @@ class Severity(str, Enum):
     INFO = "info"
 
 
-class MutationType(str, Enum):
+class MutationType(StrEnum):
     """Type of mutation Eva can propose."""
 
-    ROLE_PATCH = "role_patch"           # Update agent ROLE.md
-    SKILL_PATCH = "skill_patch"         # Update agent skill
-    MEMORY_UPDATE = "memory_update"     # Update agent memory files
-    REGISTRY_UPDATE = "registry_update" # Update marketplace registry
-    CONFIG_PATCH = "config_patch"       # Update platform config
-    NEW_AGENT = "new_agent"             # Propose a new agent
-    DEPRECATE = "deprecate"             # Deprecate an agent/skill
+    ROLE_PATCH = "role_patch"  # Update agent ROLE.md
+    SKILL_PATCH = "skill_patch"  # Update agent skill
+    MEMORY_UPDATE = "memory_update"  # Update agent memory files
+    REGISTRY_UPDATE = "registry_update"  # Update marketplace registry
+    CONFIG_PATCH = "config_patch"  # Update platform config
+    NEW_AGENT = "new_agent"  # Propose a new agent
+    DEPRECATE = "deprecate"  # Deprecate an agent/skill
 
 
 @dataclass
@@ -94,10 +92,10 @@ class Mutation:
     type: MutationType
     title: str
     description: str
-    target_repo: str          # e.g. "ievo-ai/marketplace"
-    target_path: str          # e.g. "agents/spec-writer/ROLE.md"
-    diff: str                 # unified diff or full new content
-    pattern_id: str = ""      # pattern that triggered this
+    target_repo: str  # e.g. "ievo-ai/marketplace"
+    target_path: str  # e.g. "agents/spec-writer/ROLE.md"
+    diff: str  # unified diff or full new content
+    pattern_id: str = ""  # pattern that triggered this
     confidence: float = 0.0
     approved: bool = False
     pr_url: str = ""

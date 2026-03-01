@@ -1,20 +1,16 @@
 """Eva CLI — meta-evolution Mother agent."""
 
-from __future__ import annotations
-
 import asyncio
-import sys
 from pathlib import Path
 
 import click
+import sentry_sdk
 from rich.console import Console
 from rich.panel import Panel
 
-import sentry_sdk
-
 from eva import __version__
 from eva.core.config import EvaConfig
-from eva.telemetry import init_sentry, capture_scan_context
+from eva.telemetry import capture_scan_context, init_sentry
 
 console = Console()
 
@@ -42,8 +38,7 @@ def main(ctx: click.Context, version: bool) -> None:
     if ctx.invoked_subcommand is None:
         console.print(LOGO, markup=True)
         console.print(
-            "[dim]Meta-evolution Mother agent. "
-            "Observes → analyzes → proposes improvements.[/dim]\n"
+            "[dim]Meta-evolution Mother agent. Observes → analyzes → proposes improvements.[/dim]\n"
         )
         console.print(ctx.get_help())
 
@@ -52,7 +47,13 @@ def main(ctx: click.Context, version: bool) -> None:
 @click.option("--config", "-c", type=click.Path(), default="eva.yaml", help="Config file path.")
 @click.option("--marketplace", "-m", type=click.Path(), default=None, help="Marketplace dir.")
 @click.option("--dry-run/--live", default=True, help="Dry run mode (default: dry-run).")
-@click.option("--report", "-r", type=click.Path(), default="eva-report.json", help="Report output path.")
+@click.option(
+    "--report",
+    "-r",
+    type=click.Path(),
+    default="eva-report.json",
+    help="Report output path.",
+)
 def scan(config: str, marketplace: str | None, dry_run: bool, report: str) -> None:
     """Run one observe → analyze → mutate cycle."""
     cfg = EvaConfig.load(Path(config))
@@ -93,14 +94,16 @@ def status(config: str) -> None:
     """Show Eva status and source health."""
     cfg = EvaConfig.load(Path(config))
 
-    console.print(Panel.fit(
-        f"[bold]Eva[/bold] v{__version__}\n"
-        f"Mode: [yellow]{'dry-run' if cfg.dry_run else 'live'}[/yellow]\n"
-        f"Max mutations/run: {cfg.max_mutations_per_run}\n"
-        f"Auto-merge: [{'red' if cfg.auto_merge else 'green'}]"
-        f"{'ON' if cfg.auto_merge else 'OFF'}[/]\n",
-        title="Status",
-    ))
+    console.print(
+        Panel.fit(
+            f"[bold]Eva[/bold] v{__version__}\n"
+            f"Mode: [yellow]{'dry-run' if cfg.dry_run else 'live'}[/yellow]\n"
+            f"Max mutations/run: {cfg.max_mutations_per_run}\n"
+            f"Auto-merge: [{'red' if cfg.auto_merge else 'green'}]"
+            f"{'ON' if cfg.auto_merge else 'OFF'}[/]\n",
+            title="Status",
+        )
+    )
 
     console.print("[bold]Sources:[/bold]")
     for name in ("sentry", "github_issues", "reviews", "evolution_logs"):
@@ -128,7 +131,7 @@ def init(output: str) -> None:
     cfg = EvaConfig()
     cfg.save(path)
     console.print(f"[green]✓[/green] Created {path}")
-    console.print(f"  Edit it to enable sources and configure repos.")
+    console.print("  Edit it to enable sources and configure repos.")
 
 
 @main.command()
@@ -136,9 +139,9 @@ def init(output: str) -> None:
 @click.option("--config", "-c", type=click.Path(), default="eva.yaml")
 def approve(mutation_id: str, config: str) -> None:
     """Approve a mutation and create PR (Phase 2)."""
-    console.print(f"[yellow]⚠ PR creation not yet implemented.[/yellow]")
+    console.print("[yellow]⚠ PR creation not yet implemented.[/yellow]")
     console.print(f"  Mutation {mutation_id} would be turned into a PR.")
-    console.print(f"  Coming in Eva Phase 2.")
+    console.print("  Coming in Eva Phase 2.")
 
 
 if __name__ == "__main__":

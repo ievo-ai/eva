@@ -1,0 +1,16 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.7
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: local
+    hooks:
+      - id: skill-frontmatter
+        name: Validate SKILL.md frontmatter
+        entry: python scripts/check_skill_frontmatter.py
+        language: python
+        files: '^\.claude/skills/.+/SKILL\.md$'
+        additional_dependencies: [pyyaml>=6.0]

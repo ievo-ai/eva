@@ -1,26 +1,24 @@
 """Eva pipeline — the main observe → analyze → mutate loop."""
 
-from __future__ import annotations
-
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from rich.console import Console
 from rich.table import Table
 
+from eva.analysis.detector import PatternDetector
 from eva.core.config import EvaConfig
 from eva.core.models import Mutation, Pattern, Signal
-from eva.sources.base import BaseSource
-from eva.sources.sentry import SentrySource
-from eva.sources.github_issues import GitHubIssuesSource
-from eva.sources.evolution_logs import EvolutionLogsSource
-from eva.sources.reviews import ReviewsSource
-from eva.analysis.detector import PatternDetector
-from eva.mutations.engine import MutationEngine
-from eva.github.pr_creator import PRCreator, PRCreationResult
 from eva.github.evolution_publisher import EvolutionPublisher
+from eva.github.pr_creator import PRCreationResult, PRCreator
+from eva.mutations.engine import MutationEngine
+from eva.sources.base import BaseSource
+from eva.sources.evolution_logs import EvolutionLogsSource
+from eva.sources.github_issues import GitHubIssuesSource
+from eva.sources.reviews import ReviewsSource
+from eva.sources.sentry import SentrySource
 
 console = Console()
 
@@ -73,10 +71,12 @@ class EvaPipeline:
             self.sources.append(ReviewsSource(config.reviews, config.repos))
 
         if config.evolution_logs.enabled:
-            self.sources.append(EvolutionLogsSource(
-                config.evolution_logs,
-                marketplace_dir=marketplace_dir,
-            ))
+            self.sources.append(
+                EvolutionLogsSource(
+                    config.evolution_logs,
+                    marketplace_dir=marketplace_dir,
+                )
+            )
 
     async def run(self) -> EvaRun:
         """Execute one full observe → analyze → mutate cycle.
@@ -158,7 +158,9 @@ class EvaPipeline:
                     publisher = EvolutionPublisher()
                     count = await publisher.publish(result.mutations)
                     if count:
-                        console.print(f"  [green]✓[/green] {count} evolution(s) published to ievo.ai")
+                        console.print(
+                            f"  [green]✓[/green] {count} evolution(s) published to ievo.ai"
+                        )
                 except Exception as e:
                     console.print(f"  [yellow]⚠[/yellow] Evolution publish skipped: {e}")
 
@@ -177,16 +179,16 @@ class EvaPipeline:
         if run.pr_results:
             created = sum(1 for r in run.pr_results if r.success)
             table.add_row("PRs created", f"[green]{created}[/green] / {len(run.pr_results)}")
-        table.add_row("Mode", "[yellow]dry-run[/yellow]" if self.config.dry_run else "[green]live[/green]")
+        mode = "[yellow]dry-run[/yellow]" if self.config.dry_run else "[green]live[/green]"
+        table.add_row("Mode", mode)
 
         console.print(table)
         console.print()
 
-
     def save_report(self, run: EvaRun, path: Path) -> None:
         """Save run results to JSON report for CI artifacts."""
         report = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
             "mode": "dry-run" if self.config.dry_run else "live",
             "summary": {
                 "signals_collected": len(run.signals),
@@ -238,6 +240,7 @@ class EvaPipeline:
 
 def _severity_color(s) -> str:
     from eva.core.models import Severity
+
     return {
         Severity.CRITICAL: "red bold",
         Severity.HIGH: "red",

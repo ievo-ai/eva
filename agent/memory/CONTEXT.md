@@ -156,3 +156,61 @@ No README.md inside docs/. No duplicate content between README and docs/.
 - Cross-repo dispatch (`notify-eva.yml`) needs to be copied to cli, marketplace, sdk repos
 - Research loop is new (2026-03-01) — researcher agent exists, ResearchSource wired, weekly cron set
 - No production runs yet — Eva has never scanned live data
+
+## Symbiosis: MeddyLib
+
+Eva maintains a symbiotic learning relationship with MeddyLib (`/Users/denis/projects/amplifier.ai/meddylib`), Denis's medical imaging library. MeddyLib has a mature skill/agent system that Eva learns from.
+
+### Session-Start Check Protocol
+
+At the beginning of each session, check MeddyLib for updates:
+
+1. **Skills** — `ls /Users/denis/projects/amplifier.ai/meddylib/.claude/skills/*/SKILL.md`
+   - Compare with known list below
+   - New or updated skills → evaluate: adopt (with adaptation) or reject (with reason)
+
+2. **Evolution Log** — `tail -50 /Users/denis/projects/amplifier.ai/meddylib/EVOLUTION_LOG.md`
+   - New entries since last check → extract lessons applicable to Eva
+
+3. **Agents** — `ls /Users/denis/projects/amplifier.ai/meddylib/.claude/agents/`
+   - New agents → evaluate if a similar role would benefit Eva
+
+4. **AGENTS.md** — Check for new rules/principles
+   - Focus on §17 (Continuous Improvement) and any new sections
+
+### Evaluation Criteria
+
+For each update, answer:
+- **Relevant?** Does this pattern apply to platform evolution (not medical imaging)?
+- **Novel?** Does Eva already have this capability in ROLE.md or skills?
+- **Adaptable?** Can it be translated from coding context to Eva's observation/mutation context?
+
+If YES to all three → propose adoption with adaptation.
+If NO to any → reject with documented reason.
+
+### Known MeddyLib State (last checked: 2026-03-01)
+
+**Skills** (8): evo, commit-safe, doc-sync, extract-best-practices, fact-check, handle-pr-review, refactoring-guru, create-super-skill
+**Agents** (14): clinical-evar, clinical-laac, clinical-tavi, code-reviewer, device-specialist, dr-nasser-evar, imaging-scientist, issue-creator, medical-researcher, ml-engineer, qa-validator, test-engineer, vmtk-guru
+**EVOLUTION_LOG.md entries**: 15
+**AGENTS.md sections**: 20
+
+### Adoption Decisions (2026-03-01)
+
+| Pattern | Decision | Reason |
+|---------|----------|--------|
+| `/evo` skill format | ADOPTED | Created `.claude/skills/evo/SKILL.md` |
+| `/extract-best-practices` | ADOPTED | Created `.claude/skills/extract-best-practices/SKILL.md` |
+| Evolution Over Apology (§17) | ADOPTED | Added to ROLE.md |
+| Context/Action/Goal log format | ADOPTED | Used in Claude Code evo skill |
+| fact-check | REJECTED | Medical domain-specific |
+| commit-safe | REJECTED | Overkill for Eva's simple CLI |
+| doc-sync | REJECTED | No Google-style docstring validation needed |
+| refactoring-guru | REJECTED | Eva mutates agent configs, doesn't refactor code |
+| ampdev (team simulation) | REJECTED | Eva has real children |
+| improve-docs | REJECTED | Eva's docs are simple markdown |
+| create-issue / refine-issue | REJECTED | Eva works via GitHub PRs, not Jira |
+| clinical subagents | REJECTED | Domain-specific to medical imaging |
+| handle-pr-review | DEFERRED | Phase 2: when Eva processes mutation PR feedback |
+| MINDSET.md | DEFERRED | Needs dedicated session |
+| Specialized subagents | DEFERRED | When pipeline is working |

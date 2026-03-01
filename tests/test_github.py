@@ -1,19 +1,17 @@
 """Tests for GitHub integration (client, PR creator, evolution publisher)."""
 
-from __future__ import annotations
-
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from eva.core.models import Mutation, MutationType
 from eva.github.client import GitHubClient, PRResult
-from eva.github.pr_creator import PRCreator, PRCreationResult, _apply_mutation, _confidence_note
 from eva.github.evolution_publisher import EvolutionPublisher
-
+from eva.github.pr_creator import PRCreationResult, PRCreator, _apply_mutation, _confidence_note
 
 # --- GitHubClient ---
+
 
 class TestGitHubClient:
     def test_init_requires_token(self):
@@ -27,6 +25,7 @@ class TestGitHubClient:
 
 
 # --- PRCreator ---
+
 
 class TestPRCreator:
     def test_init_requires_token(self):
@@ -49,12 +48,14 @@ class TestPRCreator:
         creator._client.create_branch = AsyncMock()
         creator._client.get_file_content = AsyncMock(return_value=None)
         creator._client.create_or_update_file = AsyncMock(return_value="commit-sha")
-        creator._client.create_pull_request = AsyncMock(return_value=PRResult(
-            pr_url="https://github.com/ievo-ai/marketplace/pull/1",
-            pr_number=1,
-            branch="eva/mut-0001",
-            repo="ievo-ai/marketplace",
-        ))
+        creator._client.create_pull_request = AsyncMock(
+            return_value=PRResult(
+                pr_url="https://github.com/ievo-ai/marketplace/pull/1",
+                pr_number=1,
+                branch="eva/mut-0001",
+                repo="ievo-ai/marketplace",
+            )
+        )
         creator._client.add_labels = AsyncMock()
 
         result = await creator.create_pr(mutation)
@@ -81,10 +82,12 @@ class TestPRCreator:
         mutations = [_make_mutation(id="mut-0001"), _make_mutation(id="mut-0002")]
 
         creator = PRCreator(token="test-token")
-        creator.create_pr = AsyncMock(side_effect=[
-            PRCreationResult(mutation_id="mut-0001", success=True, pr_url="https://url/1"),
-            PRCreationResult(mutation_id="mut-0002", success=True, pr_url="https://url/2"),
-        ])
+        creator.create_pr = AsyncMock(
+            side_effect=[
+                PRCreationResult(mutation_id="mut-0001", success=True, pr_url="https://url/1"),
+                PRCreationResult(mutation_id="mut-0002", success=True, pr_url="https://url/2"),
+            ]
+        )
 
         results = await creator.create_all(mutations)
         assert len(results) == 2
@@ -92,6 +95,7 @@ class TestPRCreator:
 
 
 # --- _apply_mutation ---
+
 
 class TestApplyMutation:
     def test_appends_to_existing(self):
@@ -110,6 +114,7 @@ class TestApplyMutation:
 
 # --- _confidence_note ---
 
+
 class TestConfidenceNote:
     def test_high(self):
         assert "High confidence" in _confidence_note(0.9)
@@ -122,6 +127,7 @@ class TestConfidenceNote:
 
 
 # --- EvolutionPublisher ---
+
 
 class TestEvolutionPublisher:
     def test_init_requires_token(self):
@@ -144,12 +150,15 @@ class TestEvolutionPublisher:
         publisher._client = AsyncMock()
 
         import base64
+
         existing = json.dumps([{"id": "EVO-002", "date": "2026-02-28", "title": "test"}])
         encoded = base64.b64encode(existing.encode()).decode()
-        publisher._client.get_file_content = AsyncMock(return_value={
-            "content": encoded,
-            "sha": "abc",
-        })
+        publisher._client.get_file_content = AsyncMock(
+            return_value={
+                "content": encoded,
+                "sha": "abc",
+            }
+        )
         publisher._client.create_or_update_file = AsyncMock(return_value="sha")
 
         mutation = _make_mutation()
@@ -165,6 +174,7 @@ class TestEvolutionPublisher:
 
 
 # --- Helpers ---
+
 
 def _make_mutation(id: str = "mut-0001") -> Mutation:
     return Mutation(
