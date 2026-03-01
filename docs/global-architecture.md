@@ -13,8 +13,8 @@
 Three separate repos:
 
 ```
-ievo-marketplace/      → Repo с готовыми агентами (spec-writer, architect, coder...)
-ievo-sdk/              → Dev SDK + Copier template для создания новых агентов
+ievo-marketplace/      → Agent registry (spec-writer, architect, coder...)
+ievo-sdk/              → Dev SDK + Copier template for creating new agents
 ievo-cli/              → CLI (`ievo init`, `ievo add`, `ievo learn`)
 ```
 
