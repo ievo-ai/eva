@@ -40,7 +40,11 @@ class TelegramClient:
         message_thread_id: int | None = None,
         reply_to_message_id: int | None = None,
     ) -> TelegramResult:
-        """Send a message to the configured chat."""
+        """Send a message to the configured chat.
+
+        For forum groups (Threaded Mode), automatically retries with
+        message_thread_id=0 (General topic) if the first attempt fails.
+        """
         payload: dict[str, Any] = {
             "chat_id": self._chat_id,
             "text": text,
@@ -51,13 +55,12 @@ class TelegramClient:
         if reply_to_message_id is not None:
             payload["reply_to_message_id"] = reply_to_message_id
 
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                f"{self._base}/sendMessage",
-                json=payload,
-                timeout=30,
-            )
-            data: dict[str, Any] = resp.json()
+        data = await self._post("sendMessage", payload)
+
+        # Forum groups require message_thread_id — retry with General topic
+        if not data.get("ok") and message_thread_id is None:
+            payload["message_thread_id"] = 0
+            data = await self._post("sendMessage", payload)
 
         if not data.get("ok"):
             return TelegramResult(
@@ -69,16 +72,23 @@ class TelegramClient:
             message_id=data["result"]["message_id"],
         )
 
-    async def create_forum_topic(self, name: str) -> int | None:
-        """Create a forum topic in the group. Returns topic ID or None on failure."""
+    async def _post(self, method: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Send a POST request to the Telegram API."""
         async with httpx.AsyncClient() as client:
             resp = await client.post(
-                f"{self._base}/createForumTopic",
-                json={"chat_id": self._chat_id, "name": name},
+                f"{self._base}/{method}",
+                json=payload,
                 timeout=30,
             )
-            data: dict[str, Any] = resp.json()
+            result: dict[str, Any] = resp.json()
+        return result
 
+    async def create_forum_topic(self, name: str) -> int | None:
+        """Create a forum topic in the group. Returns topic ID or None on failure."""
+        data = await self._post(
+            "createForumTopic",
+            {"chat_id": self._chat_id, "name": name},
+        )
         if data.get("ok"):
             result: dict[str, Any] = data["result"]
             return int(result["message_thread_id"])

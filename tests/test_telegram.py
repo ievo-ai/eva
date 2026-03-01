@@ -89,6 +89,49 @@ class TestTelegramSendMessage:
 
         assert result.success is False
         assert result.error == "Chat not found"
+        # Two calls: first without thread_id, retry with thread_id=0
+        assert mock_httpx.post.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_send_message_forum_retry(self):
+        """Forum groups fail without message_thread_id — client retries with General topic."""
+        client = TelegramClient(token="test", chat_id="-100123")
+
+        fail_resp = self._mock_httpx_response({"ok": False, "description": "Not Found"})
+        ok_resp = self._mock_httpx_response({"ok": True, "result": {"message_id": 55}})
+
+        mock_httpx = AsyncMock()
+        mock_httpx.post.side_effect = [fail_resp, ok_resp]
+        mock_httpx.__aenter__ = AsyncMock(return_value=mock_httpx)
+        mock_httpx.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("eva.telegram.client.httpx.AsyncClient", return_value=mock_httpx):
+            result = await client.send_message("Hello forum")
+
+        assert result == TelegramResult(success=True, message_id=55)
+        assert mock_httpx.post.call_count == 2
+        # Second call should include message_thread_id=0
+        second_call_payload = mock_httpx.post.call_args_list[1][1]["json"]
+        assert second_call_payload["message_thread_id"] == 0
+
+    @pytest.mark.asyncio
+    async def test_send_message_no_retry_with_explicit_thread(self):
+        """When message_thread_id is explicitly set, don't retry."""
+        client = TelegramClient(token="test", chat_id="-100123")
+
+        mock_httpx = AsyncMock()
+        mock_httpx.post.return_value = self._mock_httpx_response(
+            {"ok": False, "description": "Thread not found"}
+        )
+        mock_httpx.__aenter__ = AsyncMock(return_value=mock_httpx)
+        mock_httpx.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("eva.telegram.client.httpx.AsyncClient", return_value=mock_httpx):
+            result = await client.send_message("Hello", message_thread_id=999)
+
+        assert result.success is False
+        # Only one call — no retry when thread_id was explicit
+        assert mock_httpx.post.call_count == 1
 
     @pytest.mark.asyncio
     async def test_send_message_with_thread_and_reply(self):
