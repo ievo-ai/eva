@@ -82,3 +82,86 @@ def test_skips_low_confidence():
 
     mutations = engine.generate(patterns)
     assert len(mutations) == 0
+
+
+def test_generates_memory_update_for_escalation():
+    engine = MutationEngine(max_per_run=5)
+    patterns = [
+        Pattern(
+            id="escalation:coder",
+            title="Escalating issues in coder",
+            description="Severity trending up",
+            signal_ids=["1", "2", "3"],
+            frequency=3,
+            severity=Severity.CRITICAL,
+            affected_agents=["coder"],
+            confidence=0.7,
+        ),
+    ]
+
+    mutations = engine.generate(patterns)
+    assert len(mutations) == 1
+    assert mutations[0].type == MutationType.MEMORY_UPDATE
+    assert "coder" in mutations[0].title
+    assert "CONTEXT.md" in mutations[0].target_path
+
+
+def test_escalation_without_agents():
+    engine = MutationEngine(max_per_run=5)
+    patterns = [
+        Pattern(
+            id="escalation:unknown",
+            title="Escalating issues",
+            description="Severity trending up",
+            signal_ids=["1", "2", "3"],
+            frequency=3,
+            severity=Severity.CRITICAL,
+            affected_agents=[],
+            confidence=0.7,
+        ),
+    ]
+
+    mutations = engine.generate(patterns)
+    assert len(mutations) == 1
+    assert "unknown" in mutations[0].title
+
+
+def test_mutations_property():
+    engine = MutationEngine(max_per_run=5)
+    assert engine.mutations == []
+
+    patterns = [
+        Pattern(
+            id="freq:test",
+            title="Test",
+            description="",
+            signal_ids=["1", "2"],
+            frequency=2,
+            severity=Severity.HIGH,
+            affected_agents=["spec-writer"],
+            confidence=0.7,
+        ),
+    ]
+
+    engine.generate(patterns)
+    assert len(engine.mutations) >= 1
+
+
+def test_unknown_pattern_type_produces_no_mutations():
+    """Pattern with unrecognized prefix should produce no mutations."""
+    engine = MutationEngine(max_per_run=5)
+    patterns = [
+        Pattern(
+            id="unknown:something",
+            title="Unknown type",
+            description="",
+            signal_ids=["1", "2"],
+            frequency=2,
+            severity=Severity.HIGH,
+            affected_agents=["spec-writer"],
+            confidence=0.7,
+        ),
+    ]
+
+    mutations = engine.generate(patterns)
+    assert len(mutations) == 0

@@ -182,6 +182,109 @@ class TestParseTimestamp:
 # --- Healthcheck ---
 
 
+class TestSentryPollBranches:
+    @pytest.mark.asyncio
+    async def test_poll_uses_last_seen_param(self):
+        """Second poll should include 'start' param from last_seen."""
+        config = SourceConfig(
+            enabled=True,
+            token_env="EVA_SENTRY_TOKEN",
+            extra={
+                "org": "ievo",
+                "projects": {"cli": "ievo-cli"},
+            },
+        )
+
+        mock_issues = [
+            {
+                "id": "100",
+                "title": "Error",
+                "level": "error",
+                "metadata": {},
+                "culprit": "",
+                "platform": "",
+                "count": 1,
+                "lastSeen": "2026-03-01T10:00:00Z",
+                "firstSeen": "2026-03-01T09:00:00Z",
+                "permalink": "",
+            },
+        ]
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.raise_for_status = MagicMock()
+        mock_response.json.return_value = mock_issues
+
+        mock_client = AsyncMock()
+        mock_client.get.return_value = mock_response
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch.dict("os.environ", {"EVA_SENTRY_TOKEN": "test-token"}),
+            patch("eva.sources.sentry.httpx.AsyncClient", return_value=mock_client),
+        ):
+            source = SentrySource(config)
+
+            # First poll
+            await source.poll()
+            assert source._last_seen is not None
+
+            # Second poll should pass 'start' param
+            await source.poll()
+            second_call = mock_client.get.call_args_list[-1]
+            assert "start" in second_call[1]["params"]
+
+    @pytest.mark.asyncio
+    async def test_poll_body_parts_coverage(self):
+        """Test all branches in body building: no culprit, no metadata, count=1."""
+        config = SourceConfig(
+            enabled=True,
+            token_env="EVA_SENTRY_TOKEN",
+            extra={
+                "org": "ievo",
+                "projects": {"cli": "ievo-cli"},
+            },
+        )
+
+        # Issue with no culprit, no metadata value, count=1
+        mock_issues = [
+            {
+                "id": "200",
+                "title": "Minimal issue",
+                "level": "warning",
+                "metadata": {},
+                "culprit": "",
+                "platform": "",
+                "count": 1,
+                "lastSeen": "2026-03-01T10:00:00Z",
+                "firstSeen": "2026-03-01T09:00:00Z",
+                "permalink": "",
+            },
+        ]
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.raise_for_status = MagicMock()
+        mock_response.json.return_value = mock_issues
+
+        mock_client = AsyncMock()
+        mock_client.get.return_value = mock_response
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch.dict("os.environ", {"EVA_SENTRY_TOKEN": "test-token"}),
+            patch("eva.sources.sentry.httpx.AsyncClient", return_value=mock_client),
+        ):
+            source = SentrySource(config)
+            signals = await source.poll()
+
+        assert len(signals) == 1
+        # Body should be empty since no culprit, no metadata, count=1
+        assert signals[0].body == ""
+
+
 class TestSentryHealthcheck:
     @pytest.mark.asyncio
     async def test_healthcheck_no_token(self):
@@ -192,4 +295,78 @@ class TestSentryHealthcheck:
         )
         source = SentrySource(config)
         result = await source.healthcheck()
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_healthcheck_success(self):
+        config = SourceConfig(
+            enabled=True,
+            token_env="EVA_SENTRY_TOKEN",
+            extra={"org": "ievo"},
+        )
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+
+        mock_client = AsyncMock()
+        mock_client.get.return_value = mock_response
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch.dict("os.environ", {"EVA_SENTRY_TOKEN": "test-token"}),
+            patch("eva.sources.sentry.httpx.AsyncClient", return_value=mock_client),
+        ):
+            source = SentrySource(config)
+            result = await source.healthcheck()
+
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_healthcheck_non_200(self):
+        config = SourceConfig(
+            enabled=True,
+            token_env="EVA_SENTRY_TOKEN",
+            extra={"org": "ievo"},
+        )
+
+        mock_response = MagicMock()
+        mock_response.status_code = 403
+
+        mock_client = AsyncMock()
+        mock_client.get.return_value = mock_response
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch.dict("os.environ", {"EVA_SENTRY_TOKEN": "test-token"}),
+            patch("eva.sources.sentry.httpx.AsyncClient", return_value=mock_client),
+        ):
+            source = SentrySource(config)
+            result = await source.healthcheck()
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_healthcheck_http_error(self):
+        import httpx
+
+        config = SourceConfig(
+            enabled=True,
+            token_env="EVA_SENTRY_TOKEN",
+            extra={"org": "ievo"},
+        )
+
+        mock_client = AsyncMock()
+        mock_client.get.side_effect = httpx.HTTPError("fail")
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+
+        with (
+            patch.dict("os.environ", {"EVA_SENTRY_TOKEN": "test-token"}),
+            patch("eva.sources.sentry.httpx.AsyncClient", return_value=mock_client),
+        ):
+            source = SentrySource(config)
+            result = await source.healthcheck()
+
         assert result is False

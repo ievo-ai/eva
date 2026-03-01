@@ -12,7 +12,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-from eva.core.models import Mutation, Pattern, Signal
+from eva.core.models import Mutation, MutationType, Pattern, Severity, Signal, SignalType
 
 
 def format_signals(signals: list[Signal]) -> list[str]:
@@ -105,8 +105,7 @@ def format_sessions(sessions_dir: Path) -> list[str]:
                 continue
             if stripped and not stripped.startswith("#") and len(stripped) > 20:
                 summary_lines.append(stripped)
-                if len(summary_lines) >= 1:
-                    break
+                break
 
         summary = summary_lines[0][:120] if summary_lines else topic
         entries.append(f"[{date}] - Eva session {num}: {topic} — {summary}")
@@ -192,10 +191,10 @@ def load_report(report_path: Path) -> tuple[list[Signal], list[Pattern], list[Mu
         signals.append(
             Signal(
                 id=s["id"],
-                type=s["type"],
+                type=SignalType(s["type"]),
                 source=s["source"],
                 title=s["title"],
-                severity=s.get("severity", "medium"),
+                severity=Severity(s.get("severity", "medium")),
                 tags=s.get("tags", []),
                 body="",
             )
@@ -209,7 +208,7 @@ def load_report(report_path: Path) -> tuple[list[Signal], list[Pattern], list[Mu
                 title=p["title"],
                 description="",
                 confidence=p.get("confidence", 0),
-                severity=p.get("severity", "medium"),
+                severity=Severity(p.get("severity", "medium")),
                 signal_ids=p.get("signal_ids", []),
                 affected_repos=p.get("affected_repos", []),
             )
@@ -220,7 +219,7 @@ def load_report(report_path: Path) -> tuple[list[Signal], list[Pattern], list[Mu
         mutations.append(
             Mutation(
                 id=m["id"],
-                type=m["type"],
+                type=MutationType(m["type"]),
                 title=m["title"],
                 description="",
                 target_repo=m.get("target_repo", ""),

@@ -149,7 +149,10 @@ Available Claude Code skills:
 - **Evolution logs**: NEVER include sensitive information (tokens, passwords, private paths, internal URLs). Evolution logs are public.
 - **New repos**: always include `.gitattributes` with `* text=auto eol=lf` from the first commit.
 - **Verify before acting**: before creating files/directories, check existing conventions (CLAUDE.md, .gitignore, project structure). Before rejecting a pattern, evaluate its substance, not just its domain name.
-- **100% test coverage**: all code must have 100% test coverage. When writing or modifying code, always write or update tests to cover every path. Run `uv run pytest --cov --cov-report=term-missing` to verify. CI enforces `fail_under` (currently 54%, target 100%). Never lower `fail_under` — only raise it as coverage improves.
+- **100% test coverage**: all code must have 100% test coverage. When writing or modifying code, always write or update tests to cover every path. Run `uv run pytest --cov --cov-report=term-missing` to verify. CI enforces `fail_under = 100`. Never lower this threshold.
+- **Pre-commit after edits**: always run `uv run pre-commit run --files <changed-files>` after editing files, before committing.
+- **Tests before push**: always run `uv run pytest --cov --cov-report=term-missing` before pushing. Never push with failing tests or coverage below threshold.
+- **Eva tests her children**: Eva is responsible for writing tests, running tests, and developing children agents (spec-writer, architect, coder, researcher). Same coverage and quality standards apply to all children.
 
 ## Commands
 

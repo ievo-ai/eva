@@ -25,7 +25,7 @@ class BaseSource(ABC):
         Returns:
             List of new Signal objects since last poll.
         """
-        ...
+        ...  # pragma: no cover
 
     @abstractmethod
     async def healthcheck(self) -> bool:
@@ -34,7 +34,7 @@ class BaseSource(ABC):
         Returns:
             True if the source is available.
         """
-        ...
+        ...  # pragma: no cover
 
     def is_enabled(self) -> bool:
         return self.config.enabled

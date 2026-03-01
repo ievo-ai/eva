@@ -1,0 +1,254 @@
+"""Tests for Eva CLI."""
+
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+from click.testing import CliRunner
+
+from eva.cli import main
+
+
+@pytest.fixture
+def runner():
+    return CliRunner()
+
+
+class TestMainGroup:
+    def test_version_flag(self, runner):
+        result = runner.invoke(main, ["--version"])
+        assert result.exit_code == 0
+        assert "eva" in result.output
+
+    def test_no_args_shows_help(self, runner):
+        result = runner.invoke(main, [])
+        assert result.exit_code == 0
+        assert "Eva" in result.output
+        assert "scan" in result.output
+
+    def test_help_flag(self, runner):
+        result = runner.invoke(main, ["--help"])
+        assert result.exit_code == 0
+        assert "scan" in result.output
+
+
+class TestScanCommand:
+    def test_scan_dry_run(self, runner, tmp_path):
+        config_path = tmp_path / "eva.yaml"
+
+        mock_run = EvaRunResult()
+        mock_pipeline = MagicMock()
+        mock_pipeline.run = AsyncMock(return_value=mock_run)
+        mock_pipeline.print_summary = MagicMock()
+        mock_pipeline.save_report = MagicMock()
+
+        with patch("eva.pipeline.EvaPipeline", return_value=mock_pipeline) as mock_cls:
+            result = runner.invoke(
+                main, ["scan", "-c", str(config_path), "-r", str(tmp_path / "report.json")]
+            )
+
+        assert result.exit_code == 0
+        mock_cls.assert_called_once()
+        mock_pipeline.run.assert_called_once()
+        mock_pipeline.print_summary.assert_called_once()
+        mock_pipeline.save_report.assert_called_once()
+
+    def test_scan_live_mode(self, runner, tmp_path):
+        config_path = tmp_path / "eva.yaml"
+
+        mock_run = EvaRunResult()
+        mock_pipeline = MagicMock()
+        mock_pipeline.run = AsyncMock(return_value=mock_run)
+        mock_pipeline.print_summary = MagicMock()
+        mock_pipeline.save_report = MagicMock()
+
+        with patch("eva.pipeline.EvaPipeline", return_value=mock_pipeline):
+            result = runner.invoke(
+                main,
+                ["scan", "--live", "-c", str(config_path), "-r", str(tmp_path / "report.json")],
+            )
+
+        assert result.exit_code == 0
+
+    def test_scan_with_marketplace(self, runner, tmp_path):
+        config_path = tmp_path / "eva.yaml"
+        marketplace_dir = tmp_path / "marketplace"
+        marketplace_dir.mkdir()
+
+        mock_run = EvaRunResult()
+        mock_pipeline = MagicMock()
+        mock_pipeline.run = AsyncMock(return_value=mock_run)
+        mock_pipeline.print_summary = MagicMock()
+        mock_pipeline.save_report = MagicMock()
+
+        with patch("eva.pipeline.EvaPipeline", return_value=mock_pipeline):
+            result = runner.invoke(
+                main,
+                [
+                    "scan",
+                    "-c",
+                    str(config_path),
+                    "-m",
+                    str(marketplace_dir),
+                    "-r",
+                    str(tmp_path / "report.json"),
+                ],
+            )
+
+        assert result.exit_code == 0
+
+    def test_scan_exception_reraises(self, runner, tmp_path):
+        config_path = tmp_path / "eva.yaml"
+
+        mock_pipeline = MagicMock()
+        mock_pipeline.run = AsyncMock(side_effect=RuntimeError("Pipeline failed"))
+
+        with patch("eva.pipeline.EvaPipeline", return_value=mock_pipeline):
+            result = runner.invoke(
+                main, ["scan", "-c", str(config_path), "-r", str(tmp_path / "report.json")]
+            )
+
+        assert result.exit_code != 0
+
+
+class TestStatusCommand:
+    def test_status_default_config(self, runner, tmp_path):
+        config_path = tmp_path / "eva.yaml"
+        result = runner.invoke(main, ["status", "-c", str(config_path)])
+        assert result.exit_code == 0
+        assert "dry-run" in result.output
+
+
+class TestInitCommand:
+    def test_init_creates_config(self, runner, tmp_path):
+        output_path = tmp_path / "eva.yaml"
+        result = runner.invoke(main, ["init", "-o", str(output_path)])
+        assert result.exit_code == 0
+        assert output_path.exists()
+
+    def test_init_aborts_on_existing(self, runner, tmp_path):
+        output_path = tmp_path / "eva.yaml"
+        output_path.write_text("existing")
+        result = runner.invoke(main, ["init", "-o", str(output_path)], input="n\n")
+        assert result.exit_code == 0
+        assert "Aborted" in result.output
+
+    def test_init_overwrites_on_confirm(self, runner, tmp_path):
+        output_path = tmp_path / "eva.yaml"
+        output_path.write_text("existing")
+        result = runner.invoke(main, ["init", "-o", str(output_path)], input="y\n")
+        assert result.exit_code == 0
+        assert "Created" in result.output
+
+
+class TestExportMemoryCommand:
+    def test_export_no_data(self, runner, tmp_path):
+        agent_dir = tmp_path / "agent"
+        agent_dir.mkdir()
+        (agent_dir / "memory").mkdir()
+        result = runner.invoke(main, ["export-memory", "--agent-dir", str(agent_dir)])
+        assert result.exit_code == 0
+        assert "No memory entries" in result.output
+
+    def test_export_to_stdout(self, runner, tmp_path):
+        agent_dir = tmp_path / "agent"
+        agent_dir.mkdir()
+        memory = agent_dir / "memory"
+        memory.mkdir()
+        (memory / "DECISIONS.md").write_text(
+            "| ID | Date | Decision | Rationale | Status |\n"
+            "|----|------|----------|-----------|--------|\n"
+            "| D-001 | 2026-02-28 | Test | Reason | Active |\n"
+        )
+        result = runner.invoke(main, ["export-memory", "--agent-dir", str(agent_dir)])
+        assert result.exit_code == 0
+        assert "D-001" in result.output
+        assert "entries" in result.output
+
+    def test_export_to_file(self, runner, tmp_path):
+        agent_dir = tmp_path / "agent"
+        agent_dir.mkdir()
+        memory = agent_dir / "memory"
+        memory.mkdir()
+        (memory / "DECISIONS.md").write_text(
+            "| ID | Date | Decision | Rationale | Status |\n"
+            "|----|------|----------|-----------|--------|\n"
+            "| D-001 | 2026-02-28 | Test | Reason | Active |\n"
+        )
+        output_path = tmp_path / "memory.txt"
+        result = runner.invoke(
+            main, ["export-memory", "-o", str(output_path), "--agent-dir", str(agent_dir)]
+        )
+        assert result.exit_code == 0
+        assert output_path.exists()
+        assert "D-001" in output_path.read_text()
+
+    def test_export_with_include_filter(self, runner, tmp_path):
+        agent_dir = tmp_path / "agent"
+        agent_dir.mkdir()
+        memory = agent_dir / "memory"
+        memory.mkdir()
+        (memory / "DECISIONS.md").write_text(
+            "| ID | Date | Decision | Rationale | Status |\n"
+            "|----|------|----------|-----------|--------|\n"
+            "| D-001 | 2026-02-28 | Test | Reason | Active |\n"
+        )
+        (memory / "HISTORY.md").write_text(
+            "| # | Date | Topic | Key outcome |\n"
+            "|---|------|-------|-------------|\n"
+            "| 001 | 2026-02-28 | Build | Built everything |\n"
+        )
+        result = runner.invoke(
+            main, ["export-memory", "--include", "decisions", "--agent-dir", str(agent_dir)]
+        )
+        assert result.exit_code == 0
+        assert "D-001" in result.output
+
+    def test_export_from_report(self, runner, tmp_path):
+        import json
+
+        agent_dir = tmp_path / "agent"
+        agent_dir.mkdir()
+        (agent_dir / "memory").mkdir()
+        report = {
+            "signals": [
+                {
+                    "id": "sig-1",
+                    "type": "github_issue",
+                    "source": "test",
+                    "title": "Test Signal",
+                    "severity": "medium",
+                    "tags": [],
+                }
+            ],
+            "patterns": [],
+            "mutations": [],
+        }
+        report_path = tmp_path / "report.json"
+        report_path.write_text(json.dumps(report))
+        result = runner.invoke(
+            main,
+            ["export-memory", "--from-report", str(report_path), "--agent-dir", str(agent_dir)],
+        )
+        assert result.exit_code == 0
+        assert "Test Signal" in result.output
+
+
+class TestApproveCommand:
+    def test_approve_placeholder(self, runner):
+        result = runner.invoke(main, ["approve", "mut-0001"])
+        assert result.exit_code == 0
+        assert "Phase 2" in result.output
+        assert "mut-0001" in result.output
+
+
+# --- Helpers ---
+
+
+class EvaRunResult:
+    """Minimal mock for EvaRun."""
+
+    def __init__(self):
+        self.signals = []
+        self.patterns = []
+        self.mutations = []
+        self.pr_results = []
