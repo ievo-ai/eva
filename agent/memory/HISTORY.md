@@ -11,3 +11,4 @@ Lightweight index. Full details in `sessions/NNN-topic.md`.
 | [005](sessions/005-precommit-quality-gates.md) | 2026-03-01 | Pre-commit Quality Gates | Expanded 3→10 hooks: mypy strict (62→0 errors), actionlint, workflow security hardening (env blocks) |
 | [006](sessions/006-evo-workflow-and-cleanup.md) | 2026-03-01 | Evo Workflow & Cleanup | /evo creates GitHub issues, working rules, CRLF→LF normalization, 2 evolution entries |
 | [007](sessions/007-children-symlinks.md) | 2026-03-01 | Children Symlinks | .claude/children/ symlinks to marketplace agents, .gitattributes LF normalization |
+| [008](sessions/008-100-percent-coverage.md) | 2026-03-01 | 100% Test Coverage | 243 tests, 1132 stmts, 334 branches — full coverage enforced with fail_under=100 |
