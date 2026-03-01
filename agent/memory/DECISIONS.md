@@ -33,3 +33,8 @@
 | D-029 | 2026-03-01 | Pre-commit: 10 hooks total (mypy, actionlint, hygiene) | Full quality pipeline adopted from MeddyLib interview | Active |
 | D-030 | 2026-03-01 | Mypy as local hook with explicit entry | mirrors-mypy + pass_filenames:false fails; local entry: mypy src/eva works | Active |
 | D-031 | 2026-03-01 | Workflow security: env blocks over inline ${{ }} | Prevents shell injection, satisfies SC2086, follows GitHub security guide | Active |
+| D-032 | 2026-03-01 | Evolution steps → GitHub issues (not PRs) | Traceable record for future propagation to children agents | Active |
+| D-033 | 2026-03-01 | `ievo` label = Eva's task only | Don't apply to human tasks; correct ownership semantics | Active |
+| D-034 | 2026-03-01 | Evolution logs must not contain sensitive data | Logs are public — no tokens, passwords, private paths | Active |
+| D-035 | 2026-03-01 | LF line endings enforced via .gitattributes | Eliminates CRLF warnings, consistent across platforms | Active |
+| D-036 | 2026-03-01 | Machine user @ievo for GitHub (pending) | Real assignee support; email ievo@ievo.ai; issue #2 tracks | Pending |
