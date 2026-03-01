@@ -22,6 +22,7 @@ Thumbs.db
 
 # Eva runtime
 .eva_cache/
+output/
 *.db
 
 # Local symlinks to marketplace agents (not tracked)
