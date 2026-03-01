@@ -53,12 +53,14 @@ EVO (local) → Curator (collective) → Eva (meta/platform)
 | Curator | Marketplace | Cross-agent pattern → shared skill |
 | Eva | Platform | Ecosystem observation → PRs to any repo |
 
-## Global Docs
+## Documentation
 
-- [Global Architecture](docs/global-architecture.md) — full iEvo system design
-- [Competitive Analysis](docs/research/competitive-analysis.md) — 8 competing frameworks
-- [Roadmap](docs/research/roadmap.md) — Phase 2-4 plans
-- [Getting Started](docs/getting-started.md) — first Spec Writer session guide
+**Full docs**: [ievo-ai.github.io/eva](https://ievo-ai.github.io/eva/)
+
+- [Getting Started](https://ievo-ai.github.io/eva/getting-started/) — first Spec Writer session
+- [Global Architecture](https://ievo-ai.github.io/eva/global-architecture/) — full system design
+- [Competitive Analysis](https://ievo-ai.github.io/eva/research/competitive-analysis/) — 8 frameworks compared
+- [Roadmap](https://ievo-ai.github.io/eva/research/roadmap/) — Phase 2-4 plans
 
 ---
 
@@ -190,9 +192,9 @@ The GitHub Actions workflows build and run the Docker container. Same image work
 - **Atomic changes** — one concern per mutation
 - **Bot loop prevention** — ignores issues from `github-actions[bot]`
 
-## Documentation
+## Eva Documentation
 
-Full technical documentation is in [`docs/`](docs/):
+Full technical docs at [ievo-ai.github.io/eva](https://ievo-ai.github.io/eva/) or in [`docs/`](docs/):
 
 - [Architecture](docs/architecture.md) — system design, evolution levels, domain models
 - [Pipeline](docs/pipeline.md) — OBSERVE → ANALYZE → MUTATE in detail
