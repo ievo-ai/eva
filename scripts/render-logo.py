@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Render iEvo ASCII logo to PNG for GitHub App avatar."""
 
-from PIL import Image, ImageDraw, ImageFont
 import os
+
+from PIL import Image, ImageDraw, ImageFont
 
 LOGO = r"""
  ██╗ ███████╗██╗   ██╗ ██████╗
@@ -15,8 +16,8 @@ LOGO = r"""
 
 # Config
 SIZE = 512
-BG_COLOR = (13, 17, 23)       # GitHub dark bg
-FG_COLOR = (74, 222, 128)     # GitHub blue accent
+BG_COLOR = (13, 17, 23)  # GitHub dark bg
+FG_COLOR = (74, 222, 128)  # GitHub blue accent
 FONT_SIZE = 28
 
 # Try to find a monospace font

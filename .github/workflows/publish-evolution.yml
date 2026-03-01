@@ -54,24 +54,36 @@ jobs:
           python-version: '3.13'
 
       - name: Publish evolution entry
+        env:
+          EVO_ID: ${{ inputs.evo_id }}
+          EVO_TITLE: ${{ inputs.title }}
+          EVO_AGENT: ${{ inputs.agent }}
+          EVO_TYPE: ${{ inputs.type }}
+          EVO_TARGET: ${{ inputs.target }}
+          EVO_DESC: ${{ inputs.description }}
+          EVO_CONFIDENCE: ${{ inputs.confidence }}
+          EVO_PR: ${{ inputs.pr_url }}
         run: |
           python scripts/publish-evolution.py \
-            --id "${{ inputs.evo_id }}" \
-            --title "${{ inputs.title }}" \
-            --agent "${{ inputs.agent }}" \
-            --type "${{ inputs.type }}" \
-            --target "${{ inputs.target }}" \
-            --description "${{ inputs.description }}" \
-            --confidence "${{ inputs.confidence }}" \
-            --pr "${{ inputs.pr_url }}" \
+            --id "$EVO_ID" \
+            --title "$EVO_TITLE" \
+            --agent "$EVO_AGENT" \
+            --type "$EVO_TYPE" \
+            --target "$EVO_TARGET" \
+            --description "$EVO_DESC" \
+            --confidence "$EVO_CONFIDENCE" \
+            --pr "$EVO_PR" \
             --file site/docs/evolutions.json
 
       - name: Push to ievo.ai
         working-directory: site
+        env:
+          EVO_ID: ${{ inputs.evo_id }}
+          EVO_TITLE: ${{ inputs.title }}
         run: |
           git config user.name "ievo-bot"
           git config user.email "bot@ievo.ai"
           git add docs/evolutions.json
           git diff --cached --quiet && echo "No changes" && exit 0
-          git commit -m "evo: ${{ inputs.evo_id }} — ${{ inputs.title }}"
+          git commit -m "evo: ${EVO_ID} — ${EVO_TITLE}"
           git push

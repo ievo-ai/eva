@@ -50,33 +50,43 @@ jobs:
 
       - name: Set GitHub token
         id: auth
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          PAT_TOKEN: ${{ secrets.EVA_GITHUB_TOKEN }}
         run: |
-          if [ -n "${{ steps.app-token.outputs.token }}" ]; then
-            echo "token=${{ steps.app-token.outputs.token }}" >> $GITHUB_OUTPUT
+          if [ -n "$APP_TOKEN" ]; then
+            echo "token=$APP_TOKEN" >> "$GITHUB_OUTPUT"
           else
-            echo "token=${{ secrets.EVA_GITHUB_TOKEN }}" >> $GITHUB_OUTPUT
+            echo "token=$PAT_TOKEN" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build Eva container
         run: docker build -t eva:local .
 
       - name: Prepare issue context
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_REPO: ${{ github.event.client_payload.repo }}
+          DISPATCH_NUMBER: ${{ github.event.client_payload.issue_number }}
+          CURRENT_REPO: ${{ github.repository }}
+          ISSUE_NUM: ${{ github.event.issue.number }}
         run: |
-          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            echo "ISSUE_SOURCE=${{ github.event.client_payload.repo }}" >> $GITHUB_ENV
-            echo "ISSUE_NUMBER=${{ github.event.client_payload.issue_number }}" >> $GITHUB_ENV
+          if [ "$EVENT_NAME" = "repository_dispatch" ]; then
+            echo "ISSUE_SOURCE=$DISPATCH_REPO" >> "$GITHUB_ENV"
+            echo "ISSUE_NUMBER=$DISPATCH_NUMBER" >> "$GITHUB_ENV"
           else
-            echo "ISSUE_SOURCE=${{ github.repository }}" >> $GITHUB_ENV
-            echo "ISSUE_NUMBER=${{ github.event.issue.number }}" >> $GITHUB_ENV
+            echo "ISSUE_SOURCE=$CURRENT_REPO" >> "$GITHUB_ENV"
+            echo "ISSUE_NUMBER=$ISSUE_NUM" >> "$GITHUB_ENV"
           fi
 
       - name: Run Eva scan (dry-run)
         env:
           EVA_GITHUB_TOKEN: ${{ steps.auth.outputs.token }}
+          WORKSPACE: ${{ github.workspace }}
         run: |
           echo "Eva triggered by issue #${ISSUE_NUMBER} in ${ISSUE_SOURCE}"
           docker run --rm \
             -e EVA_GITHUB_TOKEN \
-            -v ${{ github.workspace }}/marketplace:/app/marketplace:ro \
+            -v "$WORKSPACE/marketplace":/app/marketplace:ro \
             eva:local \
             scan --marketplace /app/marketplace

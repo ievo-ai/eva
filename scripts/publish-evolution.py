@@ -16,7 +16,7 @@ Usage:
 
 import argparse
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -25,10 +25,19 @@ def main():
     parser.add_argument("--id", required=True, help="Evolution ID (e.g. EVO-001)")
     parser.add_argument("--title", required=True, help="Short title")
     parser.add_argument("--agent", default="eva", help="Agent that made the mutation")
-    parser.add_argument("--type", default="role_patch",
-                        choices=["role_patch", "skill_patch", "memory_update",
-                                 "config_patch", "milestone", "best_practice"],
-                        help="Mutation type")
+    parser.add_argument(
+        "--type",
+        default="role_patch",
+        choices=[
+            "role_patch",
+            "skill_patch",
+            "memory_update",
+            "config_patch",
+            "milestone",
+            "best_practice",
+        ],
+        help="Mutation type",
+    )
     parser.add_argument("--target", default="", help="Target file path")
     parser.add_argument("--description", default="", help="Longer description")
     parser.add_argument("--confidence", type=float, default=0.0, help="Confidence 0.0-1.0")
@@ -44,7 +53,7 @@ def main():
 
     entry = {
         "id": args.id,
-        "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "date": datetime.now(UTC).strftime("%Y-%m-%d"),
         "title": args.title,
         "agent": args.agent,
         "type": args.type,

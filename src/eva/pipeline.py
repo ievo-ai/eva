@@ -10,7 +10,7 @@ from rich.table import Table
 
 from eva.analysis.detector import PatternDetector
 from eva.core.config import EvaConfig
-from eva.core.models import Mutation, Pattern, Signal
+from eva.core.models import Mutation, Pattern, Severity, Signal
 from eva.github.evolution_publisher import EvolutionPublisher
 from eva.github.pr_creator import PRCreationResult, PRCreator
 from eva.mutations.engine import MutationEngine
@@ -238,9 +238,7 @@ class EvaPipeline:
         console.print(f"  [green]✓[/green] Report saved → {path}")
 
 
-def _severity_color(s) -> str:
-    from eva.core.models import Severity
-
+def _severity_color(s: Severity) -> str:
     return {
         Severity.CRITICAL: "red bold",
         Severity.HIGH: "red",

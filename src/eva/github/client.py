@@ -48,7 +48,8 @@ class GitHubClient:
                 timeout=30,
             )
             resp.raise_for_status()
-            return resp.json()["default_branch"]
+            data: dict[str, Any] = resp.json()
+            return str(data["default_branch"])
 
     async def get_ref_sha(self, repo: str, ref: str) -> str:
         """Get the SHA of a git ref (branch/tag)."""
@@ -59,7 +60,8 @@ class GitHubClient:
                 timeout=30,
             )
             resp.raise_for_status()
-            return resp.json()["object"]["sha"]
+            data: dict[str, Any] = resp.json()
+            return str(data["object"]["sha"])
 
     async def create_branch(self, repo: str, branch: str, from_sha: str) -> None:
         """Create a new branch from a SHA."""
@@ -87,7 +89,8 @@ class GitHubClient:
             if resp.status_code == 404:
                 return None
             resp.raise_for_status()
-            return resp.json()
+            result: dict[str, Any] = resp.json()
+            return result
 
     async def create_or_update_file(
         self,
@@ -119,7 +122,8 @@ class GitHubClient:
                 timeout=30,
             )
             resp.raise_for_status()
-            return resp.json()["commit"]["sha"]
+            data: dict[str, Any] = resp.json()
+            return str(data["commit"]["sha"])
 
     async def create_pull_request(
         self,

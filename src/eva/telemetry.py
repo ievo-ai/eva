@@ -11,6 +11,7 @@ Env vars:
 import os
 
 import sentry_sdk
+from sentry_sdk.types import Event, Hint
 
 from eva import __version__
 
@@ -72,13 +73,16 @@ def capture_scan_context(
     )
 
 
-def _before_send(event: dict, hint: dict) -> dict:
+def _before_send(event: Event, hint: Hint) -> Event | None:
     """Pre-process events before sending to Sentry.
 
     - Strips any accidental token leaks from breadcrumbs
     """
     # Scrub authorization headers from HTTP breadcrumbs
-    for breadcrumb in event.get("breadcrumbs", {}).get("values", []):
+    breadcrumbs = event.get("breadcrumbs", {})
+    if not isinstance(breadcrumbs, dict):
+        return event
+    for breadcrumb in breadcrumbs.get("values", []):
         data = breadcrumb.get("data", {})
         if "headers" in data:
             headers = data["headers"]

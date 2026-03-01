@@ -7,8 +7,6 @@ Usage:
 Requires: pip install PyJWT cryptography httpx
 """
 
-from __future__ import annotations
-
 import argparse
 import sys
 import time
@@ -21,7 +19,7 @@ def generate_jwt(app_id: int, private_key: str) -> str:
     """Generate a JWT for GitHub App authentication."""
     now = int(time.time())
     payload = {
-        "iat": now - 60,       # issued at (60s in the past for clock drift)
+        "iat": now - 60,  # issued at (60s in the past for clock drift)
         "exp": now + (10 * 60),  # expires in 10 minutes
         "iss": app_id,
     }

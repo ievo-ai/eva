@@ -25,3 +25,8 @@
 | D-021 | 2026-03-01 | Python 3.13 minimum across all repos | No need for legacy support — all repos run 3.13+, single CI matrix | Active |
 | D-022 | 2026-03-01 | uv.lock tracked for applications | Reproducible builds for CLI and Curator (apps, not libraries) | Active |
 | D-023 | 2026-03-01 | Agents are children — Eva nurtures, never forces | Mother philosophy: observe, suggest improvements, always via PR + human review | Active |
+| D-024 | 2026-03-01 | MeddyLib symbiosis — session-start check | Eva learns from Denis's mature skill patterns; check meddylib for updates each session | Active |
+| D-025 | 2026-03-01 | Two skill layers: .claude/ (interactive) vs agent/ (pipeline) | Different purposes: slash commands for Denis vs automated iEvo pipeline | Active |
+| D-026 | 2026-03-01 | Forbid from __future__ import annotations | Python 3.13+ uses PEP 604/585 natively; enforced via ruff TID251 | Active |
+| D-027 | 2026-03-01 | Evolution Over Apology | Skip apologies → classify → root cause → rule → log; proactive | Active |
+| D-028 | 2026-03-01 | Pre-commit: ruff + format + skill-frontmatter | Quality gates before every commit | Active |

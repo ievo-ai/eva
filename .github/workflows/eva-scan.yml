@@ -57,13 +57,16 @@ jobs:
 
       - name: Set GitHub token
         id: auth
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          PAT_TOKEN: ${{ secrets.EVA_GITHUB_TOKEN }}
         run: |
-          if [ -n "${{ steps.app-token.outputs.token }}" ]; then
-            echo "token=${{ steps.app-token.outputs.token }}" >> $GITHUB_OUTPUT
-            echo "✓ Using GitHub App token"
+          if [ -n "$APP_TOKEN" ]; then
+            echo "token=$APP_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "Using GitHub App token"
           else
-            echo "token=${{ secrets.EVA_GITHUB_TOKEN }}" >> $GITHUB_OUTPUT
-            echo "✓ Using PAT token"
+            echo "token=$PAT_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "Using PAT token"
           fi
 
       # --- Build & Run ---
@@ -76,9 +79,11 @@ jobs:
           EVA_SENTRY_TOKEN: ${{ secrets.EVA_SENTRY_TOKEN }}
           EVA_SENTRY_DSN: ${{ secrets.EVA_SENTRY_DSN }}
           EVA_ENVIRONMENT: production
+          DRY_RUN_INPUT: ${{ github.event.inputs.dry_run }}
+          WORKSPACE: ${{ github.workspace }}
         run: |
           DRY_RUN_FLAG=""
-          if [ "${{ github.event.inputs.dry_run }}" = "false" ]; then
+          if [ "$DRY_RUN_INPUT" = "false" ]; then
             DRY_RUN_FLAG="--live"
           fi
 
@@ -87,8 +92,8 @@ jobs:
             -e EVA_SENTRY_TOKEN \
             -e EVA_SENTRY_DSN \
             -e EVA_ENVIRONMENT \
-            -v ${{ github.workspace }}/marketplace:/app/marketplace:ro \
-            -v ${{ github.workspace }}/output:/app/output \
+            -v "$WORKSPACE/marketplace":/app/marketplace:ro \
+            -v "$WORKSPACE/output":/app/output \
             eva:local \
             scan --marketplace /app/marketplace --report /app/output/eva-report.json $DRY_RUN_FLAG
 
