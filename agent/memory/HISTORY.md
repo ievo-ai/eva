@@ -12,3 +12,4 @@ Lightweight index. Full details in `sessions/NNN-topic.md`.
 | [006](sessions/006-evo-workflow-and-cleanup.md) | 2026-03-01 | Evo Workflow & Cleanup | /evo creates GitHub issues, working rules, CRLF→LF normalization, 2 evolution entries |
 | [007](sessions/007-children-symlinks.md) | 2026-03-01 | Children Symlinks | .claude/children/ symlinks to marketplace agents, .gitattributes LF normalization |
 | [008](sessions/008-100-percent-coverage.md) | 2026-03-01 | 100% Test Coverage | 243 tests, 1132 stmts, 334 branches — full coverage enforced with fail_under=100 |
+| [009](sessions/009-platform-e2e.md) | 2026-03-01 | Platform E2E + MkDocs | Phase 1: full E2E pass (init→add→run×3), fixed download_agent bug. Phase 2: MkDocs site + docs for 4 repos |
