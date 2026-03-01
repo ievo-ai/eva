@@ -54,6 +54,15 @@ Denis established key workflow preferences:
 | D-034 | Evolution logs must not contain sensitive data | Logs are public — no tokens, passwords, private paths |
 | D-035 | LF line endings enforced via .gitattributes | Eliminates CRLF warnings, consistent across platforms |
 | D-036 | Machine user @ievo for GitHub (pending) | Real assignee support; email ievo@ievo.ai; issue #2 tracks |
+| D-037 | New repos must include .gitattributes from first commit | Prevent CRLF accumulation over project lifecycle |
+
+## Evolution Entries
+
+| # | Title | Issue |
+|---|-------|-------|
+| 1 | Re-read YAML files between sequential edits | [#1](https://github.com/ievo-ai/eva/issues/1) |
+| 2 | Always assignee on issues, no sensitive data in evo logs | [#3](https://github.com/ievo-ai/eva/issues/3) |
+| 3 | Include .gitattributes from the first commit | [#4](https://github.com/ievo-ai/eva/issues/4) |
 
 ## Commits
 
@@ -63,6 +72,8 @@ Denis established key workflow preferences:
 | `0ee9bfb` | evo: re-read YAML files between sequential edits |
 | `1c5dd56` | evo: working rules — assignee, label semantics, no sensitive data |
 | `59627a1` | chore: normalize line endings to LF via .gitattributes |
+| `4ade067` | docs: session 006 — evo workflow, working rules, cleanup |
+| `3759106` | evo: include .gitattributes from the first commit |
 
 ## What's Next
 

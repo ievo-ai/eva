@@ -38,3 +38,4 @@
 | D-034 | 2026-03-01 | Evolution logs must not contain sensitive data | Logs are public — no tokens, passwords, private paths | Active |
 | D-035 | 2026-03-01 | LF line endings enforced via .gitattributes | Eliminates CRLF warnings, consistent across platforms | Active |
 | D-036 | 2026-03-01 | Machine user @ievo for GitHub (pending) | Real assignee support; email ievo@ievo.ai; issue #2 tracks | Pending |
+| D-037 | 2026-03-01 | New repos must include .gitattributes from first commit | Prevent CRLF accumulation over project lifecycle | Active |
