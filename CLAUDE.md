@@ -140,6 +140,7 @@ Available Claude Code skills:
 - **GitHub issues**: always include `--assignee`. Don't guess usernames — look up with `gh api repos/<repo>/collaborators`.
 - **Label `ievo`**: means "Eva's task". Only add when the issue is for Eva to act on, not for human collaborators.
 - **Evolution logs**: NEVER include sensitive information (tokens, passwords, private paths, internal URLs). Evolution logs are public.
+- **New repos**: always include `.gitattributes` with `* text=auto eol=lf` from the first commit.
 
 ## Commands
 

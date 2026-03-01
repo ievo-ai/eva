@@ -15,3 +15,11 @@
 **Action:** Updated CLAUDE.md "Working rules": (1) always `--assignee` on issues, look up usernames first, (2) `ievo` label = Eva's task only, (3) evolution logs must never contain sensitive information. Updated `/evo` skill step 8 with assignee and label guidance.
 
 **Goal:** Ensure issues are properly assigned. Keep evolution logs safe for public visibility. Correct label semantics.
+
+## 2026-03-01: Include .gitattributes from the first commit
+
+**Context:** CRLF warnings appeared on every commit since the project was created. Fixed only in session 006 by adding `.gitattributes` and normalizing 43 files. Should have been there from the start.
+
+**Action:** Added rule to CLAUDE.md "Working rules": always include `.gitattributes` with `* text=auto eol=lf` from the first commit of any new repo.
+
+**Goal:** Prevent CRLF/LF inconsistency from accumulating across the project lifecycle.
