@@ -1,13 +1,13 @@
 # Session 007 — Children Symlinks
 
 **Date:** 2026-03-01
-**Topic:** Local symlinks to marketplace agents + CRLF fix + evo cycle
+**Topic:** Local symlinks to marketplace agents + CRLF fix + evo cycles #3-#4
 
 ## Discussion Summary
 
 Denis proposed creating symlinks to marketplace agents so Eva has direct filesystem access to her children. Key decisions: symlinks are local-only (gitignored, never committed), and belong in `.claude/children/` (not `agent/children/`) because `.claude/` is Claude Code's directory.
 
-Also fixed CRLF line endings globally and ran `/evo` cycle #3.
+Also fixed CRLF line endings globally and ran `/evo` cycles #3 and #4. Cycle #4 adopted meddylib's fact-check skill as `/verify` — adapted for path checking, convention validation, and GitHub API state verification.
 
 ## What Was Built
 
@@ -27,6 +27,13 @@ Also fixed CRLF line endings globally and ran `/evo` cycle #3.
 - Entry: "Include .gitattributes from the first commit"
 - Issue [#4](https://github.com/ievo-ai/eva/issues/4)
 
+### Evolution Cycle #4
+- Entry: "Verify before acting — adopt fact-check skill"
+- Created `/verify` skill in `.claude/skills/verify/SKILL.md`
+- Adapted from meddylib's fact-check — check paths, conventions, API state before acting
+- Added "verify before acting" to CLAUDE.md working rules
+- Issue [#5](https://github.com/ievo-ai/eva/issues/5)
+
 ## Decisions
 
 | ID | Decision | Rationale |
@@ -45,6 +52,8 @@ Also fixed CRLF line endings globally and ran `/evo` cycle #3.
 | `bc46159` | docs: update session 006 with evo #3, D-037 |
 | `6b5154e` | feat: symlinks to marketplace agents in agent/children/ |
 | `a7c0910` | fix: move children symlinks from agent/ to .claude/ |
+| `263d72d` | docs: session 007 — children symlinks |
+| `2a356ba` | evo: verify before acting — adopt fact-check skill |
 
 ## What's Next
 
