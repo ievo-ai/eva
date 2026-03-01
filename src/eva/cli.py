@@ -134,6 +134,61 @@ def init(output: str) -> None:
     console.print("  Edit it to enable sources and configure repos.")
 
 
+@main.command("export-memory")
+@click.option(
+    "--output", "-o", type=click.Path(), default=None, help="Output file (stdout if omitted)."
+)
+@click.option(
+    "--from-report",
+    type=click.Path(exists=True),
+    default=None,
+    help="Load from eva-report.json instead of running a scan.",
+)
+@click.option(
+    "--agent-dir",
+    type=click.Path(exists=True),
+    default="agent",
+    help="Agent directory for memory files.",
+)
+@click.option(
+    "--include",
+    type=str,
+    default=None,
+    help="Categories: signals,patterns,mutations,decisions,sessions,evolution-log,history",
+)
+def export_memory(
+    output: str | None,
+    from_report: str | None,
+    agent_dir: str,
+    include: str | None,
+) -> None:
+    """Export Eva's knowledge in Claude Memory Import format."""
+    from eva.export.memory_export import export_memory as do_export
+
+    include_set = set(include.split(",")) if include else None
+    report_path = Path(from_report) if from_report else None
+    agent_path = Path(agent_dir) if agent_dir else None
+
+    text = do_export(
+        report_path=report_path,
+        agent_dir=agent_path,
+        include=include_set,
+    )
+
+    if not text.strip():
+        console.print("[yellow]No memory entries to export.[/yellow]")
+        return
+
+    entry_count = text.count("\n") + 1
+
+    if output:
+        Path(output).write_text(text + "\n")
+        console.print(f"[green]✓[/green] Exported {entry_count} entries → {output}")
+    else:
+        console.print(text)
+        console.print(f"\n[dim]({entry_count} entries)[/dim]")
+
+
 @main.command()
 @click.argument("mutation_id")
 @click.option("--config", "-c", type=click.Path(), default="eva.yaml")
