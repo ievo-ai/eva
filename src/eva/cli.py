@@ -292,15 +292,21 @@ def tg_process(limit: int) -> None:
             return 0
 
         processed = 0
+        last_update_id = 0
         for update in updates:
+            last_update_id = max(last_update_id, update.get("update_id", 0))
             msg = update.get("message", {})
             text = msg.get("text", "")
             if not text:
                 continue
 
+            # Skip messages from the bot itself
+            sender = msg.get("from", {})
+            if sender.get("is_bot"):
+                continue
+
             msg_id = msg.get("message_id", 0)
-            user = msg.get("from", {})
-            username = user.get("username", user.get("first_name", "?"))
+            username = sender.get("username", sender.get("first_name", "?"))
 
             response, category = await responder.process_message(text)
 
@@ -314,6 +320,9 @@ def tg_process(limit: int) -> None:
                 processed += 1
             else:
                 console.print(f"  [dim]⊘ @{username} [{category}][/dim]")
+
+        # Confirm processed updates so they don't appear again
+        await tg.get_updates(offset=last_update_id + 1, limit=1)
 
         return processed
 

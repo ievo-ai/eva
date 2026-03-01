@@ -404,15 +404,18 @@ class TestTgProcessCommand:
 
         mock_tg = MagicMock()
         mock_tg.get_updates = AsyncMock(
-            return_value=[
-                {
-                    "update_id": 1,
-                    "message": {
-                        "message_id": 42,
-                        "text": "How do agents work?",
-                        "from": {"username": "alice"},
-                    },
-                }
+            side_effect=[
+                [
+                    {
+                        "update_id": 1,
+                        "message": {
+                            "message_id": 42,
+                            "text": "How do agents work?",
+                            "from": {"username": "alice"},
+                        },
+                    }
+                ],
+                [],  # offset confirmation call
             ]
         )
         mock_tg.send_message = AsyncMock(
@@ -433,19 +436,26 @@ class TestTgProcessCommand:
         assert result.exit_code == 0
         assert "alice" in result.output
         assert "Processed 1" in result.output
+        # Verify offset confirmation: get_updates called with offset=2
+        assert mock_tg.get_updates.call_count == 2
+        confirm_kwargs = mock_tg.get_updates.call_args_list[1][1]
+        assert confirm_kwargs["offset"] == 2
 
     def test_tg_process_noise_skipped(self, runner):
         mock_tg = MagicMock()
         mock_tg.get_updates = AsyncMock(
-            return_value=[
-                {
-                    "update_id": 1,
-                    "message": {
-                        "message_id": 42,
-                        "text": "random spam",
-                        "from": {"first_name": "Spammer"},
-                    },
-                }
+            side_effect=[
+                [
+                    {
+                        "update_id": 1,
+                        "message": {
+                            "message_id": 42,
+                            "text": "random spam",
+                            "from": {"first_name": "Spammer"},
+                        },
+                    }
+                ],
+                [],  # offset confirmation
             ]
         )
 
@@ -465,11 +475,14 @@ class TestTgProcessCommand:
     def test_tg_process_skips_empty_text(self, runner):
         mock_tg = MagicMock()
         mock_tg.get_updates = AsyncMock(
-            return_value=[
-                {
-                    "update_id": 1,
-                    "message": {"message_id": 42, "from": {"first_name": "Photo"}},
-                }
+            side_effect=[
+                [
+                    {
+                        "update_id": 1,
+                        "message": {"message_id": 42, "from": {"first_name": "Photo"}},
+                    }
+                ],
+                [],  # offset confirmation
             ]
         )
 
@@ -483,6 +496,36 @@ class TestTgProcessCommand:
 
         assert result.exit_code == 0
         assert "Processed 0" in result.output
+
+    def test_tg_process_skips_bot_messages(self, runner):
+        mock_tg = MagicMock()
+        mock_tg.get_updates = AsyncMock(
+            side_effect=[
+                [
+                    {
+                        "update_id": 1,
+                        "message": {
+                            "message_id": 42,
+                            "text": "I am a bot message",
+                            "from": {"username": "ievo_ai_bot", "is_bot": True},
+                        },
+                    }
+                ],
+                [],  # offset confirmation
+            ]
+        )
+
+        mock_responder = MagicMock()
+
+        with (
+            patch("eva.telegram.client.TelegramClient", return_value=mock_tg),
+            patch("eva.telegram.responder.EvaResponder", return_value=mock_responder),
+        ):
+            result = runner.invoke(main, ["tg-process"])
+
+        assert result.exit_code == 0
+        assert "Processed 0" in result.output
+        mock_responder.process_message.assert_not_called()
 
 
 # --- Helpers ---
