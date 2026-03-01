@@ -25,12 +25,13 @@ dependencies = [
 eva = "eva.cli:main"
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "pytest-asyncio>=0.24", "ruff>=0.8.0", "mypy>=1.14"]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.24", "pytest-cov>=6.0", "ruff>=0.8.0", "mypy>=1.14"]
 
 [dependency-groups]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
     "ruff>=0.8.0",
     "mypy>=1.14",
     "types-pyyaml>=6.0.12.20250915",
@@ -71,3 +72,16 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+
+[tool.coverage.run]
+source = ["eva"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 54
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]

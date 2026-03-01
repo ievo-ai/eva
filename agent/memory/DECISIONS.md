@@ -41,3 +41,5 @@
 | D-037 | 2026-03-01 | New repos must include .gitattributes from first commit | Prevent CRLF accumulation over project lifecycle | Active |
 | D-038 | 2026-03-01 | Children symlinks in .claude/children/ (not agent/) | .claude/ is Claude Code's directory, natural discovery | Active |
 | D-039 | 2026-03-01 | Symlinks local-only, gitignored | Never commit symlinks — machine-specific paths | Active |
+| D-040 | 2026-03-01 | 100% test coverage enforced | pytest-cov + fail_under ratchet; never lower, only raise | Active |
+| D-041 | 2026-03-01 | CI uses uv (not pip) | Consistent with local dev; uv sync --group dev in workflows | Active |

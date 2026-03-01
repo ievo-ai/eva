@@ -31,3 +31,11 @@
 **Action:** Created `/verify` skill (adapted from meddylib's fact-check) for path verification, convention checking, GitHub API queries, and pattern evaluation. Added "verify before acting" to CLAUDE.md working rules. Reversed the original rejection of fact-check (D-024 adoption table).
 
 **Goal:** Prevent errors from assumptions. Check conventions, paths, and API state before acting. Evaluate patterns by substance, not domain name.
+
+## 2026-03-01: Enforce test coverage tooling before adding coverage rules
+
+**Context:** Added "100% test coverage" working rule to CLAUDE.md with `uv run pytest --cov`, but `pytest-cov` was not in dependencies. The rule was unenforceable — running the command failed with "unrecognized arguments". Also, CI workflow (`tests.yml`) used bare `pip install` instead of `uv sync` and had no coverage step.
+
+**Action:** Added `pytest-cov>=6.0` to dev dependencies. Added `[tool.coverage.run]` and `[tool.coverage.report]` config to `pyproject.toml` with `fail_under=54` (current baseline, target 100%). Updated CI to use `uv sync --group dev` and `pytest --cov`. Updated CLAUDE.md rule with "never lower fail_under".
+
+**Goal:** Ensure every rule has working tooling behind it. Coverage ratchet prevents regression while allowing incremental improvement toward 100%.
