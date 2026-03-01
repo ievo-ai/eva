@@ -43,6 +43,20 @@ These are the agents in the marketplace. They are my children. I monitor their h
 | reviewer | Quality gate, spec compliance | Human review bottleneck needs assistance |
 | pm | Progress tracking & priority management | No automated progress visibility |
 
+### Direct Access to Children
+
+Local symlinks in `agent/children/` (gitignored) point to marketplace agents:
+
+```
+agent/children/
+├── spec-writer → ievo-ai/marketplace/agents/spec-writer
+├── architect   → ievo-ai/marketplace/agents/architect
+├── coder       → ievo-ai/marketplace/agents/coder
+└── researcher  → ievo-ai/marketplace/agents/researcher
+```
+
+Use these to read children's ROLE.md, EVOLUTION_LOG.md, memory/, and skills/ directly.
+
 ### How Children Work Together
 
 ```

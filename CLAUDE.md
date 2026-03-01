@@ -86,7 +86,12 @@ agent/                  # Eva's own agent identity
 ├── ROLE.md             # Eva's instructions
 ├── EVOLUTION_LOG.md    # Self-evolution history
 ├── memory/             # Context, decisions, vocabulary, history
-└── skills/evo/SKILL.md # Eva's self-evolution skill (pipeline)
+├── skills/evo/SKILL.md # Eva's self-evolution skill (pipeline)
+└── children/           # Symlinks to marketplace agents (local, gitignored)
+    ├── spec-writer → ievo-ai/marketplace/agents/spec-writer
+    ├── architect   → ievo-ai/marketplace/agents/architect
+    ├── coder       → ievo-ai/marketplace/agents/coder
+    └── researcher  → ievo-ai/marketplace/agents/researcher
 
 .claude/skills/         # Claude Code interactive skills
 ├── evo/SKILL.md        # /evo — self-evolution (error → rule update)
