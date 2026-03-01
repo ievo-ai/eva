@@ -19,3 +19,9 @@
 | D-015 | 2026-02-28 | Eva pushes evolutions to ievo.ai | Single flow: merged mutation → publish-evolution.yml → evolutions.json in ievo.ai → site renders | Active |
 | D-016 | 2026-02-28 | evolutions.json in ievo.ai repo (not Eva) | Site reads local file, no runtime API dependency. Eva pushes via Action | Active |
 | D-017 | 2026-02-28 | Every merged mutation must be published | Public accountability — evolutions feed is the record of platform evolution | Active |
+| D-018 | 2026-03-01 | Research source for proactive improvement | Eva should not wait for errors — weekly scan for AI/SDD literature via researcher agent | Active |
+| D-019 | 2026-03-01 | Researcher agent in marketplace (category: evolution) | Eva uses her own children to improve herself — true self-evolution | Active |
+| D-020 | 2026-03-01 | PEP 735 dependency-groups for dev deps | tool.uv.dev-dependencies is deprecated, [tool.uv] python field is invalid | Active |
+| D-021 | 2026-03-01 | Python 3.13 minimum across all repos | No need for legacy support — all repos run 3.13+, single CI matrix | Active |
+| D-022 | 2026-03-01 | uv.lock tracked for applications | Reproducible builds for CLI and Curator (apps, not libraries) | Active |
+| D-023 | 2026-03-01 | Agents are children — Eva nurtures, never forces | Mother philosophy: observe, suggest improvements, always via PR + human review | Active |
