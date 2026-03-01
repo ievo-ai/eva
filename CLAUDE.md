@@ -128,6 +128,7 @@ Eva has two layers of skills:
 Available Claude Code skills:
 - `/evo` — self-evolution: error → classify → root cause → rule update → log
 - `/extract-best-practices` — session pattern extraction → new skills or rules
+- `/verify` — fact-check before acting: paths, conventions, patterns, GitHub state
 
 ## Key patterns
 
@@ -147,6 +148,7 @@ Available Claude Code skills:
 - **Label `ievo`**: means "Eva's task". Only add when the issue is for Eva to act on, not for human collaborators.
 - **Evolution logs**: NEVER include sensitive information (tokens, passwords, private paths, internal URLs). Evolution logs are public.
 - **New repos**: always include `.gitattributes` with `* text=auto eol=lf` from the first commit.
+- **Verify before acting**: before creating files/directories, check existing conventions (CLAUDE.md, .gitignore, project structure). Before rejecting a pattern, evaluate its substance, not just its domain name.
 
 ## Commands
 

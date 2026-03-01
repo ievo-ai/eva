@@ -23,3 +23,11 @@
 **Action:** Added rule to CLAUDE.md "Working rules": always include `.gitattributes` with `* text=auto eol=lf` from the first commit of any new repo.
 
 **Goal:** Prevent CRLF/LF inconsistency from accumulating across the project lifecycle.
+
+## 2026-03-01: Verify before acting — adopt fact-check skill
+
+**Context:** Created children symlinks in `agent/children/` instead of `.claude/children/` — wrong path, Denis corrected. Earlier, rejected meddylib's `fact-check` skill as "medical domain-specific" without evaluating its core principle. The core principle — verify facts before acting — is universal and would have prevented multiple errors in this session (wrong paths, guessed usernames, wrong labels).
+
+**Action:** Created `/verify` skill (adapted from meddylib's fact-check) for path verification, convention checking, GitHub API queries, and pattern evaluation. Added "verify before acting" to CLAUDE.md working rules. Reversed the original rejection of fact-check (D-024 adoption table).
+
+**Goal:** Prevent errors from assumptions. Check conventions, paths, and API state before acting. Evaluate patterns by substance, not domain name.
