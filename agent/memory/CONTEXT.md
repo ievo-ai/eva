@@ -45,10 +45,10 @@ These are the agents in the marketplace. They are my children. I monitor their h
 
 ### Direct Access to Children
 
-Local symlinks in `agent/children/` (gitignored) point to marketplace agents:
+Local symlinks in `.claude/children/` (gitignored) point to marketplace agents:
 
 ```
-agent/children/
+.claude/children/
 ├── spec-writer → ievo-ai/marketplace/agents/spec-writer
 ├── architect   → ievo-ai/marketplace/agents/architect
 ├── coder       → ievo-ai/marketplace/agents/coder

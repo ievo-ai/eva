@@ -25,4 +25,4 @@ Thumbs.db
 *.db
 
 # Local symlinks to marketplace agents (not tracked)
-agent/children/
+.claude/children/
