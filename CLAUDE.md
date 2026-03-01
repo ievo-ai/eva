@@ -131,6 +131,12 @@ Available Claude Code skills:
 - **Mutations**: Pattern → Mutation mapping with confidence scoring and rate limiting
 - **Safety**: dry-run default, never auto-merge, max 5 mutations/run, confidence threshold 30%
 - **Evolutions feed**: Merged mutations → `publish-evolution.yml` → `ievo.ai/docs/evolutions.json` → site renders live
+- **Evolution → Issue**: every `/evo` step creates a GitHub issue in `ievo-ai/eva` for traceability and future propagation to children
+
+## Editing rules
+
+- **YAML workflow files**: after editing a `.yml` workflow file, always re-read it before making another edit to the same file. YAML is indentation-sensitive — partial edits can corrupt structure.
+- **Blocked edits**: when a hook blocks an Edit, verify the file state before proceeding. A blocked edit does NOT modify the file.
 
 ## Commands
 
@@ -231,7 +237,7 @@ Never put full session content in HISTORY.md.
 
 **Language**: English only.
 
-**When to write**: at the end of every session, or when Denis asks.
+**When to write**: automatically at the end of every session. After saving, run `/evo` to analyze mistakes and create evolution issues.
 
 ## MeddyLib Symbiosis
 

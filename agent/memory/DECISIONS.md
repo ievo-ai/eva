@@ -30,3 +30,6 @@
 | D-026 | 2026-03-01 | Forbid from __future__ import annotations | Python 3.13+ uses PEP 604/585 natively; enforced via ruff TID251 | Active |
 | D-027 | 2026-03-01 | Evolution Over Apology | Skip apologies → classify → root cause → rule → log; proactive | Active |
 | D-028 | 2026-03-01 | Pre-commit: ruff + format + skill-frontmatter | Quality gates before every commit | Active |
+| D-029 | 2026-03-01 | Pre-commit: 10 hooks total (mypy, actionlint, hygiene) | Full quality pipeline adopted from MeddyLib interview | Active |
+| D-030 | 2026-03-01 | Mypy as local hook with explicit entry | mirrors-mypy + pass_filenames:false fails; local entry: mypy src/eva works | Active |
+| D-031 | 2026-03-01 | Workflow security: env blocks over inline ${{ }} | Prevents shell injection, satisfies SC2086, follows GitHub security guide | Active |

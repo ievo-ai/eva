@@ -84,6 +84,20 @@ Append to `agent/EVOLUTION_LOG.md` using Context / Action / Goal format:
 **Goal:** What this change prevents in the future.
 ```
 
-### 8. Confirm Understanding
+### 8. Create GitHub Issue
+
+Create a GitHub issue in `ievo-ai/eva` to track the evolution step:
+
+```bash
+gh issue create \
+  --repo ievo-ai/eva \
+  --title "evo: <brief title>" \
+  --label "evolution" \
+  --body "<Context/Action/Goal from step 7>"
+```
+
+This creates a traceable record. When children agents are ready, Eva can propagate these lessons to them via their own repos.
+
+### 9. Confirm Understanding
 
 Restate the lesson learned. Acknowledge the error and commit to following the new rule. Do not apologize — act.
