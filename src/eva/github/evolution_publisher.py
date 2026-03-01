@@ -2,17 +2,21 @@
 
 After Eva creates PRs, it records each successful mutation as an evolution
 entry on the ievo.ai site so the public can see the platform evolving.
+Optionally also sends formatted messages to Telegram.
 """
 
 import base64
 import json
 import os
 from datetime import UTC, datetime
+from typing import Any
 
 from rich.console import Console
 
-from eva.core.models import Mutation
+from eva.core.models import EvolutionEntry, Mutation
 from eva.github.client import GitHubClient
+from eva.telegram.client import TelegramClient
+from eva.telegram.formatter import format_telegram_message
 
 console = Console()
 
@@ -22,22 +26,40 @@ EVOLUTIONS_PATH = "docs/evolutions.json"
 
 
 class EvolutionPublisher:
-    """Publishes evolution entries to ievo.ai."""
+    """Publishes evolution entries to ievo.ai and optionally Telegram."""
 
-    def __init__(self, token: str | None = None) -> None:
+    def __init__(
+        self,
+        token: str | None = None,
+        telegram: TelegramClient | None = None,
+    ) -> None:
         self._token = token or os.environ.get("EVA_GITHUB_TOKEN", "")
         if not self._token:
             raise ValueError("No token for evolution publishing. Set EVA_GITHUB_TOKEN.")
         self._client = GitHubClient(self._token)
+        self._telegram = telegram
 
     async def publish(self, mutations: list[Mutation]) -> int:
         """Publish successful mutations as evolution entries.
 
         Only publishes mutations that have a pr_url (= successfully created PR).
+        Converts Mutations to EvolutionEntry objects and delegates to publish_entries.
         Returns number of entries published.
         """
         successful = [m for m in mutations if m.pr_url]
         if not successful:
+            return 0
+
+        entries = [EvolutionEntry.from_mutation(m) for m in successful]
+        return await self.publish_entries(entries)
+
+    async def publish_entries(self, entries: list[EvolutionEntry]) -> int:
+        """Publish EvolutionEntry objects to GitHub and optionally Telegram.
+
+        Auto-assigns id and date to entries that don't have them.
+        Returns number of entries published.
+        """
+        if not entries:
             return 0
 
         try:
@@ -46,7 +68,7 @@ class EvolutionPublisher:
 
             if existing and "content" in existing:
                 raw = base64.b64decode(existing["content"]).decode()
-                evolutions = json.loads(raw)
+                evolutions: list[dict[str, Any]] = json.loads(raw)
             else:
                 evolutions = []
 
@@ -61,22 +83,15 @@ class EvolutionPublisher:
                     except (IndexError, ValueError):
                         pass
 
-            # Add new entries
+            # Assign IDs and dates, then append
             today = datetime.now(UTC).strftime("%Y-%m-%d")
-            for mutation in successful:
-                max_id += 1
-                entry = {
-                    "id": f"EVO-{max_id:03d}",
-                    "date": today,
-                    "title": mutation.title,
-                    "agent": "eva",
-                    "type": mutation.type.value,
-                    "target": mutation.target_path,
-                    "description": mutation.description[:200],
-                    "confidence": round(mutation.confidence, 2),
-                    "pr": mutation.pr_url,
-                }
-                evolutions.append(entry)
+            for entry in entries:
+                if not entry.id:
+                    max_id += 1
+                    entry.id = f"EVO-{max_id:03d}"
+                if not entry.date:
+                    entry.date = today
+                evolutions.append(entry.to_dict())
 
             # Write back
             new_content = json.dumps(evolutions, indent=2, ensure_ascii=False) + "\n"
@@ -84,13 +99,32 @@ class EvolutionPublisher:
                 repo=SITE_REPO,
                 path=EVOLUTIONS_PATH,
                 content=new_content,
-                message=f"eva: publish {len(successful)} evolution(s)",
+                message=f"eva: publish {len(entries)} evolution(s)",
                 branch="main",
             )
 
-            console.print(f"  [green]✓[/green] Published {len(successful)} evolution(s) to ievo.ai")
-            return len(successful)
+            console.print(
+                f"  [green]\u2713[/green] Published {len(entries)} evolution(s) to ievo.ai"
+            )
+
+            # Notify Telegram
+            await self._notify_telegram(entries)
+
+            return len(entries)
 
         except Exception as e:
-            console.print(f"  [yellow]⚠[/yellow] Evolution publish failed: {e}")
+            console.print(f"  [yellow]\u26a0[/yellow] Evolution publish failed: {e}")
             return 0
+
+    async def _notify_telegram(self, entries: list[EvolutionEntry]) -> None:
+        """Send evolution notifications to Telegram community chat."""
+        if not self._telegram:
+            return
+
+        for entry in entries:
+            msg = format_telegram_message(entry)
+            result = await self._telegram.send_message(msg)
+            if result.success:
+                console.print(f"  [green]\u2713[/green] Telegram: {entry.id}")
+            else:
+                console.print(f"  [yellow]\u26a0[/yellow] Telegram {entry.id}: {result.error}")

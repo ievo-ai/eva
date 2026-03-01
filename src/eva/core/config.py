@@ -60,6 +60,11 @@ class EvaConfig:
             enabled=True,
         )
     )
+    telegram: SourceConfig = field(
+        default_factory=lambda: SourceConfig(
+            token_env="TELEGRAM_BOT_TOKEN",
+        )
+    )
 
     # Safety
     auto_merge: bool = False  # never auto-merge without human review
@@ -83,7 +88,14 @@ class EvaConfig:
             config.repos = data["repos"]
 
         # Override sources
-        for source_name in ("sentry", "github_issues", "reviews", "evolution_logs", "research"):
+        for source_name in (
+            "sentry",
+            "github_issues",
+            "reviews",
+            "evolution_logs",
+            "research",
+            "telegram",
+        ):
             if source_name in data.get("sources", {}):
                 src_data = data["sources"][source_name]
                 src_config = getattr(config, source_name)
@@ -108,6 +120,7 @@ class EvaConfig:
                 "reviews": {"enabled": self.reviews.enabled},
                 "evolution_logs": {"enabled": self.evolution_logs.enabled},
                 "research": {"enabled": self.research.enabled},
+                "telegram": {"enabled": self.telegram.enabled},
             },
             "auto_merge": self.auto_merge,
             "max_mutations_per_run": self.max_mutations_per_run,

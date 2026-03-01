@@ -1,12 +1,14 @@
 """Tests for evolution publisher — publishes mutations to ievo.ai."""
 
+import base64
 import json
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from eva.core.models import Mutation, MutationType
+from eva.core.models import EvolutionEntry, EvolutionType, Mutation, MutationType
 from eva.github.evolution_publisher import EvolutionPublisher
+from eva.telegram.client import TelegramResult
 
 
 def _make_mutation(**kwargs) -> Mutation:
@@ -23,6 +25,20 @@ def _make_mutation(**kwargs) -> Mutation:
     }
     defaults.update(kwargs)
     return Mutation(**defaults)
+
+
+def _make_entry(**kwargs) -> EvolutionEntry:
+    defaults = {
+        "title": "Test evolution",
+        "agent": "spec-writer",
+        "type": EvolutionType.ROLE_PATCH,
+        "target": "agents/spec-writer/ROLE.md",
+        "description": "Fixed format validation.",
+        "confidence": 0.75,
+        "pr_url": "https://github.com/ievo-ai/marketplace/pull/5",
+    }
+    defaults.update(kwargs)
+    return EvolutionEntry(**defaults)
 
 
 class TestEvolutionPublisherInit:
@@ -42,8 +58,21 @@ class TestEvolutionPublisherInit:
             publisher = EvolutionPublisher()
         assert publisher._token == "env-token"
 
+    def test_accepts_telegram_client(self):
+        with patch.dict(
+            "os.environ",
+            {"TELEGRAM_BOT_TOKEN": "t", "TELEGRAM_COMMUNITY_CHAT": "-100"},
+        ):
+            tg = AsyncMock()
+            publisher = EvolutionPublisher(token="test", telegram=tg)
+        assert publisher._telegram is tg
 
-class TestEvolutionPublisherPublish:
+    def test_no_telegram_by_default(self):
+        publisher = EvolutionPublisher(token="test")
+        assert publisher._telegram is None
+
+
+class TestPublishMutations:
     @pytest.mark.asyncio
     async def test_skips_mutations_without_pr_url(self):
         publisher = EvolutionPublisher(token="test")
@@ -58,8 +87,6 @@ class TestEvolutionPublisherPublish:
             {"id": "EVO-001", "date": "2026-02-28", "title": "First"},
         ]
         existing_content = json.dumps(existing_evolutions).encode()
-
-        import base64
 
         mock_client = publisher._client
         mock_client.get_file_content = AsyncMock(
@@ -96,8 +123,6 @@ class TestEvolutionPublisherPublish:
     async def test_handles_malformed_evo_ids(self):
         publisher = EvolutionPublisher(token="test")
 
-        import base64
-
         existing = [
             {"id": "EVO-bad", "title": "Malformed"},
             {"id": "not-evo", "title": "No prefix"},
@@ -125,3 +150,90 @@ class TestEvolutionPublisherPublish:
 
         count = await publisher.publish([_make_mutation()])
         assert count == 0
+
+
+class TestPublishEntries:
+    @pytest.mark.asyncio
+    async def test_publishes_entries(self):
+        publisher = EvolutionPublisher(token="test")
+
+        mock_client = publisher._client
+        mock_client.get_file_content = AsyncMock(return_value=None)
+        mock_client.create_or_update_file = AsyncMock()
+
+        entry = _make_entry()
+        count = await publisher.publish_entries([entry])
+        assert count == 1
+        assert entry.id == "EVO-001"
+        assert entry.date != ""
+
+    @pytest.mark.asyncio
+    async def test_preserves_existing_id_and_date(self):
+        publisher = EvolutionPublisher(token="test")
+
+        mock_client = publisher._client
+        mock_client.get_file_content = AsyncMock(return_value=None)
+        mock_client.create_or_update_file = AsyncMock()
+
+        entry = _make_entry(id="EVO-099", date="2026-01-01")
+        count = await publisher.publish_entries([entry])
+        assert count == 1
+        assert entry.id == "EVO-099"
+        assert entry.date == "2026-01-01"
+
+    @pytest.mark.asyncio
+    async def test_empty_entries_returns_zero(self):
+        publisher = EvolutionPublisher(token="test")
+        count = await publisher.publish_entries([])
+        assert count == 0
+
+    @pytest.mark.asyncio
+    async def test_publish_entries_exception(self):
+        publisher = EvolutionPublisher(token="test")
+
+        mock_client = publisher._client
+        mock_client.get_file_content = AsyncMock(side_effect=RuntimeError("fail"))
+
+        count = await publisher.publish_entries([_make_entry()])
+        assert count == 0
+
+
+class TestNotifyTelegram:
+    @pytest.mark.asyncio
+    async def test_sends_to_telegram(self):
+        mock_tg = AsyncMock()
+        mock_tg.send_message.return_value = TelegramResult(success=True, message_id=42)
+        publisher = EvolutionPublisher(token="test", telegram=mock_tg)
+
+        mock_client = publisher._client
+        mock_client.get_file_content = AsyncMock(return_value=None)
+        mock_client.create_or_update_file = AsyncMock()
+
+        count = await publisher.publish_entries([_make_entry()])
+        assert count == 1
+        mock_tg.send_message.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_telegram_error_does_not_fail_publish(self):
+        mock_tg = AsyncMock()
+        mock_tg.send_message.return_value = TelegramResult(success=False, error="Chat not found")
+        publisher = EvolutionPublisher(token="test", telegram=mock_tg)
+
+        mock_client = publisher._client
+        mock_client.get_file_content = AsyncMock(return_value=None)
+        mock_client.create_or_update_file = AsyncMock()
+
+        count = await publisher.publish_entries([_make_entry()])
+        assert count == 1
+
+    @pytest.mark.asyncio
+    async def test_no_telegram_skips_notification(self):
+        publisher = EvolutionPublisher(token="test")
+
+        mock_client = publisher._client
+        mock_client.get_file_content = AsyncMock(return_value=None)
+        mock_client.create_or_update_file = AsyncMock()
+
+        # Should not raise — just skips Telegram
+        count = await publisher.publish_entries([_make_entry()])
+        assert count == 1

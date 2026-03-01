@@ -16,7 +16,7 @@ from eva.core.models import (
     SignalType,
 )
 from eva.github.pr_creator import PRCreationResult
-from eva.pipeline import EvaPipeline, EvaRun, _severity_color
+from eva.pipeline import EvaPipeline, EvaRun, _make_telegram_client, _severity_color
 
 
 def _make_signal(id: str = "sig-1", **kwargs) -> Signal:
@@ -102,6 +102,22 @@ class TestEvaPipelineInit:
         pipeline = EvaPipeline(config, marketplace_dir=Path("/tmp/marketplace"))
         assert len(pipeline.sources) == 1
         assert pipeline.sources[0].name == "evolution_logs"
+
+    def test_telegram_source_enabled(self):
+        config = EvaConfig()
+        config.sentry.enabled = False
+        config.github_issues.enabled = False
+        config.reviews.enabled = False
+        config.evolution_logs.enabled = False
+        config.telegram.enabled = True
+
+        with patch.dict(
+            "os.environ",
+            {"TELEGRAM_BOT_TOKEN": "tok", "TELEGRAM_COMMUNITY_CHAT": "-100"},
+        ):
+            pipeline = EvaPipeline(config)
+        assert len(pipeline.sources) == 1
+        assert pipeline.sources[0].name == "telegram"
 
 
 class TestEvaPipelineRun:
@@ -508,6 +524,26 @@ class TestSaveReport:
         assert data["summary"]["prs_created"] == 1
         assert data["summary"]["prs_failed"] == 1
         assert data["mode"] == "live"
+
+
+class TestMakeTelegramClient:
+    def test_returns_client_when_env_set(self):
+        with patch.dict(
+            "os.environ",
+            {"TELEGRAM_BOT_TOKEN": "tok", "TELEGRAM_COMMUNITY_CHAT": "-100"},
+        ):
+            client = _make_telegram_client()
+        assert client is not None
+
+    def test_returns_none_without_token(self):
+        with patch.dict("os.environ", {}, clear=True):
+            client = _make_telegram_client()
+        assert client is None
+
+    def test_returns_none_without_chat(self):
+        with patch.dict("os.environ", {"TELEGRAM_BOT_TOKEN": "tok"}, clear=True):
+            client = _make_telegram_client()
+        assert client is None
 
 
 class TestSeverityColor:

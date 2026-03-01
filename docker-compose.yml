@@ -10,10 +10,13 @@
 #   docker compose run --rm eva-status     # show status & source health
 #
 # Env vars (.env):
-#   EVA_GITHUB_TOKEN  — GitHub PAT or App token (required)
-#   EVA_SENTRY_TOKEN  — Sentry auth token for reading issues (optional)
-#   EVA_SENTRY_DSN    — Sentry DSN for Eva's own error reporting (optional)
-#   MARKETPLACE_DIR   — path to marketplace repo (default: ../marketplace)
+#   EVA_GITHUB_TOKEN         — GitHub PAT or App token (required)
+#   EVA_SENTRY_TOKEN         — Sentry auth token for reading issues (optional)
+#   EVA_SENTRY_DSN           — Sentry DSN for Eva's own error reporting (optional)
+#   MARKETPLACE_DIR          — path to marketplace repo (default: ../marketplace)
+#   TELEGRAM_BOT_TOKEN       — Telegram bot token for community interaction
+#   TELEGRAM_COMMUNITY_CHAT  — Telegram chat ID for publishing + interaction
+#   ANTHROPIC_API_KEY        — Anthropic API key for Eva's community responses
 
 services:
   # ── Dry-run scan (safe, no PRs) ────────────────────────
@@ -57,6 +60,19 @@ services:
     command:
       - status
       - --config=/app/eva.yaml
+
+  # ── Telegram community processing ─────────────────────
+  eva-tg:
+    build: .
+    container_name: eva-tg
+    env_file: .env
+    volumes:
+      - ./eva.yaml:/app/eva.yaml:ro
+      - ./agent:/app/agent:ro
+      - ./output:/app/output
+    command:
+      - tg-process
+      - --limit=50
 
   # ── Scheduled scan (cron-like loop, opt-in) ────────────
   # Uncomment to run Eva on a 6-hour loop.

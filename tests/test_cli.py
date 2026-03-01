@@ -241,6 +241,250 @@ class TestApproveCommand:
         assert "mut-0001" in result.output
 
 
+class TestPublishCommand:
+    def test_publish_dry_run(self, runner):
+        result = runner.invoke(
+            main,
+            [
+                "publish",
+                "--title",
+                "Test evolution",
+                "--type",
+                "milestone",
+                "--agent",
+                "eva",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "Preview" in result.output
+        assert "--live" in result.output
+
+    def test_publish_live(self, runner):
+        mock_publisher = MagicMock()
+        mock_publisher.publish_entries = AsyncMock(return_value=1)
+
+        with (
+            patch(
+                "eva.github.evolution_publisher.EvolutionPublisher",
+                return_value=mock_publisher,
+            ),
+            patch("eva.telegram.client.TelegramClient", side_effect=ValueError("No token")),
+        ):
+            result = runner.invoke(
+                main,
+                [
+                    "publish",
+                    "--title",
+                    "Test",
+                    "--type",
+                    "milestone",
+                    "--live",
+                ],
+            )
+
+        assert result.exit_code == 0
+
+    def test_publish_live_no_github_token(self, runner):
+        with (
+            patch(
+                "eva.github.evolution_publisher.EvolutionPublisher",
+                side_effect=ValueError("No token"),
+            ),
+            patch("eva.telegram.client.TelegramClient", side_effect=ValueError("No tg")),
+        ):
+            result = runner.invoke(
+                main,
+                [
+                    "publish",
+                    "--title",
+                    "Test",
+                    "--type",
+                    "milestone",
+                    "--live",
+                ],
+            )
+
+        assert result.exit_code == 0
+        assert "No token" in result.output
+
+    def test_publish_live_zero_published(self, runner):
+        mock_publisher = MagicMock()
+        mock_publisher.publish_entries = AsyncMock(return_value=0)
+
+        with (
+            patch(
+                "eva.github.evolution_publisher.EvolutionPublisher",
+                return_value=mock_publisher,
+            ),
+            patch("eva.telegram.client.TelegramClient", side_effect=ValueError("No tg")),
+        ):
+            result = runner.invoke(
+                main,
+                [
+                    "publish",
+                    "--title",
+                    "Test",
+                    "--type",
+                    "milestone",
+                    "--live",
+                ],
+            )
+
+        assert result.exit_code == 0
+        assert "Nothing published" in result.output
+
+    def test_publish_live_with_telegram(self, runner):
+        mock_tg = MagicMock()
+        mock_publisher = MagicMock()
+        mock_publisher.publish_entries = AsyncMock(return_value=1)
+
+        with (
+            patch(
+                "eva.github.evolution_publisher.EvolutionPublisher",
+                return_value=mock_publisher,
+            ),
+            patch("eva.telegram.client.TelegramClient", return_value=mock_tg),
+        ):
+            result = runner.invoke(
+                main,
+                [
+                    "publish",
+                    "--title",
+                    "Test",
+                    "--type",
+                    "milestone",
+                    "--live",
+                ],
+            )
+
+        assert result.exit_code == 0
+
+
+class TestTgProcessCommand:
+    def test_tg_process_no_telegram(self, runner):
+        with patch(
+            "eva.telegram.client.TelegramClient",
+            side_effect=ValueError("No token"),
+        ):
+            result = runner.invoke(main, ["tg-process"])
+
+        assert result.exit_code == 0
+        assert "No token" in result.output
+
+    def test_tg_process_no_anthropic(self, runner):
+        mock_tg = MagicMock()
+        with (
+            patch("eva.telegram.client.TelegramClient", return_value=mock_tg),
+            patch(
+                "eva.telegram.responder.EvaResponder",
+                side_effect=ValueError("No Anthropic API key"),
+            ),
+        ):
+            result = runner.invoke(main, ["tg-process"])
+
+        assert result.exit_code == 0
+        assert "No Anthropic" in result.output
+
+    def test_tg_process_no_messages(self, runner):
+        mock_tg = MagicMock()
+        mock_tg.get_updates = AsyncMock(return_value=[])
+        mock_responder = MagicMock()
+
+        with (
+            patch("eva.telegram.client.TelegramClient", return_value=mock_tg),
+            patch("eva.telegram.responder.EvaResponder", return_value=mock_responder),
+        ):
+            result = runner.invoke(main, ["tg-process"])
+
+        assert result.exit_code == 0
+        assert "No new messages" in result.output
+
+    def test_tg_process_with_messages(self, runner):
+        from eva.telegram.client import TelegramResult
+
+        mock_tg = MagicMock()
+        mock_tg.get_updates = AsyncMock(
+            return_value=[
+                {
+                    "update_id": 1,
+                    "message": {
+                        "message_id": 42,
+                        "text": "How do agents work?",
+                        "from": {"username": "alice"},
+                    },
+                }
+            ]
+        )
+        mock_tg.send_message = AsyncMock(
+            return_value=TelegramResult(success=True, message_id=99),
+        )
+
+        mock_responder = MagicMock()
+        mock_responder.process_message = AsyncMock(
+            return_value=("My children collaborate.", "question"),
+        )
+
+        with (
+            patch("eva.telegram.client.TelegramClient", return_value=mock_tg),
+            patch("eva.telegram.responder.EvaResponder", return_value=mock_responder),
+        ):
+            result = runner.invoke(main, ["tg-process"])
+
+        assert result.exit_code == 0
+        assert "alice" in result.output
+        assert "Processed 1" in result.output
+
+    def test_tg_process_noise_skipped(self, runner):
+        mock_tg = MagicMock()
+        mock_tg.get_updates = AsyncMock(
+            return_value=[
+                {
+                    "update_id": 1,
+                    "message": {
+                        "message_id": 42,
+                        "text": "random spam",
+                        "from": {"first_name": "Spammer"},
+                    },
+                }
+            ]
+        )
+
+        mock_responder = MagicMock()
+        mock_responder.process_message = AsyncMock(return_value=(None, "noise"))
+
+        with (
+            patch("eva.telegram.client.TelegramClient", return_value=mock_tg),
+            patch("eva.telegram.responder.EvaResponder", return_value=mock_responder),
+        ):
+            result = runner.invoke(main, ["tg-process"])
+
+        assert result.exit_code == 0
+        assert "Spammer" in result.output
+        assert "Processed 0" in result.output
+
+    def test_tg_process_skips_empty_text(self, runner):
+        mock_tg = MagicMock()
+        mock_tg.get_updates = AsyncMock(
+            return_value=[
+                {
+                    "update_id": 1,
+                    "message": {"message_id": 42, "from": {"first_name": "Photo"}},
+                }
+            ]
+        )
+
+        mock_responder = MagicMock()
+
+        with (
+            patch("eva.telegram.client.TelegramClient", return_value=mock_tg),
+            patch("eva.telegram.responder.EvaResponder", return_value=mock_responder),
+        ):
+            result = runner.invoke(main, ["tg-process"])
+
+        assert result.exit_code == 0
+        assert "Processed 0" in result.output
+
+
 # --- Helpers ---
 
 

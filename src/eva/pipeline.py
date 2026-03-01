@@ -1,6 +1,7 @@
 """Eva pipeline — the main observe → analyze → mutate loop."""
 
 import json
+import os
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -19,6 +20,8 @@ from eva.sources.evolution_logs import EvolutionLogsSource
 from eva.sources.github_issues import GitHubIssuesSource
 from eva.sources.reviews import ReviewsSource
 from eva.sources.sentry import SentrySource
+from eva.sources.telegram import TelegramSource
+from eva.telegram.client import TelegramClient
 
 console = Console()
 
@@ -77,6 +80,9 @@ class EvaPipeline:
                     marketplace_dir=marketplace_dir,
                 )
             )
+
+        if config.telegram.enabled:
+            self.sources.append(TelegramSource(config.telegram))
 
     async def run(self) -> EvaRun:
         """Execute one full observe → analyze → mutate cycle.
@@ -151,11 +157,12 @@ class EvaPipeline:
                 console.print(f"  [red]✗ Cannot create PRs: {e}[/red]")
                 console.print("  [dim]Set EVA_GITHUB_TOKEN to enable live mode.[/dim]")
 
-            # Phase 5: Publish evolutions to ievo.ai
+            # Phase 5: Publish evolutions to ievo.ai + Telegram
             if any(r.success for r in result.pr_results):
                 console.print("\n[bold cyan]Phase 5: Publish Evolutions[/bold cyan]")
                 try:
-                    publisher = EvolutionPublisher()
+                    telegram = _make_telegram_client()
+                    publisher = EvolutionPublisher(telegram=telegram)
                     count = await publisher.publish(result.mutations)
                     if count:
                         console.print(
@@ -236,6 +243,15 @@ class EvaPipeline:
 
         path.write_text(json.dumps(report, indent=2, ensure_ascii=False))
         console.print(f"  [green]✓[/green] Report saved → {path}")
+
+
+def _make_telegram_client() -> TelegramClient | None:
+    """Create a TelegramClient if tokens are available, otherwise None."""
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    chat_id = os.environ.get("TELEGRAM_COMMUNITY_CHAT", "")
+    if token and chat_id:
+        return TelegramClient(token=token, chat_id=chat_id)
+    return None
 
 
 def _severity_color(s: Severity) -> str:

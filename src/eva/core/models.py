@@ -15,6 +15,7 @@ class SignalType(StrEnum):
     EVOLUTION_LOG = "evolution_log"
     PR_COMMENT = "pr_comment"
     RESEARCH_PROPOSAL = "research_proposal"
+    TELEGRAM_MESSAGE = "telegram_message"
 
 
 class Severity(StrEnum):
@@ -106,3 +107,62 @@ class Mutation:
         """Generate branch name for PR."""
         safe_id = self.id.replace(":", "-").replace("/", "-")
         return f"eva/{safe_id}"
+
+
+class EvolutionType(StrEnum):
+    """Type of evolution entry — superset of pipeline mutations."""
+
+    ROLE_PATCH = "role_patch"
+    SKILL_PATCH = "skill_patch"
+    MEMORY_UPDATE = "memory_update"
+    CONFIG_PATCH = "config_patch"
+    MILESTONE = "milestone"
+    BEST_PRACTICE = "best_practice"
+
+
+@dataclass
+class EvolutionEntry:
+    """A published evolution entry for the ievo.ai feed and Telegram."""
+
+    title: str
+    agent: str
+    type: EvolutionType
+    target: str
+    description: str
+    confidence: float = 0.0
+    pr_url: str = ""
+    id: str = ""  # EVO-NNN, auto-assigned by publisher
+    date: str = ""  # YYYY-MM-DD, auto-assigned by publisher
+
+    @classmethod
+    def from_mutation(cls, mutation: "Mutation") -> "EvolutionEntry":
+        """Create an evolution entry from a pipeline mutation."""
+        type_map: dict[str, EvolutionType] = {
+            t.value: EvolutionType(t.value)
+            for t in EvolutionType
+            if t.value in {mt.value for mt in MutationType}
+        }
+        evo_type = type_map.get(mutation.type.value, EvolutionType.ROLE_PATCH)
+        return cls(
+            title=mutation.title,
+            agent="eva",
+            type=evo_type,
+            target=mutation.target_path,
+            description=mutation.description[:200],
+            confidence=mutation.confidence,
+            pr_url=mutation.pr_url,
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize to evolutions.json format."""
+        return {
+            "id": self.id,
+            "date": self.date,
+            "title": self.title,
+            "agent": self.agent,
+            "type": self.type.value,
+            "target": self.target,
+            "description": self.description,
+            "confidence": round(self.confidence, 2),
+            "pr": self.pr_url or None,
+        }

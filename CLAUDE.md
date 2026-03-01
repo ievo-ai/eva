@@ -65,17 +65,22 @@ Third level of iEvo evolution. Observes platform → detects patterns → propos
 
 ```
 src/eva/
-├── cli.py              # Click CLI (scan, status, init, approve)
+├── cli.py              # Click CLI (scan, status, init, publish, tg-process, approve)
 ├── pipeline.py         # Main OBSERVE → ANALYZE → MUTATE loop
 ├── core/
 │   ├── config.py       # EvaConfig, SourceConfig — loaded from eva.yaml
-│   └── models.py       # Signal, Pattern, Mutation domain models
+│   └── models.py       # Signal, Pattern, Mutation, EvolutionEntry domain models
 ├── sources/            # Signal connectors (all async)
 │   ├── base.py         # BaseSource ABC
 │   ├── sentry.py       # Sentry error tracking
 │   ├── github_issues.py # GitHub Issues across repos
 │   ├── evolution_logs.py # Agent EVOLUTION_LOG.md files
-│   └── reviews.py      # PR comments and reviews
+│   ├── reviews.py      # PR comments and reviews
+│   └── telegram.py     # Telegram community messages
+├── telegram/           # Telegram integration
+│   ├── client.py       # Telegram Bot API client (async httpx)
+│   ├── formatter.py    # Evolution message formatting (child vs Eva personality)
+│   └── responder.py    # Community responder — Claude API with Eva persona
 ├── analysis/
 │   └── detector.py     # PatternDetector — frequency, cross-agent, escalation
 └── mutations/
@@ -98,13 +103,18 @@ agent/                  # Eva's own agent identity
     ├── coder       → ievo-ai/marketplace/agents/coder
     └── researcher  → ievo-ai/marketplace/agents/researcher
 
-tests/                  # 14 tests
+tests/                  # 349 tests, 100% coverage
+├── test_cli.py         # CLI commands (scan, publish, tg-process, etc.)
 ├── test_config.py
 ├── test_detector.py
+├── test_evolution_publisher.py
 ├── test_models.py
-└── test_mutations.py
+├── test_mutations.py
+├── test_telegram.py           # Client + formatter
+├── test_telegram_responder.py # Community responder
+└── test_telegram_source.py    # Telegram signal source
 
-Dockerfile              # Python 3.12-slim, entrypoint: eva scan
+Dockerfile              # Python 3.13-slim, entrypoint: eva scan
 docker-compose.yml      # Self-hosted deployment with volumes
 .github/workflows/
 ├── eva-scan.yml        # Cron (6h) + manual trigger, Docker-based
@@ -137,7 +147,10 @@ Available Claude Code skills:
 - **Detection strategies**: Frequency (recurring titles), Cross-agent (shared tags), Escalation (severity trending up)
 - **Mutations**: Pattern → Mutation mapping with confidence scoring and rate limiting
 - **Safety**: dry-run default, never auto-merge, max 5 mutations/run, confidence threshold 30%
-- **Evolutions feed**: Merged mutations → `publish-evolution.yml` → `ievo.ai/docs/evolutions.json` → site renders live
+- **Evolutions feed**: `eva publish --live` → GitHub (evolutions.json) + Telegram (community chat)
+- **Evolution personalities**: children = open, detailed format; Eva = mysterious "spiced" hints
+- **Community interaction**: `eva tg-process` → Claude API (haiku) with ROLE.md persona → replies in character
+- **Telegram as signal source**: `TelegramSource` polls community chat, feeds messages into pipeline
 - **Evolution → Issue**: every `/evo` step creates a GitHub issue in `ievo-ai/eva` for traceability and future propagation to children
 
 ## Working rules
@@ -155,6 +168,8 @@ Available Claude Code skills:
 - **Eva tests her children**: Eva is responsible for writing tests, running tests, and developing children agents (spec-writer, architect, coder, researcher). Same coverage and quality standards apply to all children.
 - **Incremental session bookkeeping**: after completing a phase or milestone, immediately update the session file (checkboxes, status) before starting the next phase. Context windows can terminate at any point — a stale session file blocks recovery.
 - **Push after each milestone**: push repos after each phase completes, not at session end. Local-only commits are at risk of loss if context is exhausted or machine crashes.
+- **Never fit tests to results**: tests must verify correct behavior, not be adjusted to match whatever the code happens to produce. If a test fails, fix the code — not the assertion. Fitting tests to output is junior-coder cheating.
+- **Errors are evolution, panic is the enemy**: when a mistake happens, stay calm, analyze the root cause, and fix it properly. Errors are the foundation of evolution — they teach. Panic leads to hasty patches and more errors.
 
 ## Commands
 
@@ -165,6 +180,9 @@ eva scan --marketplace DIR   # Include evo logs from marketplace
 eva scan --live              # Create real PRs
 eva status                   # Show config and source health
 eva approve <mutation-id>    # Approve a mutation (Phase 2)
+eva publish --title "..." --type milestone --live  # Publish evolution to GitHub + Telegram
+eva tg-process               # Process Telegram community messages as Eva
+eva export-memory            # Export Eva's knowledge in Claude Memory format
 ```
 
 ## Deployment
@@ -172,12 +190,16 @@ eva approve <mutation-id>    # Approve a mutation (Phase 2)
 - **GitHub Actions**: cron (6h), on-issue (cross-repo dispatch), manual
 - **Docker**: `docker build -t eva . && docker run eva scan`
 - **Self-hosted**: `docker compose up -d` (uses .env for tokens)
+- **Telegram processing**: `docker compose run --rm eva-tg` (batch, not persistent)
 - All workflows use Docker for reproducible environment
 
 ## Env vars
 
-- `EVA_GITHUB_TOKEN` — GitHub API access (issues, PRs, reviews)
+- `EVA_GITHUB_TOKEN` — GitHub API access (issues, PRs, reviews, evolutions)
 - `EVA_SENTRY_TOKEN` — Sentry API access
+- `TELEGRAM_BOT_TOKEN` — Telegram Bot API token (@ievo_ai_bot)
+- `TELEGRAM_COMMUNITY_CHAT` — Telegram community chat ID (publishing + interaction)
+- `ANTHROPIC_API_KEY` — Anthropic API key (for Eva's community responses via Claude)
 
 ## Three evolution levels
 
@@ -195,7 +217,7 @@ Detailed technical docs live in `docs/`:
 |------|----------|
 | `docs/architecture.md` | System design, 3 evolution levels, domain models, project structure |
 | `docs/pipeline.md` | OBSERVE → ANALYZE → MUTATE phases, confidence formulas, dry-run vs live |
-| `docs/sources.md` | All 4 signal sources (Sentry, Issues, Reviews, Evo Logs), how to add new |
+| `docs/sources.md` | All 5 signal sources (Sentry, Issues, Reviews, Evo Logs, Telegram), how to add new |
 | `docs/configuration.md` | eva.yaml reference, env variables, secrets |
 | `docs/deployment.md` | GitHub Actions, Docker, cross-repo triggers, live mode |
 | `docs/safety.md` | 8 safety rules, confidence thresholds, failure modes |

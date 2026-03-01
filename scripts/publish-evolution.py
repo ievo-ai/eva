@@ -1,5 +1,16 @@
 #!/usr/bin/env python3
-"""Append a new evolution entry to ievo.ai/docs/evolutions.json.
+"""DEPRECATED: Use `eva publish` CLI command instead.
+
+This script is kept for reference only. The `eva publish` command provides
+the same functionality with Telegram integration and proper formatting.
+
+Example:
+    eva publish --title "..." --type milestone --agent eva --live
+
+---
+
+Original docstring:
+Append a new evolution entry to ievo.ai/docs/evolutions.json.
 
 Usage:
     python publish-evolution.py \

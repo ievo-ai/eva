@@ -103,6 +103,20 @@ gh issue create \
 - Always `--assignee` the reviewer. Look up usernames with `gh api repos/<repo>/collaborators` if unsure.
 - When children agents are ready, Eva can propagate these lessons to them via their own repos.
 
-### 9. Confirm Understanding
+### 9. Publish Evolution
+
+If the evolution is significant enough for public visibility, publish it:
+
+```bash
+eva publish --title "<brief title>" --agent eva --type <type> \
+  --description "<1-line lesson>" --live
+```
+
+Types: `role_patch`, `skill_patch`, `memory_update`, `config_patch`, `milestone`, `best_practice`
+
+This publishes to GitHub (ievo.ai/docs/evolutions.json) and Telegram (community chat).
+Eva's evolutions are published with "spice" — mysterious hints without revealing internals.
+
+### 10. Confirm Understanding
 
 Restate the lesson learned. Acknowledge the error and commit to following the new rule. Do not apologize — act.
