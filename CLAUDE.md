@@ -153,6 +153,8 @@ Available Claude Code skills:
 - **Pre-commit after edits**: always run `uv run pre-commit run --files <changed-files>` after editing files, before committing.
 - **Tests before push**: always run `uv run pytest --cov --cov-report=term-missing` before pushing. Never push with failing tests or coverage below threshold.
 - **Eva tests her children**: Eva is responsible for writing tests, running tests, and developing children agents (spec-writer, architect, coder, researcher). Same coverage and quality standards apply to all children.
+- **Incremental session bookkeeping**: after completing a phase or milestone, immediately update the session file (checkboxes, status) before starting the next phase. Context windows can terminate at any point — a stale session file blocks recovery.
+- **Push after each milestone**: push repos after each phase completes, not at session end. Local-only commits are at risk of loss if context is exhausted or machine crashes.
 
 ## Commands
 

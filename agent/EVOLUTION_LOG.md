@@ -32,6 +32,14 @@
 
 **Goal:** Prevent errors from assumptions. Check conventions, paths, and API state before acting. Evaluate patterns by substance, not domain name.
 
+## 2026-03-01: Incremental session bookkeeping and push after milestones
+
+**Context:** Session 009 completed Phase 2 (MkDocs + docs for 4 repos, all committed) but the session file still showed unchecked boxes and "IN PROGRESS" status. All 4 repos had unpushed commits. When context was exhausted, the session record was stale and work was local-only — blocking recovery until the next context window restored state manually.
+
+**Action:** Added two working rules to CLAUDE.md: (1) update session file checkboxes and status immediately after each phase completes, before starting the next phase; (2) push repos after each milestone, not at session end.
+
+**Goal:** Ensure session files always reflect actual progress so context loss doesn't block recovery. Ensure committed work is pushed to remotes incrementally so local-only state is minimized.
+
 ## 2026-03-01: Enforce test coverage tooling before adding coverage rules
 
 **Context:** Added "100% test coverage" working rule to CLAUDE.md with `uv run pytest --cov`, but `pytest-cov` was not in dependencies. The rule was unenforceable — running the command failed with "unrecognized arguments". Also, CI workflow (`tests.yml`) used bare `pip install` instead of `uv sync` and had no coverage step.
