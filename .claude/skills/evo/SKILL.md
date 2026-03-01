@@ -84,6 +84,8 @@ Append to `agent/EVOLUTION_LOG.md` using Context / Action / Goal format:
 **Goal:** What this change prevents in the future.
 ```
 
+**IMPORTANT:** Evolution logs are public. NEVER include sensitive information (tokens, passwords, private paths, internal URLs).
+
 ### 8. Create GitHub Issue
 
 Create a GitHub issue in `ievo-ai/eva` to track the evolution step:
@@ -93,10 +95,13 @@ gh issue create \
   --repo ievo-ai/eva \
   --title "evo: <brief title>" \
   --label "evolution" \
+  --assignee 27tech \
   --body "<Context/Action/Goal from step 7>"
 ```
 
-This creates a traceable record. When children agents are ready, Eva can propagate these lessons to them via their own repos.
+- Label `evolution` marks the type. Do NOT add `ievo` label — evo issues are for human review, not Eva's tasks.
+- Always `--assignee` the reviewer. Look up usernames with `gh api repos/<repo>/collaborators` if unsure.
+- When children agents are ready, Eva can propagate these lessons to them via their own repos.
 
 ### 9. Confirm Understanding
 

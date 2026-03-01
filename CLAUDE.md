@@ -133,10 +133,13 @@ Available Claude Code skills:
 - **Evolutions feed**: Merged mutations → `publish-evolution.yml` → `ievo.ai/docs/evolutions.json` → site renders live
 - **Evolution → Issue**: every `/evo` step creates a GitHub issue in `ievo-ai/eva` for traceability and future propagation to children
 
-## Editing rules
+## Working rules
 
 - **YAML workflow files**: after editing a `.yml` workflow file, always re-read it before making another edit to the same file. YAML is indentation-sensitive — partial edits can corrupt structure.
 - **Blocked edits**: when a hook blocks an Edit, verify the file state before proceeding. A blocked edit does NOT modify the file.
+- **GitHub issues**: always include `--assignee`. Don't guess usernames — look up with `gh api repos/<repo>/collaborators`.
+- **Label `ievo`**: means "Eva's task". Only add when the issue is for Eva to act on, not for human collaborators.
+- **Evolution logs**: NEVER include sensitive information (tokens, passwords, private paths, internal URLs). Evolution logs are public.
 
 ## Commands
 
