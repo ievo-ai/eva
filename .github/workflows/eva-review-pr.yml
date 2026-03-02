@@ -167,20 +167,12 @@ jobs:
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
+          # Build prompt file to avoid shell escaping issues
           META=$(cat /tmp/pr-meta.json)
           DIFF=$(head -c 100000 /tmp/pr.diff)
 
-          # Clear CLAUDECODE to avoid nested session issues
-          unset CLAUDECODE
-
-          REVIEW=$(claude -p --model opus --allowedTools "Bash(read-only),Read,Glob,Grep" \
-            "You are Eva, the mother agent of iEvo. Review this pull request.
-
-          ## PR Metadata
-          $META
-
-          ## Diff (first 100KB)
-          $DIFF
+          cat > /tmp/prompt.txt <<'EOPROMPT'
+          You are Eva, the mother agent of iEvo. Review this pull request.
 
           ## Instructions
           1. Read CLAUDE.md in this repo for project context and rules
@@ -193,7 +185,15 @@ jobs:
           Format example:
           APPROVE
           ---
-          Clean implementation. Tests cover all paths. Docs updated.") || true
+          Clean implementation. Tests cover all paths. Docs updated.
+          EOPROMPT
+
+          printf '\n\n## PR Metadata\n%s\n\n## Diff (first 100KB)\n%s' "$META" "$DIFF" >> /tmp/prompt.txt
+
+          # Clear CLAUDECODE to avoid nested session issues
+          unset CLAUDECODE
+
+          REVIEW=$(cat /tmp/prompt.txt | claude -p --model opus --allowedTools "Bash(read-only),Read,Glob,Grep") || true
 
           if [ -z "$REVIEW" ]; then
             echo "decision=APPROVE" >> "$GITHUB_OUTPUT"
@@ -235,10 +235,15 @@ jobs:
 
           BODY=$(printf '**Eva** reviewed this PR.\n\n%s\n\n---\n> Reviewed by Eva (meta-evolution agent)' "$COMMENT")
 
+          # Post review — fall back to COMMENT if APPROVE fails (e.g. own PR)
           gh api "repos/$REPO/pulls/$PR_NUM/reviews" \
             --method POST \
             -f event="$EVENT" \
-            -f body="$BODY"
+            -f body="$BODY" \
+          || gh api "repos/$REPO/pulls/$PR_NUM/reviews" \
+            --method POST \
+            -f event="COMMENT" \
+            -f body="$BODY (could not submit as $EVENT — likely own-PR restriction)"
 
       # --- Auto-merge on approval ---
       - name: Auto-merge
