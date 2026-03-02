@@ -255,3 +255,38 @@ jobs:
         run: |
           gh pr merge "$PR_NUM" --repo "$REPO" --auto --squash \
             || echo "Auto-merge not available — branch protection may require additional checks"
+
+      # --- Publish evolution after merge ---
+      - name: Publish evolution
+        if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large != 'true' && steps.review.outputs.decision == 'APPROVE'
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          REPO: ${{ steps.ctx.outputs.repo }}
+          PR_NUM: ${{ steps.ctx.outputs.pr_number }}
+          REVIEW_COMMENT: ${{ steps.review.outputs.comment }}
+        run: |
+          # Get PR title for the evolution entry
+          PR_TITLE=$(gh api "repos/$REPO/pulls/$PR_NUM" --jq '.title')
+          PR_URL="https://github.com/$REPO/pull/$PR_NUM"
+
+          # Generate evolution ID from timestamp
+          EVO_ID="EVO-$(date -u +%Y%m%d%H%M)"
+
+          # Generate mutation description via Claude CLI
+          unset CLAUDECODE
+          DESCRIPTION=$(echo "Write a single sentence (max 100 chars) describing this merged PR as an evolution mutation. PR: $PR_TITLE. Review: $REVIEW_COMMENT. Reply with ONLY the sentence, nothing else." \
+            | claude -p --model haiku) || DESCRIPTION="$PR_TITLE"
+
+          # Trigger publish-evolution workflow
+          gh workflow run publish-evolution.yml \
+            --repo ievo-ai/eva \
+            -f "evo_id=$EVO_ID" \
+            -f "title=$PR_TITLE" \
+            -f "agent=eva" \
+            -f "type=pr_merge" \
+            -f "target=$REPO" \
+            -f "description=$DESCRIPTION" \
+            -f "confidence=1.0" \
+            -f "pr_url=$PR_URL" \
+          || echo "Evolution publish dispatch failed — non-blocking"

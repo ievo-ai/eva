@@ -15,7 +15,7 @@ on:
         description: 'Agent that made the mutation'
         default: 'eva'
       type:
-        description: 'Mutation type (role_patch, skill_patch, memory_update, milestone)'
+        description: 'Mutation type (role_patch, skill_patch, memory_update, milestone, pr_merge)'
         default: 'role_patch'
       target:
         description: 'Target file path'
@@ -81,9 +81,34 @@ jobs:
           EVO_ID: ${{ inputs.evo_id }}
           EVO_TITLE: ${{ inputs.title }}
         run: |
-          git config user.name "ievo-bot"
-          git config user.email "bot@ievo.ai"
+          git config user.name "ievo-eva"
+          git config user.email "ievo@ievo.ai"
           git add docs/evolutions.json
           git diff --cached --quiet && echo "No changes" && exit 0
           git commit -m "evo: ${EVO_ID} — ${EVO_TITLE}"
           git push
+
+      - name: Publish to Telegram
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_COMMUNITY_CHAT }}
+          EVO_ID: ${{ inputs.evo_id }}
+          EVO_TITLE: ${{ inputs.title }}
+          EVO_AGENT: ${{ inputs.agent }}
+          EVO_TYPE: ${{ inputs.type }}
+          EVO_DESC: ${{ inputs.description }}
+          EVO_PR: ${{ inputs.pr_url }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "Telegram not configured — skipping"
+            exit 0
+          fi
+
+          MSG=$(printf "🧬 *Evolution %s*\n\n*%s*\n%s\n\nAgent: \`%s\` | Type: \`%s\`\n[PR](%s) | [Feed](https://ievo.ai/evolutions)" \
+            "$EVO_ID" "$EVO_TITLE" "$EVO_DESC" "$EVO_AGENT" "$EVO_TYPE" "$EVO_PR")
+
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="$TELEGRAM_CHAT_ID" \
+            -d parse_mode="Markdown" \
+            --data-urlencode "text=$MSG" \
+          || echo "Telegram publish failed — non-blocking"
