@@ -87,3 +87,11 @@
 **Action:** Added rule to CLAUDE.md: "Coverage is not confidence" — mocked integration tests prove code paths in isolation, not that the system works end-to-end. For commands that launch external processes, document what a real E2E test requires. Never claim "pipeline works" based on mocked tests alone.
 
 **Goal:** Prevent false confidence from high coverage numbers. Mocks are necessary but not sufficient. Real validation requires real execution.
+
+## 2026-03-02: Docs ship with code — not as afterthoughts
+
+**Context:** Eva pushed a feature commit (Docker sandbox — new module, Dockerfile, refactored run.py) to the CLI repo without updating any documentation. README.md, CLAUDE.md, docs/ARCHITECTURE.md, docs/commands.md, docs/configuration.md were all stale. Denis had to explicitly ask "docs updated?" to trigger the update, which landed as a separate commit. The rule "keep docs updated" existed as a preference in memory but was not in the working rules — the place Eva checks before committing.
+
+**Action:** Added working rule to CLAUDE.md: "Docs ship with code" — when a commit changes user-facing behavior (CLI flags, config format, architecture), documentation updates go in the same commit. Before committing, ask: does this change affect user-facing behavior? If yes, update docs first.
+
+**Goal:** Prevent stale documentation. Docs are part of the feature, not a follow-up task. One commit = code + tests + docs.
