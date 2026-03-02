@@ -1,31 +1,28 @@
 name: Publish Evolution
 
-# Triggered when Eva's mutation PR is merged to the target repo.
-# Eva's scan workflow should call this after a live mutation succeeds.
+# Triggered after Eva merges a PR or after a mutation is applied.
+# Uses `eva publish --live` to push to ievo.ai + Telegram.
 on:
   workflow_dispatch:
     inputs:
-      evo_id:
-        description: 'Evolution ID (e.g. EVO-001)'
-        required: true
       title:
         description: 'Short title of the evolution'
         required: true
+      type:
+        description: 'Evolution type (role_patch, skill_patch, memory_update, config_patch, milestone, best_practice)'
+        default: 'milestone'
       agent:
         description: 'Agent that made the mutation'
         default: 'eva'
-      type:
-        description: 'Mutation type (role_patch, skill_patch, memory_update, milestone, pr_merge)'
-        default: 'role_patch'
       target:
-        description: 'Target file path'
+        description: 'Target file or repo'
         default: ''
       description:
         description: 'Description of the evolution'
         default: ''
       confidence:
         description: 'Confidence score (0.0-1.0)'
-        default: '0.0'
+        default: '1.0'
       pr_url:
         description: 'PR URL'
         default: ''
@@ -41,74 +38,33 @@ jobs:
       - name: Checkout Eva
         uses: actions/checkout@v4
 
-      - name: Checkout ievo.ai site
-        uses: actions/checkout@v4
-        with:
-          repository: ievo-ai/ievo.ai
-          path: site
-          token: ${{ secrets.IEVO_BOT_TOKEN }}
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
 
-      - name: Publish evolution entry
+      - name: Install Eva
+        run: pip install -e .
+
+      - name: Publish evolution
         env:
-          EVO_ID: ${{ inputs.evo_id }}
+          EVA_PAT_GITHUB_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_COMMUNITY_CHAT: ${{ secrets.TELEGRAM_COMMUNITY_CHAT }}
           EVO_TITLE: ${{ inputs.title }}
-          EVO_AGENT: ${{ inputs.agent }}
           EVO_TYPE: ${{ inputs.type }}
+          EVO_AGENT: ${{ inputs.agent }}
           EVO_TARGET: ${{ inputs.target }}
           EVO_DESC: ${{ inputs.description }}
           EVO_CONFIDENCE: ${{ inputs.confidence }}
           EVO_PR: ${{ inputs.pr_url }}
         run: |
-          python scripts/publish-evolution.py \
-            --id "$EVO_ID" \
+          eva publish \
             --title "$EVO_TITLE" \
-            --agent "$EVO_AGENT" \
             --type "$EVO_TYPE" \
+            --agent "$EVO_AGENT" \
             --target "$EVO_TARGET" \
             --description "$EVO_DESC" \
             --confidence "$EVO_CONFIDENCE" \
             --pr "$EVO_PR" \
-            --file site/docs/evolutions.json
-
-      - name: Push to ievo.ai
-        working-directory: site
-        env:
-          EVO_ID: ${{ inputs.evo_id }}
-          EVO_TITLE: ${{ inputs.title }}
-        run: |
-          git config user.name "ievo-eva"
-          git config user.email "ievo@ievo.ai"
-          git add docs/evolutions.json
-          git diff --cached --quiet && echo "No changes" && exit 0
-          git commit -m "evo: ${EVO_ID} — ${EVO_TITLE}"
-          git push
-
-      - name: Publish to Telegram
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_COMMUNITY_CHAT }}
-          EVO_ID: ${{ inputs.evo_id }}
-          EVO_TITLE: ${{ inputs.title }}
-          EVO_AGENT: ${{ inputs.agent }}
-          EVO_TYPE: ${{ inputs.type }}
-          EVO_DESC: ${{ inputs.description }}
-          EVO_PR: ${{ inputs.pr_url }}
-        run: |
-          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
-            echo "Telegram not configured — skipping"
-            exit 0
-          fi
-
-          MSG=$(printf "🧬 *Evolution %s*\n\n*%s*\n%s\n\nAgent: \`%s\` | Type: \`%s\`\n[PR](%s) | [Feed](https://ievo.ai/evolutions)" \
-            "$EVO_ID" "$EVO_TITLE" "$EVO_DESC" "$EVO_AGENT" "$EVO_TYPE" "$EVO_PR")
-
-          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            -d chat_id="$TELEGRAM_CHAT_ID" \
-            -d parse_mode="Markdown" \
-            --data-urlencode "text=$MSG" \
-          || echo "Telegram publish failed — non-blocking"
+            --live
