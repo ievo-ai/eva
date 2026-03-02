@@ -48,7 +48,7 @@ jobs:
 
       - name: Publish evolution
         env:
-          EVA_PAT_GITHUB_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+          EVA_GITHUB_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_COMMUNITY_CHAT: ${{ secrets.TELEGRAM_COMMUNITY_CHAT }}
           EVO_TITLE: ${{ inputs.title }}
