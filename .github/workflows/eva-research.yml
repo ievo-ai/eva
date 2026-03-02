@@ -35,7 +35,7 @@ jobs:
 
       - name: Run Eva scan with research
         env:
-          EVA_GITHUB_TOKEN: ${{ secrets.EVA_GITHUB_TOKEN }}
+          EVA_PAT_GITHUB_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
         run: |
           eva scan --include-research spec/research/
 

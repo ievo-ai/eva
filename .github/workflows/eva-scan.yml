@@ -4,7 +4,7 @@
 #
 # Auth: supports both GitHub App (recommended) and PAT.
 #   GitHub App: set APP_ID + APP_PRIVATE_KEY secrets
-#   PAT: set EVA_GITHUB_TOKEN secret
+#   PAT: set EVA_PAT_GITHUB_TOKEN secret
 
 name: Eva Scan
 
@@ -59,7 +59,7 @@ jobs:
         id: auth
         env:
           APP_TOKEN: ${{ steps.app-token.outputs.token }}
-          PAT_TOKEN: ${{ secrets.EVA_GITHUB_TOKEN }}
+          PAT_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
         run: |
           if [ -n "$APP_TOKEN" ]; then
             echo "token=$APP_TOKEN" >> "$GITHUB_OUTPUT"
@@ -75,7 +75,7 @@ jobs:
 
       - name: Run Eva scan
         env:
-          EVA_GITHUB_TOKEN: ${{ steps.auth.outputs.token }}
+          EVA_PAT_GITHUB_TOKEN: ${{ steps.auth.outputs.token }}
           EVA_SENTRY_TOKEN: ${{ secrets.EVA_SENTRY_TOKEN }}
           EVA_SENTRY_DSN: ${{ secrets.EVA_SENTRY_DSN }}
           EVA_ENVIRONMENT: production
@@ -88,7 +88,7 @@ jobs:
           fi
 
           docker run --rm \
-            -e EVA_GITHUB_TOKEN \
+            -e EVA_PAT_GITHUB_TOKEN \
             -e EVA_SENTRY_TOKEN \
             -e EVA_SENTRY_DSN \
             -e EVA_ENVIRONMENT \

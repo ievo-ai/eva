@@ -10,7 +10,7 @@
 #   docker compose run --rm eva-status     # show status & source health
 #
 # Env vars (.env):
-#   EVA_GITHUB_TOKEN         — GitHub PAT or App token (required)
+#   EVA_PAT_GITHUB_TOKEN     — GitHub PAT from ievo-eva account (required)
 #   EVA_SENTRY_TOKEN         — Sentry auth token for reading issues (optional)
 #   EVA_SENTRY_DSN           — Sentry DSN for Eva's own error reporting (optional)
 #   MARKETPLACE_DIR          — path to marketplace repo (default: ../marketplace)
@@ -81,7 +81,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      - GH_TOKEN=${EVA_GITHUB_TOKEN}
+      - GH_TOKEN=${EVA_PAT_GITHUB_TOKEN}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |

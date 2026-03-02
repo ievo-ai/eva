@@ -55,7 +55,7 @@ jobs:
         id: auth
         env:
           APP_TOKEN: ${{ steps.app-token.outputs.token }}
-          PAT_TOKEN: ${{ secrets.EVA_GITHUB_TOKEN }}
+          PAT_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
         run: |
           if [ -n "$APP_TOKEN" ]; then
             echo "token=$APP_TOKEN" >> "$GITHUB_OUTPUT"

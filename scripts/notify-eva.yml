@@ -1,7 +1,7 @@
 # Add this workflow to other iEvo repos (cli, marketplace, sdk)
 # to notify Eva when a new issue is opened.
 #
-# Requires: EVA_DISPATCH_TOKEN secret (PAT with repo scope)
+# Requires: EVA_PAT_GITHUB_TOKEN secret (PAT with repo scope)
 #
 # Copy to: .github/workflows/notify-eva.yml
 
@@ -20,7 +20,7 @@ jobs:
       - name: Dispatch to Eva
         uses: peter-evans/repository-dispatch@v3
         with:
-          token: ${{ secrets.EVA_DISPATCH_TOKEN }}
+          token: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
           repository: ievo-ai/eva
           event-type: new-issue
           client-payload: |
