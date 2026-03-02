@@ -371,19 +371,19 @@ class TestTgProcessCommand:
         assert result.exit_code == 0
         assert "No token" in result.output
 
-    def test_tg_process_no_anthropic(self, runner):
+    def test_tg_process_no_responder(self, runner):
         mock_tg = MagicMock()
         with (
             patch("eva.telegram.client.TelegramClient", return_value=mock_tg),
             patch(
                 "eva.telegram.responder.EvaResponder",
-                side_effect=ValueError("No Anthropic API key"),
+                side_effect=ValueError("No Claude CLI or Anthropic API key"),
             ),
         ):
             result = runner.invoke(main, ["tg-process"])
 
         assert result.exit_code == 0
-        assert "No Anthropic" in result.output
+        assert "No Claude CLI" in result.output
 
     def test_tg_process_no_messages(self, runner):
         mock_tg = MagicMock()

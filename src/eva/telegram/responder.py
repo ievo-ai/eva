@@ -1,12 +1,14 @@
 """Community responder — Eva speaks as Mother in Telegram.
 
-Uses Claude API (haiku) with ROLE.md persona to:
+Uses Claude Code CLI (subscription) or Anthropic API fallback to:
 - Answer community questions in character
 - Create GitHub issues for feature requests / bug reports
 - Decide what to integrate and explain why
 """
 
+import asyncio
 import os
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -57,8 +59,14 @@ class EvaResponder:
         model: str = DEFAULT_MODEL,
     ) -> None:
         self._api_key = anthropic_key or os.environ.get("ANTHROPIC_API_KEY", "")
-        if not self._api_key:
-            raise ValueError("No Anthropic API key. Set ANTHROPIC_API_KEY.")
+        # Prefer Claude Code CLI (uses subscription, no per-token cost)
+        self._claude_cli: str | None = shutil.which("claude")
+
+        if not self._claude_cli and not self._api_key:
+            raise ValueError(
+                "No Claude CLI or Anthropic API key. Install Claude Code or set ANTHROPIC_API_KEY."
+            )
+
         self._model = model
         role_file = role_path or DEFAULT_ROLE_PATH
         self._role_context = ""
@@ -94,7 +102,38 @@ class EvaResponder:
         return response, category
 
     async def _call_claude(self, system: str, user: str, max_tokens: int = 300) -> str:
-        """Call Claude API with the given system and user prompts."""
+        """Call Claude via CLI (preferred) or API fallback."""
+        if self._claude_cli:
+            return await self._call_claude_cli(system, user)
+        return await self._call_claude_api(system, user, max_tokens)
+
+    async def _call_claude_cli(self, system: str, user: str) -> str:
+        """Call Claude via Claude Code CLI (uses subscription).
+
+        Uses create_subprocess_exec which passes arguments directly
+        without shell interpretation — safe against injection.
+        Clears CLAUDECODE env var to allow running from within a session.
+        """
+        prompt = f"{system}\n\n---\n\n{user}"
+        cli = self._claude_cli or "claude"
+        env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+        proc = await asyncio.create_subprocess_exec(
+            cli,
+            "-p",
+            "--model",
+            "haiku",
+            prompt,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            env=env,
+        )
+        stdout, _ = await proc.communicate()
+        if proc.returncode != 0:
+            return ""
+        return stdout.decode().strip()
+
+    async def _call_claude_api(self, system: str, user: str, max_tokens: int = 300) -> str:
+        """Call Claude via Anthropic API (fallback for CI/Docker)."""
         headers = {
             "x-api-key": self._api_key,
             "anthropic-version": "2023-06-01",
