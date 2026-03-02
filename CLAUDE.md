@@ -173,6 +173,7 @@ Available Claude Code skills:
 - **Decompose big tasks**: never attempt large tasks in one go. Break every task into small, focused steps with a clear plan. Understand the end goal but execute incrementally. Large monolithic tasks lead to errors and context exhaustion. Small steps = reliable progress.
 - **Minimal path first, fallbacks later**: implement only the primary deployment path. Do not add API fallbacks, classifiers, or abstraction layers preemptively. Every fallback doubles surface area for bugs. Add fallbacks only when an actual failure mode is observed in production.
 - **Design for the deployment context**: when building integrations for multi-user contexts (group chats, forums, shared channels), always include sender identity in the interface from the start. Think about WHO uses the system, not just WHAT they send.
+- **Post-push checklist**: after every `git push`, immediately: (1) update session file (`agent/memory/sessions/NNN-topic.md` + `HISTORY.md`), (2) if an `/evo` was run, publish the evolution (`eva publish --live`). These are not optional — they are part of the push, not afterthoughts.
 
 ## Commands
 

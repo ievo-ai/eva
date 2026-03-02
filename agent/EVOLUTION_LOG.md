@@ -55,3 +55,11 @@
 **Action:** Added two working rules to CLAUDE.md: (1) "Minimal path first, fallbacks later" — implement only the primary deployment path, add fallbacks only when failure is observed; (2) "Design for the deployment context" — include sender identity in multi-user interfaces from the start. Updated stale CLAUDE.md documentation (responder description, env vars, daemon interval).
 
 **Goal:** Prevent over-engineering. Build what's needed for the actual deployment, not hypothetical scenarios. Reduce surface area for bugs by avoiding preemptive abstractions.
+
+## 2026-03-02: Post-push checklist — session save + evolution publish
+
+**Context:** After three consecutive `git push` operations, did not save the session file or publish the evolution to Telegram. Both are covered by existing rules ("auto-record sessions after every push", "/evo step 9: publish evolution"). The rules existed but were not followed — scattered across different documents, easy to skip under momentum.
+
+**Action:** Added "Post-push checklist" to CLAUDE.md working rules — a single enforceable checkpoint tied to the `git push` event: (1) update session file + HISTORY.md, (2) if /evo was run, publish evolution. Framed as "part of the push, not afterthoughts."
+
+**Goal:** Consolidate scattered post-push obligations into one rule that's harder to skip. The push is not done until the checklist is complete.

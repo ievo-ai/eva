@@ -14,3 +14,4 @@ Lightweight index. Full details in `sessions/NNN-topic.md`.
 | [008](sessions/008-100-percent-coverage.md) | 2026-03-01 | 100% Test Coverage | 243 tests, 1132 stmts, 334 branches — full coverage enforced with fail_under=100 |
 | [009](sessions/009-platform-e2e.md) | 2026-03-01 | Platform E2E + MkDocs | Phase 1: full E2E pass (init→add→run×3), fixed download_agent bug. Phase 2: MkDocs site + docs for 4 repos |
 | [010](sessions/010-telegram-evolution-publishing.md) | 2026-03-01 | Telegram + Evolutions | Full Telegram integration: client, formatter, responder, source, CLI commands (publish + tg-process), 349 tests, 100% coverage |
+| [011](sessions/011-telegram-full-claude-code.md) | 2026-03-02 | Full Claude Code via TG | Refactored responder: removed API fallback + classifier, CLI-only with opus + tools + username, uv in Docker |
