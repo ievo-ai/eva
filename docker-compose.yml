@@ -93,6 +93,7 @@ services:
       - ./eva.yaml:/app/eva.yaml:ro
       - ./agent:/app/agent:ro
       - ./output:/app/output
+      - claude-data:/root/.claude
 
   # ── Scheduled scan (cron-like loop, opt-in) ────────────
   # Uncomment to run Eva on a 6-hour loop.
@@ -114,3 +115,6 @@ services:
   #     - ./eva.yaml:/app/eva.yaml:ro
   #     - ./output:/app/output
   #     - ${MARKETPLACE_DIR:-../marketplace}:/app/marketplace:ro
+
+volumes:
+  claude-data:

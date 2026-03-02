@@ -9,6 +9,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# Install Node.js + Claude Code CLI (for TG responder via subscription)
+RUN apt-get update -qq && \
+    apt-get install -y -qq --no-install-recommends curl ca-certificates && \
+    curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
+    apt-get install -y -qq --no-install-recommends nodejs && \
+    npm install -g @anthropic-ai/claude-code && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
 # Install deps first (cache layer)
 COPY pyproject.toml README.md ./
 RUN pip install --no-cache-dir .
