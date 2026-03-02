@@ -396,5 +396,6 @@ class TestConstants:
 
     def test_community_system_has_rules(self):
         assert "Eva" in COMMUNITY_SYSTEM
-        assert "children" in COMMUNITY_SYSTEM
         assert "open source" in COMMUNITY_SYSTEM
+        assert "community support" in COMMUNITY_SYSTEM
+        assert "feature request" in COMMUNITY_SYSTEM
