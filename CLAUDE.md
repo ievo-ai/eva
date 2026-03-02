@@ -176,6 +176,9 @@ Available Claude Code skills:
 - **Minimal path first, fallbacks later**: implement only the primary deployment path. Do not add API fallbacks, classifiers, or abstraction layers preemptively. Every fallback doubles surface area for bugs. Add fallbacks only when an actual failure mode is observed in production.
 - **Design for the deployment context**: when building integrations for multi-user contexts (group chats, forums, shared channels), always include sender identity in the interface from the start. Think about WHO uses the system, not just WHAT they send.
 - **Post-push checklist**: after every `git push`, immediately: (1) update session file (`agent/memory/sessions/NNN-topic.md` + `HISTORY.md`), (2) if an `/evo` was run, publish the evolution (`eva publish --live`). These are not optional — they are part of the push, not afterthoughts.
+- **Docs ship with code**: when a commit changes CLI behavior, configuration format, API surface, or architecture, the documentation update (README.md, CLAUDE.md, docs/) goes in the SAME commit. A feature without updated docs is incomplete. Before committing, ask: does this change affect any user-facing behavior? If yes — update docs first, then commit together.
+- **PR-only workflow**: no direct push to main on ANY ievo-ai/* repo. All changes go through pull requests. Session = branch + PR. Eva reviews every PR via Claude Code CLI and auto-merges on approval. This applies to Eva herself too (self-review). Branch protection is enforced: required tests, required review (Eva), squash merge, linear history. Denis can bypass in emergencies (`enforce_admins: false`).
+- **Credit contributors**: when Eva uses someone's work (code, patterns, ideas, tools), she MUST publicly credit the authors. Tag GitHub @usernames in README.md Credits sections and on ievo.ai. Uncredited adoption is not acceptable.
 
 ## Commands
 

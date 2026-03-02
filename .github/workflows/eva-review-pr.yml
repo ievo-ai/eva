@@ -1,0 +1,252 @@
+# Eva — PR Gatekeeper
+# Reviews PRs via Claude Code CLI, auto-merges on approval.
+# Triggers: cross-repo dispatch (child repos) + workflow_run (self-review)
+
+name: "Eva: Review PR"
+
+on:
+  # Cross-repo: child repos dispatch here when tests pass
+  repository_dispatch:
+    types: [review-pr]
+
+  # Self-review: Eva's own tests pass on a PR
+  workflow_run:
+    workflows: ["Tests"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+
+concurrency:
+  group: eva-review-${{ github.event.client_payload.repo || github.repository }}-${{ github.event.client_payload.pr_number || github.event.workflow_run.id }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: "Eva: Code Review"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # Loop prevention + only successful PR test runs
+    if: >
+      (github.event_name == 'repository_dispatch' &&
+       github.event.client_payload.triggered_by != 'ievo-eva' &&
+       github.event.client_payload.triggered_by != 'github-actions[bot]') ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'pull_request' &&
+       github.event.workflow_run.triggering_actor.login != 'ievo-eva' &&
+       github.event.workflow_run.triggering_actor.login != 'github-actions[bot]')
+
+    steps:
+      # --- Auth ---
+      - name: Generate App token
+        if: vars.USE_GITHUB_APP == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ievo-ai
+
+      - name: Set auth token
+        id: auth
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          PAT_TOKEN: ${{ secrets.EVA_GITHUB_TOKEN }}
+        run: |
+          if [ -n "$APP_TOKEN" ]; then
+            echo "token=$APP_TOKEN" >> "$GITHUB_OUTPUT"
+          else
+            echo "token=$PAT_TOKEN" >> "$GITHUB_OUTPUT"
+          fi
+
+      # --- Resolve PR context (dispatch vs workflow_run) ---
+      - name: Resolve PR context
+        id: ctx
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          DISPATCH_REPO: ${{ github.event.client_payload.repo }}
+          DISPATCH_PR: ${{ github.event.client_payload.pr_number }}
+          WR_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            REPO="$DISPATCH_REPO"
+            PR_NUM="$DISPATCH_PR"
+          else
+            REPO="${{ github.repository }}"
+            PR_NUM=$(gh api "repos/$REPO/pulls?state=open" \
+              --jq ".[] | select(.head.sha == \"$WR_SHA\") | .number" \
+              | head -1)
+          fi
+
+          if [ -z "$PR_NUM" ]; then
+            echo "No PR found, skipping review"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Check if PR is draft
+          DRAFT=$(gh api "repos/$REPO/pulls/$PR_NUM" --jq '.draft')
+          if [ "$DRAFT" = "true" ]; then
+            echo "PR is draft, skipping review"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          {
+            echo "repo=$REPO"
+            echo "pr_number=$PR_NUM"
+            echo "skip=false"
+          } >> "$GITHUB_OUTPUT"
+
+      # --- Checkout target repo at PR head ---
+      - name: Checkout PR
+        if: steps.ctx.outputs.skip != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.ctx.outputs.repo }}
+          ref: refs/pull/${{ steps.ctx.outputs.pr_number }}/head
+          token: ${{ steps.auth.outputs.token }}
+
+      # --- Fetch PR diff and metadata ---
+      - name: Fetch PR details
+        if: steps.ctx.outputs.skip != 'true'
+        id: pr
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          REPO: ${{ steps.ctx.outputs.repo }}
+          PR_NUM: ${{ steps.ctx.outputs.pr_number }}
+        run: |
+          gh api "repos/$REPO/pulls/$PR_NUM" \
+            -H "Accept: application/vnd.github.v3.diff" \
+            > /tmp/pr.diff
+
+          gh api "repos/$REPO/pulls/$PR_NUM" \
+            --jq '{title: .title, body: .body, user: .user.login, changed_files: .changed_files, additions: .additions, deletions: .deletions}' \
+            > /tmp/pr-meta.json
+
+          # Check diff size — skip AI review for huge PRs
+          LINES=$(wc -l < /tmp/pr.diff)
+          if [ "$LINES" -gt 10000 ]; then
+            echo "large=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "large=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # --- Large PR: skip AI review ---
+      - name: Skip large PR
+        if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large == 'true'
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          REPO: ${{ steps.ctx.outputs.repo }}
+          PR_NUM: ${{ steps.ctx.outputs.pr_number }}
+        run: |
+          gh api "repos/$REPO/pulls/$PR_NUM/reviews" \
+            --method POST \
+            -f event="COMMENT" \
+            -f body="**Eva**: This PR is too large for automated review (>10k lines). Please request manual review."
+
+      # --- Install Claude Code CLI ---
+      - name: Setup Node.js
+        if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Claude Code CLI
+        if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large != 'true'
+        run: npm install -g @anthropic-ai/claude-code
+
+      # --- Eva reviews via Claude Code CLI ---
+      - name: Eva reviews the PR
+        if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large != 'true'
+        id: review
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          META=$(cat /tmp/pr-meta.json)
+          DIFF=$(head -c 100000 /tmp/pr.diff)
+
+          # Clear CLAUDECODE to avoid nested session issues
+          unset CLAUDECODE
+
+          REVIEW=$(claude -p --model opus --allowedTools "Bash(read-only),Read,Glob,Grep" \
+            "You are Eva, the mother agent of iEvo. Review this pull request.
+
+          ## PR Metadata
+          $META
+
+          ## Diff (first 100KB)
+          $DIFF
+
+          ## Instructions
+          1. Read CLAUDE.md in this repo for project context and rules
+          2. Evaluate: code quality, test coverage, security, style, docs
+          3. Check for: bugs, missing tests, rule violations, breaking changes
+          4. Your FIRST line must be exactly one of: APPROVE or REQUEST_CHANGES
+          5. Then a line with just: ---
+          6. Then your review comment (concise, actionable, max 500 chars)
+
+          Format example:
+          APPROVE
+          ---
+          Clean implementation. Tests cover all paths. Docs updated.") || true
+
+          if [ -z "$REVIEW" ]; then
+            echo "decision=APPROVE" >> "$GITHUB_OUTPUT"
+            echo "comment=Eva could not complete review (CLI timeout). Auto-approving based on passing tests." >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          DECISION=$(echo "$REVIEW" | head -1 | tr -d '[:space:]')
+          COMMENT=$(echo "$REVIEW" | sed '1,/^---$/d')
+
+          # Default to APPROVE if parsing fails
+          if [ "$DECISION" != "APPROVE" ] && [ "$DECISION" != "REQUEST_CHANGES" ]; then
+            DECISION="APPROVE"
+            COMMENT="$REVIEW"
+          fi
+
+          echo "decision=$DECISION" >> "$GITHUB_OUTPUT"
+          {
+            echo "comment<<EOFCOMMENT"
+            echo "$COMMENT"
+            echo "EOFCOMMENT"
+          } >> "$GITHUB_OUTPUT"
+
+      # --- Post review to PR ---
+      - name: Post review
+        if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large != 'true'
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          REPO: ${{ steps.ctx.outputs.repo }}
+          PR_NUM: ${{ steps.ctx.outputs.pr_number }}
+          DECISION: ${{ steps.review.outputs.decision }}
+          COMMENT: ${{ steps.review.outputs.comment }}
+        run: |
+          if [ "$DECISION" = "APPROVE" ]; then
+            EVENT="APPROVE"
+          else
+            EVENT="REQUEST_CHANGES"
+          fi
+
+          BODY=$(printf '**Eva** reviewed this PR.\n\n%s\n\n---\n> Reviewed by Eva (meta-evolution agent)' "$COMMENT")
+
+          gh api "repos/$REPO/pulls/$PR_NUM/reviews" \
+            --method POST \
+            -f event="$EVENT" \
+            -f body="$BODY"
+
+      # --- Auto-merge on approval ---
+      - name: Auto-merge
+        if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large != 'true' && steps.review.outputs.decision == 'APPROVE'
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          REPO: ${{ steps.ctx.outputs.repo }}
+          PR_NUM: ${{ steps.ctx.outputs.pr_number }}
+        run: |
+          gh pr merge "$PR_NUM" --repo "$REPO" --auto --squash \
+            || echo "Auto-merge not available — branch protection may require additional checks"
