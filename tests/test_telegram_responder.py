@@ -82,7 +82,7 @@ class TestCallClaudeDispatch:
 
         result = await r._call_claude("system", "user")
         assert result == "cli result"
-        r._call_claude_cli.assert_called_once_with("system", "user")
+        r._call_claude_cli.assert_called_once_with("system", "user", continue_session=False)
         r._call_claude_api.assert_not_called()
 
     @pytest.mark.asyncio
@@ -152,13 +152,30 @@ class TestCallClaudeCli:
         args = mock_exec.call_args[0]
         assert args[0] == "/usr/bin/claude"
         assert "-p" in args
-        assert "--continue" in args
+        assert "--continue" not in args
         assert "--model" in args
         assert "haiku" in args
         # Prompt contains both system and user text
         prompt_arg = args[-1]
         assert "system prompt" in prompt_arg
         assert "user text" in prompt_arg
+
+    @pytest.mark.asyncio
+    async def test_continue_session_adds_flag(self, tmp_path: Path):
+        role = tmp_path / "ROLE.md"
+        role.write_text("")
+        with patch("eva.telegram.responder.shutil.which", return_value="/usr/bin/claude"):
+            r = EvaResponder(anthropic_key=None, role_path=role)
+
+        mock_proc = AsyncMock()
+        mock_proc.communicate.return_value = (b"result", b"")
+        mock_proc.returncode = 0
+
+        with patch("asyncio.create_subprocess_exec", return_value=mock_proc) as mock_exec:
+            await r._call_claude_cli("system prompt", "user text", continue_session=True)
+
+        args = mock_exec.call_args[0]
+        assert "--continue" in args
 
 
 # ── _call_claude_api ─────────────────────────────────────
@@ -244,6 +261,20 @@ class TestClassify:
         assert result == expected
 
     @pytest.mark.asyncio
+    async def test_classify_does_not_use_continue_session(self, tmp_path: Path):
+        role = tmp_path / "ROLE.md"
+        role.write_text("")
+        with patch("eva.telegram.responder.shutil.which", return_value=None):
+            r = EvaResponder(anthropic_key="sk-test", role_path=role)
+
+        r._call_claude = AsyncMock(return_value="question")
+        await r.classify("How does it work?")
+
+        # classify should NOT pass continue_session (uses default False)
+        call_kwargs = r._call_claude.call_args[1] if r._call_claude.call_args[1] else {}
+        assert call_kwargs.get("continue_session", False) is False
+
+    @pytest.mark.asyncio
     async def test_invalid_category_defaults_to_noise(self, tmp_path: Path):
         role = tmp_path / "ROLE.md"
         role.write_text("")
@@ -296,6 +327,19 @@ class TestRespond:
         assert result == "Noted."
         system = r._call_claude.call_args[0][0]
         assert "Meta-evolution agent" in system
+
+    @pytest.mark.asyncio
+    async def test_respond_uses_continue_session(self, tmp_path: Path):
+        role = tmp_path / "ROLE.md"
+        role.write_text("")
+        with patch("eva.telegram.responder.shutil.which", return_value=None):
+            r = EvaResponder(anthropic_key="sk-test", role_path=role)
+
+        r._call_claude = AsyncMock(return_value="Response.")
+        await r.respond("Hello", "chat")
+
+        r._call_claude.assert_called_once()
+        assert r._call_claude.call_args[1]["continue_session"] is True
 
     @pytest.mark.asyncio
     async def test_respond_without_role_context(self, tmp_path: Path):

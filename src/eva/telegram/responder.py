@@ -96,7 +96,7 @@ class EvaResponder:
             system = f"{system}\n\nYour identity details:\n{self._role_context}"
 
         prompt = f"[Category: {category}]\nUser message: {text}"
-        return await self._call_claude(system, prompt, max_tokens=300)
+        return await self._call_claude(system, prompt, max_tokens=300, continue_session=True)
 
     async def process_message(self, text: str) -> tuple[str | None, str]:
         """Full pipeline: classify → respond. Returns (response, category)."""
@@ -104,13 +104,17 @@ class EvaResponder:
         response = await self.respond(text, category)
         return response, category
 
-    async def _call_claude(self, system: str, user: str, max_tokens: int = 300) -> str:
+    async def _call_claude(
+        self, system: str, user: str, max_tokens: int = 300, *, continue_session: bool = False
+    ) -> str:
         """Call Claude via CLI (preferred) or API fallback."""
         if self._claude_cli:
-            return await self._call_claude_cli(system, user)
+            return await self._call_claude_cli(system, user, continue_session=continue_session)
         return await self._call_claude_api(system, user, max_tokens)
 
-    async def _call_claude_cli(self, system: str, user: str) -> str:
+    async def _call_claude_cli(
+        self, system: str, user: str, *, continue_session: bool = False
+    ) -> str:
         """Call Claude via Claude Code CLI (uses subscription).
 
         Uses create_subprocess_exec which passes arguments directly
@@ -120,13 +124,12 @@ class EvaResponder:
         prompt = f"{system}\n\n---\n\n{user}"
         cli = self._claude_cli or "claude"
         env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+        args = [cli, "-p", "--model", "haiku"]
+        if continue_session:
+            args.append("--continue")
+        args.append(prompt)
         proc = await asyncio.create_subprocess_exec(
-            cli,
-            "-p",
-            "--continue",
-            "--model",
-            "haiku",
-            prompt,
+            *args,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env=env,
