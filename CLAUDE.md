@@ -80,7 +80,7 @@ src/eva/
 ├── telegram/           # Telegram integration
 │   ├── client.py       # Telegram Bot API client (async httpx)
 │   ├── formatter.py    # Evolution message formatting (child vs Eva personality)
-│   └── responder.py    # Community responder — Claude API with Eva persona
+│   └── responder.py    # Community responder — Claude Code CLI with tool access
 ├── analysis/
 │   └── detector.py     # PatternDetector — frequency, cross-agent, escalation
 └── mutations/
@@ -149,7 +149,7 @@ Available Claude Code skills:
 - **Safety**: dry-run default, never auto-merge, max 5 mutations/run, confidence threshold 30%
 - **Evolutions feed**: `eva publish --live` → GitHub (evolutions.json) + Telegram (community chat)
 - **Evolution personalities**: children = open, detailed format; Eva = mysterious "spiced" hints
-- **Community interaction**: `eva tg-process` → Claude API (haiku) with ROLE.md persona → replies in character
+- **Community interaction**: `eva tg-process` → Claude Code CLI (opus) with tool access, CLAUDE.md provides context
 - **Telegram as signal source**: `TelegramSource` polls community chat, feeds messages into pipeline
 - **Evolution → Issue**: every `/evo` step creates a GitHub issue in `ievo-ai/eva` for traceability and future propagation to children
 
@@ -171,6 +171,8 @@ Available Claude Code skills:
 - **Never fit tests to results**: tests must verify correct behavior, not be adjusted to match whatever the code happens to produce. If a test fails, fix the code — not the assertion. Fitting tests to output is junior-coder cheating.
 - **Errors are evolution, panic is the enemy**: when a mistake happens, stay calm, analyze the root cause, and fix it properly. Errors are the foundation of evolution — they teach. Panic leads to hasty patches and more errors.
 - **Decompose big tasks**: never attempt large tasks in one go. Break every task into small, focused steps with a clear plan. Understand the end goal but execute incrementally. Large monolithic tasks lead to errors and context exhaustion. Small steps = reliable progress.
+- **Minimal path first, fallbacks later**: implement only the primary deployment path. Do not add API fallbacks, classifiers, or abstraction layers preemptively. Every fallback doubles surface area for bugs. Add fallbacks only when an actual failure mode is observed in production.
+- **Design for the deployment context**: when building integrations for multi-user contexts (group chats, forums, shared channels), always include sender identity in the interface from the start. Think about WHO uses the system, not just WHAT they send.
 
 ## Commands
 
@@ -192,7 +194,7 @@ eva export-memory            # Export Eva's knowledge in Claude Memory format
 - **Docker**: `docker build -t eva . && docker run eva scan`
 - **Self-hosted**: `docker compose up -d` (uses .env for tokens)
 - **Telegram (one-shot)**: `docker compose run --rm eva-tg` (batch, local testing)
-- **Telegram (DO daemon)**: `docker compose up -d eva-tg-daemon` (continuous, every 3 min)
+- **Telegram (DO daemon)**: `docker compose up -d eva-tg-daemon` (continuous, every 10s)
 - **DO auto-deploy**: `deploy-do.yml` workflow — push to main triggers SSH → rebuild → restart
 - All workflows use Docker for reproducible environment
 
@@ -202,7 +204,7 @@ eva export-memory            # Export Eva's knowledge in Claude Memory format
 - `EVA_SENTRY_TOKEN` — Sentry API access
 - `TELEGRAM_BOT_TOKEN` — Telegram Bot API token (@ievo_ai_bot)
 - `TELEGRAM_COMMUNITY_CHAT` — Telegram community chat ID (publishing + interaction)
-- `ANTHROPIC_API_KEY` — Anthropic API key (for Eva's community responses via Claude)
+- `CLAUDE_CODE_OAUTH_TOKEN` — Claude Code CLI auth (subscription, for Eva's community responses)
 
 ## Three evolution levels
 

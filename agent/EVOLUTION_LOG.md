@@ -47,3 +47,11 @@
 **Action:** Added `pytest-cov>=6.0` to dev dependencies. Added `[tool.coverage.run]` and `[tool.coverage.report]` config to `pyproject.toml` with `fail_under=54` (current baseline, target 100%). Updated CI to use `uv sync --group dev` and `pytest --cov`. Updated CLAUDE.md rule with "never lower fail_under".
 
 **Goal:** Ensure every rule has working tooling behind it. Coverage ratchet prevents regression while allowing incremental improvement toward 100%.
+
+## 2026-03-02: Minimal path first — remove preemptive fallbacks
+
+**Context:** Built a Telegram responder with unnecessary complexity: API fallback (`_call_claude_api`), message classifier, system prompts, role context loading, model configuration — all for a system that only ever runs via Claude Code CLI in Docker. Denis had to explicitly request removal of each piece. The classifier caused false positives (marking real questions as "noise"), and the API path was never used in production.
+
+**Action:** Added two working rules to CLAUDE.md: (1) "Minimal path first, fallbacks later" — implement only the primary deployment path, add fallbacks only when failure is observed; (2) "Design for the deployment context" — include sender identity in multi-user interfaces from the start. Updated stale CLAUDE.md documentation (responder description, env vars, daemon interval).
+
+**Goal:** Prevent over-engineering. Build what's needed for the actual deployment, not hypothetical scenarios. Reduce surface area for bugs by avoiding preemptive abstractions.
