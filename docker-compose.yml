@@ -80,6 +80,8 @@ services:
     container_name: eva-tg-daemon
     restart: unless-stopped
     env_file: .env
+    environment:
+      - GH_TOKEN=${EVA_GITHUB_TOKEN}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |

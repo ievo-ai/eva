@@ -159,6 +159,29 @@ class GitHubClient:
             repo=repo,
         )
 
+    async def create_issue(
+        self,
+        repo: str,
+        title: str,
+        body: str,
+        labels: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Create a GitHub issue. Returns the issue data."""
+        payload: dict[str, Any] = {"title": title, "body": body}
+        if labels:
+            payload["labels"] = labels
+
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                f"{API_BASE}/repos/{repo}/issues",
+                headers=self._headers,
+                json=payload,
+                timeout=30,
+            )
+            resp.raise_for_status()
+            result: dict[str, Any] = resp.json()
+            return result
+
     async def add_labels(self, repo: str, issue_number: int, labels: list[str]) -> None:
         """Add labels to an issue/PR."""
         async with httpx.AsyncClient() as client:

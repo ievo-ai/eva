@@ -249,6 +249,54 @@ class TestGitHubClientMethods:
         assert result.pr_number == 2
 
     @pytest.mark.asyncio
+    async def test_create_issue(self):
+        client = GitHubClient("test-token")
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 201
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.json.return_value = {
+            "html_url": "https://github.com/ievo-ai/eva/issues/1",
+            "number": 1,
+        }
+
+        mock_http = AsyncMock()
+        mock_http.post.return_value = mock_resp
+        mock_http.__aenter__ = AsyncMock(return_value=mock_http)
+        mock_http.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("eva.github.client.httpx.AsyncClient", return_value=mock_http):
+            result = await client.create_issue("ievo-ai/eva", "Bug report", "Details")
+
+        assert result["number"] == 1
+        payload = mock_http.post.call_args[1]["json"]
+        assert payload["title"] == "Bug report"
+        assert "labels" not in payload
+
+    @pytest.mark.asyncio
+    async def test_create_issue_with_labels(self):
+        client = GitHubClient("test-token")
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 201
+        mock_resp.raise_for_status = MagicMock()
+        mock_resp.json.return_value = {"number": 2}
+
+        mock_http = AsyncMock()
+        mock_http.post.return_value = mock_resp
+        mock_http.__aenter__ = AsyncMock(return_value=mock_http)
+        mock_http.__aexit__ = AsyncMock(return_value=False)
+
+        with patch("eva.github.client.httpx.AsyncClient", return_value=mock_http):
+            result = await client.create_issue(
+                "ievo-ai/eva", "Feature", "Body", labels=["enhancement"]
+            )
+
+        assert result["number"] == 2
+        payload = mock_http.post.call_args[1]["json"]
+        assert payload["labels"] == ["enhancement"]
+
+    @pytest.mark.asyncio
     async def test_add_labels(self):
         client = GitHubClient("test-token")
 

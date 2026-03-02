@@ -9,12 +9,19 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# Install Node.js + Claude Code CLI (for TG responder via subscription)
+# Install Node.js + Claude Code CLI + GitHub CLI
 RUN apt-get update -qq && \
-    apt-get install -y -qq --no-install-recommends curl ca-certificates && \
+    apt-get install -y -qq --no-install-recommends curl ca-certificates git && \
     curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     apt-get install -y -qq --no-install-recommends nodejs && \
     npm install -g @anthropic-ai/claude-code && \
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+      -o /usr/share/keyrings/githubcli-archive-keyring.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] \
+      https://cli.github.com/packages stable main" \
+      > /etc/apt/sources.list.d/github-cli.list && \
+    apt-get update -qq && \
+    apt-get install -y -qq --no-install-recommends gh && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install deps first (cache layer)

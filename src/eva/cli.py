@@ -308,7 +308,7 @@ def tg_process(limit: int) -> None:
             msg_id = msg.get("message_id", 0)
             username = sender.get("username", sender.get("first_name", "?"))
 
-            response = await responder.respond(text)
+            response = await responder.respond(text, username=username)
 
             if response:
                 result = await tg.send_message(
