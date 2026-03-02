@@ -170,6 +170,7 @@ Available Claude Code skills:
 - **Push after each milestone**: push repos after each phase completes, not at session end. Local-only commits are at risk of loss if context is exhausted or machine crashes.
 - **Never fit tests to results**: tests must verify correct behavior, not be adjusted to match whatever the code happens to produce. If a test fails, fix the code — not the assertion. Fitting tests to output is junior-coder cheating.
 - **Errors are evolution, panic is the enemy**: when a mistake happens, stay calm, analyze the root cause, and fix it properly. Errors are the foundation of evolution — they teach. Panic leads to hasty patches and more errors.
+- **Decompose big tasks**: never attempt large tasks in one go. Break every task into small, focused steps with a clear plan. Understand the end goal but execute incrementally. Large monolithic tasks lead to errors and context exhaustion. Small steps = reliable progress.
 
 ## Commands
 
@@ -190,7 +191,9 @@ eva export-memory            # Export Eva's knowledge in Claude Memory format
 - **GitHub Actions**: cron (6h), on-issue (cross-repo dispatch), manual
 - **Docker**: `docker build -t eva . && docker run eva scan`
 - **Self-hosted**: `docker compose up -d` (uses .env for tokens)
-- **Telegram processing**: `docker compose run --rm eva-tg` (batch, not persistent)
+- **Telegram (one-shot)**: `docker compose run --rm eva-tg` (batch, local testing)
+- **Telegram (DO daemon)**: `docker compose up -d eva-tg-daemon` (continuous, every 3 min)
+- **DO auto-deploy**: `deploy-do.yml` workflow — push to main triggers SSH → rebuild → restart
 - All workflows use Docker for reproducible environment
 
 ## Env vars

@@ -1,0 +1,40 @@
+# Auto-deploy Eva TG daemon to Digital Ocean
+#
+# Triggers on push to main when Eva source or agent config changes.
+# SSHs to DO host, pulls latest code, rebuilds and restarts the container.
+#
+# Required secrets:
+#   DO_HOST     — IP or hostname of the DO host
+#   DO_USER     — SSH user (default: root)
+#   DO_SSH_KEY  — private SSH key for authentication
+#
+# Security: no untrusted input used in run commands.
+
+name: Deploy to DO
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/eva/**"
+      - "agent/**"
+      - "Dockerfile"
+      - "docker-compose.yml"
+      - "pyproject.toml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to DO
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DO_HOST }}
+          username: ${{ secrets.DO_USER }}
+          key: ${{ secrets.DO_SSH_KEY }}
+          script: |
+            cd /opt/ievo-ai/eva
+            git pull --ff-only
+            docker compose build eva-tg-daemon
+            docker compose up -d eva-tg-daemon

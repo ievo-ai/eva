@@ -167,3 +167,71 @@ In live mode, Eva will:
 2. Commit the patch
 3. Open a Pull Request with full context
 4. **Never auto-merge** — human review required
+
+## Digital Ocean (Autonomous TG Responder)
+
+Eva's Telegram responder runs autonomously on a DO host via Docker Compose.
+
+### Architecture
+
+```
+DO Host
+└── /opt/ievo-ai/
+    ├── eva/              ← docker compose up -d eva-tg-daemon
+    ├── marketplace/      ← children agents
+    ├── cli/
+    ├── sdk/
+    ├── curator/
+    └── ievo.ai/
+```
+
+The `eva-tg-daemon` service runs `eva tg-process --limit 50` every 3 minutes in a loop with `restart: unless-stopped`.
+
+### First-Time Setup
+
+```bash
+# On the DO host (as root):
+export EVA_GITHUB_TOKEN=github_pat_...
+scp scripts/deploy-do.sh root@eva-host:/tmp/
+ssh root@eva-host bash /tmp/deploy-do.sh
+
+# Then fill in .env:
+ssh root@eva-host
+vi /opt/ievo-ai/eva/.env
+cd /opt/ievo-ai/eva && docker compose up -d eva-tg-daemon
+```
+
+### Required Env Vars (DO)
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `EVA_GITHUB_TOKEN` | Yes | GitHub PAT (git clone + API) |
+| `ANTHROPIC_API_KEY` | Yes | Haiku API key (~$1/mo) |
+| `TELEGRAM_BOT_TOKEN` | Yes | Telegram Bot API token |
+| `TELEGRAM_COMMUNITY_CHAT` | Yes | Telegram chat ID |
+| `TELEGRAM_EVOLUTIONS_TOPIC` | No | Forum topic ID |
+| `EVA_SENTRY_DSN` | No | Eva's own error reporting |
+
+### Operations
+
+```bash
+# Watch logs
+docker compose logs -f eva-tg-daemon
+
+# Restart
+docker compose restart eva-tg-daemon
+
+# Stop
+docker compose stop eva-tg-daemon
+
+# Update and restart
+cd /opt/ievo-ai/eva && git pull --ff-only
+docker compose build eva-tg-daemon
+docker compose up -d eva-tg-daemon
+```
+
+### Auto-Deploy
+
+The `deploy-do.yml` workflow auto-deploys on push to `main` when Eva source or config changes.
+
+Required GitHub secrets: `DO_HOST`, `DO_USER`, `DO_SSH_KEY`.

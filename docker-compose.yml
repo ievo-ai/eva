@@ -61,7 +61,7 @@ services:
       - status
       - --config=/app/eva.yaml
 
-  # ── Telegram community processing ─────────────────────
+  # ── Telegram community processing (one-shot, local testing) ──
   eva-tg:
     build: .
     container_name: eva-tg
@@ -73,6 +73,26 @@ services:
     command:
       - tg-process
       - --limit=50
+
+  # ── Telegram daemon (continuous, for DO deployment) ──────
+  eva-tg-daemon:
+    build: .
+    container_name: eva-tg-daemon
+    restart: unless-stopped
+    env_file: .env
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          echo "=== Eva TG process: $$(date) ==="
+          eva tg-process --limit 50 || true
+          echo "=== Sleeping 3m ==="
+          sleep 180
+        done
+    volumes:
+      - ./eva.yaml:/app/eva.yaml:ro
+      - ./agent:/app/agent:ro
+      - ./output:/app/output
 
   # ── Scheduled scan (cron-like loop, opt-in) ────────────
   # Uncomment to run Eva on a 6-hour loop.
