@@ -48,6 +48,7 @@ Transformed Eva's Telegram bot from a stateless API-based responder into a full 
 1. **Minimal path first** (EVO-015) — don't build fallbacks preemptively
 2. **Design for deployment context** — include sender identity in group chat interfaces
 3. **Post-push checklist** (EVO-016) — session save + evolution publish after every push
+4. **Unified evolution format** (EVO-017) — open source = same transparent format for all agents
 
 ## Commits
 
@@ -60,6 +61,8 @@ Transformed Eva's Telegram bot from a stateless API-based responder into a full 
 | `fd32b47` | feat: full Claude Code access — remove API, add tools + username |
 | `28422c0` | perf: uv with cache mount in Dockerfile |
 | `376b799` | evo: minimal path first — remove preemptive fallbacks |
+| `46c3cd0` | evo: post-push checklist + session 011 |
+| `bc4df9e` | simplify: unified evolution format |
 
 ## What's Next
 

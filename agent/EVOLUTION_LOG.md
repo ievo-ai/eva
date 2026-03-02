@@ -63,3 +63,11 @@
 **Action:** Added "Post-push checklist" to CLAUDE.md working rules — a single enforceable checkpoint tied to the `git push` event: (1) update session file + HISTORY.md, (2) if /evo was run, publish evolution. Framed as "part of the push, not afterthoughts."
 
 **Goal:** Consolidate scattered post-push obligations into one rule that's harder to skip. The push is not done until the checklist is complete.
+
+## 2026-03-02: Unified evolution format — open source transparency
+
+**Context:** Eva's Telegram formatter had two personalities: children got transparent messages (title, description, confidence), Eva got "spiced" mysterious one-liners ("Her gaze shifted. A child will see clearer now."). This was designed for a closed-source marketing strategy. But iEvo is now fully open source — hiding internals serves no purpose and confuses readers.
+
+**Action:** Removed `format_child_message`, `format_eva_message`, `EVA_SPICE`, `EVA_CHILDREN` — replaced with single `format_telegram_message` that uses transparent format for all agents including Eva. Updated tests accordingly.
+
+**Goal:** One format for all agents. Open source means open communication.
