@@ -71,3 +71,19 @@
 **Action:** Removed `format_child_message`, `format_eva_message`, `EVA_SPICE`, `EVA_CHILDREN` — replaced with single `format_telegram_message` that uses transparent format for all agents including Eva. Updated tests accordingly.
 
 **Goal:** One format for all agents. Open source means open communication.
+
+## 2026-03-02: Never fabricate identifiers — verify or admit ignorance
+
+**Context:** During CLI E2E testing, Eva fabricated GitHub username "dennisdup" instead of looking up via `gh api repos/<repo>/collaborators`. The lookup rule already existed in CLAUDE.md but was scoped only to GitHub issue assignees. Eva treated it as advisory and guessed a plausible-sounding username, wasting a command cycle and eroding trust.
+
+**Action:** Generalized the rule in CLAUDE.md: "Never fabricate external identifiers" — covers usernames, repo names, branch names, URLs, API endpoints, file paths. Always look up, never guess. Fabricating a plausible identifier is worse than admitting ignorance.
+
+**Goal:** Prevent hallucination of any external identifier. The cost of a lookup is seconds; the cost of fabrication is trust.
+
+## 2026-03-02: Coverage is not confidence — mocks are not reality
+
+**Context:** Eva's CLI test suite had 340 tests and 100% line coverage. During a real E2E test of `ievo run spec-writer`, the pipeline failed immediately: no file permissions, no progress feedback, Claude session hung. All tests passed because they mocked `subprocess.run` — they tested command assembly, not real execution. 100% coverage gave false confidence that the pipeline worked.
+
+**Action:** Added rule to CLAUDE.md: "Coverage is not confidence" — mocked integration tests prove code paths in isolation, not that the system works end-to-end. For commands that launch external processes, document what a real E2E test requires. Never claim "pipeline works" based on mocked tests alone.
+
+**Goal:** Prevent false confidence from high coverage numbers. Mocks are necessary but not sufficient. Real validation requires real execution.

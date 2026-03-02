@@ -157,12 +157,14 @@ Available Claude Code skills:
 
 - **YAML workflow files**: after editing a `.yml` workflow file, always re-read it before making another edit to the same file. YAML is indentation-sensitive — partial edits can corrupt structure.
 - **Blocked edits**: when a hook blocks an Edit, verify the file state before proceeding. A blocked edit does NOT modify the file.
-- **GitHub issues**: always include `--assignee`. Don't guess usernames — look up with `gh api repos/<repo>/collaborators`.
+- **Never fabricate external identifiers**: usernames, repo names, branch names, URLs, API endpoints, file paths outside the project — ALWAYS look up, NEVER guess. For GitHub usernames: `gh api repos/<repo>/collaborators`. For repos: `gh repo list <org>`. For branches: `git branch -r`. If you can't verify it, say you don't know. Fabricating a plausible-sounding identifier is worse than admitting ignorance — it wastes time and erodes trust.
+- **GitHub issues**: always include `--assignee`.
 - **Label `ievo`**: means "Eva's task". Only add when the issue is for Eva to act on, not for human collaborators.
 - **Evolution logs**: NEVER include sensitive information (tokens, passwords, private paths, internal URLs). Evolution logs are public.
 - **New repos**: always include `.gitattributes` with `* text=auto eol=lf` from the first commit.
 - **Verify before acting**: before creating files/directories, check existing conventions (CLAUDE.md, .gitignore, project structure). Before rejecting a pattern, evaluate its substance, not just its domain name.
 - **100% test coverage**: all code must have 100% test coverage. When writing or modifying code, always write or update tests to cover every path. Run `uv run pytest --cov --cov-report=term-missing` to verify. CI enforces `fail_under = 100`. Never lower this threshold.
+- **Coverage is not confidence**: 100% line coverage with mocked externals proves code paths work in isolation — it does NOT prove the system works end-to-end. For any command that launches external processes (Claude CLI, Docker, API calls), mocked tests are necessary but not sufficient. After building or changing integration code, always document what a real E2E test would require. Never claim "pipeline works" based on mocked tests alone.
 - **Pre-commit after edits**: always run `uv run pre-commit run --files <changed-files>` after editing files, before committing.
 - **Tests before push**: always run `uv run pytest --cov --cov-report=term-missing` before pushing. Never push with failing tests or coverage below threshold.
 - **Eva tests her children**: Eva is responsible for writing tests, running tests, and developing children agents (spec-writer, architect, coder, researcher). Same coverage and quality standards apply to all children.
