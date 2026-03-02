@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from eva.telegram.responder import (
-    CLASSIFY_SYSTEM,
     COMMUNITY_SYSTEM,
     EvaResponder,
 )
@@ -234,166 +233,68 @@ class TestCallClaudeApi:
         assert result == ""
 
 
-# ── classify ──────────────────────────────────────────────
-
-
-class TestClassify:
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize(
-        "response,expected",
-        [
-            ("feature_request", "feature_request"),
-            ("bug_report", "bug_report"),
-            ("question", "question"),
-            ("chat", "chat"),
-            ("noise", "noise"),
-            ("  Feature_Request  ", "feature_request"),
-        ],
-    )
-    async def test_valid_categories(self, tmp_path: Path, response: str, expected: str):
-        role = tmp_path / "ROLE.md"
-        role.write_text("")
-        with patch("eva.telegram.responder.shutil.which", return_value=None):
-            r = EvaResponder(anthropic_key="sk-test", role_path=role)
-
-        r._call_claude = AsyncMock(return_value=response)
-        result = await r.classify("Test message")
-        assert result == expected
-
-    @pytest.mark.asyncio
-    async def test_classify_does_not_use_continue_session(self, tmp_path: Path):
-        role = tmp_path / "ROLE.md"
-        role.write_text("")
-        with patch("eva.telegram.responder.shutil.which", return_value=None):
-            r = EvaResponder(anthropic_key="sk-test", role_path=role)
-
-        r._call_claude = AsyncMock(return_value="question")
-        await r.classify("How does it work?")
-
-        # classify should NOT pass continue_session (uses default False)
-        call_kwargs = r._call_claude.call_args[1] if r._call_claude.call_args[1] else {}
-        assert call_kwargs.get("continue_session", False) is False
-
-    @pytest.mark.asyncio
-    async def test_invalid_category_defaults_to_noise(self, tmp_path: Path):
-        role = tmp_path / "ROLE.md"
-        role.write_text("")
-        with patch("eva.telegram.responder.shutil.which", return_value=None):
-            r = EvaResponder(anthropic_key="sk-test", role_path=role)
-
-        r._call_claude = AsyncMock(return_value="gibberish")
-        result = await r.classify("Test")
-        assert result == "noise"
-
-
 # ── respond ───────────────────────────────────────────────
 
 
 class TestRespond:
     @pytest.mark.asyncio
-    async def test_noise_returns_none(self, tmp_path: Path):
+    async def test_returns_response(self, tmp_path: Path):
         role = tmp_path / "ROLE.md"
-        role.write_text("")
-        with patch("eva.telegram.responder.shutil.which", return_value=None):
-            r = EvaResponder(anthropic_key="sk-test", role_path=role)
-        result = await r.respond("spam", "noise")
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_question_returns_response(self, tmp_path: Path):
-        role = tmp_path / "ROLE.md"
-        role.write_text("# Eva\nI am the mother.")
+        role.write_text("# Eva\nCommunity support agent.")
         with patch("eva.telegram.responder.shutil.which", return_value=None):
             r = EvaResponder(anthropic_key="sk-test", role_path=role)
 
-        r._call_claude = AsyncMock(return_value="My children work together in harmony.")
-        result = await r.respond("How does iEvo work?", "question")
+        r._call_claude = AsyncMock(return_value="The agents collaborate.")
+        result = await r.respond("How does iEvo work?")
 
-        assert result == "My children work together in harmony."
+        assert result == "The agents collaborate."
         call_args = r._call_claude.call_args[0]
         assert "Eva" in call_args[0]  # system prompt
-        assert "[Category: question]" in call_args[1]  # user prompt
 
     @pytest.mark.asyncio
-    async def test_feature_request_includes_role_context(self, tmp_path: Path):
+    async def test_includes_role_context(self, tmp_path: Path):
         role = tmp_path / "ROLE.md"
         role.write_text("# Eva\nMeta-evolution agent.")
         with patch("eva.telegram.responder.shutil.which", return_value=None):
             r = EvaResponder(anthropic_key="sk-test", role_path=role)
 
         r._call_claude = AsyncMock(return_value="Noted.")
-        result = await r.respond("Add dark mode", "feature_request")
+        await r.respond("Add dark mode")
 
-        assert result == "Noted."
         system = r._call_claude.call_args[0][0]
         assert "Meta-evolution agent" in system
 
     @pytest.mark.asyncio
-    async def test_respond_uses_continue_session(self, tmp_path: Path):
+    async def test_uses_continue_session(self, tmp_path: Path):
         role = tmp_path / "ROLE.md"
         role.write_text("")
         with patch("eva.telegram.responder.shutil.which", return_value=None):
             r = EvaResponder(anthropic_key="sk-test", role_path=role)
 
         r._call_claude = AsyncMock(return_value="Response.")
-        await r.respond("Hello", "chat")
+        await r.respond("Hello")
 
         r._call_claude.assert_called_once()
         assert r._call_claude.call_args[1]["continue_session"] is True
 
     @pytest.mark.asyncio
-    async def test_respond_without_role_context(self, tmp_path: Path):
+    async def test_without_role_context(self, tmp_path: Path):
         role = tmp_path / "nonexistent" / "ROLE.md"
         with patch("eva.telegram.responder.shutil.which", return_value=None):
             r = EvaResponder(anthropic_key="sk-test", role_path=role)
 
         r._call_claude = AsyncMock(return_value="Welcome.")
-        result = await r.respond("Hello!", "chat")
+        result = await r.respond("Hello!")
 
         assert result == "Welcome."
         system = r._call_claude.call_args[0][0]
         assert "identity details" not in system
 
 
-# ── process_message ───────────────────────────────────────
-
-
-class TestProcessMessage:
-    @pytest.mark.asyncio
-    async def test_full_pipeline(self, tmp_path: Path):
-        role = tmp_path / "ROLE.md"
-        role.write_text("")
-        with patch("eva.telegram.responder.shutil.which", return_value=None):
-            r = EvaResponder(anthropic_key="sk-test", role_path=role)
-
-        r._call_claude = AsyncMock(side_effect=["question", "The agents collaborate."])
-        response, category = await r.process_message("How do agents work?")
-
-        assert category == "question"
-        assert response == "The agents collaborate."
-
-    @pytest.mark.asyncio
-    async def test_noise_skips_response(self, tmp_path: Path):
-        role = tmp_path / "ROLE.md"
-        role.write_text("")
-        with patch("eva.telegram.responder.shutil.which", return_value=None):
-            r = EvaResponder(anthropic_key="sk-test", role_path=role)
-
-        r._call_claude = AsyncMock(return_value="noise")
-        response, category = await r.process_message("random gibberish")
-
-        assert category == "noise"
-        assert response is None
-
-
 # ── Constants ─────────────────────────────────────────────
 
 
 class TestConstants:
-    def test_classify_system_has_categories(self):
-        for cat in ["feature_request", "bug_report", "question", "chat", "noise"]:
-            assert cat in CLASSIFY_SYSTEM
-
     def test_community_system_has_rules(self):
         assert "Eva" in COMMUNITY_SYSTEM
         assert "open source" in COMMUNITY_SYSTEM

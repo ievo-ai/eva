@@ -46,20 +46,9 @@ iEvo platform:
 - GitHub: github.com/ievo-ai — open source, contributions welcome
 """
 
-CLASSIFY_SYSTEM = """Classify this Telegram message into exactly one category.
-Return ONLY the category name, nothing else.
-
-Categories:
-- feature_request: user wants a new feature or capability
-- bug_report: user reports a problem or error
-- question: user asks about iEvo, agents, or the platform
-- chat: casual conversation, greetings, community interaction
-- noise: spam, bot messages, irrelevant content, or messages not directed at Eva
-"""
-
 
 class EvaResponder:
-    """Eva's community brain — classifies messages and responds in character."""
+    """Eva's community brain — responds to messages in character."""
 
     def __init__(
         self,
@@ -82,33 +71,13 @@ class EvaResponder:
         if role_file.exists():
             self._role_context = role_file.read_text()[:2000]
 
-    async def classify(self, text: str) -> str:
-        """Classify a message into a category."""
-        result = await self._call_claude(CLASSIFY_SYSTEM, text, max_tokens=20)
-        category = result.strip().lower().replace(" ", "_")
-        valid = {"feature_request", "bug_report", "question", "chat", "noise"}
-        return category if category in valid else "noise"
-
-    async def respond(self, text: str, category: str) -> str | None:
-        """Generate Eva's response for a classified message.
-
-        Returns response text or None if Eva should not reply.
-        """
-        if category == "noise":
-            return None
-
+    async def respond(self, text: str) -> str:
+        """Generate Eva's response to a community message."""
         system = COMMUNITY_SYSTEM
         if self._role_context:
             system = f"{system}\n\nYour identity details:\n{self._role_context}"
 
-        prompt = f"[Category: {category}]\nUser message: {text}"
-        return await self._call_claude(system, prompt, max_tokens=300, continue_session=True)
-
-    async def process_message(self, text: str) -> tuple[str | None, str]:
-        """Full pipeline: classify → respond. Returns (response, category)."""
-        category = await self.classify(text)
-        response = await self.respond(text, category)
-        return response, category
+        return await self._call_claude(system, text, max_tokens=300, continue_session=True)
 
     async def _call_claude(
         self, system: str, user: str, max_tokens: int = 300, *, continue_session: bool = False

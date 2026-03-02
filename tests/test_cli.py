@@ -423,9 +423,7 @@ class TestTgProcessCommand:
         )
 
         mock_responder = MagicMock()
-        mock_responder.process_message = AsyncMock(
-            return_value=("My children collaborate.", "question"),
-        )
+        mock_responder.respond = AsyncMock(return_value="The agents collaborate.")
 
         with (
             patch("eva.telegram.client.TelegramClient", return_value=mock_tg),
@@ -460,7 +458,7 @@ class TestTgProcessCommand:
         )
 
         mock_responder = MagicMock()
-        mock_responder.process_message = AsyncMock(return_value=(None, "noise"))
+        mock_responder.respond = AsyncMock(return_value="")
 
         with (
             patch("eva.telegram.client.TelegramClient", return_value=mock_tg),
@@ -525,7 +523,7 @@ class TestTgProcessCommand:
 
         assert result.exit_code == 0
         assert "Processed 0" in result.output
-        mock_responder.process_message.assert_not_called()
+        mock_responder.respond.assert_not_called()
 
 
 # --- Helpers ---

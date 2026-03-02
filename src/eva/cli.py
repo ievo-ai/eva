@@ -308,7 +308,7 @@ def tg_process(limit: int) -> None:
             msg_id = msg.get("message_id", 0)
             username = sender.get("username", sender.get("first_name", "?"))
 
-            response, category = await responder.process_message(text)
+            response = await responder.respond(text)
 
             if response:
                 result = await tg.send_message(
@@ -316,10 +316,10 @@ def tg_process(limit: int) -> None:
                     reply_to_message_id=msg_id,
                 )
                 status = "[green]✓[/green]" if result.success else "[red]✗[/red]"
-                console.print(f"  {status} @{username} \\[{category}]")
+                console.print(f"  {status} @{username}")
                 processed += 1
             else:
-                console.print(f"  [dim]⊘ @{username} \\[{category}][/dim]")
+                console.print(f"  [dim]⊘ @{username}[/dim]")
 
         # Confirm processed updates so they don't appear again
         await tg.get_updates(offset=last_update_id + 1, limit=1)
