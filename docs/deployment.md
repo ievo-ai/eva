@@ -185,7 +185,7 @@ DO Host
     └── ievo.ai/
 ```
 
-The `eva-tg-daemon` service runs `eva tg-process --limit 50` every 3 minutes in a loop with `restart: unless-stopped`.
+The `eva-tg-daemon` service runs `eva tg-process --limit 50` every 10 seconds in a loop with `restart: unless-stopped`. Eva uses Claude Code CLI (`claude -p --model opus`) with full tool access (`--allowedTools Bash,Read,Glob,Grep,WebFetch`) — no direct Anthropic API.
 
 ### First-Time Setup
 
@@ -205,8 +205,8 @@ cd /opt/ievo-ai/eva && docker compose up -d eva-tg-daemon
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `EVA_GITHUB_TOKEN` | Yes | GitHub PAT (git clone + API) |
-| `ANTHROPIC_API_KEY` | Yes | Haiku API key (~$1/mo) |
+| `EVA_GITHUB_TOKEN` | Yes | GitHub PAT (git clone + API + `GH_TOKEN` for `gh` CLI) |
+| `CLAUDE_CODE_OAUTH_TOKEN` | Yes | Claude Code subscription auth |
 | `TELEGRAM_BOT_TOKEN` | Yes | Telegram Bot API token |
 | `TELEGRAM_COMMUNITY_CHAT` | Yes | Telegram chat ID |
 | `TELEGRAM_EVOLUTIONS_TOPIC` | No | Forum topic ID |
