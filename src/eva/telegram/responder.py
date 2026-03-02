@@ -123,6 +123,7 @@ class EvaResponder:
         proc = await asyncio.create_subprocess_exec(
             cli,
             "-p",
+            "--continue",
             "--model",
             "haiku",
             prompt,

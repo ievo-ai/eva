@@ -152,6 +152,7 @@ class TestCallClaudeCli:
         args = mock_exec.call_args[0]
         assert args[0] == "/usr/bin/claude"
         assert "-p" in args
+        assert "--continue" in args
         assert "--model" in args
         assert "haiku" in args
         # Prompt contains both system and user text
