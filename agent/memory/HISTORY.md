@@ -1,20 +1,21 @@
 # Session History
 
-Lightweight index. Full details in `sessions/NNN-topic.md`.
+Lightweight index. Full details in `sessions/NNN/plan.md` + `sessions/NNN/log.md`.
 
-| # | Date | Topic | Key outcome |
-|---|------|-------|-------------|
-| [001](sessions/001-initial-build.md) | 2026-02-28 | Initial Build | Eva built from scratch — core, sources, pipeline, CLI, tests, deployment, docs (33 files, ~2,400 LOC) |
-| [002](sessions/002-curator-build.md) | 2026-02-28 | Curator Build | `ievo-ai/curator` repo built — Level 2 collective evolution (41 files, +2,761 lines, 36 tests) |
-| [003](sessions/003-evolutions-feed.md) | 2026-02-28 | Evolutions Feed | Public evolution log on ievo.ai — Eva pushes to site repo, publish-evolution.py + Action |
-| [004](sessions/004-meddylib-symbiosis.md) | 2026-03-01 | MeddyLib Symbiosis | Symbiotic learning with MeddyLib — adopted /evo + /extract-best-practices skills, modernized Python (removed __future__, StrEnum, ruff) |
-| [005](sessions/005-precommit-quality-gates.md) | 2026-03-01 | Pre-commit Quality Gates | Expanded 3→10 hooks: mypy strict (62→0 errors), actionlint, workflow security hardening (env blocks) |
-| [006](sessions/006-evo-workflow-and-cleanup.md) | 2026-03-01 | Evo Workflow & Cleanup | /evo creates GitHub issues, working rules, CRLF→LF normalization, 2 evolution entries |
-| [007](sessions/007-children-symlinks.md) | 2026-03-01 | Children Symlinks | .claude/children/ symlinks to marketplace agents, .gitattributes LF normalization |
-| [008](sessions/008-100-percent-coverage.md) | 2026-03-01 | 100% Test Coverage | 243 tests, 1132 stmts, 334 branches — full coverage enforced with fail_under=100 |
-| [009](sessions/009-platform-e2e.md) | 2026-03-01 | Platform E2E + MkDocs | Phase 1: full E2E pass (init→add→run×3), fixed download_agent bug. Phase 2: MkDocs site + docs for 4 repos |
-| [010](sessions/010-telegram-evolution-publishing.md) | 2026-03-01 | Telegram + Evolutions | Full Telegram integration: client, formatter, responder, source, CLI commands (publish + tg-process), 349 tests, 100% coverage |
-| [011](sessions/011-telegram-full-claude-code.md) | 2026-03-02 | Full Claude Code via TG | Refactored responder: removed API fallback + classifier, CLI-only with opus + tools + username, uv in Docker |
-| [012](sessions/012-cli-e2e-test.md) | 2026-03-02 | CLI E2E Test (FAIL) | 7 issues found — permissions blocker, no progress, manual steps everywhere. Pipeline can't complete |
-| [013](sessions/013-docker-sandbox.md) | 2026-03-02 | Docker Sandbox | Docker sandbox for agents — SandboxConfig, docker.py, Dockerfile, run.py refactored. 408 tests, 99.5% coverage |
-| [014](sessions/014-pr-gatekeeper-pipeline.md) | 2026-03-02 | PR Gatekeeper Pipeline | Eva as PR gatekeeper — Claude CLI review, auto-merge, evolution publishing to GitHub + Telegram. Full E2E verified |
+| # | Date | Topic | Status | Key outcome |
+|---|------|-------|--------|-------------|
+| [001](sessions/001/) | 2026-02-28 | Initial Build | completed | Eva built from scratch — core, sources, pipeline, CLI, tests, deployment, docs (33 files, ~2,400 LOC) |
+| [002](sessions/002/) | 2026-02-28 | Curator Build | completed | `ievo-ai/curator` repo built — Level 2 collective evolution (41 files, +2,761 lines, 36 tests) |
+| [003](sessions/003/) | 2026-02-28 | Evolutions Feed | completed | Public evolution log on ievo.ai — Eva pushes to site repo, publish-evolution.py + Action |
+| [004](sessions/004/) | 2026-03-01 | MeddyLib Symbiosis | completed | Symbiotic learning with MeddyLib — adopted /evo + /extract-best-practices skills, modernized Python |
+| [005](sessions/005/) | 2026-03-01 | Pre-commit Quality Gates | completed | Expanded 3→10 hooks: mypy strict (62→0 errors), actionlint, workflow security hardening |
+| [006](sessions/006/) | 2026-03-01 | Evo Workflow & Cleanup | completed | /evo creates GitHub issues, working rules, CRLF→LF normalization, 2 evolution entries |
+| [007](sessions/007/) | 2026-03-01 | Children Symlinks | completed | .claude/children/ symlinks to marketplace agents, .gitattributes LF normalization |
+| [008](sessions/008/) | 2026-03-01 | 100% Test Coverage | completed | 243 tests, 1132 stmts, 334 branches — full coverage enforced with fail_under=100 |
+| [009](sessions/009/) | 2026-03-01 | Platform E2E + MkDocs | completed | Full E2E pass (init→add→run×3), fixed download_agent bug, MkDocs site + docs for 4 repos |
+| [010](sessions/010/) | 2026-03-01 | Telegram + Evolutions | completed | Full Telegram integration: client, formatter, responder, source, CLI commands, 349 tests, 100% coverage |
+| [011](sessions/011/) | 2026-03-02 | Full Claude Code via TG | completed | Refactored responder: removed API fallback + classifier, CLI-only with opus + tools + username |
+| [012](sessions/012/) | 2026-03-02 | CLI E2E Test (FAIL) | completed | 7 issues found — permissions blocker, no progress, manual steps everywhere |
+| [013](sessions/013/) | 2026-03-02 | Docker Sandbox | completed | Docker sandbox for agents — SandboxConfig, docker.py, Dockerfile, run.py refactored. 408 tests |
+| [014](sessions/014/) | 2026-03-02 | PR Gatekeeper Pipeline | completed | Eva as PR gatekeeper — Claude CLI review, auto-merge, evolution publishing. Full E2E verified |
+| [015](sessions/015/) | 2026-03-02 | iEvo Architecture + Pipeline Redesign | in_progress | Pipeline: Backlog→Sprint→15min tasks, 3 new agents (EVO, Docs, Acceptance), Architect research, /acceptance skill |

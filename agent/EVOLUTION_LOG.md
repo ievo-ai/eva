@@ -95,3 +95,43 @@
 **Action:** Added working rule to CLAUDE.md: "Docs ship with code" — when a commit changes user-facing behavior (CLI flags, config format, architecture), documentation updates go in the same commit. Before committing, ask: does this change affect user-facing behavior? If yes, update docs first.
 
 **Goal:** Prevent stale documentation. Docs are part of the feature, not a follow-up task. One commit = code + tests + docs.
+
+## 2026-03-02: Validate assumptions — markers, signatures, test completeness
+
+**Context:** Three errors in one CLI session: (1) Changed `find_project_root()` to search for `.ievo/` directory, but `~/.ievo/` (global config) already existed in the path hierarchy — any CWD under home was falsely detected as a project. (2) Called `init(name=None)` for auto-init without checking the function signature — Typer default was `"."`, not `None`, causing TypeError. (3) Wrote mock-only tests for auto-init that asserted `.assert_called_once()` without verifying actual file creation — Denis caught it: "what's the point of these tests?"
+
+**Action:** Added two rules to Eva CLAUDE.md: (1) "Verify marker uniqueness" — when changing discovery markers, check for collisions in the path hierarchy; (2) "Complete test types per feature" — every feature needs unit + integration + UI tests, mock-only tests are incomplete. Also added the same testing rule to CLI CLAUDE.md.
+
+**Goal:** Prevent three failure modes: marker collisions from not checking existing paths, signature mismatches from not reading function definitions, and false test confidence from mock-only coverage.
+
+## 2026-03-02: Acceptance gate — self-review before declaring done
+
+**Context:** Eva repeatedly marked requirements as complete without verifying test completeness. Pattern: write code, write mock tests, see "449 tests pass, 99% coverage" → say "done". But mocks only proved wiring, not behavior. Denis had to catch gaps manually every time: "what's the point of these mock tests?", "are you actually testing the TUI?", "requirements must be FULLY covered."
+
+**Action:** Created `/acceptance` skill (`.claude/skills/acceptance/SKILL.md`) — mandatory self-review gate before marking any task complete. Checklist: identify requirement, list changes, verify all test types (unit + integration + edge cases + UI), verify real outcomes not just mock calls, check coverage on changed files, check docs. Added "Acceptance before done" rule to both Eva and CLI CLAUDE.md.
+
+**Goal:** Prevent premature "done" declarations. Eva must prove completeness through systematic self-review, not just pass a coverage threshold. The skill is a mandatory gate, not optional.
+
+## 2026-03-02: Pipeline clarification — 15-minute rule, Sprint/Backlog, Acceptance loop
+
+**Context:** Was about to add "≤15 min per requirement" to Spec Writer, but Spec Writer works with business logic and cannot estimate implementation time. Only Architect knows how long implementation takes. The pipeline also lacked formal concepts for Backlog (raw ideas), Sprint (agreed scope), feedback loops (Acceptance → Coder), and escalation (Coder → Architect when plan doesn't work).
+
+**Action:** Tightened Architect ROLE.md decomposition threshold from 30 min to 15 min. Updated Eva ROLE.md pipeline with full lifecycle: Backlog → Spec Writer → Sprint → Architect (≤15 min tasks) → Coder → Acceptance → loop. Added Acceptance child to Eva's family. Removed Tester/Reviewer from planned agents (Acceptance replaces both). Added Coder → Architect escalation (Q-xxx-arch.md). Added Acceptance → Coder feedback loop with formal reports. Researcher proposals now go to Backlog, not directly to Eva. Updated Eva + CLI CLAUDE.md with 15-minute rule. Did NOT modify Spec Writer — time estimation is not its responsibility.
+
+**Goal:** Assign decomposition responsibility to the right agent. Formalize the complete pipeline lifecycle with Backlog, Sprint, feedback loops, and escalation paths. Prevent context exhaustion from oversized tasks.
+
+## 2026-03-02: EVO as dedicated agent — continuous pipeline observer
+
+**Context:** EVO was a skill embedded in each agent, triggered only manually (/evo). Errors accumulated silently between manual sessions. No systematic analysis at pipeline transitions meant context was lost by the time errors were reviewed. Research (ICLR 2025, OpenAI cookbook, EvoAgentX) showed that retrospective learning works best when it happens close to the error — not in batches. 42% of multi-agent failures are spec errors, 37% coordination failures — both detectable at transition points.
+
+**Action:** Created EVO as a dedicated marketplace agent (agents/evo/) with continuous observation at every pipeline transition: post-spec, post-plan, post-implementation, post-acceptance. EVO analyzes quality at each gate, traces errors to root cause (which agent failed?), and proposes ROLE.md mutations. Adopted Kanban-flow model (not Scrum) — continuous flow with WIP limits, no fixed time-boxes. Updated evolution model from 3 tiers to 4 layers: Self-correction → EVO agent → Curator → Eva. EVO does not self-evolve (Eva evolves EVO, preventing circular loops).
+
+**Goal:** Catch errors at the point they occur, not after context is lost. Transform evolution from manual/batch to continuous/event-driven. Based on research: agents that analyze retrospectively close to the error outperform batch retrospectives.
+
+## 2026-03-02: Docs agent — dedicated documentation writer
+
+**Context:** Documentation was assigned to Coder via "docs ship with code" rule, but Coder is optimized for code, not writing. Result: docs were frequently forgotten or written as afterthoughts. Acceptance checked for docs presence but not quality. The pipeline had no agent whose primary job was keeping docs in sync.
+
+**Action:** Created Docs agent (agents/docs/) — runs after Acceptance PASS, updates README, CLAUDE.md, docs/, MkDocs. Uses Haiku model (cheap, templated work). Pipeline becomes: Coder → Acceptance → [EVO] → Docs → Done. Added to Eva children table, registry, and all pipeline diagrams.
+
+**Goal:** Eliminate "docs forgotten" failure mode. Dedicated agent = dedicated responsibility. Cheapest agent in the pipeline (Haiku) for the most neglected task.
