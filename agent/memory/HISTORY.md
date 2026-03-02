@@ -17,3 +17,4 @@ Lightweight index. Full details in `sessions/NNN-topic.md`.
 | [011](sessions/011-telegram-full-claude-code.md) | 2026-03-02 | Full Claude Code via TG | Refactored responder: removed API fallback + classifier, CLI-only with opus + tools + username, uv in Docker |
 | [012](sessions/012-cli-e2e-test.md) | 2026-03-02 | CLI E2E Test (FAIL) | 7 issues found — permissions blocker, no progress, manual steps everywhere. Pipeline can't complete |
 | [013](sessions/013-docker-sandbox.md) | 2026-03-02 | Docker Sandbox | Docker sandbox for agents — SandboxConfig, docker.py, Dockerfile, run.py refactored. 408 tests, 99.5% coverage |
+| [014](sessions/014-pr-gatekeeper-pipeline.md) | 2026-03-02 | PR Gatekeeper Pipeline | Eva as PR gatekeeper — Claude CLI review, auto-merge, evolution publishing to GitHub + Telegram. Full E2E verified |
