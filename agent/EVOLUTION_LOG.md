@@ -135,3 +135,11 @@
 **Action:** Created Docs agent (agents/docs/) — runs after Acceptance PASS, updates README, CLAUDE.md, docs/, MkDocs. Uses Haiku model (cheap, templated work). Pipeline becomes: Coder → Acceptance → [EVO] → Docs → Done. Added to Eva children table, registry, and all pipeline diagrams.
 
 **Goal:** Eliminate "docs forgotten" failure mode. Dedicated agent = dedicated responsibility. Cheapest agent in the pipeline (Haiku) for the most neglected task.
+
+## 2026-03-02: Defrag agent — rules live where they're enforced
+
+**Context:** Denis asked where the "Don't reinvent the wheel" rule lives. Answer: Eva CLAUDE.md and CLI CLAUDE.md — but NOT in Architect ROLE.md, the agent who actually makes build-vs-buy decisions. Audit of 35 working rules found ~20 misplaced or missing from their enforcing agent. Eva CLAUDE.md had become a dump for all rules regardless of ownership. Documentation had the same fragmentation — overlapping content, stale references, inconsistent descriptions.
+
+**Action:** Created Defrag agent (Haiku, read-only) — scans all CLAUDE.md, ROLE.md, README.md, docs/ for rule drift, missing rules, stale references, doc overlap. Produces DEFRAG-REPORT.md for Eva to act on. Redistributed rules to their enforcing agents: Architect gained 4 rules (reinvent, minimal path, deployment context, verify), Coder gained 5, Acceptance gained 2, EVO gained 2, Researcher gained 2, Docs gained 1. Cleaned Eva CLAUDE.md — split into agent-enforced rules (reference table), Eva's own rules, and operational rules. Added "What if?" rule from user memory.
+
+**Goal:** Single source of truth per rule. Rules live where they're enforced, not in a central dump. Defrag agent prevents future drift.

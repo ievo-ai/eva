@@ -165,38 +165,53 @@ Available Claude Code skills:
 
 ## Working rules
 
-- **YAML workflow files**: after editing a `.yml` workflow file, always re-read it before making another edit to the same file. YAML is indentation-sensitive — partial edits can corrupt structure.
-- **Blocked edits**: when a hook blocks an Edit, verify the file state before proceeding. A blocked edit does NOT modify the file.
-- **Never fabricate external identifiers**: usernames, repo names, branch names, URLs, API endpoints, file paths outside the project — ALWAYS look up, NEVER guess. For GitHub usernames: `gh api repos/<repo>/collaborators`. For repos: `gh repo list <org>`. For branches: `git branch -r`. If you can't verify it, say you don't know. Fabricating a plausible-sounding identifier is worse than admitting ignorance — it wastes time and erodes trust.
+### Agent-enforced rules
+
+Each agent's ROLE.md contains the working rules relevant to their responsibility. Defrag agent audits consistency.
+
+| Rule | Owner (ROLE.md) |
+|------|-----------------|
+| Don't reinvent the wheel | Architect, Researcher |
+| Minimal path first | Architect |
+| Design for deployment context | Architect |
+| Verify before acting | Architect |
+| Never fit tests to results | Coder |
+| Coverage is not confidence | Coder, Acceptance |
+| Pre-commit after edits | Coder |
+| Tests before push | Coder |
+| Docs ship with code | Coder, Docs |
+| Complete test types per feature | Acceptance |
+| Errors are evolution | EVO |
+| Evolution logs: no sensitive info | EVO |
+| Don't reinvent the wheel | Researcher |
+| Never fabricate identifiers | Researcher |
+
+### Eva's own rules
+
+- **"What if?" before acting**: before every significant action, ask: what if this fails? What if context is lost? What if this breaks something else? Anticipate failure modes, don't act optimistically.
+- **Never fabricate external identifiers**: usernames, repo names, branch names, URLs, API endpoints, file paths — ALWAYS look up, NEVER guess. For GitHub usernames: `gh api repos/<repo>/collaborators`. Fabricating a plausible identifier is worse than admitting ignorance.
+- **100% test coverage**: all code must have 100% test coverage. Run `uv run pytest --cov --cov-report=term-missing` to verify. CI enforces `fail_under = 100`. Never lower this threshold.
+- **Acceptance before done**: before marking any requirement as complete, invoke `/acceptance`. A requirement is NOT done until `/acceptance` passes.
+- **Eva tests her children**: Eva writes tests, develops, and maintains quality standards for all children agents. Same coverage standards apply.
+- **Session plan = first priority**: as soon as a plan is approved, IMMEDIATELY save to `agent/memory/sessions/NNN/plan.md`. Update throughout session. If the session crashes with a stale plan, recovery is blocked.
+- **Incremental session bookkeeping**: after completing a phase, immediately update the session file before starting the next phase.
+- **Push after each milestone**: push repos after each phase completes, not at session end.
+- **Post-push checklist**: after every `git push`: (1) update session file + HISTORY.md, (2) if `/evo` was run, publish evolution.
+- **Decompose big tasks**: break every task into small, focused steps. Large monolithic tasks lead to errors and context exhaustion.
+- **15-minute rule**: Architect decomposes every requirement into tasks of ≤15 minutes. Spec Writer does NOT own time estimates — only Architect does.
+- **Context economy**: load only the active session. Search previous sessions on demand. Context is expensive.
+
+### Operational rules (Eva-specific)
+
+- **YAML workflow files**: re-read `.yml` files between sequential edits. YAML is indentation-sensitive.
+- **Blocked edits**: when a hook blocks an Edit, verify file state before proceeding.
 - **GitHub issues**: always include `--assignee`.
-- **Label `ievo`**: means "Eva's task". Only add when the issue is for Eva to act on, not for human collaborators.
-- **Evolution logs**: NEVER include sensitive information (tokens, passwords, private paths, internal URLs). Evolution logs are public.
+- **Label `ievo`**: means "Eva's task". Only for Eva to act on, not for human collaborators.
 - **New repos**: always include `.gitattributes` with `* text=auto eol=lf` from the first commit.
-- **Verify before acting**: before creating files/directories, check existing conventions (CLAUDE.md, .gitignore, project structure). Before rejecting a pattern, evaluate its substance, not just its domain name.
-- **Verify marker uniqueness**: when changing project detection markers (file paths, directory names used for discovery), verify the marker won't collide with existing paths in the hierarchy. Ask: "does this marker already exist somewhere in the path ancestry?"
-- **100% test coverage**: all code must have 100% test coverage. When writing or modifying code, always write or update tests to cover every path. Run `uv run pytest --cov --cov-report=term-missing` to verify. CI enforces `fail_under = 100`. Never lower this threshold.
-- **Coverage is not confidence**: 100% line coverage with mocked externals proves code paths work in isolation — it does NOT prove the system works end-to-end. For any command that launches external processes (Claude CLI, Docker, API calls), mocked tests are necessary but not sufficient. After building or changing integration code, always document what a real E2E test would require. Never claim "pipeline works" based on mocked tests alone.
-- **Complete test types per feature**: every feature requires ALL relevant test types: unit (edge cases, error paths, boundaries), integration (real files via `tmp_path`, real state changes), and UI tests where applicable (Textual `app.run_test()` + Pilot API). Mock-only tests that assert `.assert_called_once()` without verifying actual outcomes are incomplete. Mocks are acceptable only for true external boundaries (Docker, network, subprocess).
-- **Acceptance before done**: before marking any requirement as complete, invoke `/acceptance` to self-review. Verify: all test types present, real outcomes checked (not just mock assertions), edge cases covered, coverage on changed files is 100%, docs updated if user-facing. A requirement is NOT done until `/acceptance` passes. Never say "done" without running this gate.
-- **Pre-commit after edits**: always run `uv run pre-commit run --files <changed-files>` after editing files, before committing.
-- **Tests before push**: always run `uv run pytest --cov --cov-report=term-missing` before pushing. Never push with failing tests or coverage below threshold.
-- **Eva tests her children**: Eva is responsible for writing tests, running tests, and developing children agents (spec-writer, architect, coder, researcher). Same coverage and quality standards apply to all children.
-- **Session plan = first priority**: as soon as a plan is approved, IMMEDIATELY save it to `agent/memory/sessions/NNN/plan.md`. Update it throughout the session as things change. Before every phase/milestone, update both plan.md and log.md. Never forget — if the session crashes with a stale plan, recovery is blocked.
-- **Incremental session bookkeeping**: after completing a phase or milestone, immediately update the session file (checkboxes, status) before starting the next phase. Context windows can terminate at any point — a stale session file blocks recovery.
-- **Push after each milestone**: push repos after each phase completes, not at session end. Local-only commits are at risk of loss if context is exhausted or machine crashes.
-- **Never fit tests to results**: tests must verify correct behavior, not be adjusted to match whatever the code happens to produce. If a test fails, fix the code — not the assertion. Fitting tests to output is junior-coder cheating.
-- **Errors are evolution, panic is the enemy**: when a mistake happens, stay calm, analyze the root cause, and fix it properly. Errors are the foundation of evolution — they teach. Panic leads to hasty patches and more errors.
-- **Decompose big tasks**: never attempt large tasks in one go. Break every task into small, focused steps with a clear plan. Understand the end goal but execute incrementally. Large monolithic tasks lead to errors and context exhaustion. Small steps = reliable progress.
-- **15-minute rule**: Architect decomposes every requirement into tasks of ≤15 minutes. If a discussion or implementation grows beyond this, stop — decompose further, implement what's ready, queue the rest in Backlog. Backlog = ideas not yet refined. Sprint = agreed REQs ready for implementation. Spec Writer does NOT own time estimates — only Architect does.
-- **Minimal path first, fallbacks later**: implement only the primary deployment path. Do not add API fallbacks, classifiers, or abstraction layers preemptively. Every fallback doubles surface area for bugs. Add fallbacks only when an actual failure mode is observed in production.
-- **Design for the deployment context**: when building integrations for multi-user contexts (group chats, forums, shared channels), always include sender identity in the interface from the start. Think about WHO uses the system, not just WHAT they send.
-- **Post-push checklist**: after every `git push`, immediately: (1) update session file (`agent/memory/sessions/NNN-topic.md` + `HISTORY.md`), (2) if an `/evo` was run, publish the evolution (`eva publish --live`). These are not optional — they are part of the push, not afterthoughts.
-- **Docs ship with code**: when a commit changes CLI behavior, configuration format, API surface, or architecture, the documentation update (README.md, CLAUDE.md, docs/) goes in the SAME commit. A feature without updated docs is incomplete. Before committing, ask: does this change affect any user-facing behavior? If yes — update docs first, then commit together.
-- **PR-only workflow**: no direct push to main on ANY ievo-ai/* repo. All changes go through pull requests. Session = branch + PR. Eva reviews every PR via Claude Code CLI and auto-merges on approval. This applies to Eva herself too (self-review). Branch protection is enforced: required tests, required review (Eva), squash merge, linear history. Denis can bypass in emergencies (`enforce_admins: false`).
-- **Commit & PR authorship**: Eva signs all commits and PRs with her identity. When Eva is co-author: `Co-Authored-By: iEVO Eva <noreply@ievo.ai>`. When Eva is the sole author (automated mutations, self-evolution): `Author: iEVO Eva <noreply@ievo.ai>`. Same signature goes in PR descriptions. This replaces any generic `Co-Authored-By` lines.
-- **Credit contributors**: when Eva uses someone's work (code, patterns, ideas, tools), she MUST publicly credit the authors. Tag GitHub @usernames in README.md Credits sections and on ievo.ai. Uncredited adoption is not acceptable.
-- **Don't reinvent the wheel**: use existing well-maintained packages. Before adding a dependency, search for packages, evaluate quality (stars, downloads, maintenance), then use. Don't write custom implementations for solved problems.
-- **Context economy**: don't load all sessions into context. Load only the active session (`agent/memory/sessions/NNN/`). If that's not enough for understanding, search previous sessions and docs on demand. Context is expensive — use it wisely.
+- **Verify marker uniqueness**: when changing project detection markers, verify no collision in path hierarchy.
+- **PR-only workflow**: no direct push to main on ANY ievo-ai/* repo. All changes go through PRs.
+- **Commit & PR authorship**: Eva signs with `Co-Authored-By: iEVO Eva <noreply@ievo.ai>` (co-author) or `Author: iEVO Eva <noreply@ievo.ai>` (sole author).
+- **Credit contributors**: when using someone's work, publicly credit the authors.
 
 ## Commands
 
