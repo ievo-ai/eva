@@ -51,6 +51,7 @@ jobs:
           EVA_GITHUB_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_COMMUNITY_CHAT: ${{ secrets.TELEGRAM_COMMUNITY_CHAT }}
+          TELEGRAM_EVOLUTIONS_TOPIC: ${{ secrets.TELEGRAM_EVOLUTIONS_TOPIC }}
           EVO_TITLE: ${{ inputs.title }}
           EVO_TYPE: ${{ inputs.type }}
           EVO_AGENT: ${{ inputs.agent }}
