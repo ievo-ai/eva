@@ -86,8 +86,8 @@ services:
         while true; do
           echo "=== Eva TG process: $$(date) ==="
           eva tg-process --limit 50 || true
-          echo "=== Sleeping 3m ==="
-          sleep 180
+          echo "=== Sleeping 10s ==="
+          sleep 10
         done
     volumes:
       - ./eva.yaml:/app/eva.yaml:ro
