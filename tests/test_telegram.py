@@ -6,14 +6,7 @@ import pytest
 
 from eva.core.models import EvolutionEntry, EvolutionType
 from eva.telegram.client import TelegramClient, TelegramResult
-from eva.telegram.formatter import (
-    EVA_CHILDREN,
-    EVA_DEFAULT_SPICE,
-    EVA_SPICE,
-    format_child_message,
-    format_eva_message,
-    format_telegram_message,
-)
+from eva.telegram.formatter import format_telegram_message
 
 # ── TelegramClient init ────────────────────────────────────
 
@@ -286,88 +279,45 @@ def _make_entry(**kwargs) -> EvolutionEntry:
     return EvolutionEntry(**defaults)
 
 
-class TestFormatChildMessage:
+class TestFormatTelegramMessage:
     def test_contains_agent_and_type(self):
-        msg = format_child_message(_make_entry())
+        msg = format_telegram_message(_make_entry())
         assert "spec-writer" in msg
         assert "role_patch" in msg
 
     def test_contains_title_and_target(self):
-        msg = format_child_message(_make_entry())
+        msg = format_telegram_message(_make_entry())
         assert "Test evolution" in msg
         assert "agents/spec-writer/ROLE.md" in msg
 
     def test_contains_confidence_and_pr(self):
-        msg = format_child_message(_make_entry())
+        msg = format_telegram_message(_make_entry())
         assert "75%" in msg
         assert "PR" in msg
 
     def test_no_target(self):
-        msg = format_child_message(_make_entry(target=""))
+        msg = format_telegram_message(_make_entry(target=""))
         assert "Target:" not in msg
 
     def test_no_description(self):
-        msg = format_child_message(_make_entry(description=""))
+        msg = format_telegram_message(_make_entry(description=""))
         assert "Fixed format" not in msg
 
     def test_no_pr_url(self):
-        msg = format_child_message(_make_entry(pr_url=""))
+        msg = format_telegram_message(_make_entry(pr_url=""))
         assert "PR" not in msg
 
     def test_zero_confidence(self):
-        msg = format_child_message(_make_entry(confidence=0.0))
+        msg = format_telegram_message(_make_entry(confidence=0.0))
         assert "\u2014" in msg  # em dash
 
-
-class TestFormatEvaMessage:
-    def test_contains_eva_label(self):
-        msg = format_eva_message(_make_entry(agent="eva"))
-        assert "eva" in msg
-
-    def test_contains_spice(self):
-        msg = format_eva_message(_make_entry(agent="eva", type=EvolutionType.ROLE_PATCH))
-        assert EVA_SPICE["role_patch"] in msg
-
-    def test_no_pr_url(self):
-        msg = format_eva_message(_make_entry(agent="eva", pr_url=""))
-        assert "evidence" not in msg
-
-    def test_with_pr_url(self):
-        msg = format_eva_message(
-            _make_entry(
-                agent="eva",
-                pr_url="https://github.com/ievo-ai/marketplace/pull/1",
-            )
-        )
-        assert "evidence" in msg
-
-    def test_all_spice_phrases_used(self):
-        for evo_type, phrase in EVA_SPICE.items():
-            msg = format_eva_message(_make_entry(agent="eva", type=EvolutionType(evo_type)))
-            assert phrase in msg
-
-    def test_unknown_type_uses_default(self):
-        entry = _make_entry(agent="eva", type=EvolutionType.CONFIG_PATCH)
-        msg = format_eva_message(entry)
-        assert EVA_SPICE["config_patch"] in msg
-
-
-class TestFormatTelegramMessage:
-    def test_routes_child_agents(self):
-        for agent in EVA_CHILDREN:
-            msg = format_telegram_message(_make_entry(agent=agent))
-            assert agent in msg
-            assert "She stirs" not in msg  # not Eva style
-
-    def test_routes_eva(self):
+    def test_eva_same_format(self):
         msg = format_telegram_message(_make_entry(agent="eva"))
-        assert EVA_SPICE["role_patch"] in msg
+        assert "eva" in msg
+        assert "Test evolution" in msg
+        assert "75%" in msg
 
-    def test_routes_unknown_agent_as_eva(self):
+    def test_any_agent_same_format(self):
         msg = format_telegram_message(_make_entry(agent="curator"))
-        # curator is not in EVA_CHILDREN, should use Eva style
-        assert EVA_SPICE["role_patch"] in msg
-
-    def test_default_spice_fallback(self):
-        # Test that EVA_DEFAULT_SPICE exists for completeness
-        assert len(EVA_DEFAULT_SPICE) > 0
+        assert "curator" in msg
+        assert "Test evolution" in msg
