@@ -9,6 +9,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# Install uv (fast Python package manager with built-in caching)
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+
 # Install Node.js + Claude Code CLI + GitHub CLI
 RUN apt-get update -qq && \
     apt-get install -y -qq --no-install-recommends curl ca-certificates git && \
@@ -24,17 +27,19 @@ RUN apt-get update -qq && \
     apt-get install -y -qq --no-install-recommends gh && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install deps first (cache layer)
+# Install deps first (cache layer — only re-runs when pyproject.toml changes)
 COPY pyproject.toml README.md ./
-RUN pip install --no-cache-dir .
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system .
 
 # Copy source
 COPY src/ src/
 COPY agent/ agent/
 COPY schemas/ schemas/
 
-# Re-install with source (editable not needed in container)
-RUN pip install --no-cache-dir .
+# Re-install with source (uses uv cache from previous layer)
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system .
 
 # Default config location
 ENV EVA_CONFIG=/app/eva.yaml
