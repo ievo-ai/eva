@@ -139,6 +139,78 @@ eva benchmark history spec-writer --limit 5
 Options:
 - `--limit` — number of recent results to show (default: 10)
 
+## Walkthrough: Comparing a Mutation
+
+Real scenario — Eva proposes a ROLE.md change for spec-writer. You want to know: did this mutation make the agent better or worse?
+
+### Step 1: Save the current and proposed ROLE.md
+
+```bash
+# Current version (from marketplace)
+cp .claude/children/spec-writer/ROLE.md /tmp/spec-writer-before.md
+
+# Proposed version (e.g., from Eva's mutation PR)
+# Either download from PR, or apply the diff manually
+cp /tmp/spec-writer-before.md /tmp/spec-writer-after.md
+# ... edit /tmp/spec-writer-after.md with the proposed changes
+```
+
+### Step 2: Run the comparison
+
+```bash
+eva benchmark run spec-writer \
+  --compare /tmp/spec-writer-before.md /tmp/spec-writer-after.md
+```
+
+This runs the full suite twice:
+1. First with the **before** ROLE.md — scores A
+2. Then with the **after** ROLE.md — scores B
+3. Computes delta = B − A per dimension
+
+### Step 3: Read the output
+
+```
+Benchmark: spec-writer (v1)
+┌──────────────────────┬─────────┬────────────────────────────────┐
+│ Task                 │ Overall │ Status                         │
+├──────────────────────┼─────────┼────────────────────────────────┤
+│ task-001-user-auth   │ 72      │ testability=80, atomicity=65   │
+│ task-002-api-crud    │ 68      │ testability=75, atomicity=60   │
+│ task-003-notif       │ 55      │ testability=50, atomicity=60   │
+├──────────────────────┼─────────┼────────────────────────────────┤
+│ TOTAL                │ 65.0    │ completed (45.2s)              │
+└──────────────────────┴─────────┴────────────────────────────────┘
+
+Fitness Delta: spec-writer (mut-0001)
+┌─────────────────┬────────┬───────┬───────┐
+│ Metric          │ Before │ After │ Delta │
+├─────────────────┼────────┼───────┼───────┤
+│ Overall         │ 60.0   │ 65.0  │ +5.0  │
+│ testability     │ —      │ —     │ +8.0  │
+│ atomicity       │ —      │ —     │ +3.0  │
+│ completeness    │ —      │ —     │ -1.0  │
+│ no_impl_leakage │ —      │ —     │ +1.0  │
+└─────────────────┴────────┴───────┴───────┘
+```
+
+**How to interpret:**
+- **Positive delta** = mutation improved this dimension
+- **Negative delta** = mutation made this dimension worse
+- **Overall > 0** = mutation is net positive, safe to merge
+- **Overall ≤ 0** = mutation is harmful or neutral, reconsider
+
+### Step 4: Check history (optional)
+
+```bash
+eva benchmark history spec-writer
+```
+
+Shows all past runs so you can track trends over time.
+
+### Automatic mode (pipeline)
+
+When Eva runs `eva scan --live` with `benchmark.enabled: true`, comparison happens automatically for every `ROLE_PATCH` and `SKILL_PATCH` mutation. The delta is embedded in the PR body — no manual steps needed.
+
 ## Configuration
 
 In `eva.yaml`:
