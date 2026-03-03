@@ -76,10 +76,54 @@
 - #20: Defrag agent — rules live where they're enforced
 - #21: Unified .ievo/ storage + IEVO.md overlay
 
+### Native Claude Code sub-agents migration
+
+- Researched Claude Code sub-agent spec (frontmatter fields, auto-delegation, memory, skills)
+- Designed frontmatter for all 9 agents (model, tools, memory: user, skills, maxTurns, permissionMode)
+- Created 9 native `.md` agent files in `marketplace/agents/`:
+  - spec-writer, architect, coder, acceptance, docs, researcher, evo, defrag, hr (new)
+- Consolidated 6 templates to `marketplace/templates/`
+- Deleted 8 old agent directories (58 files removed)
+- Updated `registry.yaml`: added `file:`, `mandatory:` fields, bumped to 0.2.0
+- Key decisions:
+  - `memory: user` for all agents (cross-project learning)
+  - No hooks for now
+  - Fully automatic delegation via `description` field
+  - EVO agent does NOT get `evo` skill (prevents circular self-evolution)
+  - `permissionMode: plan` for defrag (read-only)
+  - `permissionMode: acceptEdits` for coder and docs
+  - Evolution overlay: agents read `.ievo/evolution/<name>.md` for project-specific rules
+  - HR agent: mandatory, manages team deployment/updates/removal
+- Commit: `3304068` in marketplace repo
+
+### Post-migration refinements
+
+- Removed `maxTurns` from all 9 agent frontmatter (unnecessary constraint)
+- Created `/backlog` skill for quick idea capture (`IDEA-NNN-<slug>.md`)
+  - Eva: `.claude/skills/backlog/SKILL.md`
+  - Marketplace: `skills/backlog/SKILL.md`
+- Added `IEVO.md` to `marketplace/templates/` and `registry.yaml` templates list
+- Added Sessions section to IEVO.md:
+  - Session structure (plan.md = intent, log.md = reality)
+  - Session statuses: planned → in_progress → completed
+  - HISTORY.md format with table columns
+  - Session rules (plan first, incremental updates, sequential numbering)
+- Added Cross-Linking section to IEVO.md:
+  - Sessions → Artifacts (strong, required in log.md)
+  - Artifacts → Sessions (weak, optional)
+  - DECISIONS.md as cross-session decision log with D-NNN IDs
+  - Summary table of all link directions
+- Updated Document Lifecycle diagram with session wrapper
+- Added 4 rows to Naming Conventions table (session plan, log, index, decision)
+- Synced bootstrap example IEVO.md with template
+- Commit: `c2ff023` in marketplace repo
+
 ## Pending
 - [x] Commit and push all changes
+- [x] Phase 3: ievo team (Claude Code subagents) — marketplace done
 - [ ] Phase 1: Startup Flow implementation (CLI repo — separate session)
 - [ ] Phase 2: Monorepo merge
-- [ ] Phase 3: ievo team (Claude Code subagents)
 - [ ] Phase 4: Evolution sharing
 - [ ] CLI `ievo init` + `ievo update` to scaffold `.ievo/` and auto-migrate (future session)
+- [ ] Update CLI to deploy native `.md` agents to `.claude/agents/` instead of old format
+- [ ] Update SDK scaffold template for native format
