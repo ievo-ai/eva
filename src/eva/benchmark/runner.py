@@ -117,6 +117,7 @@ class BenchmarkRunner:
             raise RuntimeError(msg)
 
         env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
+        oauth_token = env.get("CLAUDE_CODE_OAUTH_TOKEN", "")
         args = [
             docker,
             "run",
@@ -125,13 +126,19 @@ class BenchmarkRunner:
             f"{work_dir}:/workspace",
             "-w",
             "/workspace",
-            self._docker_image,
-            "claude",
-            "-p",
-            "--output-format",
-            "text",
-            prompt,
         ]
+        if oauth_token:
+            args.extend(["-e", f"CLAUDE_CODE_OAUTH_TOKEN={oauth_token}"])
+        args.extend(
+            [
+                self._docker_image,
+                "claude",
+                "-p",
+                "--output-format",
+                "text",
+                prompt,
+            ]
+        )
 
         proc = await asyncio.create_subprocess_exec(
             *args,

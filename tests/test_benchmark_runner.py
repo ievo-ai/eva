@@ -183,6 +183,51 @@ class TestBenchmarkRunnerExecuteInDocker:
         assert "test prompt" in call_args
 
     @pytest.mark.asyncio
+    async def test_execute_passes_oauth_token(self, tmp_path: Path):
+        proc = AsyncMock()
+        proc.communicate = AsyncMock(return_value=(b"out", b""))
+        proc.returncode = 0
+
+        with (
+            patch("shutil.which", return_value="/usr/bin/docker"),
+            patch(
+                "eva.benchmark.runner.asyncio.create_subprocess_exec",
+                return_value=proc,
+            ) as mock_exec,
+            patch.dict(
+                "os.environ",
+                {"CLAUDE_CODE_OAUTH_TOKEN": "test-token", "HOME": "/home"},
+            ),
+        ):
+            runner = BenchmarkRunner(benchmarks_dir=tmp_path)
+            await runner._execute_in_docker(tmp_path, "prompt")
+
+        call_args = mock_exec.call_args[0]
+        assert "-e" in call_args
+        token_idx = list(call_args).index("-e")
+        assert call_args[token_idx + 1] == "CLAUDE_CODE_OAUTH_TOKEN=test-token"
+
+    @pytest.mark.asyncio
+    async def test_execute_no_token_skips_env_flag(self, tmp_path: Path):
+        proc = AsyncMock()
+        proc.communicate = AsyncMock(return_value=(b"out", b""))
+        proc.returncode = 0
+
+        with (
+            patch("shutil.which", return_value="/usr/bin/docker"),
+            patch(
+                "eva.benchmark.runner.asyncio.create_subprocess_exec",
+                return_value=proc,
+            ) as mock_exec,
+            patch.dict("os.environ", {}, clear=True),
+        ):
+            runner = BenchmarkRunner(benchmarks_dir=tmp_path)
+            await runner._execute_in_docker(tmp_path, "prompt")
+
+        call_args = mock_exec.call_args[0]
+        assert "CLAUDE_CODE_OAUTH_TOKEN" not in str(call_args)
+
+    @pytest.mark.asyncio
     async def test_execute_no_docker(self, tmp_path: Path):
         with patch("shutil.which", return_value=None):
             runner = BenchmarkRunner(benchmarks_dir=tmp_path)
