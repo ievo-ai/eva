@@ -1,0 +1,30 @@
+id: spec-writer-003
+title: "Notification system (deliberately vague)"
+input_prompt: |
+  Feature: Add notifications.
+
+  Users should get notified about important things.
+context_files:
+  ".ievo/memory/CONTEXT.md": |
+    ## Project
+    A project management tool with users, projects, and tasks.
+    Users can be members of multiple projects.
+    Tasks have assignees and watchers.
+  ".ievo/memory/VOCABULARY.md": |
+    | Term | Meaning |
+    |------|---------|
+    | Watcher | User who wants updates about a task but is not the assignee |
+  ".ievo/spec/SPEC_INDEX.md": |
+    | REQ | Title | Status | Priority | Blocks |
+    |-----|-------|--------|----------|--------|
+    | REQ-001 | User accounts | done | critical | - |
+    | REQ-002 | Project CRUD | done | critical | - |
+    | REQ-003 | Task management | done | high | - |
+expected_artifacts:
+  - ".ievo/spec/requirements/REQ-*.md"
+  - ".ievo/spec/questions/Q-*.md"
+metadata:
+  difficulty: tricky
+  expected_req_count_min: 1
+  expected_req_count_max: 4
+  expected_questions_min: 1

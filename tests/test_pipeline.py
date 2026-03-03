@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from eva.benchmark.models import BenchmarkResult, BenchmarkStatus, FitnessDelta, JudgeScore
 from eva.core.config import EvaConfig
 from eva.core.models import (
     Mutation,
@@ -16,7 +17,13 @@ from eva.core.models import (
     SignalType,
 )
 from eva.github.pr_creator import PRCreationResult
-from eva.pipeline import EvaPipeline, EvaRun, _make_telegram_client, _severity_color
+from eva.pipeline import (
+    EvaPipeline,
+    EvaRun,
+    _extract_agent_name,
+    _make_telegram_client,
+    _severity_color,
+)
 
 
 def _make_signal(id: str = "sig-1", **kwargs) -> Signal:
@@ -553,3 +560,459 @@ class TestSeverityColor:
         assert _severity_color(Severity.MEDIUM) == "yellow"
         assert _severity_color(Severity.LOW) == "cyan"
         assert _severity_color(Severity.INFO) == "dim"
+
+
+class TestExtractAgentName:
+    def test_role_patch_with_agent_dir(self):
+        m = _make_mutation(
+            type=MutationType.ROLE_PATCH,
+            target_path="agents/spec-writer/ROLE.md",
+        )
+        assert _extract_agent_name(m) == "spec-writer"
+
+    def test_skill_patch_with_agent_dir(self):
+        m = _make_mutation(
+            type=MutationType.SKILL_PATCH,
+            target_path="agents/architect/skills/plan.md",
+        )
+        assert _extract_agent_name(m) == "architect"
+
+    def test_agent_md_file(self):
+        m = _make_mutation(
+            type=MutationType.ROLE_PATCH,
+            target_path="agents/coder.md",
+        )
+        assert _extract_agent_name(m) == "coder"
+
+    def test_non_benchmarkable_type(self):
+        m = _make_mutation(
+            type=MutationType.CONFIG_PATCH,
+            target_path="agents/spec-writer/ROLE.md",
+        )
+        assert _extract_agent_name(m) is None
+
+    def test_non_agent_path(self):
+        m = _make_mutation(
+            type=MutationType.ROLE_PATCH,
+            target_path="src/eva/pipeline.py",
+        )
+        assert _extract_agent_name(m) is None
+
+    def test_empty_agent_name(self):
+        m = _make_mutation(
+            type=MutationType.ROLE_PATCH,
+            target_path="agents/.md",
+        )
+        assert _extract_agent_name(m) is None
+
+    def test_memory_update_mutation_type(self):
+        m = _make_mutation(
+            type=MutationType.MEMORY_UPDATE,
+            target_path="agents/spec-writer/ROLE.md",
+        )
+        assert _extract_agent_name(m) is None
+
+
+class TestEvaluateMutation:
+    @pytest.mark.asyncio
+    async def test_no_benchmarks_dir(self, tmp_path):
+        config = EvaConfig()
+        pipeline = EvaPipeline(config)
+        mutation = _make_mutation()
+
+        with patch("eva.pipeline.Path") as mock_path_cls:
+            mock_path_cls.return_value.exists.return_value = False
+            result = await pipeline._evaluate_mutation(mutation, "spec-writer")
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_no_suite_for_agent(self, tmp_path):
+        config = EvaConfig()
+        pipeline = EvaPipeline(config)
+        mutation = _make_mutation()
+
+        mock_runner = MagicMock()
+        mock_runner._loader.has_suite.return_value = False
+
+        with (
+            patch("eva.pipeline.Path") as mock_path_cls,
+            patch("eva.pipeline.BenchmarkRunner", return_value=mock_runner),
+        ):
+            mock_path_cls.return_value.exists.return_value = True
+            result = await pipeline._evaluate_mutation(mutation, "spec-writer")
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_successful_evaluation(self):
+        config = EvaConfig()
+        pipeline = EvaPipeline(config)
+        mutation = _make_mutation()
+
+        before_result = BenchmarkResult(
+            agent="spec-writer", suite_version="1", status=BenchmarkStatus.COMPLETED
+        )
+        after_result = BenchmarkResult(
+            agent="spec-writer", suite_version="1", status=BenchmarkStatus.COMPLETED
+        )
+        delta = FitnessDelta(
+            mutation_id="mut-0001",
+            agent="spec-writer",
+            before=before_result,
+            after=after_result,
+        )
+
+        mock_runner = MagicMock()
+        mock_runner._loader.has_suite.return_value = True
+        mock_runner._loader.load_rubric.return_value = MagicMock()
+        mock_runner.run_suite = AsyncMock(side_effect=[before_result, after_result])
+
+        mock_runner_cls = MagicMock(return_value=mock_runner)
+        mock_runner_cls.compare = MagicMock(return_value=delta)
+
+        with (
+            patch("eva.pipeline.Path") as mock_path_cls,
+            patch("eva.pipeline.BenchmarkRunner", mock_runner_cls),
+        ):
+            mock_path_cls.return_value.exists.return_value = True
+            result = await pipeline._evaluate_mutation(mutation, "spec-writer")
+
+        assert result is not None
+        assert result.agent == "spec-writer"
+        mock_runner.run_suite.assert_any_call("spec-writer", label="before-mutation")
+
+
+class TestPhase35Evaluate:
+    @pytest.mark.asyncio
+    async def test_benchmark_disabled_skips_evaluate(self):
+        """When benchmark.enabled=False, Phase 3.5 is skipped entirely."""
+        config = EvaConfig()
+        config.dry_run = True
+        config.benchmark.enabled = False
+        config.sentry.enabled = False
+        config.github_issues.enabled = False
+        config.reviews.enabled = False
+        config.evolution_logs.enabled = False
+
+        pipeline = EvaPipeline(config)
+
+        mock_source = MagicMock()
+        mock_source.name = "test"
+        mock_source.is_enabled.return_value = True
+        mock_source.poll = AsyncMock(return_value=[_make_signal()])
+        pipeline.sources = [mock_source]
+
+        pipeline.detector = MagicMock()
+        pipeline.detector.ingest.return_value = [_make_pattern()]
+
+        pipeline.mutator = MagicMock()
+        pipeline.mutator.generate.return_value = [_make_mutation()]
+
+        with patch.object(pipeline, "_evaluate_mutation") as mock_eval:
+            result = await pipeline.run()
+
+        mock_eval.assert_not_called()
+        assert len(result.mutations) == 1
+
+    @pytest.mark.asyncio
+    async def test_benchmark_enabled_evaluates_benchmarkable_mutations(self):
+        """When benchmark.enabled=True, benchmarkable mutations are evaluated."""
+        config = EvaConfig()
+        config.dry_run = True
+        config.benchmark.enabled = True
+        config.sentry.enabled = False
+        config.github_issues.enabled = False
+        config.reviews.enabled = False
+        config.evolution_logs.enabled = False
+
+        pipeline = EvaPipeline(config)
+
+        mock_source = MagicMock()
+        mock_source.name = "test"
+        mock_source.is_enabled.return_value = True
+        mock_source.poll = AsyncMock(return_value=[_make_signal()])
+        pipeline.sources = [mock_source]
+
+        pipeline.detector = MagicMock()
+        pipeline.detector.ingest.return_value = [_make_pattern()]
+
+        mutation = _make_mutation(
+            type=MutationType.ROLE_PATCH,
+            target_path="agents/spec-writer/ROLE.md",
+        )
+        pipeline.mutator = MagicMock()
+        pipeline.mutator.generate.return_value = [mutation]
+
+        delta = FitnessDelta(
+            mutation_id=mutation.id,
+            agent="spec-writer",
+            before=BenchmarkResult(agent="spec-writer", suite_version="1"),
+            after=BenchmarkResult(
+                agent="spec-writer",
+                suite_version="1",
+                scores=[
+                    JudgeScore(task_id="t1", agent="spec-writer"),
+                ],
+            ),
+            per_dimension={"testability": 5.0},
+        )
+
+        with patch.object(
+            pipeline, "_evaluate_mutation", new_callable=AsyncMock, return_value=delta
+        ):
+            result = await pipeline.run()
+
+        assert "fitness_delta" in result.mutations[0].metadata
+
+    @pytest.mark.asyncio
+    async def test_benchmark_enabled_non_benchmarkable_skipped(self):
+        """Non-benchmarkable mutations (CONFIG_PATCH) are not evaluated."""
+        config = EvaConfig()
+        config.dry_run = True
+        config.benchmark.enabled = True
+        config.sentry.enabled = False
+        config.github_issues.enabled = False
+        config.reviews.enabled = False
+        config.evolution_logs.enabled = False
+
+        pipeline = EvaPipeline(config)
+
+        mock_source = MagicMock()
+        mock_source.name = "test"
+        mock_source.is_enabled.return_value = True
+        mock_source.poll = AsyncMock(return_value=[_make_signal()])
+        pipeline.sources = [mock_source]
+
+        pipeline.detector = MagicMock()
+        pipeline.detector.ingest.return_value = [_make_pattern()]
+
+        mutation = _make_mutation(
+            type=MutationType.CONFIG_PATCH,
+            target_path="eva.yaml",
+        )
+        pipeline.mutator = MagicMock()
+        pipeline.mutator.generate.return_value = [mutation]
+
+        with patch.object(pipeline, "_evaluate_mutation") as mock_eval:
+            result = await pipeline.run()
+
+        mock_eval.assert_not_called()
+        assert "fitness_delta" not in result.mutations[0].metadata
+
+    @pytest.mark.asyncio
+    async def test_benchmark_evaluation_error_handled(self):
+        """Evaluation errors are caught and logged, not propagated."""
+        config = EvaConfig()
+        config.dry_run = True
+        config.benchmark.enabled = True
+        config.sentry.enabled = False
+        config.github_issues.enabled = False
+        config.reviews.enabled = False
+        config.evolution_logs.enabled = False
+
+        pipeline = EvaPipeline(config)
+
+        mock_source = MagicMock()
+        mock_source.name = "test"
+        mock_source.is_enabled.return_value = True
+        mock_source.poll = AsyncMock(return_value=[_make_signal()])
+        pipeline.sources = [mock_source]
+
+        pipeline.detector = MagicMock()
+        pipeline.detector.ingest.return_value = [_make_pattern()]
+
+        mutation = _make_mutation(
+            type=MutationType.ROLE_PATCH,
+            target_path="agents/spec-writer/ROLE.md",
+        )
+        pipeline.mutator = MagicMock()
+        pipeline.mutator.generate.return_value = [mutation]
+
+        with patch.object(
+            pipeline,
+            "_evaluate_mutation",
+            new_callable=AsyncMock,
+            side_effect=FileNotFoundError("No benchmark"),
+        ):
+            result = await pipeline.run()
+
+        # Should not propagate, mutation still in results
+        assert len(result.mutations) == 1
+        assert "fitness_delta" not in result.mutations[0].metadata
+
+    @pytest.mark.asyncio
+    async def test_benchmark_evaluation_returns_none(self):
+        """When evaluation returns None, no fitness_delta is set."""
+        config = EvaConfig()
+        config.dry_run = True
+        config.benchmark.enabled = True
+        config.sentry.enabled = False
+        config.github_issues.enabled = False
+        config.reviews.enabled = False
+        config.evolution_logs.enabled = False
+
+        pipeline = EvaPipeline(config)
+
+        mock_source = MagicMock()
+        mock_source.name = "test"
+        mock_source.is_enabled.return_value = True
+        mock_source.poll = AsyncMock(return_value=[_make_signal()])
+        pipeline.sources = [mock_source]
+
+        pipeline.detector = MagicMock()
+        pipeline.detector.ingest.return_value = [_make_pattern()]
+
+        mutation = _make_mutation(
+            type=MutationType.ROLE_PATCH,
+            target_path="agents/spec-writer/ROLE.md",
+        )
+        pipeline.mutator = MagicMock()
+        pipeline.mutator.generate.return_value = [mutation]
+
+        with patch.object(
+            pipeline, "_evaluate_mutation", new_callable=AsyncMock, return_value=None
+        ):
+            result = await pipeline.run()
+
+        assert "fitness_delta" not in result.mutations[0].metadata
+
+    @pytest.mark.asyncio
+    async def test_benchmark_improved_mutation_prints_green(self):
+        """Improved mutation shows green icon."""
+        config = EvaConfig()
+        config.dry_run = True
+        config.benchmark.enabled = True
+        config.sentry.enabled = False
+        config.github_issues.enabled = False
+        config.reviews.enabled = False
+        config.evolution_logs.enabled = False
+
+        pipeline = EvaPipeline(config)
+
+        mock_source = MagicMock()
+        mock_source.name = "test"
+        mock_source.is_enabled.return_value = True
+        mock_source.poll = AsyncMock(return_value=[_make_signal()])
+        pipeline.sources = [mock_source]
+
+        pipeline.detector = MagicMock()
+        pipeline.detector.ingest.return_value = [_make_pattern()]
+
+        mutation = _make_mutation(
+            type=MutationType.ROLE_PATCH,
+            target_path="agents/spec-writer/ROLE.md",
+        )
+        pipeline.mutator = MagicMock()
+        pipeline.mutator.generate.return_value = [mutation]
+
+        # Create a delta where after > before (improved)
+        before = BenchmarkResult(
+            agent="spec-writer",
+            suite_version="1",
+            scores=[JudgeScore(task_id="t1", agent="spec-writer")],
+        )
+        after = BenchmarkResult(
+            agent="spec-writer",
+            suite_version="1",
+            scores=[
+                JudgeScore(
+                    task_id="t1",
+                    agent="spec-writer",
+                    dimension_scores=[],
+                )
+            ],
+        )
+        delta = FitnessDelta(
+            mutation_id=mutation.id,
+            agent="spec-writer",
+            before=before,
+            after=after,
+        )
+
+        with patch.object(
+            pipeline, "_evaluate_mutation", new_callable=AsyncMock, return_value=delta
+        ):
+            result = await pipeline.run()
+
+        assert "fitness_delta" in result.mutations[0].metadata
+
+    @pytest.mark.asyncio
+    async def test_benchmark_timeout_error_handled(self):
+        """TimeoutError during evaluation is caught gracefully."""
+        config = EvaConfig()
+        config.dry_run = True
+        config.benchmark.enabled = True
+        config.sentry.enabled = False
+        config.github_issues.enabled = False
+        config.reviews.enabled = False
+        config.evolution_logs.enabled = False
+
+        pipeline = EvaPipeline(config)
+
+        mock_source = MagicMock()
+        mock_source.name = "test"
+        mock_source.is_enabled.return_value = True
+        mock_source.poll = AsyncMock(return_value=[_make_signal()])
+        pipeline.sources = [mock_source]
+
+        pipeline.detector = MagicMock()
+        pipeline.detector.ingest.return_value = [_make_pattern()]
+
+        mutation = _make_mutation(
+            type=MutationType.ROLE_PATCH,
+            target_path="agents/spec-writer/ROLE.md",
+        )
+        pipeline.mutator = MagicMock()
+        pipeline.mutator.generate.return_value = [mutation]
+
+        with patch.object(
+            pipeline,
+            "_evaluate_mutation",
+            new_callable=AsyncMock,
+            side_effect=TimeoutError("Benchmark timed out"),
+        ):
+            result = await pipeline.run()
+
+        assert len(result.mutations) == 1
+        assert "fitness_delta" not in result.mutations[0].metadata
+
+    @pytest.mark.asyncio
+    async def test_benchmark_runtime_error_handled(self):
+        """RuntimeError during evaluation is caught gracefully."""
+        config = EvaConfig()
+        config.dry_run = True
+        config.benchmark.enabled = True
+        config.sentry.enabled = False
+        config.github_issues.enabled = False
+        config.reviews.enabled = False
+        config.evolution_logs.enabled = False
+
+        pipeline = EvaPipeline(config)
+
+        mock_source = MagicMock()
+        mock_source.name = "test"
+        mock_source.is_enabled.return_value = True
+        mock_source.poll = AsyncMock(return_value=[_make_signal()])
+        pipeline.sources = [mock_source]
+
+        pipeline.detector = MagicMock()
+        pipeline.detector.ingest.return_value = [_make_pattern()]
+
+        mutation = _make_mutation(
+            type=MutationType.ROLE_PATCH,
+            target_path="agents/spec-writer/ROLE.md",
+        )
+        pipeline.mutator = MagicMock()
+        pipeline.mutator.generate.return_value = [mutation]
+
+        with patch.object(
+            pipeline,
+            "_evaluate_mutation",
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("Docker failed"),
+        ):
+            result = await pipeline.run()
+
+        assert len(result.mutations) == 1
+        assert "fitness_delta" not in result.mutations[0].metadata

@@ -1,0 +1,28 @@
+id: spec-writer-001
+title: "User authentication with email/password"
+input_prompt: |
+  Feature: Add user authentication with email/password.
+
+  Users should be able to register with email and password, log in,
+  and log out. Password must be at least 8 characters.
+
+  This is for a REST API backend.
+context_files:
+  ".ievo/memory/CONTEXT.md": |
+    ## Project
+    A task management API built with Python.
+    Currently has basic CRUD for tasks.
+    No authentication exists yet.
+  ".ievo/memory/VOCABULARY.md": |
+    | Term | Meaning |
+    |------|---------|
+    | Task | A to-do item with title, description, status |
+  ".ievo/spec/SPEC_INDEX.md": |
+    | REQ | Title | Status | Priority | Blocks |
+    |-----|-------|--------|----------|--------|
+expected_artifacts:
+  - ".ievo/spec/requirements/REQ-*.md"
+metadata:
+  difficulty: medium
+  expected_req_count_min: 2
+  expected_req_count_max: 5

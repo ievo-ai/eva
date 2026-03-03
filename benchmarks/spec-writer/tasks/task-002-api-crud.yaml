@@ -1,0 +1,31 @@
+id: spec-writer-002
+title: "CRUD API for a product catalog"
+input_prompt: |
+  Feature: Product catalog with categories.
+
+  We need a product catalog. Products have a name, description, price,
+  and belong to exactly one category. Categories are hierarchical
+  (a category can have sub-categories). Users can browse products
+  by category, search by name, and filter by price range.
+context_files:
+  ".ievo/memory/CONTEXT.md": |
+    ## Project
+    An e-commerce platform REST API.
+    Users and authentication are already implemented (REQ-001, REQ-002).
+    Using PostgreSQL for persistence.
+  ".ievo/memory/VOCABULARY.md": |
+    | Term | Meaning |
+    |------|---------|
+    | SKU | Stock Keeping Unit — unique product identifier |
+    | Category tree | Hierarchical category structure |
+  ".ievo/spec/SPEC_INDEX.md": |
+    | REQ | Title | Status | Priority | Blocks |
+    |-----|-------|--------|----------|--------|
+    | REQ-001 | User registration | done | critical | - |
+    | REQ-002 | User login | done | critical | - |
+expected_artifacts:
+  - ".ievo/spec/requirements/REQ-*.md"
+metadata:
+  difficulty: hard
+  expected_req_count_min: 3
+  expected_req_count_max: 7

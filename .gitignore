@@ -28,3 +28,6 @@ output/
 # Local symlinks to marketplace agents (not tracked)
 .claude/children/
 site/
+
+# iEvo pipeline (local, not tracked yet)
+.ievo/

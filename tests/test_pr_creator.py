@@ -11,6 +11,7 @@ from eva.github.pr_creator import (
     PRCreator,
     _apply_mutation,
     _confidence_note,
+    _format_fitness_section,
 )
 
 
@@ -163,6 +164,50 @@ class TestPRCreatorCreatePR:
         assert "API error" in result.error
 
     @pytest.mark.asyncio
+    async def test_create_pr_with_fitness_delta(self):
+        """PR body includes fitness delta section when metadata has it."""
+        creator = PRCreator(token="test")
+        mock_client = creator._client
+
+        existing_content = base64.b64encode(b"# Old content").decode()
+
+        mock_client.get_default_branch = AsyncMock(return_value="main")
+        mock_client.get_ref_sha = AsyncMock(return_value="sha123")
+        mock_client.create_branch = AsyncMock()
+        mock_client.get_file_content = AsyncMock(
+            return_value={"content": existing_content, "sha": "file-sha"}
+        )
+        mock_client.create_or_update_file = AsyncMock()
+
+        from eva.github.client import PRResult
+
+        mock_client.create_pull_request = AsyncMock(
+            return_value=PRResult(
+                pr_url="https://github.com/test/pull/3",
+                pr_number=3,
+                branch="eva/mut-0001",
+                repo="ievo-ai/marketplace",
+            )
+        )
+        mock_client.add_labels = AsyncMock()
+
+        mutation = _make_mutation()
+        mutation.metadata["fitness_delta"] = {
+            "overall_delta": 5.2,
+            "improved": True,
+            "before_score": 60.0,
+            "after_score": 65.2,
+            "per_dimension": {"testability": 3.0, "atomicity": 2.2},
+        }
+        result = await creator.create_pr(mutation)
+
+        assert result.success is True
+        # Verify the PR body included fitness data
+        pr_body = mock_client.create_pull_request.call_args[1]["body"]
+        assert "Benchmark Fitness Delta" in pr_body
+        assert "65.2" in pr_body
+
+    @pytest.mark.asyncio
     async def test_create_all(self):
         creator = PRCreator(token="test")
         mock_client = creator._client
@@ -174,3 +219,67 @@ class TestPRCreatorCreatePR:
 
         assert len(results) == 2
         assert all(not r.success for r in results)
+
+
+class TestFormatFitnessSection:
+    def test_improved_mutation(self):
+        fitness_data = {
+            "overall_delta": 5.2,
+            "improved": True,
+            "before_score": 60.0,
+            "after_score": 65.2,
+            "per_dimension": {"testability": 3.0, "atomicity": 2.2},
+        }
+        result = _format_fitness_section(fitness_data)
+        assert "Benchmark Fitness Delta" in result
+        assert "60.0" in result
+        assert "65.2" in result
+        assert "+5.2" in result
+        assert "testability" in result
+        assert "atomicity" in result
+
+    def test_degraded_mutation(self):
+        fitness_data = {
+            "overall_delta": -2.5,
+            "improved": False,
+            "before_score": 70.0,
+            "after_score": 67.5,
+        }
+        result = _format_fitness_section(fitness_data)
+        assert "-2.5" in result
+
+    def test_no_change(self):
+        fitness_data = {
+            "overall_delta": 0,
+            "improved": False,
+            "before_score": 50.0,
+            "after_score": 50.0,
+        }
+        result = _format_fitness_section(fitness_data)
+        assert "=0" in result
+
+    def test_per_dimension_with_negative(self):
+        fitness_data = {
+            "overall_delta": 1.0,
+            "improved": True,
+            "before_score": 50.0,
+            "after_score": 51.0,
+            "per_dimension": {"testability": 5.0, "completeness": -4.0},
+        }
+        result = _format_fitness_section(fitness_data)
+        assert "+5.0" in result
+        assert "-4.0" in result
+
+    def test_no_per_dimension(self):
+        fitness_data = {
+            "overall_delta": 3.0,
+            "improved": True,
+            "before_score": 50.0,
+            "after_score": 53.0,
+        }
+        result = _format_fitness_section(fitness_data)
+        assert "Overall" in result
+        # No dimension rows
+        lines = result.strip().split("\n")
+        # Header + separator + overall row = 4 lines min
+        assert len(lines) >= 4

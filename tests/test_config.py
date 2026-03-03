@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from eva.core.config import EvaConfig
+from eva.core.config import BenchmarkConfig, EvaConfig
 
 
 def test_default_config():
@@ -83,3 +83,58 @@ def test_load_with_safety_keys(tmp_path: Path):
     assert cfg.auto_merge is True
     assert cfg.max_mutations_per_run == 3
     assert cfg.dry_run is False
+
+
+def test_default_benchmark_config():
+    cfg = EvaConfig()
+    assert cfg.benchmark.enabled is True
+    assert cfg.benchmark.judge_model == "haiku"
+    assert cfg.benchmark.timeout_sec == 300
+    assert cfg.benchmark.docker_image == "ievoai/sandbox:latest"
+    assert cfg.benchmark.max_retries == 1
+
+
+def test_benchmark_config_standalone():
+    bc = BenchmarkConfig()
+    assert bc.enabled is True
+    assert "benchmarks" in str(bc.results_dir)
+
+
+def test_load_with_benchmark_config(tmp_path: Path):
+    path = tmp_path / "bench.yaml"
+    path.write_text(
+        "benchmark:\n"
+        "  enabled: false\n"
+        "  judge_model: sonnet\n"
+        "  timeout_sec: 600\n"
+        "  docker_image: custom:latest\n"
+    )
+    cfg = EvaConfig.load(path)
+    assert cfg.benchmark.enabled is False
+    assert cfg.benchmark.judge_model == "sonnet"
+    assert cfg.benchmark.timeout_sec == 600
+    assert cfg.benchmark.docker_image == "custom:latest"
+
+
+def test_load_with_benchmark_results_dir(tmp_path: Path):
+    path = tmp_path / "bench.yaml"
+    path.write_text("benchmark:\n  results_dir: /tmp/eva-results\n")
+    cfg = EvaConfig.load(path)
+    assert cfg.benchmark.results_dir == Path("/tmp/eva-results")
+
+
+def test_load_with_benchmark_unknown_key(tmp_path: Path):
+    path = tmp_path / "bench.yaml"
+    path.write_text("benchmark:\n  enabled: true\n  unknown_field: ignored\n")
+    cfg = EvaConfig.load(path)
+    assert cfg.benchmark.enabled is True
+
+
+def test_save_includes_benchmark(tmp_path: Path):
+    path = tmp_path / "eva.yaml"
+    cfg = EvaConfig()
+    cfg.benchmark.judge_model = "opus"
+    cfg.save(path)
+
+    loaded = EvaConfig.load(path)
+    assert loaded.benchmark.judge_model == "opus"

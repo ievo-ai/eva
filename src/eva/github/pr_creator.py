@@ -139,6 +139,11 @@ class PRCreator:
                 confidence_note=_confidence_note(mutation.confidence),
             )
 
+            # Append benchmark fitness delta if available
+            fitness_data = mutation.metadata.get("fitness_delta")
+            if fitness_data:
+                pr_body += _format_fitness_section(fitness_data)
+
             pr_result = await self._client.create_pull_request(
                 repo=repo,
                 title=f"[Eva] {mutation.title}",
@@ -180,6 +185,31 @@ class PRCreator:
             result = await self.create_pr(mutation)
             results.append(result)
         return results
+
+
+def _format_fitness_section(fitness_data: dict[str, object]) -> str:
+    """Format fitness delta data as a PR body section."""
+    delta = fitness_data.get("overall_delta", 0)
+    improved = fitness_data.get("improved", False)
+    before = fitness_data.get("before_score", 0)
+    after = fitness_data.get("after_score", 0)
+
+    icon = "+" if improved else "-" if float(str(delta)) < 0 else "="
+    lines = [
+        "\n### Benchmark Fitness Delta\n",
+        "| Metric | Before | After | Delta |",
+        "|--------|--------|-------|-------|",
+        f"| **Overall** | {before} | {after} | {icon}{abs(float(str(delta)))} |",
+    ]
+
+    per_dim = fitness_data.get("per_dimension")
+    if isinstance(per_dim, dict):
+        for dim, d in sorted(per_dim.items()):
+            d_icon = "+" if float(str(d)) > 0 else "-" if float(str(d)) < 0 else "="
+            lines.append(f"| {dim} | — | — | {d_icon}{abs(float(str(d)))} |")
+
+    lines.append("")
+    return "\n".join(lines)
 
 
 def _apply_mutation(current_content: str, mutation: Mutation) -> str:

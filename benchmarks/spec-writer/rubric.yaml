@@ -1,0 +1,37 @@
+agent: spec-writer
+version: "1"
+dimensions:
+  - name: testability
+    weight: 0.30
+    description: "Each acceptance criterion maps to exactly one testable statement"
+    criteria:
+      - "Every AC has format: <action with specific input> -> <specific expected output>"
+      - "No vague words: fast, easy, intuitive, good"
+      - "Error cases and edge cases are included"
+      - "Each AC can be verified by a single automated test"
+
+  - name: atomicity
+    weight: 0.25
+    description: "Each REQ covers one behavior, 3-7 acceptance criteria"
+    criteria:
+      - "REQ covers exactly one user-facing behavior"
+      - "3-7 acceptance criteria per REQ (too few = underspecified, too many = should split)"
+      - "No compound requirements (A AND B should be separate REQs)"
+
+  - name: completeness
+    weight: 0.25
+    description: "Negative criteria present, dependencies mapped, context self-contained"
+    criteria:
+      - "Negative acceptance criteria section exists and is non-empty"
+      - "Dependencies on other REQs are listed"
+      - "Context section is self-contained (coder can read ONLY this file)"
+      - "Unknown items are marked as questions, not assumptions"
+
+  - name: no_implementation_leakage
+    weight: 0.20
+    description: "Specifies WHAT not HOW — no tech stack assumptions, no code patterns"
+    criteria:
+      - "No mention of specific database, framework, or library"
+      - "No code snippets or implementation hints"
+      - "Describes behavior from user perspective, not system internals"
+      - "Tech decisions left to architect"

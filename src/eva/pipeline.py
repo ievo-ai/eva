@@ -10,8 +10,10 @@ from rich.console import Console
 from rich.table import Table
 
 from eva.analysis.detector import PatternDetector
+from eva.benchmark.models import FitnessDelta
+from eva.benchmark.runner import BenchmarkRunner
 from eva.core.config import EvaConfig
-from eva.core.models import Mutation, Pattern, Severity, Signal
+from eva.core.models import Mutation, MutationType, Pattern, Severity, Signal
 from eva.github.evolution_publisher import EvolutionPublisher
 from eva.github.pr_creator import PRCreationResult, PRCreator
 from eva.mutations.engine import MutationEngine
@@ -136,6 +138,28 @@ class EvaPipeline:
                 f"[dim]→ {m.target_repo}[/dim]"
             )
 
+        # Phase 3.5: Evaluate — run benchmarks for benchmarkable mutations
+        if result.mutations and self.config.benchmark.enabled:
+            console.print("\n[bold cyan]Phase 3.5: Evaluate[/bold cyan]")
+            evaluated = 0
+            for m in result.mutations:
+                agent = _extract_agent_name(m)
+                if not agent:
+                    continue
+                try:
+                    delta = await self._evaluate_mutation(m, agent)
+                    if delta:
+                        m.metadata["fitness_delta"] = delta.to_dict()
+                        icon = "[green]+[/green]" if delta.improved else "[red]-[/red]"
+                        console.print(
+                            f"  {icon} {agent}: {delta.overall_delta:+.1f} [dim]({m.id})[/dim]"
+                        )
+                        evaluated += 1
+                except (FileNotFoundError, TimeoutError, RuntimeError) as e:
+                    console.print(f"  [yellow]⚠[/yellow] {agent}: {e}")
+            if not evaluated:
+                console.print("  [dim]No benchmarkable mutations.[/dim]")
+
         # Phase 4: Create PRs (live mode only)
         if self.config.dry_run:
             console.print("  [yellow]⚠ DRY RUN — no PRs created[/yellow]")
@@ -243,6 +267,47 @@ class EvaPipeline:
 
         path.write_text(json.dumps(report, indent=2, ensure_ascii=False))
         console.print(f"  [green]✓[/green] Report saved → {path}")
+
+    async def _evaluate_mutation(self, mutation: Mutation, agent: str) -> FitnessDelta | None:
+        """Run benchmark before/after mutation to compute fitness delta."""
+        benchmarks_dir = Path("benchmarks")
+        if not benchmarks_dir.exists():
+            return None
+
+        runner = BenchmarkRunner(
+            benchmarks_dir=benchmarks_dir,
+            judge_model=self.config.benchmark.judge_model,
+            timeout_sec=self.config.benchmark.timeout_sec,
+            docker_image=self.config.benchmark.docker_image,
+        )
+
+        if not runner._loader.has_suite(agent):
+            return None
+
+        before = await runner.run_suite(agent, label="before-mutation")
+        after = await runner.run_suite(
+            agent, role_override=mutation.diff, label=f"after-{mutation.id}"
+        )
+
+        rubric = runner._loader.load_rubric(agent)
+        return BenchmarkRunner.compare(mutation.id, agent, before, after, rubric)
+
+
+def _extract_agent_name(mutation: Mutation) -> str | None:
+    """Extract agent name from mutation target path if benchmarkable."""
+    if mutation.type not in (MutationType.ROLE_PATCH, MutationType.SKILL_PATCH):
+        return None
+
+    path = mutation.target_path
+    # Pattern: agents/<name>/... or agents/<name>.md
+    if "agents/" not in path:
+        return None
+
+    after = path.split("agents/", 1)[1]
+    # agents/spec-writer/ROLE.md → spec-writer
+    # agents/spec-writer.md → spec-writer
+    name = after.split("/")[0].removesuffix(".md")
+    return name if name else None
 
 
 def _make_telegram_client() -> TelegramClient | None:

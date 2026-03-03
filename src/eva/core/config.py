@@ -19,6 +19,18 @@ class SourceConfig:
 
 
 @dataclass
+class BenchmarkConfig:
+    """Configuration for the benchmark subsystem."""
+
+    enabled: bool = True
+    results_dir: Path = field(default_factory=lambda: Path.home() / ".eva" / "benchmarks")
+    judge_model: str = "haiku"
+    max_retries: int = 1
+    timeout_sec: int = 300
+    docker_image: str = "ievoai/sandbox:latest"
+
+
+@dataclass
 class EvaConfig:
     """Top-level Eva configuration."""
 
@@ -66,6 +78,9 @@ class EvaConfig:
         )
     )
 
+    # Benchmark
+    benchmark: BenchmarkConfig = field(default_factory=BenchmarkConfig)
+
     # Safety
     auto_merge: bool = False  # never auto-merge without human review
     max_mutations_per_run: int = 5
@@ -103,6 +118,15 @@ class EvaConfig:
                     if hasattr(src_config, k):
                         setattr(src_config, k, v)
 
+        # Override benchmark
+        if "benchmark" in data:
+            bm_data = data["benchmark"]
+            for k, v in bm_data.items():
+                if hasattr(config.benchmark, k):
+                    if k == "results_dir":
+                        v = Path(v)
+                    setattr(config.benchmark, k, v)
+
         # Override safety
         for key in ("auto_merge", "max_mutations_per_run", "dry_run"):
             if key in data:
@@ -121,6 +145,12 @@ class EvaConfig:
                 "evolution_logs": {"enabled": self.evolution_logs.enabled},
                 "research": {"enabled": self.research.enabled},
                 "telegram": {"enabled": self.telegram.enabled},
+            },
+            "benchmark": {
+                "enabled": self.benchmark.enabled,
+                "judge_model": self.benchmark.judge_model,
+                "timeout_sec": self.benchmark.timeout_sec,
+                "docker_image": self.benchmark.docker_image,
             },
             "auto_merge": self.auto_merge,
             "max_mutations_per_run": self.max_mutations_per_run,

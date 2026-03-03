@@ -76,68 +76,24 @@ Third level of iEvo evolution. Observes platform → detects patterns → propos
 
 ## Architecture
 
-```
-src/eva/
-├── cli.py              # Click CLI (scan, status, init, publish, tg-process, approve)
-├── pipeline.py         # Main OBSERVE → ANALYZE → MUTATE loop
-├── core/
-│   ├── config.py       # EvaConfig, SourceConfig — loaded from eva.yaml
-│   └── models.py       # Signal, Pattern, Mutation, EvolutionEntry domain models
-├── sources/            # Signal connectors (all async)
-│   ├── base.py         # BaseSource ABC
-│   ├── sentry.py       # Sentry error tracking
-│   ├── github_issues.py # GitHub Issues across repos
-│   ├── evolution_logs.py # Agent EVOLUTION_LOG.md files
-│   ├── reviews.py      # PR comments and reviews
-│   └── telegram.py     # Telegram community messages
-├── telegram/           # Telegram integration
-│   ├── client.py       # Telegram Bot API client (async httpx)
-│   ├── formatter.py    # Evolution message formatting (child vs Eva personality)
-│   └── responder.py    # Community responder — Claude Code CLI with tool access
-├── analysis/
-│   └── detector.py     # PatternDetector — frequency, cross-agent, escalation
-└── mutations/
-    └── engine.py       # MutationEngine — pattern → concrete file changes
+> Full details: `docs/architecture.md`
 
-agent/                  # Eva's own agent identity
-├── agent.yaml          # Package manifest (opus tier)
-├── ROLE.md             # Eva's instructions
-├── EVOLUTION_LOG.md    # Self-evolution history
-├── memory/             # Context, decisions, vocabulary, history
-└── skills/evo/SKILL.md # Eva's self-evolution skill (pipeline)
-
-.claude/
-├── skills/             # Claude Code interactive skills
-│   ├── evo/SKILL.md    # /evo — self-evolution (error → rule update)
-│   └── extract-best-practices/SKILL.md  # /extract-best-practices
-└── children/           # Symlinks to marketplace agents (local, gitignored)
-    ├── spec-writer → ievo-ai/marketplace/agents/spec-writer
-    ├── architect   → ievo-ai/marketplace/agents/architect
-    ├── coder       → ievo-ai/marketplace/agents/coder
-    └── researcher  → ievo-ai/marketplace/agents/researcher
-
-tests/                  # 349 tests, 100% coverage
-├── test_cli.py         # CLI commands (scan, publish, tg-process, etc.)
-├── test_config.py
-├── test_detector.py
-├── test_evolution_publisher.py
-├── test_models.py
-├── test_mutations.py
-├── test_telegram.py           # Client + formatter
-├── test_telegram_responder.py # Community responder
-└── test_telegram_source.py    # Telegram signal source
-
-Dockerfile              # Python 3.13-slim, entrypoint: eva scan
-docker-compose.yml      # Self-hosted deployment with volumes
-.github/workflows/
-├── eva-scan.yml        # Cron (6h) + manual trigger, Docker-based
-├── eva-on-issue.yml    # Triggered by new issues (direct + cross-repo dispatch)
-├── publish-evolution.yml # Push merged mutation to ievo.ai evolutions feed
-└── tests.yml           # CI: lint + test on Python 3.10/3.11/3.12
-scripts/
-├── notify-eva.yml      # Template workflow for other repos to trigger Eva
-└── publish-evolution.py # Append entry to evolutions.json
-```
+| Module | Purpose |
+|--------|---------|
+| `src/eva/cli.py` | Click CLI — scan, status, init, publish, benchmark, tg-process, approve |
+| `src/eva/pipeline.py` | Main loop: OBSERVE → ANALYZE → MUTATE → EVALUATE → PR |
+| `src/eva/core/` | Config (`eva.yaml`), domain models (Signal, Pattern, Mutation) |
+| `src/eva/sources/` | Signal connectors: Sentry, GitHub Issues, Reviews, Evo Logs, Telegram |
+| `src/eva/analysis/` | PatternDetector — frequency, cross-agent, escalation strategies |
+| `src/eva/mutations/` | MutationEngine — pattern → concrete file changes |
+| `src/eva/benchmark/` | Agent evaluation: loader, G-Eval judge, Docker runner, storage |
+| `src/eva/telegram/` | Bot client, message formatter, community responder (Claude CLI) |
+| `src/eva/github/` | GitHub client, PR creator, evolution publisher |
+| `src/eva/export/` | Memory export (Claude Memory format) |
+| `agent/` | Eva's own identity: ROLE.md, memory, skills, evolution log |
+| `.claude/skills/` | Interactive Claude Code skills: /evo, /verify, /acceptance |
+| `tests/` | 482 tests, 100% coverage (enforced) |
+| `benchmarks/` | Benchmark suites: tasks + rubrics per agent |
 
 ## Claude Code Skills
 
@@ -229,6 +185,9 @@ eva approve <mutation-id>    # Approve a mutation (Phase 2)
 eva publish --title "..." --type milestone --live  # Publish evolution to GitHub + Telegram
 eva tg-process               # Process Telegram community messages as Eva
 eva export-memory            # Export Eva's knowledge in Claude Memory format
+eva benchmark run spec-writer                           # Run benchmark suite
+eva benchmark run spec-writer --compare old.md new.md   # Compare two versions
+eva benchmark history spec-writer                       # Show historical scores
 ```
 
 ## Deployment
@@ -269,6 +228,7 @@ Detailed technical docs live in `docs/`:
 | `docs/sources.md` | All 5 signal sources (Sentry, Issues, Reviews, Evo Logs, Telegram), how to add new |
 | `docs/configuration.md` | eva.yaml reference, env variables, secrets |
 | `docs/deployment.md` | GitHub Actions, Docker, cross-repo triggers, live mode |
+| `docs/benchmarks.md` | Agent benchmark framework, CLI commands, rubric format, adding new benchmarks |
 | `docs/safety.md` | 8 safety rules, confidence thresholds, failure modes |
 | `docs/GITHUB_APP_SETUP.md` | Step-by-step GitHub App setup |
 

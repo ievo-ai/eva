@@ -266,6 +266,97 @@ def publish(
         console.print(f"[red]✗[/red] {e}")
 
 
+@main.group()
+def benchmark() -> None:
+    """Run agent benchmarks and evaluations."""
+
+
+@benchmark.command("run")
+@click.argument("agent_name")
+@click.option(
+    "--compare",
+    nargs=2,
+    type=click.Path(),
+    default=None,
+    help="Compare two ROLE.md versions.",
+)
+@click.option(
+    "--benchmarks",
+    "-b",
+    type=click.Path(),
+    default="benchmarks",
+    help="Benchmarks directory.",
+)
+@click.option(
+    "--config",
+    "-c",
+    type=click.Path(),
+    default="eva.yaml",
+    help="Config file path.",
+)
+def benchmark_run(
+    agent_name: str, compare: tuple[str, str] | None, benchmarks: str, config: str
+) -> None:
+    """Run benchmark for a specific agent."""
+    from eva.benchmark.reporter import print_comparison, print_result
+    from eva.benchmark.runner import BenchmarkRunner
+    from eva.benchmark.storage import ResultStorage
+
+    cfg = EvaConfig.load(Path(config))
+    runner = BenchmarkRunner(
+        benchmarks_dir=Path(benchmarks),
+        judge_model=cfg.benchmark.judge_model,
+        timeout_sec=cfg.benchmark.timeout_sec,
+        docker_image=cfg.benchmark.docker_image,
+    )
+    storage = ResultStorage(cfg.benchmark.results_dir)
+
+    if compare:
+        before_role = Path(compare[0]).read_text()
+        after_role = Path(compare[1]).read_text()
+
+        console.print(f"[bold]Running benchmark: {agent_name} (before)[/bold]")
+        before = asyncio.run(
+            runner.run_suite(agent_name, role_override=before_role, label="before")
+        )
+        console.print(f"[bold]Running benchmark: {agent_name} (after)[/bold]")
+        after = asyncio.run(runner.run_suite(agent_name, role_override=after_role, label="after"))
+
+        rubric = runner._loader.load_rubric(agent_name)
+        delta = BenchmarkRunner.compare("manual", agent_name, before, after, rubric)
+        print_comparison(delta, console)
+
+        storage.save(agent_name, before.to_dict())
+        storage.save(agent_name, after.to_dict())
+    else:
+        console.print(f"[bold]Running benchmark: {agent_name}[/bold]")
+        result = asyncio.run(runner.run_suite(agent_name))
+        print_result(result, console)
+        storage.save(agent_name, result.to_dict())
+        console.print(f"\n[dim]Result saved to {cfg.benchmark.results_dir / agent_name}[/dim]")
+
+
+@benchmark.command("history")
+@click.argument("agent_name")
+@click.option("--config", "-c", type=click.Path(), default="eva.yaml", help="Config file path.")
+@click.option("--limit", "-n", default=10, help="Number of results to show.")
+def benchmark_history(agent_name: str, config: str, limit: int) -> None:
+    """Show historical benchmark scores for an agent."""
+    from eva.benchmark.reporter import print_history
+    from eva.benchmark.storage import ResultStorage
+
+    cfg = EvaConfig.load(Path(config))
+    storage = ResultStorage(cfg.benchmark.results_dir)
+    paths = storage.list_results(agent_name)[:limit]
+
+    if not paths:
+        console.print(f"[yellow]No benchmark history for {agent_name}.[/yellow]")
+        return
+
+    results = [storage.load(p) for p in paths]
+    print_history(results, agent_name, console)
+
+
 @main.command("tg-process")
 @click.option("--limit", default=50, help="Max messages to process.")
 def tg_process(limit: int) -> None:

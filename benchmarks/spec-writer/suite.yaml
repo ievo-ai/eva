@@ -1,0 +1,8 @@
+agent: spec-writer
+version: "1"
+description: "Benchmark suite for spec-writer agent — tests requirement writing quality"
+rubric: rubric.yaml
+tasks:
+  - tasks/task-001-user-auth.yaml
+  - tasks/task-002-api-crud.yaml
+  - tasks/task-003-notifications.yaml
