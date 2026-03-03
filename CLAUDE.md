@@ -25,27 +25,31 @@ This CLAUDE.md contains both global project context and Eva-specific technical d
 | **curator** | Cross-agent pattern curator | src/curator/pipeline.py |
 | **ievo.ai** | Landing page | docs/index.html |
 
-## SDD Pipeline
+## iEvo Pipeline
 
+All iEvo pipeline data lives in `.ievo/` directory. See `.ievo/IEVO.md` for:
+- Directory structure and naming conventions
+- Document lifecycle (backlog → spec → plan → code → acceptance)
+- Pipeline rules and requirement statuses
+
+**Three-layer context model:**
+1. **CLAUDE.md** (this file) — project context (tech stack, architecture, domain)
+2. **`.ievo/IEVO.md`** — pipeline context (conventions, lifecycle) — auto-generated template
+3. **ROLE.md** — agent-specific instructions only
+
+**Pipeline overview:**
 ```
 Backlog → Spec Writer → [EVO] → Sprint → Architect → [EVO] → Coder → [EVO] → Acceptance → [EVO] → Docs → Done
 ```
 
-**Process model: Kanban-flow** — continuous flow, no fixed time-boxes. Tasks move through stages as fast as the pipeline allows. WIP limits prevent overload. Sprint = batch of agreed REQs, not a time-box.
+**Process model: Kanban-flow** — continuous flow, no fixed time-boxes. Sprint = batch of agreed REQs, not a time-box.
 
 Key concepts:
-- **Backlog**: raw ideas, not yet refined. Researcher proposals land here too
-- **Sprint**: agreed set of refined REQs, frozen scope. Human approves what goes in
-- **15-minute rule**: Architect decomposes every REQ into tasks of ≤15 min. Spec Writer does NOT estimate time
-- **EVO gates**: EVO agent observes every pipeline transition (post-spec, post-plan, post-implementation, post-acceptance). Analyzes quality, traces errors to root cause, proposes ROLE.md mutations
-- **Acceptance loop**: when Acceptance rejects, task returns to Coder with report. Coder fixes and resubmits
-- **Coder escalation**: if plan doesn't work, Coder creates Q-xxx-arch.md → task blocks until Architect responds
-- **Sprint retrospective**: after completion — pass rate, return rate, EVO mutations. Feeds Eva + Curator
-- **Atomic REQs**: 3-7 testable acceptance criteria each
-- **Priority scoring**: formula in PRIORITY.md, agents auto-select highest-value task
-- **Change Requests**: modifications with impact analysis + cascade safety
+- **15-minute rule**: Architect decomposes every REQ into tasks of ≤15 min
+- **EVO gates**: EVO agent observes every pipeline transition
+- **Acceptance loop**: FAIL → Coder fixes → re-verify
 - **4-layer evolution**: Self-correction → EVO agent → Curator → Eva
-- **Persistent memory**: agents maintain CONTEXT, DECISIONS, VOCABULARY, HISTORY across sessions
+- **`.ievo/version`**: tracks CLI version, auto-migration on startup
 
 ## Global Docs (in this repo)
 

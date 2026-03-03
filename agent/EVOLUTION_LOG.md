@@ -143,3 +143,11 @@
 **Action:** Created Defrag agent (Haiku, read-only) — scans all CLAUDE.md, ROLE.md, README.md, docs/ for rule drift, missing rules, stale references, doc overlap. Produces DEFRAG-REPORT.md for Eva to act on. Redistributed rules to their enforcing agents: Architect gained 4 rules (reinvent, minimal path, deployment context, verify), Coder gained 5, Acceptance gained 2, EVO gained 2, Researcher gained 2, Docs gained 1. Cleaned Eva CLAUDE.md — split into agent-enforced rules (reference table), Eva's own rules, and operational rules. Added "What if?" rule from user memory.
 
 **Goal:** Single source of truth per rule. Rules live where they're enforced, not in a central dump. Defrag agent prevents future drift.
+
+## 2026-03-02: Unified .ievo/ storage + IEVO.md overlay
+
+**Context:** Pipeline artifacts (REQs, plans, reports, sessions, memory) had no standard home. Paths were scattered across agent ROLE.md files: some used `spec/`, others `plans/`, others `memory/`. Bootstrap example had a flat structure. No single document described the directory layout — each agent duplicated partial knowledge.
+
+**Action:** Created unified `.ievo/` directory structure: `backlog/`, `spec/`, `plans/`, `reports/`, `memory/` (with `sessions/`). Created `.ievo/IEVO.md` as a managed template overlay — pipeline context that agents read for conventions, naming, and lifecycle. Three-layer context model: CLAUDE.md (project) → IEVO.md (pipeline) → ROLE.md (agent). Updated all 8 agent ROLE.md files to reference `.ievo/` paths. Removed duplicated pipeline descriptions from agents — replaced with "See .ievo/IEVO.md". Added `.ievo/version` file for CLI version tracking and auto-migration. Created CLI template source at `cli/src/ievo/templates/IEVO.md`.
+
+**Goal:** Single source of truth for pipeline structure. Agents read IEVO.md for conventions, not duplicate them. CLI auto-migrates projects when updated.
