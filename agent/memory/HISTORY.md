@@ -18,4 +18,4 @@ Lightweight index. Full details in `sessions/NNN/plan.md` + `sessions/NNN/log.md
 | [012](sessions/012/) | 2026-03-02 | CLI E2E Test (FAIL) | completed | 7 issues found — permissions blocker, no progress, manual steps everywhere |
 | [013](sessions/013/) | 2026-03-02 | Docker Sandbox | completed | Docker sandbox for agents — SandboxConfig, docker.py, Dockerfile, run.py refactored. 408 tests |
 | [014](sessions/014/) | 2026-03-02 | PR Gatekeeper Pipeline | completed | Eva as PR gatekeeper — Claude CLI review, auto-merge, evolution publishing. Full E2E verified |
-| [015](sessions/015/) | 2026-03-02 | iEvo Architecture + Pipeline Redesign | in_progress | Pipeline: Backlog→Sprint→15min tasks, 3 new agents (EVO, Docs, Acceptance), Architect research, /acceptance skill |
+| [015](sessions/015/) | 2026-03-02 | iEvo Architecture + Pipeline Redesign | in_progress | Pipeline redesign: 4 new agents (EVO, Docs, Acceptance, Defrag), 15-min rule, .ievo/ storage, IEVO.md overlay, rule redistribution |

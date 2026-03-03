@@ -46,19 +46,40 @@
 - Added responsibility #1 "Domain Research" to Architect ROLE.md
 - Updated agent.yaml (network: true), registry.yaml description, Eva ROLE.md children table
 
+### Defrag agent (new) + rule redistribution
+- Created `marketplace/agents/defrag/` — Haiku model, read-only, SCAN → COMPARE → REPORT
+- Redistributed 16 rules to 6 agent ROLE.md files (Architect +4, Coder +5, Acceptance +2, EVO +2, Researcher +2, Docs +1)
+- Reorganized Eva CLAUDE.md working rules into 3 sections
+- GitHub issue #20
+
+### Unified .ievo/ storage + IEVO.md overlay
+- Created `.ievo/` directory structure: backlog/, spec/, plans/, reports/, memory/
+- Created IEVO.md template — pipeline context overlay (auto-generated)
+- Three-layer context model: CLAUDE.md → IEVO.md → ROLE.md
+- Updated all 8 agent ROLE.md paths to `.ievo/` prefix
+- `.ievo/version` file for CLI version tracking + auto-migration
+- CLI template source: `cli/src/ievo/templates/IEVO.md`
+- Acceptance report + proposal templates
+- Updated SDK scaffold
+- GitHub issue #21
+
 ## Repos affected
 - **eva**: CLAUDE.md, ROLE.md, EVOLUTION_LOG.md, HISTORY.md, sessions, /acceptance skill
-- **marketplace**: 3 new agents (acceptance, docs, evo), updated architect, coder, researcher, registry
-- **cli**: CLAUDE.md, docs/ARCHITECTURE.md
+- **marketplace**: 4 new agents (acceptance, docs, evo, defrag), updated all 8 ROLE.md files, bootstrap restructured to .ievo/, templates
+- **cli**: CLAUDE.md, docs/ARCHITECTURE.md, src/ievo/templates/IEVO.md
+- **sdk**: template/ROLE.md.j2 updated to .ievo/ paths
 
 ## GitHub issues
 - #17: Pipeline clarification — 15-minute rule, Sprint/Backlog, Acceptance loop
 - #18: EVO as dedicated agent — continuous pipeline observer
 - #19: Docs agent — dedicated documentation writer
+- #20: Defrag agent — rules live where they're enforced
+- #21: Unified .ievo/ storage + IEVO.md overlay
 
 ## Pending
-- [ ] Commit and push all changes
+- [x] Commit and push all changes
 - [ ] Phase 1: Startup Flow implementation (CLI repo — separate session)
 - [ ] Phase 2: Monorepo merge
 - [ ] Phase 3: ievo team (Claude Code subagents)
 - [ ] Phase 4: Evolution sharing
+- [ ] CLI `ievo init` + `ievo update` to scaffold `.ievo/` and auto-migrate (future session)
