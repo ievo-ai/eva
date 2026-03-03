@@ -104,9 +104,9 @@ class BenchmarkRunner:
             file_path.write_text(content)
 
         if role_override:
-            role_path = work_dir / ".claude" / "agents" / f"{task.agent}.md"
-            role_path.parent.mkdir(parents=True, exist_ok=True)
-            role_path.write_text(role_override)
+            # Claude CLI reads CLAUDE.md automatically from workspace root
+            claude_md = work_dir / "CLAUDE.md"
+            claude_md.write_text(role_override)
 
     async def _execute_in_docker(self, work_dir: Path, prompt: str) -> str:
         """Execute agent via Claude CLI inside Docker container.

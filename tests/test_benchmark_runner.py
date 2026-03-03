@@ -146,15 +146,15 @@ class TestBenchmarkRunnerPrepareWorkspace:
         task = BenchmarkTask(id="t1", agent="spec-writer", title="t", input_prompt="p")
         BenchmarkRunner._prepare_workspace(tmp_path, task, role_override="# Custom agent")
 
-        role_path = tmp_path / ".claude" / "agents" / "spec-writer.md"
-        assert role_path.exists()
-        assert role_path.read_text() == "# Custom agent"
+        claude_md = tmp_path / "CLAUDE.md"
+        assert claude_md.exists()
+        assert claude_md.read_text() == "# Custom agent"
 
     def test_no_role_override(self, tmp_path: Path):
         task = BenchmarkTask(id="t1", agent="sw", title="t", input_prompt="p")
         BenchmarkRunner._prepare_workspace(tmp_path, task)
 
-        assert not (tmp_path / ".claude" / "agents").exists()
+        assert not (tmp_path / "CLAUDE.md").exists()
 
 
 class TestBenchmarkRunnerExecuteInDocker:
