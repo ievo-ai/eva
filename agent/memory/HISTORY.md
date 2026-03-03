@@ -19,4 +19,4 @@ Lightweight index. Full details in `sessions/NNN/plan.md` + `sessions/NNN/log.md
 | [013](sessions/013/) | 2026-03-02 | Docker Sandbox | completed | Docker sandbox for agents — SandboxConfig, docker.py, Dockerfile, run.py refactored. 408 tests |
 | [014](sessions/014/) | 2026-03-02 | PR Gatekeeper Pipeline | completed | Eva as PR gatekeeper — Claude CLI review, auto-merge, evolution publishing. Full E2E verified |
 | [015](sessions/015/) | 2026-03-02 | iEvo Architecture + Pipeline Redesign | completed | Pipeline redesign: 4 new agents, 15-min rule, .ievo/ storage, native sub-agents migration (9 agents, -643 lines) |
-| [016](sessions/016/) | 2026-03-03 | Agent Benchmark & Evaluation Framework | in_progress | REQ-001: fitness function for mutations — G-Eval judge, spec-writer benchmarks |
+| [016](sessions/016/) | 2026-03-03 | Agent Benchmark & Evaluation Framework | completed | REQ-001: fitness function — 5 phases (models, judge, runner, CLI, pipeline), 487 tests, 100% coverage |

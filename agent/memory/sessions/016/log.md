@@ -52,7 +52,16 @@
 - BenchmarkRunner.compare: static method mock pattern (set on class, not instance)
 - MutationType: used CONFIG_PATCH (not CONFIG_CHANGE), MEMORY_UPDATE (not WORKFLOW)
 
-## Pending
-- Backlog items created during session (IDEA-004, IDEA-005)
-- Push + commit
-- Session bookkeeping finalization
+## Post-session fixes
+
+### Issue: Pipeline tests hanging (2026-03-03)
+- **Root cause**: BenchmarkConfig.enabled=True by default, tests in TestEvaPipelineRun tried to run real benchmarks
+- **Fix**: Added config.benchmark.enabled=False to all 11 tests in TestEvaPipelineRun class
+- **Result**: All 487 tests pass with 100% coverage
+
+### Commits
+1. ab74e31 — fix: install agent ROLE.md as CLAUDE.md in benchmark workspace
+2. d9c6efe — fix: disable benchmark evaluation in pipeline tests
+
+## Session status
+Session 016 **COMPLETED** — All phases done, tests pass, code pushed
