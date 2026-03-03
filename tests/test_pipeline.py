@@ -171,6 +171,7 @@ class TestEvaPipelineRun:
     async def test_run_full_cycle_dry_run(self):
         config = EvaConfig()
         config.dry_run = True
+        config.benchmark.enabled = False
         config.sentry.enabled = False
         config.github_issues.enabled = False
         config.reviews.enabled = False
@@ -200,6 +201,7 @@ class TestEvaPipelineRun:
     async def test_run_live_mode_creates_prs(self):
         config = EvaConfig()
         config.dry_run = False
+        config.benchmark.enabled = False
         config.sentry.enabled = False
         config.github_issues.enabled = False
         config.reviews.enabled = False
@@ -244,6 +246,7 @@ class TestEvaPipelineRun:
     async def test_run_live_mode_handles_pr_creation_error(self):
         config = EvaConfig()
         config.dry_run = False
+        config.benchmark.enabled = False
         config.sentry.enabled = False
         config.github_issues.enabled = False
         config.reviews.enabled = False
@@ -272,6 +275,7 @@ class TestEvaPipelineRun:
     async def test_run_live_mode_no_successful_prs_skips_publish(self):
         config = EvaConfig()
         config.dry_run = False
+        config.benchmark.enabled = False
         config.sentry.enabled = False
         config.github_issues.enabled = False
         config.reviews.enabled = False
@@ -306,6 +310,7 @@ class TestEvaPipelineRun:
     async def test_run_live_publisher_exception(self):
         config = EvaConfig()
         config.dry_run = False
+        config.benchmark.enabled = False
         config.sentry.enabled = False
         config.github_issues.enabled = False
         config.reviews.enabled = False
@@ -347,6 +352,7 @@ class TestEvaPipelineRun:
         """Live mode with patterns but no mutations should skip PR creation."""
         config = EvaConfig()
         config.dry_run = False
+        config.benchmark.enabled = False
         config.sentry.enabled = False
         config.github_issues.enabled = False
         config.reviews.enabled = False
@@ -375,6 +381,7 @@ class TestEvaPipelineRun:
         """Publisher returning 0 should not print success count."""
         config = EvaConfig()
         config.dry_run = False
+        config.benchmark.enabled = False
         config.sentry.enabled = False
         config.github_issues.enabled = False
         config.reviews.enabled = False
@@ -425,6 +432,7 @@ class TestEvaPipelineRun:
     @pytest.mark.asyncio
     async def test_run_source_poll_exception(self):
         config = EvaConfig()
+        config.benchmark.enabled = False
         config.sentry.enabled = False
         config.github_issues.enabled = False
         config.reviews.enabled = False
@@ -444,6 +452,7 @@ class TestEvaPipelineRun:
     @pytest.mark.asyncio
     async def test_run_disabled_source_skipped(self):
         config = EvaConfig()
+        config.benchmark.enabled = False
         config.sentry.enabled = False
         config.github_issues.enabled = False
         config.reviews.enabled = False
