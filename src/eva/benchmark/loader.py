@@ -35,6 +35,17 @@ class TaskLoader:
             raise FileNotFoundError(msg)
         return self._parse_rubric(rubric_path)
 
+    def load_agent_role(self, agent: str) -> str:
+        """Load default agent ROLE.md content from suite, if specified."""
+        suite = self._load_suite_manifest(agent)
+        role_file: str = suite.get("role_file", "")
+        if not role_file:
+            return ""
+        role_path = self._dir / agent / role_file
+        if not role_path.exists():
+            return ""
+        return role_path.read_text()
+
     def load_tasks(self, agent: str) -> list[BenchmarkTask]:
         """Load all benchmark tasks for an agent."""
         suite = self._load_suite_manifest(agent)

@@ -164,6 +164,38 @@ class TestTaskLoaderLoadTasks:
             loader.load_tasks("sw")
 
 
+class TestTaskLoaderLoadAgentRole:
+    def test_loads_role_file(self, tmp_path: Path):
+        _create_suite(tmp_path)
+        suite_dir = tmp_path / "spec-writer"
+        # Add role_file to suite.yaml
+        suite_yaml = suite_dir / "suite.yaml"
+        content = suite_yaml.read_text() + "role_file: role.md\n"
+        suite_yaml.write_text(content)
+        (suite_dir / "role.md").write_text("# Spec Writer ROLE")
+
+        loader = TaskLoader(tmp_path)
+        role = loader.load_agent_role("spec-writer")
+        assert "Spec Writer ROLE" in role
+
+    def test_returns_empty_when_no_role_file_key(self, tmp_path: Path):
+        _create_suite(tmp_path)
+        loader = TaskLoader(tmp_path)
+        role = loader.load_agent_role("spec-writer")
+        assert role == ""
+
+    def test_returns_empty_when_role_file_missing(self, tmp_path: Path):
+        _create_suite(tmp_path)
+        suite_dir = tmp_path / "spec-writer"
+        suite_yaml = suite_dir / "suite.yaml"
+        content = suite_yaml.read_text() + "role_file: nonexistent.md\n"
+        suite_yaml.write_text(content)
+
+        loader = TaskLoader(tmp_path)
+        role = loader.load_agent_role("spec-writer")
+        assert role == ""
+
+
 class TestTaskLoaderSuiteManifest:
     def test_invalid_manifest_missing_rubric(self, tmp_path: Path):
         suite_dir = tmp_path / "sw"

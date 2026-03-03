@@ -48,6 +48,7 @@ class BenchmarkRunner:
 
         rubric = self._loader.load_rubric(agent)
         tasks = self._loader.load_tasks(agent)
+        default_role = self._loader.load_agent_role(agent)
 
         start = time.monotonic()
         scores: list[JudgeScore] = []
@@ -55,7 +56,8 @@ class BenchmarkRunner:
 
         for task in tasks:
             try:
-                output = await self._run_task(task, role_override=role_override)
+                effective_role = role_override or default_role
+                output = await self._run_task(task, role_override=effective_role)
                 score = await self._judge.score(
                     task_id=task.id,
                     agent=agent,

@@ -1,6 +1,7 @@
 agent: spec-writer
 version: "1"
 description: "Benchmark suite for spec-writer agent — tests requirement writing quality"
+role_file: role.md
 rubric: rubric.yaml
 tasks:
   - tasks/task-001-user-auth.yaml
