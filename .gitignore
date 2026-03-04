@@ -31,3 +31,6 @@ site/
 
 # iEvo pipeline (local, not tracked yet)
 .ievo/
+.coverage
+eva-report.json
+.envrc
