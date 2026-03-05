@@ -122,8 +122,9 @@ jobs:
           PR_NUM: ${{ steps.ctx.outputs.pr_number }}
         run: |
           # Use local git diff to avoid GitHub API 20k-line limit
-          git fetch origin main
-          git diff origin/main...HEAD > /tmp/pr.diff
+          BASE_BRANCH=$(gh api "repos/$REPO/pulls/$PR_NUM" --jq '.base.ref')
+          git fetch origin "$BASE_BRANCH"
+          git diff "origin/$BASE_BRANCH"...HEAD > /tmp/pr.diff
 
           gh api "repos/$REPO/pulls/$PR_NUM" \
             --jq '{title: .title, body: .body, user: .user.login, changed_files: .changed_files, additions: .additions, deletions: .deletions}' \
