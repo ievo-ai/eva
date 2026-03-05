@@ -152,7 +152,7 @@ jobs:
         run: |
           # Build prompt file to avoid shell escaping issues
           META=$(cat /tmp/pr-meta.json)
-          DIFF=$(head -c 100000 /tmp/pr.diff)
+          DIFF=$(head -c 500000 /tmp/pr.diff)
 
           cat > /tmp/prompt.txt <<'EOPROMPT'
           You are Eva, the mother agent of iEvo. Review this pull request.
