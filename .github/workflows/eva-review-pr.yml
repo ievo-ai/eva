@@ -110,6 +110,7 @@ jobs:
           repository: ${{ steps.ctx.outputs.repo }}
           ref: refs/pull/${{ steps.ctx.outputs.pr_number }}/head
           token: ${{ steps.auth.outputs.token }}
+          fetch-depth: 0
 
       # --- Fetch PR diff and metadata ---
       - name: Fetch PR details
