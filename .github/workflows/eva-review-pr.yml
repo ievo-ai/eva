@@ -120,9 +120,9 @@ jobs:
           REPO: ${{ steps.ctx.outputs.repo }}
           PR_NUM: ${{ steps.ctx.outputs.pr_number }}
         run: |
-          gh api "repos/$REPO/pulls/$PR_NUM" \
-            -H "Accept: application/vnd.github.v3.diff" \
-            > /tmp/pr.diff
+          # Use local git diff to avoid GitHub API 20k-line limit
+          git fetch origin main
+          git diff origin/main...HEAD > /tmp/pr.diff
 
           gh api "repos/$REPO/pulls/$PR_NUM" \
             --jq '{title: .title, body: .body, user: .user.login, changed_files: .changed_files, additions: .additions, deletions: .deletions}' \
