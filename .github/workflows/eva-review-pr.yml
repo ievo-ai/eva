@@ -130,26 +130,7 @@ jobs:
             --jq '{title: .title, body: .body, user: .user.login, changed_files: .changed_files, additions: .additions, deletions: .deletions}' \
             > /tmp/pr-meta.json
 
-          # Check diff size — skip AI review for huge PRs
-          LINES=$(wc -l < /tmp/pr.diff)
-          if [ "$LINES" -gt 10000 ]; then
-            echo "large=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "large=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      # --- Large PR: skip AI review ---
-      - name: Skip large PR
-        if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large == 'true'
-        env:
-          GH_TOKEN: ${{ steps.auth.outputs.token }}
-          REPO: ${{ steps.ctx.outputs.repo }}
-          PR_NUM: ${{ steps.ctx.outputs.pr_number }}
-        run: |
-          gh api "repos/$REPO/pulls/$PR_NUM/reviews" \
-            --method POST \
-            -f event="COMMENT" \
-            -f body="**Eva**: This PR is too large for automated review (>10k lines). Please request manual review."
+          echo "large=false" >> "$GITHUB_OUTPUT"
 
       # --- Install Claude Code CLI ---
       - name: Setup Node.js
