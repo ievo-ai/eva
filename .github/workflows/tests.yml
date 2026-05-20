@@ -1,4 +1,12 @@
 # Eva — CI tests
+#
+# The job is named "Lint & Test" so the reported status check context matches
+# the required check declared in main branch protection. Workflow runs ruff
+# (lint) and pytest with coverage (test) — both inside one job, hence the
+# combined name. The matrix was dropped (single Python value) because matrix
+# expansion would append `(3.13)` to the context and break the protection
+# contract again. Add it back as a job-level matrix only if you also update
+# branch protection to match.
 name: Tests
 
 on:
@@ -9,18 +17,16 @@ on:
 
 jobs:
   test:
+    name: Lint & Test
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.13"]
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.13"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
