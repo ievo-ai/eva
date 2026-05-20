@@ -1,8 +1,28 @@
 name: Publish Evolution
 
-# Triggered after Eva merges a PR or after a mutation is applied.
-# Uses `eva publish --live` to push to ievo.ai + Telegram.
+# Auto-publish on real merge into main. Replaces the old workflow_dispatch-only
+# design where any caller could dispatch a publish ping — that approach pinged
+# Telegram on PR approve (not merge), and the disable saga PR #23 → PR #24
+# demonstrated that caller-side gates leak through `workflow_run`'s
+# default-branch reload. The runner-side trigger here is the canonical signal:
+# GitHub itself reports the PR closed-and-merged, no caller chain to drift.
+#
+# Scope of the auto path: only PRs merged into `main` of THIS repo (ievo-ai/eva)
+# trigger Telegram. PRs in child repos (ievo-ai/skills, ievo-ai/cortex, etc.)
+# go silent — by design for now; if cross-repo announce is wanted later, build
+# a per-child workflow that calls this one via repository_dispatch + explicit
+# `merged == true` guard at the dispatch source. Don't add caller-side
+# dispatchers back here.
+#
+# The workflow_dispatch path remains for emergency manual publishes. Anyone
+# with workflow-dispatch permission can fire it with explicit inputs — that's
+# intentional break-glass. The job-level `if:` allows it through; the auto
+# path goes through the same job after the `if:` filter.
+
 on:
+  pull_request:
+    types: [closed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       title:
@@ -32,23 +52,19 @@ permissions:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    # Three-part gate:
+    #   1. workflow_dispatch — always allowed (emergency override)
+    #   2. pull_request — only if merged==true (closed-without-merge is silent)
+    #   3. for PR events, skip noise bots — dependabot, github-actions
+    # Anything else (e.g. unmerged close) returns false → no-op.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.merged == true &&
+       github.event.pull_request.user.login != 'dependabot[bot]' &&
+       github.event.pull_request.user.login != 'github-actions[bot]')
 
-    # DISABLED 2026-05-20 — Telegram publish is paused at this choke point so
-    # NO trigger path (workflow_dispatch from anyone, workflow_run, future
-    # workflows) can ping the channel. PR #23 disabled the *caller* side
-    # (eva-review-pr.yml), but workflow_run loads workflows from the default
-    # branch — so the OLD eva-review-pr.yml on `main` still ran on PR #23
-    # itself and fired Telegram 12s after PR #23 merged. Lesson: when killing
-    # a side-effect that runs from automation, kill it at the runner side,
-    # not at the dispatch side.
-    #
-    # When the proper post-merge replacement workflow lands (sketch in
-    # eva-review-pr.yml's commented "Publish evolution" block), flip this
-    # guard to `if: github.event.pull_request.merged == true` (or whatever
-    # condition the replacement triggers on) and the publish path is live
-    # again. The steps below remain intact so flipping is a one-line change.
-    if: false
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Eva
@@ -62,19 +78,119 @@ jobs:
       - name: Install Eva
         run: pip install -e .
 
+      # Pull every input field through env: vars so untrusted strings
+      # (PR title, body, login) never touch the shell directly. The shell
+      # only sees `"$VAR"` references, which are safe regardless of content.
+      - name: Resolve evolution inputs
+        id: inputs
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_REPO: ${{ github.repository }}
+          IN_TITLE: ${{ inputs.title }}
+          IN_TYPE: ${{ inputs.type }}
+          IN_AGENT: ${{ inputs.agent }}
+          IN_TARGET: ${{ inputs.target }}
+          IN_DESC: ${{ inputs.description }}
+          IN_CONFIDENCE: ${{ inputs.confidence }}
+          IN_PR: ${{ inputs.pr_url }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            # Auto path: derive from the merge event. Description is generated
+            # in the next step via Claude haiku (left blank here).
+            {
+              echo "title<<EOF"
+              echo "$PR_TITLE"
+              echo "EOF"
+              echo "type=milestone"
+              echo "agent=eva"
+              echo "target=$PR_REPO"
+              echo "confidence=1.0"
+              echo "pr_url=$PR_URL"
+              echo "needs_description=true"
+            } >> "$GITHUB_OUTPUT"
+          else
+            # Emergency manual path: use inputs verbatim.
+            {
+              echo "title<<EOF"
+              echo "$IN_TITLE"
+              echo "EOF"
+              echo "type=$IN_TYPE"
+              echo "agent=$IN_AGENT"
+              echo "target=$IN_TARGET"
+              echo "description<<EOFDESC"
+              echo "$IN_DESC"
+              echo "EOFDESC"
+              echo "confidence=$IN_CONFIDENCE"
+              echo "pr_url=$IN_PR"
+              echo "needs_description=false"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      # Description generation only runs for the auto (PR merge) path.
+      # Manual dispatch supplies description directly.
+      - name: Setup Node for Claude CLI
+        if: steps.inputs.outputs.needs_description == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Claude Code CLI
+        if: steps.inputs.outputs.needs_description == 'true'
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Generate description via Claude haiku
+        if: steps.inputs.outputs.needs_description == 'true'
+        id: gen
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          PR_TITLE: ${{ steps.inputs.outputs.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          # Clear CLAUDECODE to avoid nested-session issues when the runner
+          # itself was spawned by another Claude action.
+          unset CLAUDECODE
+
+          # Build prompt in a tmp file to avoid shell-quoting on untrusted
+          # strings. `printf %s` is safe — it treats inputs as literals.
+          {
+            printf 'Write a single sentence (max 100 chars) describing this '
+            printf 'merged PR as an evolution mutation. Reply with ONLY the '
+            printf 'sentence, nothing else.\n\nPR title: '
+            printf '%s' "$PR_TITLE"
+            printf '\nPR body excerpt: '
+            printf '%s' "${PR_BODY:0:500}"
+          } > /tmp/desc-prompt.txt
+
+          DESCRIPTION=$(claude -p --model haiku < /tmp/desc-prompt.txt) \
+            || DESCRIPTION="$PR_TITLE"
+
+          # Fallback to title if Claude returned empty.
+          if [ -z "$(echo "$DESCRIPTION" | tr -d '[:space:]')" ]; then
+            DESCRIPTION="$PR_TITLE"
+          fi
+
+          {
+            echo "description<<EOFDESC"
+            echo "$DESCRIPTION"
+            echo "EOFDESC"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Publish evolution
         env:
           EVA_GITHUB_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_COMMUNITY_CHAT: ${{ secrets.TELEGRAM_COMMUNITY_CHAT }}
           TELEGRAM_EVOLUTIONS_TOPIC: ${{ secrets.TELEGRAM_EVOLUTIONS_TOPIC }}
-          EVO_TITLE: ${{ inputs.title }}
-          EVO_TYPE: ${{ inputs.type }}
-          EVO_AGENT: ${{ inputs.agent }}
-          EVO_TARGET: ${{ inputs.target }}
-          EVO_DESC: ${{ inputs.description }}
-          EVO_CONFIDENCE: ${{ inputs.confidence }}
-          EVO_PR: ${{ inputs.pr_url }}
+          EVO_TITLE: ${{ steps.inputs.outputs.title }}
+          EVO_TYPE: ${{ steps.inputs.outputs.type }}
+          EVO_AGENT: ${{ steps.inputs.outputs.agent }}
+          EVO_TARGET: ${{ steps.inputs.outputs.target }}
+          # Pick generated description (auto path) or input description (manual).
+          EVO_DESC: ${{ steps.gen.outputs.description || steps.inputs.outputs.description }}
+          EVO_CONFIDENCE: ${{ steps.inputs.outputs.confidence }}
+          EVO_PR: ${{ steps.inputs.outputs.pr_url }}
         run: |
           eva publish \
             --title "$EVO_TITLE" \
