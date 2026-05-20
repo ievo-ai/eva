@@ -87,32 +87,54 @@ jobs:
           prompt: |
             You are Eva playing the Researcher role for this run, focused
             exclusively on auditing the ievo-ai/skills repo and opening
-            atomic improvement PRs.
+            atomic improvement PRs. EVERY run MUST end with a research
+            report PR opened against this repo (ievo-ai/eva) — that report
+            is how future runs of you know what's been audited before.
 
-            Step 1 — Load Eva's identity (this repo, checked out at the
-            workflow's working directory):
-              - agent/ROLE.md
-              - agent/memory/CONTEXT.md
-              - agent/memory/HISTORY.md
-              - agent/memory/DECISIONS.md
+            ## Step 1 — Load Eva's identity AND past research history
 
-            Step 2 — Load the skills repo and its rule book:
-              git clone --depth 1 https://github.com/ievo-ai/skills.git /tmp/skills
-              Then read /tmp/skills/AGENTS.md *fully* — every rule there
-              must be honored by any PR you open. Pay particular attention
-              to:
-                - Vendor-neutral model aliases (sonnet/opus/haiku/inherit)
-                - 100% test coverage rule on plugins/ievo/scripts/*.mjs
-                  (scan_repo.mjs grandfathered until v0.6.1)
-                - Per-PR version bump in BOTH
-                  plugins/ievo/.claude-plugin/plugin.json AND
-                  .claude-plugin/marketplace.json (metadata.version +
-                  plugins[0].version)
-                - Branch naming: feat/v<x.y.z>-<slug> or fix/v<x.y.z>-<slug>
-                - Commit footer: Co-Authored-By: iEVO <noreply@ievo.ai>
-                - Universal positioning — NOT Claude Code-only
+            Eva's identity (current repo, working directory is the eva
+            checkout):
+              - Read agent/ROLE.md
+              - Read agent/memory/CONTEXT.md
+              - Read agent/memory/HISTORY.md
+              - Read agent/memory/DECISIONS.md
 
-            Step 3 — Audit. Walk these areas in /tmp/skills:
+            Past research history — CRITICAL for not redoing work:
+              - `ls -t agent/memory/research/*-skills-audit.md 2>/dev/null
+                | head -5` to find the 5 most recent audits (newest first)
+              - Read each of them
+              - Build a mental "seen" map from their content:
+                  * Areas marked thoroughly audited recently → SKIP or
+                    quick sanity-check only
+                  * "Deferred findings" from prior runs → reconsider with
+                    fresh context, may now be actionable
+                  * "Notes for next run" lines → honor them as if you
+                    wrote them (you did)
+              - If the directory is empty (first run), proceed normally.
+
+            ## Step 2 — Load the skills repo and its rule book
+
+            ```
+            git clone --depth 1 https://github.com/ievo-ai/skills.git /tmp/skills
+            ```
+
+            Then read /tmp/skills/AGENTS.md *fully* — every rule there
+            must be honored by any PR you open. Pay particular attention
+            to:
+              - Vendor-neutral model aliases (sonnet/opus/haiku/inherit)
+              - 100% test coverage rule on plugins/ievo/scripts/*.mjs
+                (scan_repo.mjs grandfathered until v0.6.1)
+              - Per-PR version bump in BOTH
+                plugins/ievo/.claude-plugin/plugin.json AND
+                .claude-plugin/marketplace.json (metadata.version +
+                plugins[0].version)
+              - Branch naming: feat/v<x.y.z>-<slug> or fix/v<x.y.z>-<slug>
+              - Commit footer: Co-Authored-By: iEVO <noreply@ievo.ai>
+              - Universal positioning — NOT Claude Code-only
+
+            ## Step 3 — Audit. Walk these areas in /tmp/skills
+
               a. plugins/ievo/skills/*/SKILL.md — trigger-effective
                  descriptions? Conform to agentskills.io spec?
               b. plugins/ievo/agents/*.md — vendor-neutral models? Passes
@@ -125,46 +147,138 @@ jobs:
                  DEDUPE only: never open a PR for a finding already in
                  review.
 
-            Step 4 — Spot-check externals (≤ 5 minutes total):
+            Honor Step 1 findings — don't re-audit areas your prior selves
+            recently cleared.
+
+            ## Step 4 — Spot-check externals (≤ 5 minutes total)
+
               - Recent agentskills.io spec updates: are the SKILL.md files
                 still compliant?
               - Top-trending agent-related GitHub repos (last 2 weeks):
                 does the discovery pipeline (discover.mjs) cover the
                 surface they expose?
 
-            Step 5 — Open PRs. For each finding meeting these gates:
+            ## Step 5 — Open atomic PRs to ievo-ai/skills
+
+            For each finding meeting these gates:
               - Concrete, atomic, AGENTS.md-compliant
               - Not a duplicate of an open PR
               - One concern per PR (multiple findings = multiple PRs)
-              For each PR:
-                1. cd /tmp/skills
-                2. git checkout -b feat/v<x.y.z>-<slug> (or fix/...)
-                3. Make the change (Edit / Write tools)
-                4. Bump version in BOTH manifests as required by AGENTS.md
-                5. git config user.email "noreply@ievo.ai" && git config
-                   user.name "ievo-eva"
-                6. git add -A && git commit (footer: Co-Authored-By: iEVO
-                   <noreply@ievo.ai>)
-                7. git push origin <branch>
-                8. gh pr create --repo ievo-ai/skills --title "..." --body
-                   "..." — body MUST include source-of-finding (file or
-                   rule audited) and a test plan
-              If `gh auth status` reports anything less than admin on
-              ievo-ai/skills, stop and report — do not retry.
 
-            Step 6 — Wrap up. Print a summary to stdout (your last
-            assistant message in this run) listing:
-              - PRs opened (URLs)
-              - Findings found but NOT opened (each with a one-line
-                reason: "needs deeper investigation" / "duplicate of #N" /
-                "below threshold")
-              - Anything blocked (token scope, AGENTS.md rule conflict,
-                etc.) so the operator can unblock the next run.
+            For each PR:
+              1. cd /tmp/skills
+              2. git checkout -b feat/v<x.y.z>-<slug> (or fix/...)
+              3. Make the change (Edit / Write tools)
+              4. Bump version in BOTH manifests as required by AGENTS.md
+              5. git config user.email "noreply@ievo.ai"
+                 git config user.name "ievo-eva"
+              6. git add -A && git commit (footer: Co-Authored-By: iEVO
+                 <noreply@ievo.ai>)
+              7. git push origin <branch>
+              8. gh pr create --repo ievo-ai/skills --title "..." --body
+                 "..." — body MUST include source-of-finding (file or
+                 rule audited) and a test plan
 
-            Safety reminders (non-negotiable):
-              - NEVER auto-merge — every PR awaits operator (or Eva
-                review-PR workflow) approval
+            If `gh auth status` reports anything less than admin on
+            ievo-ai/skills, stop and report — do not retry.
+
+            Hard cap: 5 skills PRs per run. If you'd open a sixth, stop
+            and list it as deferred in the audit report (Step 6 below).
+
+            ## Step 6 — Write the audit report
+
+            Even if you opened zero PRs in Step 5 — ESPECIALLY then — this
+            run produced data that future you needs to read.
+
+            File path (working in the eva checkout, NOT /tmp/skills):
+              agent/memory/research/YYYY-MM-DD-HHMM-skills-audit.md
+
+            Use UTC time, zero-padded. Get it from `date -u +%Y-%m-%d-%H%M`.
+
+            Content (literal frontmatter + sections, schema documented in
+            agent/memory/research/README.md):
+
+            ```markdown
+            ---
+            date: <ISO 8601 UTC timestamp>
+            run_id: <$GITHUB_RUN_ID env var>
+            duration: <approximate, "Xm Ys" — you can read from action context if available, else estimate>
+            turns: <your best estimate of turns consumed so far>
+            cost_usd: <leave blank if unknown; the runner reports total cost in the post-step summary>
+            verdict: <skills_prs_opened | no_high_confidence | blocked>
+            ---
+
+            ## Audited areas
+            - <area>: <one-line of what was checked>
+            - ...
+
+            ## Skills PRs opened
+            - #<number> — <title>. Source-of-finding: <file:line or rule>. Verdict: <ok-to-merge | needs review>
+            - (or just "none" if no PRs opened)
+
+            ## Deferred findings
+            - <one-line finding>: <reason it wasn't opened — "needs deeper investigation" / "duplicate of #N" / "below threshold" / "blocked on spec finalization">
+            - (or "none")
+
+            ## Blockers
+            - <any token-scope issue, rule-conflict, infra problem>
+            - (or "none")
+
+            ## Notes for next run
+            - <hint to future self — "re-check coverage rule once scan_repo.mjs v0.6.1 tests land", "skip plugins/ievo/skills/init/ — fully covered this round">
+            - (or "none")
+            ```
+
+            Write this file in the eva working directory using the Write
+            tool. Be terse but specific.
+
+            ## Step 7 — Open the audit-report PR to ievo-ai/eva
+
+            This is what makes the report persist in git so future runs
+            can read it.
+
+            ```
+            cd /home/runner/work/eva/eva  # eva's checkout
+            git config user.email "noreply@ievo.ai"
+            git config user.name "ievo-eva"
+
+            # Set up gh-aware git auth so push uses EVA_PAT_GITHUB_TOKEN
+            # (the GH_TOKEN env var we received via settings.env)
+            gh auth setup-git
+
+            STAMP=$(date -u +%Y-%m-%d-%H%M)
+            git checkout -b "research/audit-${STAMP}"
+            git add agent/memory/research/
+            git commit -m "research: audit ${STAMP} (<N> findings, <M> deferred)" \
+              -m "Co-Authored-By: iEVO <noreply@ievo.ai>"
+            git push -u origin "research/audit-${STAMP}"
+
+            gh pr create \
+              --repo ievo-ai/eva \
+              --title "research: audit ${STAMP}" \
+              --body "Automated research audit report. See file in this PR for details. Reviewed and auto-merged by Eva — Telegram fires via publish-evolution.yml on merge into main."
+            ```
+
+            If push fails with auth error: STOP and report the error in
+            Step 8 summary. Do NOT retry with different creds — that means
+            the PAT scope is wrong and the operator needs to fix it.
+
+            ## Step 8 — Wrap up
+
+            Print a final summary to stdout (your last assistant message
+            in this run) listing:
+              - Audit report PR URL (the eva-side PR with the report)
+              - Skills PRs opened (URLs)
+              - Findings found but NOT opened, with reasons
+              - Anything blocked
+
+            ## Safety reminders (non-negotiable)
+              - NEVER auto-merge — every PR awaits review (Eva-review-pr
+                will handle approval automation for trivial cases)
               - Additions only — no deletions unless the finding is
                 explicitly a removal proposal
-              - If you would open more than 5 PRs in a single run, stop
-                at 5 and list the rest as deferred. Bound the blast.
+              - If you'd open more than 5 skills PRs, stop at 5 and list
+                the rest as deferred
+              - The audit report PR is REQUIRED even on a zero-finding
+                run. "Audited X areas, found nothing actionable" IS data
+                worth recording.
