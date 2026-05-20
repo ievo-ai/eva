@@ -10,6 +10,13 @@ permissions:
   # Claude's research may survey existing PRs / issues for context (not for triggering activity).
   pull-requests: read
   issues: read
+  # Required by anthropics/claude-code-action@v1: the action fetches an OIDC
+  # token (via @actions/core's getIDToken) to identify the workflow run to
+  # Anthropic's API. Without `id-token: write` the runtime cannot mint the
+  # token and the action exits before doing any work. Confirmed empirically
+  # 2026-05-20 — run 26176184473 failed three OIDC retries with
+  # "Unable to get ACTIONS_ID_TOKEN_REQUEST_URL env variable".
+  id-token: write
 
 jobs:
   research:
