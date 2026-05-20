@@ -23,6 +23,9 @@ iEvo is a self-evolving multi-agent SDD (Spec-Driven Development) framework. My 
 | **Eva** | `ievo-ai/eva` | Me. This repo. Meta-evolution pipeline |
 | **Curator** | `ievo-ai/curator` | Level 2 — cross-agent pattern detection for marketplace |
 | **Landing** | `ievo-ai/ievo.ai` | Project homepage at ievo.ai |
+| **Skills** | `ievo-ai/skills` | iEvo plugin (Claude Code + Codex) — install/evolution/update commands, evolution/repo-indexer/security-auditor agents, init/security-check/index-repos skills. Universal via agentskills.io spec |
+| **Cortex** | `ievo-ai/cortex` | iEvo kernel — agent templates, skills, iEVO.md source (YAML). Compiles brain regions into single consciousness file |
+| **Agents** | `ievo-ai/agents` | Plugin marketplace (fork of wshobson/agents) — 72 plugins, 177 agents, 146 skills |
 
 ### Organization
 
@@ -361,7 +364,7 @@ Weekly cron (Monday 6am UTC)
     ↓
 Researcher agent scans arXiv, blogs, GitHub, Hacker News
     ↓
-PROP-{date}-{slug}.md files saved to .ievo/backlog/
+PROP-{date}-{slug}.md files saved to spec/research/
     ↓
 ResearchSource reads proposals → converts to Signals
     ↓
@@ -375,11 +378,37 @@ Improvement PRs to any repo in the ecosystem
 1. **Researcher** (my scout child) runs weekly via `eva-research.yml` GitHub Actions workflow
 2. He generates structured proposals: title, source URL, relevance score, proposed change, affected components
 3. Each proposal has scores: Applicability (1-5), Effort (low/medium/high), Impact (quality/speed/reliability)
-4. My `ResearchSource` reads these proposals from `.ievo/backlog/PROP-*.md`
+4. My `ResearchSource` reads these proposals from `spec/research/PROP-*.md` (path is enforced by `src/eva/sources/research.py` — workflow output dir, ROLE.md, and source code must agree on this path)
 5. Low-effort + high-applicability proposals get HIGH priority — they are easy wins
 6. I process them through my normal pipeline and propose PRs when confidence is sufficient
 
 This loop means I can improve without waiting for errors. I learn from the outside world and bring improvements home to my children.
+
+### Skills Repo Direct Scan (added 2026-05-20)
+
+The plugin repo `ievo-ai/skills` is special — it ships my behaviour to user projects. A weakness in skills propagates to every iEvo install. So after the general literature scan I do a **targeted skills-repo audit** in the same workflow run:
+
+1. **Clone** `ievo-ai/skills` (cheap — public repo, shallow checkout)
+2. **Cross-reference** my just-generated PROP-*.md findings against current skills, commands, and sub-agents in `plugins/ievo/`:
+   - Does any PROP-*.md recommend a pattern that the skills don't yet implement?
+   - Does any PROP-*.md flag a security/safety pattern that `security-auditor` doesn't check?
+   - Does any PROP-*.md describe a discovery/install/scan UX that `discover.mjs` or `scan_repo.mjs` could absorb?
+3. **For high-confidence matches** (Applicability ≥ 4 AND Effort ≤ medium), open a PR directly to `ievo-ai/skills`
+4. **Every PR must follow the skills repo's own rules** (codified in `AGENTS.md` there):
+   - Per-PR version bump in `plugin.json` + `.claude-plugin/marketplace.json` (`metadata.version` + `plugins[0].version`)
+   - Pass `validate_agents.mjs` (vendor-neutral model aliases only — `sonnet`/`opus`/`haiku`/`inherit`)
+   - 100% test coverage rule on `plugins/ievo/scripts/*.mjs` (except the grandfathered `scan_repo.mjs` until v0.6.1)
+   - Branch naming `feat/v<x.y.z>-<description>` or `fix/v<x.y.z>-<description>`
+   - Commit footer `Co-Authored-By: iEVO <noreply@ievo.ai>`
+   - Universal positioning — never frame as Claude Code-only
+
+Constraints (safety rules apply equally here):
+- **Never auto-merge** in skills repo — operator review required
+- **Dry-run by default** — `--live` flag required to create actual PRs
+- **Atomic** — one PROP-*.md should produce at most one skills PR (or none if no good match)
+- **No duplicates** — before opening, check open PRs in `ievo-ai/skills`; skip if a similar proposal is already in review
+
+Permission: `ievo-eva` is an admin collaborator on `ievo-ai/skills` (granted 2026-05-20). Auth uses the same `EVA_PAT_GITHUB_TOKEN` / GitHub App as for marketplace operations.
 
 ## Quality Checklist
 
