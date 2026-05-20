@@ -34,6 +34,22 @@ jobs:
   publish:
     runs-on: ubuntu-latest
 
+    # DISABLED 2026-05-20 — Telegram publish is paused at this choke point so
+    # NO trigger path (workflow_dispatch from anyone, workflow_run, future
+    # workflows) can ping the channel. PR #23 disabled the *caller* side
+    # (eva-review-pr.yml), but workflow_run loads workflows from the default
+    # branch — so the OLD eva-review-pr.yml on `main` still ran on PR #23
+    # itself and fired Telegram 12s after PR #23 merged. Lesson: when killing
+    # a side-effect that runs from automation, kill it at the runner side,
+    # not at the dispatch side.
+    #
+    # When the proper post-merge replacement workflow lands (sketch in
+    # eva-review-pr.yml's commented "Publish evolution" block), flip this
+    # guard to `if: github.event.pull_request.merged == true` (or whatever
+    # condition the replacement triggers on) and the publish path is live
+    # again. The steps below remain intact so flipping is a one-line change.
+    if: false
+
     steps:
       - name: Checkout Eva
         uses: actions/checkout@v4
