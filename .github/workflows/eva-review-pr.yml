@@ -239,33 +239,55 @@ jobs:
           gh pr merge "$PR_NUM" --repo "$REPO" --auto --squash \
             || echo "Auto-merge not available — branch protection may require additional checks"
 
-      # --- Publish evolution after merge ---
-      - name: Publish evolution
-        if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large != 'true' && steps.review.outputs.decision == 'APPROVE'
-        env:
-          GH_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          REPO: ${{ steps.ctx.outputs.repo }}
-          PR_NUM: ${{ steps.ctx.outputs.pr_number }}
-          REVIEW_COMMENT: ${{ steps.review.outputs.comment }}
-        run: |
-          # Get PR title for the evolution entry
-          PR_TITLE=$(gh api "repos/$REPO/pulls/$PR_NUM" --jq '.title')
-          PR_URL="https://github.com/$REPO/pull/$PR_NUM"
-
-          # Generate mutation description via Claude CLI
-          unset CLAUDECODE
-          DESCRIPTION=$(echo "Write a single sentence (max 100 chars) describing this merged PR as an evolution mutation. PR: $PR_TITLE. Review: $REVIEW_COMMENT. Reply with ONLY the sentence, nothing else." \
-            | claude -p --model haiku) || DESCRIPTION="$PR_TITLE"
-
-          # Trigger publish-evolution workflow
-          gh workflow run publish-evolution.yml \
-            --repo ievo-ai/eva \
-            -f "title=$PR_TITLE" \
-            -f "agent=eva" \
-            -f "type=milestone" \
-            -f "target=$REPO" \
-            -f "description=$DESCRIPTION" \
-            -f "confidence=1.0" \
-            -f "pr_url=$PR_URL" \
-          || echo "Evolution publish dispatch failed — non-blocking"
+      # --- Publish evolution (DISABLED 2026-05-20) ---
+      #
+      # Disabled by operator request. The step previously dispatched
+      # publish-evolution.yml (→ Telegram) immediately after Eva's APPROVE,
+      # NOT after the PR was actually merged into main. With Eva about to
+      # start opening PRs across multiple repos (self-evolution daily cron,
+      # task #35 in godfather), the channel would flood on every approval.
+      #
+      # CORRECT FUTURE BEHAVIOR: Telegram fires only when a PR is actually
+      # merged into the main branch. Implementation sketch (separate task):
+      #
+      #   New workflow `publish-on-merge.yml`:
+      #     on:
+      #       pull_request:
+      #         types: [closed]
+      #         branches: [main]
+      #     jobs:
+      #       publish:
+      #         if: github.event.pull_request.merged == true
+      #         runs-on: ubuntu-latest
+      #         steps:
+      #           - name: Trigger publish-evolution
+      #             run: gh workflow run publish-evolution.yml ...
+      #
+      # Until that lands, leave this block commented. Do NOT delete — the
+      # structure documents the env wiring and shell commands the replacement
+      # workflow will need.
+      #
+      # - name: Publish evolution
+      #   if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large != 'true' && steps.review.outputs.decision == 'APPROVE'
+      #   env:
+      #     GH_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+      #     CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      #     REPO: ${{ steps.ctx.outputs.repo }}
+      #     PR_NUM: ${{ steps.ctx.outputs.pr_number }}
+      #     REVIEW_COMMENT: ${{ steps.review.outputs.comment }}
+      #   run: |
+      #     PR_TITLE=$(gh api "repos/$REPO/pulls/$PR_NUM" --jq '.title')
+      #     PR_URL="https://github.com/$REPO/pull/$PR_NUM"
+      #     unset CLAUDECODE
+      #     DESCRIPTION=$(echo "Write a single sentence (max 100 chars) describing this merged PR as an evolution mutation. PR: $PR_TITLE. Review: $REVIEW_COMMENT. Reply with ONLY the sentence, nothing else." \
+      #       | claude -p --model haiku) || DESCRIPTION="$PR_TITLE"
+      #     gh workflow run publish-evolution.yml \
+      #       --repo ievo-ai/eva \
+      #       -f "title=$PR_TITLE" \
+      #       -f "agent=eva" \
+      #       -f "type=milestone" \
+      #       -f "target=$REPO" \
+      #       -f "description=$DESCRIPTION" \
+      #       -f "confidence=1.0" \
+      #       -f "pr_url=$PR_URL" \
+      #     || echo "Evolution publish dispatch failed — non-blocking"
