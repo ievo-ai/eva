@@ -64,6 +64,15 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Surface Claude's per-turn output in the workflow log. Default
+          # is `false` (action prints "Running Claude Code via SDK (full
+          # output hidden for security)") which makes debugging impossible
+          # — run 26177773647 spent 65 turns / 7m / $2.34 producing zero
+          # PRs and we had no idea what Claude was actually doing.
+          # Hidden-by-default makes sense in a PR-comment context where
+          # Claude's drafts leak into a public PR thread; in a scheduled
+          # background workflow, full output is exactly what we need.
+          show_full_output: true
           claude_args: |
             --model sonnet
             --max-turns 40
