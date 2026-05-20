@@ -1,5 +1,21 @@
 name: Eva Research
 
+# Skills-only Researcher MVP (godfather task #39, Variant 1).
+#
+# Eva audits ievo-ai/skills end-to-end and opens atomic improvement PRs
+# there. The general ecosystem-wide literature scan (arXiv / Anthropic
+# blogs / HN) is deliberately OUT OF SCOPE for this workflow — it will
+# land as a separate, broader workflow once this skills loop is proven.
+# Keeping the loop tight makes failures diagnosable and the cost bounded.
+#
+# What this workflow does NOT do:
+#   - No general-purpose literature scan
+#   - No PROP-*.md file generation
+#   - No `eva scan` pipeline invocation (the previous `--include-research`
+#     flag never existed in the eva CLI — removed)
+#   - No upload-artifact (nothing to upload)
+#   - No cross-repo PR open beyond ievo-ai/skills
+
 on:
   schedule:
     - cron: '0 6 * * 1'  # Weekly, Monday 6am UTC
@@ -7,15 +23,12 @@ on:
 
 permissions:
   contents: read
-  # Claude's research may survey existing PRs / issues for context (not for triggering activity).
   pull-requests: read
   issues: read
-  # Required by anthropics/claude-code-action@v1: the action fetches an OIDC
-  # token (via @actions/core's getIDToken) to identify the workflow run to
-  # Anthropic's API. Without `id-token: write` the runtime cannot mint the
-  # token and the action exits before doing any work. Confirmed empirically
-  # 2026-05-20 — run 26176184473 failed three OIDC retries with
-  # "Unable to get ACTIONS_ID_TOKEN_REQUEST_URL env variable".
+  # Required by anthropics/claude-code-action@v1: the action fetches an
+  # OIDC token (via @actions/core's getIDToken) to identify the workflow
+  # run to Anthropic's API. Without `id-token: write` the runtime cannot
+  # mint the token and the action fails before doing any work.
   id-token: write
 
 jobs:
@@ -25,108 +38,124 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-
-      - name: Install Eva
-        run: pip install -e ".[dev]"
-
-      # Run Researcher via the official Claude Code GitHub Action (v1 — floating
-      # major, currently resolves to v1.0.127 released 2026-05-19). Replaces the
-      # previous `claude -p ...` invocation which failed since March 2026 with
-      # "claude: command not found" because the runner doesn't have the CLI
-      # installed and no Install step existed. Using the action also handles
-      # authentication via CLAUDE_CODE_OAUTH_TOKEN (org-level secret) — no need
-      # for ANTHROPIC_API_KEY directly.
+      # Direct skills-repo audit + PR opening.
       #
-      # SECURITY NOTE: the prompt below is hardcoded literal text (no untrusted
-      # github.event.* inputs interpolated). The only `${{ ... }}` is the
-      # CLAUDE_CODE_OAUTH_TOKEN secret, which is the action's documented input
-      # mechanism and not user-controlled.
-      - name: Run Researcher agent
+      # Tool surface (via `claude_args --allowedTools`):
+      #   Bash    — required for git clone/commit/push and gh pr create
+      #   Edit    — modify existing files in /tmp/skills checkout
+      #   Read    — read files for audit
+      #   Write   — create new files (e.g. new skill, new test fixture)
+      #   Glob    — find files by pattern
+      #   Grep    — search file contents
+      #   WebFetch / WebSearch — cross-reference against external sources
+      #     (agentskills.io spec updates, Anthropic docs, trending repos)
+      #
+      # Tokens (via `settings.env`):
+      #   GH_TOKEN / EVA_PAT_GITHUB_TOKEN — `gh` auth, both repos. ievo-eva
+      #     is an admin collaborator on ievo-ai/skills as of 2026-05-20.
+      #   `claude_env` is NOT a valid input on this action — confirmed via
+      #     run 26176453911 warning. `settings.env` is the documented path.
+      #
+      # Model / turns: sonnet + 40 turns. Audit + PR opening for 3-5
+      # findings fits comfortably; raise via workflow_dispatch override if
+      # the audit consistently runs out of budget. Opus override possible
+      # by editing this line — costlier, not necessary at this stage.
+      - name: Run Researcher agent (skills audit)
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          # Expose the EVA PAT to Claude's Bash subprocesses so `gh` calls
-          # work for both eva (source) and skills (target) repos. ievo-eva is
-          # an admin collaborator on both as of 2026-05-20. `claude_env` is
-          # the documented mechanism per anthropics/claude-code-action@v1 to
-          # surface env vars to the embedded Claude session; passing it via
-          # the step-level `env:` block does NOT reach Claude's tool runtime.
-          claude_env: |
-            GH_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
-            EVA_PAT_GITHUB_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+          claude_args: |
+            --model sonnet
+            --max-turns 40
+            --allowedTools "Bash,Edit,Read,Write,Glob,Grep,WebFetch,WebSearch"
+          settings: |
+            {
+              "env": {
+                "GH_TOKEN": "${{ secrets.EVA_PAT_GITHUB_TOKEN }}",
+                "EVA_PAT_GITHUB_TOKEN": "${{ secrets.EVA_PAT_GITHUB_TOKEN }}"
+              }
+            }
           prompt: |
-            You are Eva playing the Researcher role for this run.
+            You are Eva playing the Researcher role for this run, focused
+            exclusively on auditing the ievo-ai/skills repo and opening
+            atomic improvement PRs.
 
-            Step 1 — Load context. Read these files in order:
-              - agent/ROLE.md (Eva's identity, monitored repos, research loop, safety rules)
-              - agent/memory/CONTEXT.md (current project state)
-              - agent/memory/HISTORY.md (recent sessions)
-              - agent/memory/VOCABULARY.md (domain terms)
-              - agent/memory/DECISIONS.md (past decisions)
+            Step 1 — Load Eva's identity (this repo, checked out at the
+            workflow's working directory):
+              - agent/ROLE.md
+              - agent/memory/CONTEXT.md
+              - agent/memory/HISTORY.md
+              - agent/memory/DECISIONS.md
 
-            (Note: a dedicated agents/researcher/ROLE.md is planned but not
-            yet created. Until it exists, Eva's monolithic ROLE.md plus this
-            prompt define the Researcher persona for the run.)
+            Step 2 — Load the skills repo and its rule book:
+              git clone --depth 1 https://github.com/ievo-ai/skills.git /tmp/skills
+              Then read /tmp/skills/AGENTS.md *fully* — every rule there
+              must be honored by any PR you open. Pay particular attention
+              to:
+                - Vendor-neutral model aliases (sonnet/opus/haiku/inherit)
+                - 100% test coverage rule on plugins/ievo/scripts/*.mjs
+                  (scan_repo.mjs grandfathered until v0.6.1)
+                - Per-PR version bump in BOTH
+                  plugins/ievo/.claude-plugin/plugin.json AND
+                  .claude-plugin/marketplace.json (metadata.version +
+                  plugins[0].version)
+                - Branch naming: feat/v<x.y.z>-<slug> or fix/v<x.y.z>-<slug>
+                - Commit footer: Co-Authored-By: iEVO <noreply@ievo.ai>
+                - Universal positioning — NOT Claude Code-only
 
-            Step 2 — General research scan. From the last 2 weeks, scan:
-              - arXiv papers on agent architectures, SDD, multi-agent systems
-              - Anthropic / OpenAI / Google official blogs and docs
-              - GitHub repos trending in AI-agent space
-              - Hacker News top stories on related topics
-            Save each finding as `spec/research/PROP-{date}-{slug}.md` with the
-            structured frontmatter Eva's ResearchSource expects: title, source
-            URL, applicability (1-5), effort (low/medium/high), impact bucket,
-            affected components.
+            Step 3 — Audit. Walk these areas in /tmp/skills:
+              a. plugins/ievo/skills/*/SKILL.md — trigger-effective
+                 descriptions? Conform to agentskills.io spec?
+              b. plugins/ievo/agents/*.md — vendor-neutral models? Passes
+                 validate_agents.mjs?
+              c. plugins/ievo/scripts/*.mjs — 100% test coverage rule
+                 satisfied? Any new scripts since v0.6.0 without tests?
+              d. plugin.json + marketplace.json — version drift?
+              e. README.md + AGENTS.md — universal positioning consistent?
+              f. `gh pr list --repo ievo-ai/skills --state open` — for
+                 DEDUPE only: never open a PR for a finding already in
+                 review.
 
-            Step 3 — Skills repo direct scan. After the general scan, perform
-            the targeted audit described in ROLE.md → "Skills Repo Direct
-            Scan":
-              - Shallow-clone ievo-ai/skills via `git clone --depth 1`
-              - Cross-reference your PROP-*.md findings against current state
-                of plugins/ievo/ (skills, commands, agents, scripts)
-              - For each high-confidence match (Applicability ≥ 4 AND
-                Effort ≤ medium), open ONE atomic PR to ievo-ai/skills.
-              - Every PR MUST follow the skills repo's own rules — read
-                AGENTS.md at the root of ievo-ai/skills first and honor every
-                rule it states (per-PR version bump, vendor-neutral model
-                aliases, 100% coverage rule, branch naming, commit footer
-                "Co-Authored-By: iEVO <noreply@ievo.ai>").
-              - Before opening any PR, list open PRs in ievo-ai/skills via
-                `gh pr list --repo ievo-ai/skills --state open` and skip if a
-                similar proposal is already in review. Avoid duplicates.
-              - Use `gh auth status` to confirm the token's scope on
-                ievo-ai/skills is admin before any push.
+            Step 4 — Spot-check externals (≤ 5 minutes total):
+              - Recent agentskills.io spec updates: are the SKILL.md files
+                still compliant?
+              - Top-trending agent-related GitHub repos (last 2 weeks):
+                does the discovery pipeline (discover.mjs) cover the
+                surface they expose?
 
-            Step 4 — Wrap up. Print a short summary listing:
-              - PROP-*.md files generated (count + titles)
-              - Skills repo PRs opened (URLs or "none — no high-confidence
-                matches")
-              - Anything blocked (e.g. AGENTS.md rule conflict, token scope
-                issue) so the operator can unblock next run.
+            Step 5 — Open PRs. For each finding meeting these gates:
+              - Concrete, atomic, AGENTS.md-compliant
+              - Not a duplicate of an open PR
+              - One concern per PR (multiple findings = multiple PRs)
+              For each PR:
+                1. cd /tmp/skills
+                2. git checkout -b feat/v<x.y.z>-<slug> (or fix/...)
+                3. Make the change (Edit / Write tools)
+                4. Bump version in BOTH manifests as required by AGENTS.md
+                5. git config user.email "noreply@ievo.ai" && git config
+                   user.name "ievo-eva"
+                6. git add -A && git commit (footer: Co-Authored-By: iEVO
+                   <noreply@ievo.ai>)
+                7. git push origin <branch>
+                8. gh pr create --repo ievo-ai/skills --title "..." --body
+                   "..." — body MUST include source-of-finding (file or
+                   rule audited) and a test plan
+              If `gh auth status` reports anything less than admin on
+              ievo-ai/skills, stop and report — do not retry.
 
-            Safety reminders (from ROLE.md, restated for this prompt):
-              - NEVER auto-merge in skills repo
-              - Dry-run defaults; only push real PRs if the run was invoked
-                with `workflow_dispatch` confirming live mode (default for
-                weekly cron) — log the intent before pushing
-              - Atomic PRs only — one concern per PR
-              - No deletion — only additions, unless the PROP itself is
+            Step 6 — Wrap up. Print a summary to stdout (your last
+            assistant message in this run) listing:
+              - PRs opened (URLs)
+              - Findings found but NOT opened (each with a one-line
+                reason: "needs deeper investigation" / "duplicate of #N" /
+                "below threshold")
+              - Anything blocked (token scope, AGENTS.md rule conflict,
+                etc.) so the operator can unblock the next run.
+
+            Safety reminders (non-negotiable):
+              - NEVER auto-merge — every PR awaits operator (or Eva
+                review-PR workflow) approval
+              - Additions only — no deletions unless the finding is
                 explicitly a removal proposal
-
-      - name: Run Eva scan with research
-        env:
-          EVA_PAT_GITHUB_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
-        run: |
-          eva scan --include-research spec/research/
-
-      - name: Upload proposals
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: research-proposals
-          path: spec/research/PROP-*.md
-          if-no-files-found: ignore
+              - If you would open more than 5 PRs in a single run, stop
+                at 5 and list the rest as deferred. Bound the blast.
