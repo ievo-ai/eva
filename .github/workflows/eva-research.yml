@@ -7,6 +7,9 @@ on:
 
 permissions:
   contents: read
+  # Claude's research may survey existing PRs / issues for context (not for triggering activity).
+  pull-requests: read
+  issues: read
 
 jobs:
   research:
@@ -23,15 +26,28 @@ jobs:
       - name: Install Eva
         run: pip install -e ".[dev]"
 
+      # Run Researcher via the official Claude Code GitHub Action (v1 — floating
+      # major, currently resolves to v1.0.127 released 2026-05-19). Replaces the
+      # previous `claude -p ...` invocation which failed since March 2026 with
+      # "claude: command not found" because the runner doesn't have the CLI
+      # installed and no Install step existed. Using the action also handles
+      # authentication via CLAUDE_CODE_OAUTH_TOKEN (org-level secret) — no need
+      # for ANTHROPIC_API_KEY directly.
+      #
+      # SECURITY NOTE: the prompt below is hardcoded literal text (no untrusted
+      # github.event.* inputs interpolated). The only `${{ ... }}` is the
+      # CLAUDE_CODE_OAUTH_TOKEN secret, which is the action's documented input
+      # mechanism and not user-controlled.
       - name: Run Researcher agent
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: |
-          claude -p "Read agents/researcher/ROLE.md. You are the Researcher agent.
-          Load your memory files first.
-          Scan recent AI/SDD papers, blogs, and GitHub repos from the last 2 weeks.
-          Generate improvement proposals for the iEvo system.
-          Save findings to spec/research/ as PROP-*.md files."
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Read agents/researcher/ROLE.md. You are the Researcher agent.
+            Load your memory files first.
+            Scan recent AI/SDD papers, blogs, and GitHub repos from the last 2 weeks.
+            Generate improvement proposals for the iEvo system.
+            Save findings to spec/research/ as PROP-*.md files.
 
       - name: Run Eva scan with research
         env:
