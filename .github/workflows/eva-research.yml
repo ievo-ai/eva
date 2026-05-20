@@ -42,12 +42,73 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Expose the EVA PAT to Claude's Bash subprocesses so `gh` calls
+          # work for both eva (source) and skills (target) repos. ievo-eva is
+          # an admin collaborator on both as of 2026-05-20. `claude_env` is
+          # the documented mechanism per anthropics/claude-code-action@v1 to
+          # surface env vars to the embedded Claude session; passing it via
+          # the step-level `env:` block does NOT reach Claude's tool runtime.
+          claude_env: |
+            GH_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+            EVA_PAT_GITHUB_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
           prompt: |
-            Read agents/researcher/ROLE.md. You are the Researcher agent.
-            Load your memory files first.
-            Scan recent AI/SDD papers, blogs, and GitHub repos from the last 2 weeks.
-            Generate improvement proposals for the iEvo system.
-            Save findings to spec/research/ as PROP-*.md files.
+            You are Eva playing the Researcher role for this run.
+
+            Step 1 — Load context. Read these files in order:
+              - agent/ROLE.md (Eva's identity, monitored repos, research loop, safety rules)
+              - agent/memory/CONTEXT.md (current project state)
+              - agent/memory/HISTORY.md (recent sessions)
+              - agent/memory/VOCABULARY.md (domain terms)
+              - agent/memory/DECISIONS.md (past decisions)
+
+            (Note: a dedicated agents/researcher/ROLE.md is planned but not
+            yet created. Until it exists, Eva's monolithic ROLE.md plus this
+            prompt define the Researcher persona for the run.)
+
+            Step 2 — General research scan. From the last 2 weeks, scan:
+              - arXiv papers on agent architectures, SDD, multi-agent systems
+              - Anthropic / OpenAI / Google official blogs and docs
+              - GitHub repos trending in AI-agent space
+              - Hacker News top stories on related topics
+            Save each finding as `spec/research/PROP-{date}-{slug}.md` with the
+            structured frontmatter Eva's ResearchSource expects: title, source
+            URL, applicability (1-5), effort (low/medium/high), impact bucket,
+            affected components.
+
+            Step 3 — Skills repo direct scan. After the general scan, perform
+            the targeted audit described in ROLE.md → "Skills Repo Direct
+            Scan":
+              - Shallow-clone ievo-ai/skills via `git clone --depth 1`
+              - Cross-reference your PROP-*.md findings against current state
+                of plugins/ievo/ (skills, commands, agents, scripts)
+              - For each high-confidence match (Applicability ≥ 4 AND
+                Effort ≤ medium), open ONE atomic PR to ievo-ai/skills.
+              - Every PR MUST follow the skills repo's own rules — read
+                AGENTS.md at the root of ievo-ai/skills first and honor every
+                rule it states (per-PR version bump, vendor-neutral model
+                aliases, 100% coverage rule, branch naming, commit footer
+                "Co-Authored-By: iEVO <noreply@ievo.ai>").
+              - Before opening any PR, list open PRs in ievo-ai/skills via
+                `gh pr list --repo ievo-ai/skills --state open` and skip if a
+                similar proposal is already in review. Avoid duplicates.
+              - Use `gh auth status` to confirm the token's scope on
+                ievo-ai/skills is admin before any push.
+
+            Step 4 — Wrap up. Print a short summary listing:
+              - PROP-*.md files generated (count + titles)
+              - Skills repo PRs opened (URLs or "none — no high-confidence
+                matches")
+              - Anything blocked (e.g. AGENTS.md rule conflict, token scope
+                issue) so the operator can unblock next run.
+
+            Safety reminders (from ROLE.md, restated for this prompt):
+              - NEVER auto-merge in skills repo
+              - Dry-run defaults; only push real PRs if the run was invoked
+                with `workflow_dispatch` confirming live mode (default for
+                weekly cron) — log the intent before pushing
+              - Atomic PRs only — one concern per PR
+              - No deletion — only additions, unless the PROP itself is
+                explicitly a removal proposal
 
       - name: Run Eva scan with research
         env:
