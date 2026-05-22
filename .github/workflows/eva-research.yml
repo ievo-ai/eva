@@ -110,7 +110,7 @@ jobs:
               - Read agent/memory/DECISIONS.md
 
             Past research history — CRITICAL for not redoing work:
-              - `ls -t agent/memory/research/*-skills-audit.md 2>/dev/null
+              - `ls -t researches/*-skills-audit.md 2>/dev/null
                 | head -5` to find the 5 most recent audits (newest first)
               - Read each of them
               - Build a mental "seen" map from their content:
@@ -127,6 +127,14 @@ jobs:
                 --label eva-proposal --json number,title`
               - Build a "proposed already" set. When you do feature
                 discovery later, SKIP proposals already in this set.
+
+            Sources index — for diff-based scanning later (Step 4):
+              - Read `researches/sources-index.md` (entire file)
+              - Build a "last seen" map: per URL note last_scan
+                timestamp, status, and the most recent summary
+              - You will use this in Step 4 to decide which URLs need a
+                deep summary (`status: changed`) vs a brief note
+                (`status: unchanged`)
 
             ## Step 2 — Load the skills repo and its rule book
 
@@ -172,56 +180,46 @@ jobs:
             proposals — you can't propose a new capability if you don't
             see what the rest of the world has shipped.
 
-            WebFetch each source below. For each: what's new in the last
-            14 days, focus on changes that would affect a Claude/Codex/
-            Gemini-host agent-skill repo. Pull the page, scan headlines/
-            release notes, summarize in 1-3 lines max per source. Skip
-            anything irrelevant to iEvo (e.g. enterprise pricing news).
+            **The canonical source list lives in `researches/sources-index.md`**
+            (you loaded it in Step 1). Iterate over every URL listed
+            there. The bootstrap list below is what the file initially
+            contains; if it has been amended over time, scan the file's
+            actual list, not this prompt's bullet list.
 
-            ### OFFICIAL — highest signal
-              - https://www.anthropic.com/news — Claude / Claude Code /
-                Anthropic announcements
-              - https://github.com/anthropics/claude-code/releases — CLI
-                releases (we depend on this)
-              - https://github.com/anthropics/claude-code-action/releases
-                — the GHA action we run on (breaking-change risk)
-              - https://docs.anthropic.com/en/docs/claude-code/overview
-                — Claude Code docs (look for new features / new tools)
-              - https://openai.com/index/news/ — OpenAI / Codex
-              - https://github.com/openai/codex/releases — Codex CLI
-                releases
-              - https://blog.google/technology/google-deepmind/ — Gemini
-                / Antigravity / Google AI
-              - https://agentskills.io/specification — the standard our
-                skills conform to (spec changes = compliance updates
-                needed)
-              - https://github.com/agentskills/agentskills — reference
-                implementation + tooling (skills-ref CLI updates etc.)
+            For each URL:
+              1. WebFetch the URL
+              2. Skim for what's new in the last 14 days (focus on
+                 changes affecting a Claude/Codex/Gemini-host agent-skill
+                 repo). Ignore enterprise pricing, marketing, etc.
+              3. Compare to the prior `**Summary:**` in the index for
+                 this URL — is this a real change or substantively the
+                 same content?
+              4. Use the `Edit` tool to update ONLY this URL's section in
+                 `researches/sources-index.md`:
+                 - Replace the yaml block atop the section with new
+                   `last_scan`, `status` (`changed` / `unchanged` /
+                   `error`), `run_id: $GITHUB_RUN_ID`
+                 - Replace the `**Summary:**` line with the fresh
+                   summary (or "unchanged from previous" if no change)
+                 - PREPEND a new bullet to `History:` — format
+                   `- <ISO 8601 timestamp> — <status>: <one-line note>`
+                 - DO NOT touch other URL sections in the file
+              5. If the URL is not yet in the index → add a new section
+                 at the bottom following the file's format
+              6. If WebFetch fails (404 / rate-limit / timeout) → set
+                 `status: error`, record the error briefly in History,
+                 continue to the next URL
 
-            ### COMMUNITY — lower signal, higher inspiration
-              - https://www.cursor.com/changelog — Cursor patterns that
-                often anticipate Claude Code direction
-              - https://news.ycombinator.com (WebSearch "claude code"
-                "codex" "agent skills" past 7 days)
-              - GitHub trending: WebSearch
-                `github.com trending claude-code-action agentskills`
-                limited to last 7 days
+            Quality over quantity: a well-digested signal from one
+            source beats a URL dump from ten. URLs marked `unchanged`
+            since last scan can be noted briefly without deep re-summary.
 
-            Time/turn budget: aim for ~15-20 turns total on this step.
-            Quality of summaries matters more than quantity of sources —
-            three well-digested signals beat ten URL dumps.
-
-            Write the scan into a section that the Step 6 report
-            includes verbatim:
-
-            ## Sources scanned (Step 4)
-            - <source URL>: <one-line summary of what's new and why it
-              matters to skills>
-            - <source URL>: ...
-
-            If a source returned 404 or was rate-limited, note it as
-            "(unavailable)" rather than dropping the line — operator
-            wants to see what was attempted.
+            The audit report (Step 6) gets a summary of this scan —
+            don't enumerate every URL verbatim there; the canonical
+            per-URL state lives in `researches/sources-index.md`. The
+            report should highlight what's NEW (status: changed entries
+            from this run) and refer the reader to the index for the
+            full state.
 
             ## Step 4b — Feature gap discovery (new capabilities)
 
@@ -332,12 +330,12 @@ jobs:
             run produced data that future you needs to read.
 
             File path (working in the eva checkout, NOT /tmp/skills):
-              agent/memory/research/YYYY-MM-DD-HHMM-skills-audit.md
+              researches/YYYY-MM-DD-HHMM-skills-audit.md
 
             Use UTC time, zero-padded. Get it from `date -u +%Y-%m-%d-%H%M`.
 
             Content (literal frontmatter + sections, schema documented in
-            agent/memory/research/README.md):
+            researches/README.md):
 
             ```markdown
             ---
@@ -354,8 +352,13 @@ jobs:
             - ...
 
             ## Sources scanned (from Step 4)
+            Scanned <N> URLs (full state: `researches/sources-index.md`).
+            Changes detected:
             - <URL>: <one-line of what's new and why it matters>
             - ...
+            Errors:
+            - <URL>: <one-line error note>
+            - (or "none")
 
             ## Skills PRs opened
             - skills#<number> — <title>. Source-of-finding: <file:line or rule>. Verdict: <ok-to-merge | needs review>
@@ -397,7 +400,7 @@ jobs:
 
             STAMP=$(date -u +%Y-%m-%d-%H%M)
             git checkout -b "research/audit-${STAMP}"
-            git add agent/memory/research/
+            git add researches/
             git commit -m "research: audit ${STAMP} (<N> findings, <M> deferred)" \
               -m "Co-Authored-By: iEVO <noreply@ievo.ai>"
             git push -u origin "research/audit-${STAMP}"
