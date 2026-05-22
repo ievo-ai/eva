@@ -38,11 +38,12 @@ Each file is YAML-frontmatter + Markdown. Frontmatter keys:
 | `duration` | string | Wall-clock, e.g. `7m44s` |
 | `turns` | int | Claude turns consumed |
 | `cost_usd` | float | Run cost from Claude SDK report |
-| `verdict` | enum | `skills_prs_opened` / `no_high_confidence` / `blocked` |
+| `verdict` | enum | `skills_prs_opened` / `feature_proposals_opened` / `both` / `no_high_confidence` / `blocked` |
 
 Body sections (each optional, omit if empty):
 - `## Audited areas`
-- `## Skills PRs opened`
+- `## Skills PRs opened` — atomic fix PRs to existing functionality
+- `## Feature proposals opened` — new-capability `eva-proposal` issues
 - `## Deferred findings`
 - `## Blockers`
 - `## Notes for next run`
