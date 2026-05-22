@@ -40,7 +40,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-    # Loop prevention + only successful PR test runs
+    # SECURITY: trust filter + loop prevention.
+    #
+    # 2026-05-22 hot-fix (godfather task #41 Vector A): block external /
+    # fork PRs from triggering Eva's auto-review path. Previously, ANY
+    # GitHub user could fork ievo-ai/eva, open a malicious PR, and the
+    # workflow_run path would inherit secrets + elevated permissions
+    # (known GHA security footgun) → Claude review with default-APPROVE
+    # → gh pr merge --auto → malicious code in main.
+    #
+    # Defense layers (this expression is layer 1; runtime check in
+    # Resolve PR context step is layer 2 for events that can't be fully
+    # filtered at expression time):
+    #
+    #   workflow_run / pull_request — require head repository to be in
+    #     ievo-ai org (rejects all fork-based PRs at the gate)
+    #   repository_dispatch — unchanged; cross-repo trusted callers
     if: >
       (github.event_name == 'repository_dispatch' &&
        github.event.client_payload.triggered_by != 'ievo-eva' &&
@@ -48,10 +63,12 @@ jobs:
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event == 'pull_request' &&
+       github.event.workflow_run.head_repository.owner.login == 'ievo-ai' &&
        github.event.workflow_run.triggering_actor.login != 'ievo-eva' &&
        github.event.workflow_run.triggering_actor.login != 'github-actions[bot]') ||
       (github.event_name == 'pull_request' &&
        github.event.action == 'ready_for_review' &&
+       github.event.pull_request.head.repo.owner.login == 'ievo-ai' &&
        github.event.pull_request.user.login != 'ievo-eva' &&
        github.event.pull_request.user.login != 'github-actions[bot]')
 
@@ -114,6 +131,34 @@ jobs:
           DRAFT=$(gh api "repos/$REPO/pulls/$PR_NUM" --jq '.draft')
           if [ "$DRAFT" = "true" ]; then
             echo "PR is draft, skipping review"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # SECURITY layer 2: runtime trust filter (godfather task #41
+          # Vector A hot-fix, 2026-05-22). The job-level `if:` already
+          # rejects fork PRs (head.repo.owner.login != 'ievo-ai'); this
+          # layer additionally requires the PR author to be an org
+          # member, owner, or collaborator — blocks the case where an
+          # outside contributor's PR somehow lands as a same-repo branch
+          # (e.g. via a stale fork or maintainer error).
+          AUTHOR_ASSOCIATION=$(gh api "repos/$REPO/pulls/$PR_NUM" --jq '.author_association')
+          case "$AUTHOR_ASSOCIATION" in
+            MEMBER|OWNER|COLLABORATOR) ;;
+            *)
+              echo "PR author association '$AUTHOR_ASSOCIATION' is not org-affiliated, skipping review"
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+
+          # SECURITY layer 3: reject if PR head repo owner isn't ievo-ai
+          # (redundant with job-level `if:` for workflow_run and
+          # pull_request paths, but covers repository_dispatch which
+          # doesn't pass through the same filter).
+          HEAD_REPO_OWNER=$(gh api "repos/$REPO/pulls/$PR_NUM" --jq '.head.repo.owner.login')
+          if [ "$HEAD_REPO_OWNER" != "ievo-ai" ]; then
+            echo "PR head repo owner '$HEAD_REPO_OWNER' is not ievo-ai (likely a fork), skipping review"
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
