@@ -123,10 +123,15 @@ jobs:
               - If the directory is empty (first run), proceed normally.
 
             Past feature proposals — for dedupe later (Step 4b):
-              - `gh issue list --repo ievo-ai/skills --state open
+              - Draft PRs with `feature-proposal` label (current scheme):
+                `gh pr list --repo ievo-ai/skills --state open
+                --label feature-proposal --json number,title`
+              - Legacy issues with `eva-proposal` label (pre-2026-05-22):
+                `gh issue list --repo ievo-ai/skills --state open
                 --label eva-proposal --json number,title`
-              - Build a "proposed already" set. When you do feature
-                discovery later, SKIP proposals already in this set.
+              - Build a unified "proposed already" set across both
+                sources. When you do feature discovery later (Step 4b),
+                SKIP proposals already in this set.
 
             Sources index — for diff-based scanning later (Step 4):
               - Read `researches/sources-index.md` (entire file)
@@ -233,37 +238,55 @@ jobs:
 
             For each gap meeting ALL of these:
               - Concrete (one sentence describing the new capability)
-              - Atomic (one capability per proposal — no umbrella issues)
+              - Atomic (one capability per proposal — no umbrella PRs)
               - Justified (link to specific external evidence FROM YOUR
                 STEP 4 SCAN — quote the source URL and the observation
                 that triggered the proposal)
-              - Not a duplicate of an open `eva-proposal` issue (you
-                pre-loaded the open set in Step 1)
+              - Not a duplicate of an open `feature-proposal` PR or
+                `eva-proposal` issue (you pre-loaded the open set in Step 1)
 
             Strong preference: at least ONE proposal per run if Step 4
-            surfaced anything notable. A weekly cadence of zero proposals
-            for many runs is a signal that Step 4's signal is too narrow
-            — flag this in "Notes for next run" so the operator can
-            broaden the source list.
+            surfaced anything notable. Many zero-proposal runs in a row =
+            flag in "Notes for next run" so the operator can broaden the
+            source list.
 
-            Open an ISSUE — not a PR. Proposals are for discussion before
-            implementation. Implementation comes later, after operator
-            approves the proposal:
+            **Open a DRAFT PR — not an issue.** Operator preference
+            2026-05-22 changed: ship concrete code for review rather than
+            text proposals for triage. The operator reviews the diff and
+            either marks Ready (proposal accepted, will merge) or closes
+            the PR (rejected). This costs more turns up-front per proposal
+            but eliminates the issue → implementation handoff gap.
 
-              # Ensure the eva-proposal label exists in skills repo
-              gh label create "eva-proposal" \
+            For each proposal:
+
+              # Ensure the feature-proposal label exists
+              gh label create "feature-proposal" \
                 --repo ievo-ai/skills \
-                --description "Auto-generated proposal by Eva research" \
-                --color "0e8a16" \
-                2>/dev/null || true   # ignore "already exists" error
+                --description "Draft PR proposing a new capability — Eva research" \
+                --color "1d76db" \
+                2>/dev/null || true   # ignore "already exists"
 
-              gh issue create \
+              cd /tmp/skills
+              git config user.email "noreply@ievo.ai"
+              git config user.name "ievo-eva"
+              git checkout -b feat/v<x.y.z>-propose-<slug>
+              # Implement the proposal: create new SKILL.md / agent / script
+              # files via Write tool. Include enough scaffolding that the
+              # PR is *reviewable* — frontmatter, brief body, file
+              # structure. Do NOT ship a full production-ready
+              # implementation; leave clear TODOs for the operator
+              # showing what completion looks like.
+              # Bump version in BOTH manifests per AGENTS.md.
+              git add -A && git commit -m "feat(propose): <one-line>" \
+                -m "Co-Authored-By: iEVO <noreply@ievo.ai>"
+              git push origin "feat/v<x.y.z>-propose-<slug>"
+              gh pr create --draft \
                 --repo ievo-ai/skills \
-                --title "Proposal: <one-line capability description>" \
-                --label "eva-proposal" \
-                --body "$(cat /tmp/issue-body.md)"
+                --label "feature-proposal" \
+                --title "Propose: <one-line capability description>" \
+                --body-file /tmp/pr-body.md
 
-            Issue body template:
+            PR body template (write to /tmp/pr-body.md):
               ```markdown
               ## Capability
 
@@ -271,31 +294,67 @@ jobs:
 
               ## Why now
 
-              <evidence — quote / cite / link the external trigger>
+              <evidence — quote / cite / link the external trigger from
+              your Step 4 scan>
 
-              ## Sketch
+              ## What's in this PR
 
-              <ultra-brief design: which files would be added,
-              which existing files touched, what API surface,
-              what the user-facing trigger looks like>
+              <list of files added/modified — readable summary of the
+              diff>
 
-              ## Open questions for the operator
+              ## What's NOT in this PR (operator decisions)
 
-              - <decision the human needs to make before implementation>
+              - <TODOs that need operator input before this is
+                production-ready>
               - ...
 
+              ## How to accept
+
+              Mark this PR as Ready for review. Operator (or follow-up
+              implementer) finishes the TODOs and merges. To reject:
+              close the PR with a one-line reason.
+
               ---
-              Filed by Eva research run <$GITHUB_RUN_ID>. Triage with
-              `accepted` / `rejected` / `needs-discussion` labels.
+              Filed by Eva research run <$GITHUB_RUN_ID>.
               ```
 
-            Hard cap: 3 issues per run. Proposals compound faster than
-            PRs — three actionable proposals is plenty per audit. Push
-            additional ideas to Deferred findings in the audit report.
+            Hard cap: 3 draft PRs per run. Proposals are heavier than
+            audit-fix PRs (need full implementation scaffolding); three
+            is plenty.
 
-            DO NOT open issues to track audit-fix findings — those go as
-            PRs (Step 5) or Deferred findings (Step 6). Issues are
-            EXCLUSIVELY for new-capability proposals.
+            DO NOT use draft PRs to track audit-fix findings — those go
+            as REGULAR (non-draft) PRs in Step 5 or as Deferred findings
+            in Step 6. Draft PRs are EXCLUSIVELY for new-capability
+            proposals.
+
+            ### Credit the contributors
+
+            ALWAYS credit external sources whose pattern, repo, or
+            specific work inspired the proposal. After opening each
+            draft PR (or any issue/PR that cites external work),
+            immediately post a comment that:
+              - @-mentions the author or repo (use the actual GitHub
+                handle, e.g. `@DenisSergeevitch`, `@anthropic`)
+              - Links to the specific upstream work that inspired this
+              - Thanks them concretely (one line about what their work
+                enabled here)
+
+            Command pattern:
+              gh pr comment <PR_NUM> --repo ievo-ai/skills \
+                --body "🙏 Credit: this proposal was inspired by
+                @<handle>'s [<project>](<url>) — <one line of
+                what their work enabled>. Thanks for shipping
+                publicly."
+
+            Skip credit comments only when the source is an official
+            Anthropic / OpenAI / Google announcement of their own
+            product (no individual contributor to thank). For
+            community-contributed work, library authors, blog posts,
+            independent open-source repos — always credit.
+
+            This is a hard rule from Eva's CLAUDE.md: "Credit
+            contributors — when using someone's work, publicly credit
+            the authors."
 
             ## Step 5 — Open atomic PRs to ievo-ai/skills
 
