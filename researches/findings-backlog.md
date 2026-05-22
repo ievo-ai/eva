@@ -120,3 +120,70 @@ This issue template is intentionally **detailed** — operator preference 2026-0
 - Hard cap: 3 findings per run. Quality over quantity; remaining gaps go in Deferred findings of the audit report.
 - Cross-repo: `target_repo` can be any `ievo-ai/*`. Issue creation works on public repos with basic GitHub auth; no admin needed.
 - No PR creation from Eva for feature proposals. PRs happen ONLY for audit fixes (Step 5, where Eva has full repo context and the change is mechanical). Feature additions go through the issue → triage → implement loop.
+
+---
+
+## F-2026-05-22-001 — hooks-setup Stop hook for background-agents-complete notification
+
+```yaml
+id: F-2026-05-22-001
+discovered_at: 2026-05-22T17:01:00Z
+run_id: 26301254869
+target_repo: ievo-ai/skills
+title: hooks-setup Stop hook for 'all background agents complete' notification
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/59
+effort: medium
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.145 added background_tasks and session_crons fields to Stop/SubagentStop hook input — enables notification when all parallel subagents complete
+  - https://github.com/anthropics/claude-code/releases: v2.1.143 added CLAUDE_CODE_STOP_HOOK_BLOCK_CAP env var (default 8) — constrains blocking stop hooks
+```
+
+*Backfilled from run 26301254869 which opened the issue but did not write the backlog entry.*
+
+Extend `plugins/ievo/skills/hooks-setup/SKILL.md` (in-flight PR #58) with a Stop hook step that fires a desktop/terminal notification when `background_tasks` is empty. iEvo's parallel security-auditor + repo-indexer dispatch creates a concrete need: users want to know when all parallel scans complete. The Stop hook reads stdin JSON, checks `background_tasks.length === 0`, and fires an OS notification (macOS osascript, Linux notify-send, or terminalSequence bell fallback). Hook must be non-blocking (exit 0) due to CLAUDE_CODE_STOP_HOOK_BLOCK_CAP constraint.
+
+---
+
+## F-2026-05-22-002 — utf8-validate.mjs pre-commit validator for Codex compatibility
+
+```yaml
+id: F-2026-05-22-002
+discovered_at: 2026-05-22T17:01:00Z
+run_id: 26301254869
+target_repo: ievo-ai/skills
+title: Add utf8-validate.mjs pre-commit validator to prevent silent Codex skill-load failures
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/60
+effort: low
+scope: multi-file
+evidence:
+  - https://github.com/openai/codex/releases: rust-v0.133.0 (May 21, 2026) — AGENTS instruction loading now warns on invalid UTF-8 instead of silently dropping the file
+  - https://github.com/agentskills/agentskills: PR #386 and PR #343 — both address UTF-8 encoding in skill validation tooling (active cross-ecosystem concern)
+```
+
+*Backfilled from run 26301254869 which opened the issue but did not write the backlog entry.*
+
+Add `.github/scripts/validators/utf8-validate.mjs` using `TextDecoder({ fatal: true })` to detect invalid byte sequences in SKILL.md, agent .md, and AGENTS.md files before they reach Codex users. Wire into `.pre-commit-config.yaml` and update AGENTS.md validator list. 100% coverage rule does NOT apply (validator lives in `.github/scripts/validators/`, not `plugins/ievo/scripts/`). Concrete risk: the hooks-setup skill being added in PR #58 includes escape sequences that could be corrupted on Windows. ~20-line validator, ~30-min implementation.
+
+---
+
+## F-2026-05-22-003 — /ievo:overlay-status skill — surface current evolution overlay state
+
+```yaml
+id: F-2026-05-22-003
+discovered_at: 2026-05-22T17:34:04Z
+run_id: 26302374682
+target_repo: ievo-ai/skills
+title: /ievo:overlay-status skill — list and summarize active evolution overlays in the current project
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/61
+effort: low
+scope: new-skill
+evidence:
+  - https://github.com/DenisSergeevitch/agents-best-practices/blob/main/references/agent-legibility-feedback-loops.md: "What the agent cannot inspect, retrieve, validate, or act on through approved tools is operationally absent from the agent's world" — directly applies to iEvo overlays which live in .ievo/evolution/ but are invisible to the agent without manual file reads
+  - https://github.com/ievo-ai/skills/blob/main/coverage-audit.md: explicitly marks "Standalone 'list installed iEvo overlays' command" as a gap with note "User can cat .ievo/evolution/agents/*.md but there's no skill that summarises the overlay state"
+```
+
+A new `/ievo:overlay-status` skill (in `plugins/ievo/skills/overlay-status/SKILL.md`) that reads `.ievo/evolution/` tree and produces a structured summary: which scopes have overlays (agents/, skills/, project/), how many lessons per scope, last-modified dates, and the one-line summary of each overlay's content. Activates when user asks "what evolutions have I captured?", "show my iEvo overlays", "what rules are active?", or "summarize my .ievo/evolution/". Implementation: pure Read + Glob calls, no sub-agent needed. No scripts required (no test coverage obligation). Single new SKILL.md, ~100–150 lines. The coverage-audit.md gap row should also be updated to "covered" when implemented.
