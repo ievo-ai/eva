@@ -1,0 +1,230 @@
+# Eva — Issue Triage helper
+#
+# When a new issue opens in ievo-ai/eva (or any iEvo repo via
+# repository_dispatch), Claude (acting as Eva) posts ONE triage comment
+# with suggested labels + cross-references + duplicate detection +
+# "covered by audit report X" notes. Optionally auto-applies a small
+# set of low-risk labels (bug / enhancement / question / dup:#N).
+#
+# Replaces the previous eva-on-issue.yml (deprecated in PR #41,
+# 2026-05-22). That version ran a dry-run Docker scan that produced
+# only runner logs nobody read.
+#
+# Scope:
+#   - POSTS a comment, applies low-risk labels
+#   - Does NOT auto-resolve / auto-close / open linked PRs
+#   - Does NOT propose mutations (eva-research.yml's job)
+#
+# Security note: untrusted issue title/body never reach `run:` blocks
+# directly. The Claude action receives them via the issue API call
+# (gh issue view) executed inside the agent's Bash subprocess, never
+# via GHA template interpolation into shell.
+#
+# Tracked as godfather task #42.
+
+name: "Eva: Issue Triage"
+
+on:
+  issues:
+    types: [opened]
+  repository_dispatch:
+    types: [new-issue]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+  id-token: write
+
+concurrency:
+  group: eva-triage-${{ github.event.client_payload.repo || github.repository }}-${{ github.event.client_payload.issue_number || github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  triage:
+    name: "Eva: Issue Triage"
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    if: >
+      (github.event_name == 'repository_dispatch' &&
+       github.event.client_payload.triggered_by != 'ievo-eva' &&
+       github.event.client_payload.triggered_by != 'github-actions[bot]') ||
+      (github.event_name == 'issues' &&
+       github.event.issue.user.login != 'ievo-eva' &&
+       github.event.issue.user.login != 'github-actions[bot]')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve issue context
+        id: ctx
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_REPO: ${{ github.event.client_payload.repo }}
+          DISPATCH_ISSUE: ${{ github.event.client_payload.issue_number }}
+          ISSUE_NUMBER_FROM_EVENT: ${{ github.event.issue.number }}
+        run: |
+          if [ "$EVENT_NAME" = "repository_dispatch" ]; then
+            REPO="$DISPATCH_REPO"
+            ISSUE_NUM="$DISPATCH_ISSUE"
+          else
+            REPO="${{ github.repository }}"
+            ISSUE_NUM="$ISSUE_NUMBER_FROM_EVENT"
+          fi
+
+          if [ -z "$REPO" ] || [ -z "$ISSUE_NUM" ]; then
+            echo "Missing repo or issue number, skipping"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          {
+            echo "repo=$REPO"
+            echo "issue_number=$ISSUE_NUM"
+            echo "skip=false"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run Triage agent
+        if: steps.ctx.outputs.skip != 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          show_full_output: true
+          claude_args: |
+            --model sonnet
+            --allowedTools "Bash,Read,Glob,Grep"
+          settings: |
+            {
+              "env": {
+                "GH_TOKEN": "${{ secrets.EVA_PAT_GITHUB_TOKEN }}",
+                "EVA_PAT_GITHUB_TOKEN": "${{ secrets.EVA_PAT_GITHUB_TOKEN }}",
+                "TARGET_REPO": "${{ steps.ctx.outputs.repo }}",
+                "TARGET_ISSUE": "${{ steps.ctx.outputs.issue_number }}"
+              }
+            }
+          prompt: |
+            You are Eva acting as Issue Triage helper. A new issue opened
+            in $TARGET_REPO #$TARGET_ISSUE. Post ONE triage comment +
+            apply low-risk labels.
+
+            ## Step 1 — Load context (terse — stop when you have enough)
+
+            Read in order:
+              - agent/ROLE.md (you, Eva — identity + safety rules)
+              - The issue itself:
+                  gh issue view "$TARGET_ISSUE" --repo "$TARGET_REPO" \
+                    --json title,body,author,labels,createdAt
+              - `researches/findings-backlog.md` — has Eva already
+                surfaced this gap? Match by evidence URLs or title.
+              - `researches/sources-index.md` — related to a tracked
+                external source?
+              - Recent audit reports
+                (`ls -t researches/*-skills-audit.md | head -3`) —
+                covered by recent Eva work?
+
+            Don't read memory/CONTEXT.md or memory/HISTORY.md — those
+            are for full Eva sessions, overkill for triage.
+
+            ## Step 2 — Classify (one primary category)
+
+              - `bug` — clear bug report (broken, error trace, "X doesn't work")
+              - `enhancement` — feature request / capability proposal
+              - `question` — user asking how, no implied code change
+              - `documentation` — docs/typo/clarity
+              - `discussion` — open-ended design topic, no specific ask
+              - `meta-evolution` — proposal to change Eva's own rules
+                (like ievo-ai/eva#43 was)
+              - `out-of-scope` — outside iEvo's mission
+
+            Secondary signals (additional labels):
+              - `duplicate-of-#N` — found matching open issue or PR.
+                Say "likely duplicate" if low confidence; "duplicate"
+                only after cross-referencing bodies.
+              - `covered-by-audit-#N` — already addressed by Eva's
+                research/findings.
+
+            ## Step 3 — Cross-reference
+
+              gh pr list --repo "$TARGET_REPO" --state open \
+                --json number,title,headRefName --limit 30
+              gh issue list --repo "$TARGET_REPO" --state open \
+                --json number,title --limit 30
+
+            Look for: same component, similar wording, evidence-URL
+            overlap. Don't be exhaustive — if the issue strongly
+            implies a known research area, mention it.
+
+            ## Step 4 — Post ONE triage comment
+
+            Sections (omit empty ones). Write to /tmp/triage-comment.md,
+            then post:
+
+              ```markdown
+              👋 Triage by Eva
+
+              **Classification:** <one category from Step 2>
+
+              **Cross-references:**
+              - <link to related open PR/issue with one-line why>
+              - <link to audit report or finding ID>
+
+              **Notes:**
+              - <context operator might miss — e.g. "matches the codex-doctor pattern from F-2026-05-22-001">
+              - <open question that determines accept/reject>
+
+              **Suggested next steps:**
+              - <one or two concrete operator actions>
+
+              ---
+              Auto-applied labels: <list> (operator can override)
+              Filed by Eva via Issue Triage workflow run <$GITHUB_RUN_ID>.
+              ```
+
+              gh issue comment "$TARGET_ISSUE" --repo "$TARGET_REPO" \
+                --body-file /tmp/triage-comment.md
+
+            ## Step 5 — Auto-apply low-risk labels ONLY
+
+            Safe-list (auto-apply):
+              `bug`, `enhancement`, `question`, `documentation`,
+              `discussion`, `meta-evolution`
+
+            Operator-only (DO NOT auto-apply):
+              `critical`, `priority/*`, `accepted`, `rejected`,
+              `needs-discussion`, `wontfix`, `duplicate` (without #N),
+              `good-first-issue`
+
+            Ensure label exists then apply (both idempotent):
+              gh label create "<label>" --repo "$TARGET_REPO" \
+                --description "Eva triage classification" \
+                --color "<color>" 2>/dev/null || true
+              gh issue edit "$TARGET_ISSUE" --repo "$TARGET_REPO" \
+                --add-label "<label>"
+
+            Colors:
+              bug: d73a4a, enhancement: a2eeef, question: d876e3,
+              documentation: 0075ca, discussion: cfd3d7,
+              meta-evolution: 5319e7, out-of-scope: e4e669
+
+            ## Safety reminders (non-negotiable)
+              - NEVER close the issue. Triage ≠ resolution.
+              - NEVER apply `accepted` / `rejected` / `priority/*`
+                labels. Operator-only decisions.
+              - NEVER open linked PRs. Surface in comment; eva-research
+                will pick up implementation OR operator opens manually.
+              - If you can't classify confidently (vague issue, "help"
+                title), post a comment asking for clarification rather
+                than guessing. No label is fine.
+              - Don't comment on issues opened by `ievo-eva` (yourself)
+                or `github-actions[bot]` (job `if:` already filters,
+                but worth a self-check).
+              - Per `CLAUDE.md` "Verify documentation before changing
+                or asserting tool/library behavior": if the issue
+                claims a tool/library does X, verify via Context7 or
+                official docs before agreeing/disagreeing in the
+                comment.
+              - Per `agent/ROLE.md` Safety Rule #10 (Symmetric
+                recursive verification): if the issue cites a file
+                path in another repo, verify via recursive tree
+                search before claiming it doesn't exist.
