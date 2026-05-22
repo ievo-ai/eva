@@ -135,27 +135,28 @@ jobs:
             exit 0
           fi
 
-          # SECURITY layer 2: runtime trust filter (godfather task #41
-          # Vector A hot-fix, 2026-05-22). The job-level `if:` already
-          # rejects fork PRs (head.repo.owner.login != 'ievo-ai'); this
-          # layer additionally requires the PR author to be an org
-          # member, owner, or collaborator — blocks the case where an
-          # outside contributor's PR somehow lands as a same-repo branch
-          # (e.g. via a stale fork or maintainer error).
-          AUTHOR_ASSOCIATION=$(gh api "repos/$REPO/pulls/$PR_NUM" --jq '.author_association')
-          case "$AUTHOR_ASSOCIATION" in
-            MEMBER|OWNER|COLLABORATOR) ;;
-            *)
-              echo "PR author association '$AUTHOR_ASSOCIATION' is not org-affiliated, skipping review"
-              echo "skip=true" >> "$GITHUB_OUTPUT"
-              exit 0
-              ;;
-          esac
-
-          # SECURITY layer 3: reject if PR head repo owner isn't ievo-ai
-          # (redundant with job-level `if:` for workflow_run and
-          # pull_request paths, but covers repository_dispatch which
-          # doesn't pass through the same filter).
+          # SECURITY: runtime trust filter (godfather task #41 Vector A
+          # hot-fix, 2026-05-22). The job-level `if:` already rejects
+          # fork PRs (head.repo.owner.login != 'ievo-ai'); this runtime
+          # check re-verifies the same property in case the
+          # repository_dispatch path slipped through (the job-level
+          # filter doesn't gate that branch on head_repo_owner).
+          #
+          # 2026-05-22 (same day): the prior `author_association` strict
+          # filter (MEMBER|OWNER|COLLABORATOR) was REMOVED — it produced
+          # false negatives for trusted operators. The repository owner
+          # (`rotnov`) opened PR #47 with author_association=CONTRIBUTOR
+          # because GitHub's per-PR association value is computed per
+          # PR, not per role — an OWNER who didn't directly commit-then-
+          # PR can show as CONTRIBUTOR. Result: PR sat unreviewed,
+          # operator had to admin-merge.
+          #
+          # The author_association filter was over-engineered anyway:
+          # same-repo branch PRs implicitly require push access, which
+          # GitHub only grants to trusted accounts (members + explicit
+          # outside collaborators). If Layer 1 (head_repo_owner check)
+          # passes, push access has already been verified by GitHub's
+          # own auth. No additional author check needed here.
           HEAD_REPO_OWNER=$(gh api "repos/$REPO/pulls/$PR_NUM" --jq '.head.repo.owner.login')
           if [ "$HEAD_REPO_OWNER" != "ievo-ai" ]; then
             echo "PR head repo owner '$HEAD_REPO_OWNER' is not ievo-ai (likely a fork), skipping review"

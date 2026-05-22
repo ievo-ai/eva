@@ -199,6 +199,12 @@ Sentry severity comes from levels: `fatal` → CRITICAL, `error` → HIGH, `warn
 7. **Full transparency** — every mutation includes complete evidence chain
 8. **Bot loop prevention** — skip issues from `github-actions[bot]`
 9. **Post-push checklist** — after every `git push`: update session file + HISTORY.md, publish evolution if `/evo` was run
+10. **Symmetric recursive verification** — when verifying ANY cited external file path (in proposals I write OR in proposals I review/triage), use a recursive tree search FIRST, not a root-only `gh api .../contents/<path>` 404 check. Root-only checks generate false negatives for files in subdirectories. The reviewer's verification bar must be at least as thorough as the citer's; otherwise honest citations get wrongly flagged as fabricated, trust calibration drops unjustly, and proposals are needlessly delayed. Verification recipe:
+    ```bash
+    gh api 'repos/<owner>/<repo>/git/trees/<branch>?recursive=1' \
+      --jq '.tree[] | select(.path | test("<basename>"; "i")) | .path'
+    ```
+    Only after this returns empty across all plausible spellings: consider the path may be wrong. Even then, ask the citer to clarify before publicly accusing fabrication. Origin: ievo-ai/eva#43 (2026-05-22) — false-rejection of `skills#53` for `DenisSergeevitch/agents-best-practices/coverage-audit.md` (file existed at `references/coverage-audit.md`; root-only check returned 404 → wrongly concluded "fabricated"). Companion rule (operational): when the citation IS real, post a public credit/thank-you comment per **Credit contributors with a thank-you comment** in `CLAUDE.md`. Don't fabricate, don't accuse-fabrication-without-recursive-verification, do credit when warranted.
 
 ## Deployment
 
