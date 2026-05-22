@@ -36,14 +36,15 @@ run_id: <GitHub Actions run ID or null>
 ## https://www.anthropic.com/news
 
 ```yaml
-last_scan: 2026-05-22T10:50:58Z
-status: changed
-run_id: 26283289533
+last_scan: 2026-05-22T14:47:55Z
+status: unchanged
+run_id: 26294170594
 ```
 
 **Summary:** Anthropic acquired Stainless (May 18, likely impacting API/SDK tooling), launched Claude for Small Business (May 13), and announced KPMG strategic partnership deploying Claude to 276,000+ employees (May 19). No model releases or Claude Code-specific breaking changes in the window.
 
 History:
+- 2026-05-22T14:47:55Z — unchanged: no new Claude Code-relevant announcements since last scan
 - 2026-05-22T10:50:58Z — changed: Stainless acquisition, Claude for Small Business, KPMG partnership; no model releases
 
 ---
@@ -51,14 +52,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-05-22T10:50:58Z
-status: changed
-run_id: 26283289533
+last_scan: 2026-05-22T14:47:55Z
+status: unchanged
+run_id: 26294170594
 ```
 
-**Summary:** Very active cadence — 10 releases (v2.1.139–v2.1.148) in 14-day window. Key new features: `CLAUDE_CODE_SUBAGENT_MODEL` env var (operator-level model override for subagents — **potential security-auditor impact**), `/code-review` command (replaces `/simplify` — BREAKING rename), `claude agents` unified dashboard, `/goal` autonomous completion, MCP stdio now receives `CLAUDE_PROJECT_DIR`, hook `args: string[]` exec-form support, multi-agent team orchestration with agent ID tracking in OTEL.
+**Summary:** Very active cadence — 10 releases (v2.1.139–v2.1.148) in 14-day window. Key new features: `CLAUDE_CODE_SUBAGENT_MODEL` env var (operator-level model override for subagents — **potential security-auditor impact**), `/code-review` command (replaces `/simplify` — BREAKING rename), `claude agents` unified dashboard, `/goal` autonomous completion, MCP stdio now receives `CLAUDE_PROJECT_DIR`, hook `args: string[]` exec-form support (v2.1.139), `terminalSequence` hook field (v2.1.141), multi-agent team orchestration with agent ID tracking in OTEL.
 
 History:
+- 2026-05-22T14:47:55Z — unchanged: still at v2.1.148; no new releases since 10:54 scan; terminalSequence (v2.1.141) noted as evidence for hooks-setup proposal
 - 2026-05-22T10:50:58Z — changed: CLAUDE_CODE_SUBAGENT_MODEL env var, /code-review breaking rename, multi-agent teams, MCP CLAUDE_PROJECT_DIR
 
 ---
@@ -66,14 +68,15 @@ History:
 ## https://github.com/anthropics/claude-code-action/releases
 
 ```yaml
-last_scan: 2026-05-22T10:50:58Z
-status: error
-run_id: 26283289533
+last_scan: 2026-05-22T14:47:55Z
+status: changed
+run_id: 26294170594
 ```
 
-**Summary:** Not fetched this run (missed in fetch batch — added to next-run queue). Prior status: first-scan (never visited).
+**Summary:** v1.0 GA released (breaking changes from v0.x): `mode`/`direct_prompt`/`override_prompt` removed — replaced by single `prompt` input; `custom_instructions`/`model`/`allowed_tools`/`mcp_config` deprecated — replaced by `claude_args`. Skills repo already uses `@v1` (both `claude-code-review.yml` and `claude.yml`) — no action needed there. v1.0.130: Workload Identity Federation (OIDC) support added. Eva's own eva-review-pr.yml and similar workflows should be verified against v1.0 migration guide.
 
 History:
+- 2026-05-22T14:47:55Z — changed: v1.0 GA with breaking API; skills repo already on v1; check eva repo workflows
 - 2026-05-22T10:50:58Z — error: not included in fetch batch this run; will scan next run
 
 ---
@@ -111,14 +114,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-05-22T10:50:58Z
-status: changed
-run_id: 26283289533
+last_scan: 2026-05-22T14:47:55Z
+status: unchanged
+run_id: 26294170594
 ```
 
 **Summary:** Three releases in the window (v0.131–v0.133): v0.131.0 (May 18) — unified `@` mentions, plugin marketplace commands, `codex doctor` diagnostic tool; v0.132.0 (May 20) — Python SDK auth, simplified turn APIs, `--output-schema`; v0.133.0 (May 21) — goals by default with dedicated storage, **extension lifecycle hooks** (subagent start/stop + tool execution), expanded permission profiles with inheritance. Strong trend toward autonomous orchestration and policy-based access control.
 
 History:
+- 2026-05-22T14:47:55Z — unchanged: still at v0.133.0; no new releases since 10:54 scan
 - 2026-05-22T10:50:58Z — changed: codex doctor diagnostic (v0.131), extension lifecycle hooks (v0.133), permission profiles with inheritance
 
 ---
@@ -141,14 +145,15 @@ History:
 ## https://agentskills.io/specification
 
 ```yaml
-last_scan: 2026-05-22T10:50:58Z
+last_scan: 2026-05-22T14:47:55Z
 status: unchanged
-run_id: 26283289533
+run_id: 26294170594
 ```
 
-**Summary:** Required fields: `name` + `description` (≤1024 chars). Optional: `license`, `compatibility`, `metadata`, `allowed-tools` (experimental). No explicit version number surfaced. Spec emphasizes progressive disclosure (metadata ~100 tokens at startup, full body on activation, referenced files on demand) and body ≤500 lines. No breaking changes documented.
+**Summary:** Required fields: `name` + `description` (≤1024 chars). Optional: `license`, `compatibility`, `metadata`, `allowed-tools` (experimental). `name` must be max 64 chars, lowercase alphanumeric + hyphens, no consecutive hyphens, must match directory name. Spec emphasizes progressive disclosure (metadata ~100 tokens at startup, full body on activation, referenced files on demand) and body ≤500 lines. No breaking changes documented.
 
 History:
+- 2026-05-22T14:47:55Z — unchanged: spec stable; name field constraints confirmed (max 64, no consecutive hyphens, must match dir)
 - 2026-05-22T10:50:58Z — unchanged: spec stable, no breaking changes; allowed-tools field confirmed experimental
 
 ---
@@ -156,14 +161,15 @@ History:
 ## https://github.com/agentskills/agentskills
 
 ```yaml
-last_scan: 2026-05-22T10:50:58Z
-status: changed
-run_id: 26283289533
+last_scan: 2026-05-22T14:47:55Z
+status: unchanged
+run_id: 26294170594
 ```
 
-**Summary:** Active development in window. PR #384 (May 20, MERGED) — fixed `name` field alphanumeric range validation in spec. PR #386 (May 19) — Windows UTF-8 fix in `skills-ref` validation tool. New client showcases: Superconductor, Vita, Tabnine, bub (May 19–20). Open (not merged): PR #380 proposes optional skill versioning in `.well-known` spec; PR #254 adds `.well-known` URI spec itself.
+**Summary:** Active development in window. PR #384 (May 20, MERGED) — fixed `name` field alphanumeric range validation in spec. PR #386 (May 19) — Windows UTF-8 fix in `skills-ref` validation tool. New client showcases: Superconductor, Vita, Tabnine, bub (May 19–20). Open (not merged): PR #380 proposes optional skill versioning in `.well-known` spec; PR #254 adds `.well-known` URI spec itself. PR #345 open — clarifying Unicode in skill name (no consecutive hyphens rule).
 
 History:
+- 2026-05-22T14:47:55Z — unchanged: same open PRs (#380, #386); no new merges since 10:54 scan; PR #345 (unicode name clarification) noted
 - 2026-05-22T10:50:58Z — changed: PR #384 name-field validation fix merged; PR #380 optional skill versioning proposed; PR #386 Windows UTF-8 fix
 
 ---
@@ -171,14 +177,15 @@ History:
 ## https://www.cursor.com/changelog
 
 ```yaml
-last_scan: 2026-05-22T10:50:58Z
-status: changed
-run_id: 26283289533
+last_scan: 2026-05-22T14:47:55Z
+status: unchanged
+run_id: 26294170594
 ```
 
 **Summary:** Notable May 8–22: Composer 2.5 (May 18, better long-task performance), Cursor in Jira (May 19 — `@Cursor` mentions trigger cloud agents from tickets), multi-repo and no-repo Automations in Agents window (May 20), v3.4 (May 13 — Dockerfile-based cloud agent dev environments, 70% faster cached builds, MCP/OAuth fixes). Strong trend toward autonomous multi-repo agent orchestration and third-party workflow integrations.
 
 History:
+- 2026-05-22T14:47:55Z — unchanged: no new entries since 10:54 scan; same v3.4/v3.5 content
 - 2026-05-22T10:50:58Z — changed: Composer 2.5, Jira integration, multi-repo Automations, Dockerfile cloud dev envs
 
 ---
