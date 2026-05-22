@@ -85,7 +85,6 @@ jobs:
           show_full_output: true
           claude_args: |
             --model sonnet
-            --max-turns 40
             --allowedTools "Bash,Edit,Read,Write,Glob,Grep,WebFetch,WebSearch"
           settings: |
             {
@@ -292,3 +291,9 @@ jobs:
               - The audit report PR is REQUIRED even on a zero-finding
                 run. "Audited X areas, found nothing actionable" IS data
                 worth recording.
+              - Steps 6 + 7 (write report + open eva PR) are the SLA of
+                this workflow. If for any reason you can't complete the
+                full audit, you still write a partial report (with
+                `verdict: blocked` and `Notes for next run` explaining
+                where you stopped) and open the eva PR before exiting.
+                Partial output > nothing.
