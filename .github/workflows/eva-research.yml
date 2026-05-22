@@ -122,6 +122,12 @@ jobs:
                     wrote them (you did)
               - If the directory is empty (first run), proceed normally.
 
+            Past feature proposals — for dedupe later (Step 4b):
+              - `gh issue list --repo ievo-ai/skills --state open
+                --label eva-proposal --json number,title`
+              - Build a "proposed already" set. When you do feature
+                discovery later, SKIP proposals already in this set.
+
             ## Step 2 — Load the skills repo and its rule book
 
             ```
@@ -166,6 +172,78 @@ jobs:
               - Top-trending agent-related GitHub repos (last 2 weeks):
                 does the discovery pipeline (discover.mjs) cover the
                 surface they expose?
+              - New patterns from Cursor / Codex / Anthropic docs that
+                might be a NEW capability worth proposing — note them
+                for Step 4b below.
+
+            ## Step 4b — Feature gap discovery (new capabilities)
+
+            Audit finds bugs in existing functionality (Step 3-5). Step 4b
+            looks for capabilities the skills repo is MISSING — things
+            that should exist but don't. Examples:
+              - A pattern Cursor/Codex shipped that skills lacks
+              - A new agent role that would improve quality / dev velocity
+              - An integration with a popular MCP server
+              - A workflow gap (no skill for common task X)
+
+            For each gap meeting ALL of these:
+              - Concrete (one sentence describing the new capability)
+              - Atomic (one capability per proposal — no umbrella issues)
+              - Justified (link to specific external evidence: blog post,
+                spec, trending repo)
+              - Not a duplicate of an open `eva-proposal` issue (you
+                pre-loaded the open set in Step 1)
+
+            Open an ISSUE — not a PR. Proposals are for discussion before
+            implementation. Implementation comes later, after operator
+            approves the proposal:
+
+              # Ensure the eva-proposal label exists in skills repo
+              gh label create "eva-proposal" \
+                --repo ievo-ai/skills \
+                --description "Auto-generated proposal by Eva research" \
+                --color "0e8a16" \
+                2>/dev/null || true   # ignore "already exists" error
+
+              gh issue create \
+                --repo ievo-ai/skills \
+                --title "Proposal: <one-line capability description>" \
+                --label "eva-proposal" \
+                --body "$(cat /tmp/issue-body.md)"
+
+            Issue body template:
+              ```markdown
+              ## Capability
+
+              <one paragraph: what the new skill/agent/script does>
+
+              ## Why now
+
+              <evidence — quote / cite / link the external trigger>
+
+              ## Sketch
+
+              <ultra-brief design: which files would be added,
+              which existing files touched, what API surface,
+              what the user-facing trigger looks like>
+
+              ## Open questions for the operator
+
+              - <decision the human needs to make before implementation>
+              - ...
+
+              ---
+              Filed by Eva research run <$GITHUB_RUN_ID>. Triage with
+              `accepted` / `rejected` / `needs-discussion` labels.
+              ```
+
+            Hard cap: 3 issues per run. Proposals compound faster than
+            PRs — three actionable proposals is plenty per audit. Push
+            additional ideas to Deferred findings in the audit report.
+
+            DO NOT open issues to track audit-fix findings — those go as
+            PRs (Step 5) or Deferred findings (Step 6). Issues are
+            EXCLUSIVELY for new-capability proposals.
 
             ## Step 5 — Open atomic PRs to ievo-ai/skills
 
@@ -214,7 +292,7 @@ jobs:
             duration: <approximate, "Xm Ys" — you can read from action context if available, else estimate>
             turns: <your best estimate of turns consumed so far>
             cost_usd: <leave blank if unknown; the runner reports total cost in the post-step summary>
-            verdict: <skills_prs_opened | no_high_confidence | blocked>
+            verdict: <skills_prs_opened | feature_proposals_opened | both | no_high_confidence | blocked>
             ---
 
             ## Audited areas
@@ -222,8 +300,12 @@ jobs:
             - ...
 
             ## Skills PRs opened
-            - #<number> — <title>. Source-of-finding: <file:line or rule>. Verdict: <ok-to-merge | needs review>
+            - skills#<number> — <title>. Source-of-finding: <file:line or rule>. Verdict: <ok-to-merge | needs review>
             - (or just "none" if no PRs opened)
+
+            ## Feature proposals opened
+            - skills#<issue-number> — <title>. Rationale (one line). Evidence: <URL>
+            - (or "none")
 
             ## Deferred findings
             - <one-line finding>: <reason it wasn't opened — "needs deeper investigation" / "duplicate of #N" / "below threshold" / "blocked on spec finalization">
@@ -278,6 +360,7 @@ jobs:
             in this run) listing:
               - Audit report PR URL (the eva-side PR with the report)
               - Skills PRs opened (URLs)
+              - Feature proposals opened (issue URLs)
               - Findings found but NOT opened, with reasons
               - Anything blocked
 
