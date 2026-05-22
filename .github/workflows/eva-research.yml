@@ -94,6 +94,59 @@ jobs:
               }
             }
           prompt: |
+            ## ⛔ HARD ENFORCEMENT CHECKLIST — read BEFORE planning your work
+
+            You CANNOT print a final summary until ALL FOUR of these are
+            verifiably true on disk and on GitHub. Treat them as the
+            DEFINITION of "this run is done". A workflow conclusion of
+            "success" with any of these missing is a FAILURE on your
+            side that the operator will manually rerun. Run 26301254869
+            (2026-05-22T17:01Z) failed this way — opened 2 issues but
+            skipped the backlog + audit report; operator had to
+            investigate why.
+
+            REQUIRED OUTPUTS:
+
+            1. **`researches/findings-backlog.md` updated** — for every
+               finding you filed in Step 4b, the file has a new section
+               with the YAML metadata block. If you opened 2 issues,
+               this file has 2 new `## F-YYYY-MM-DD-NNN` sections.
+               Verify before exit:
+                 grep -c "^## F-$(date -u +%Y-%m-%d)-" researches/findings-backlog.md
+               must be ≥ number of issues you filed today.
+
+            2. **Each new backlog section has `status: issued` +
+               `issue_url`** — not `status: raw` at end of run. Verify:
+                 grep -A 4 "^## F-$(date -u +%Y-%m-%d)-" researches/findings-backlog.md \
+                   | grep -E "(status:|issue_url:)"
+               every backlog section from today must show `issued` +
+               a non-empty URL.
+
+            3. **`researches/YYYY-MM-DD-HHMM-skills-audit.md` written**
+               with the full Step 6 template (frontmatter + all body
+               sections). Verify:
+                 ls -la researches/$(date -u +%Y-%m-%d)-*-skills-audit.md
+               must show at least one file from this run.
+
+            4. **Audit-report PR opened to `ievo-ai/eva` from a
+               `research/audit-YYYY-MM-DD-HHMM` branch**. Verify:
+                 gh pr list --repo ievo-ai/eva --state open \
+                   --search "research: audit $(date -u +%Y-%m-%d)" \
+                   --json number,headRefName
+               must show your PR.
+
+            If you are about to print summary text and ANY of these
+            four return empty or below threshold, STOP. Go back, do
+            the missing step, then verify again. Repeat until all four
+            pass. Only then summarize.
+
+            Steps 6 + 7 are NOT "nice to have at the end". They are
+            the persistence contract — without them, the next Eva run
+            has no memory of what this run did, and the backlog
+            silently empties run-over-run.
+
+            ## You are Eva — Researcher role
+
             You are Eva playing the Researcher role for this run, focused
             exclusively on auditing the ievo-ai/skills repo and opening
             atomic improvement PRs. EVERY run MUST end with a research
@@ -516,15 +569,43 @@ jobs:
             Step 8 summary. Do NOT retry with different creds — that means
             the PAT scope is wrong and the operator needs to fix it.
 
-            ## Step 8 — Wrap up
+            ## Step 8 — Pre-exit verification AND wrap up
 
-            Print a final summary to stdout (your last assistant message
-            in this run) listing:
+            **Run the four verification commands from the ⛔ checklist
+            at the TOP of this prompt — BEFORE writing the summary
+            text.** Each must succeed:
+
+              # 1. Backlog has new sections for today
+              BACKLOG_COUNT=$(grep -c "^## F-$(date -u +%Y-%m-%d)-" \
+                researches/findings-backlog.md 2>/dev/null || echo 0)
+              echo "Backlog sections today: $BACKLOG_COUNT"
+
+              # 2. Each new section has status: issued + issue_url
+              awk "/^## F-$(date -u +%Y-%m-%d)-/,/^## /" \
+                researches/findings-backlog.md \
+                | grep -E "status: issued" | wc -l
+              # → should equal BACKLOG_COUNT
+
+              # 3. Audit report file exists from this run
+              ls -la researches/$(date -u +%Y-%m-%d)-*-skills-audit.md 2>&1
+
+              # 4. Audit-report PR opened in eva
+              gh pr list --repo ievo-ai/eva --state open \
+                --search "research: audit $(date -u +%Y-%m-%d) in:title" \
+                --json number,headRefName,createdAt
+
+            If any of the four fails: STOP. Go execute the missing
+            step (re-do Step 4b.1/4b.3 for backlog, Step 6 for audit
+            report, Step 7 for the eva PR). Then re-run verification.
+
+            ONLY after all four pass — print the final summary to
+            stdout (your last assistant message in this run) listing:
               - Audit report PR URL (the eva-side PR with the report)
-              - Skills PRs opened (URLs)
-              - Findings filed (backlog IDs + issue URLs)
+              - Skills PRs opened (URLs from Step 5, if any)
+              - Findings filed (backlog IDs + issue URLs from Step 4b)
               - Findings found but NOT opened, with reasons
               - Anything blocked
+              - Verification command outputs (proof all four pass)
 
             ## Safety reminders (non-negotiable)
               - NEVER auto-merge — every PR awaits review (Eva-review-pr
