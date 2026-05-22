@@ -165,16 +165,63 @@ jobs:
             Honor Step 1 findings — don't re-audit areas your prior selves
             recently cleared.
 
-            ## Step 4 — Spot-check externals (≤ 5 minutes total)
+            ## Step 4 — Systematic source scan (official + community)
 
-              - Recent agentskills.io spec updates: are the SKILL.md files
-                still compliant?
-              - Top-trending agent-related GitHub repos (last 2 weeks):
-                does the discovery pipeline (discover.mjs) cover the
-                surface they expose?
-              - New patterns from Cursor / Codex / Anthropic docs that
-                might be a NEW capability worth proposing — note them
-                for Step 4b below.
+            Eva exists to bring outside knowledge into the iEvo ecosystem.
+            This step is the input pipeline for Step 4b's feature
+            proposals — you can't propose a new capability if you don't
+            see what the rest of the world has shipped.
+
+            WebFetch each source below. For each: what's new in the last
+            14 days, focus on changes that would affect a Claude/Codex/
+            Gemini-host agent-skill repo. Pull the page, scan headlines/
+            release notes, summarize in 1-3 lines max per source. Skip
+            anything irrelevant to iEvo (e.g. enterprise pricing news).
+
+            ### OFFICIAL — highest signal
+              - https://www.anthropic.com/news — Claude / Claude Code /
+                Anthropic announcements
+              - https://github.com/anthropics/claude-code/releases — CLI
+                releases (we depend on this)
+              - https://github.com/anthropics/claude-code-action/releases
+                — the GHA action we run on (breaking-change risk)
+              - https://docs.anthropic.com/en/docs/claude-code/overview
+                — Claude Code docs (look for new features / new tools)
+              - https://openai.com/index/news/ — OpenAI / Codex
+              - https://github.com/openai/codex/releases — Codex CLI
+                releases
+              - https://blog.google/technology/google-deepmind/ — Gemini
+                / Antigravity / Google AI
+              - https://agentskills.io/specification — the standard our
+                skills conform to (spec changes = compliance updates
+                needed)
+              - https://github.com/agentskills/agentskills — reference
+                implementation + tooling (skills-ref CLI updates etc.)
+
+            ### COMMUNITY — lower signal, higher inspiration
+              - https://www.cursor.com/changelog — Cursor patterns that
+                often anticipate Claude Code direction
+              - https://news.ycombinator.com (WebSearch "claude code"
+                "codex" "agent skills" past 7 days)
+              - GitHub trending: WebSearch
+                `github.com trending claude-code-action agentskills`
+                limited to last 7 days
+
+            Time/turn budget: aim for ~15-20 turns total on this step.
+            Quality of summaries matters more than quantity of sources —
+            three well-digested signals beat ten URL dumps.
+
+            Write the scan into a section that the Step 6 report
+            includes verbatim:
+
+            ## Sources scanned (Step 4)
+            - <source URL>: <one-line summary of what's new and why it
+              matters to skills>
+            - <source URL>: ...
+
+            If a source returned 404 or was rate-limited, note it as
+            "(unavailable)" rather than dropping the line — operator
+            wants to see what was attempted.
 
             ## Step 4b — Feature gap discovery (new capabilities)
 
@@ -189,10 +236,17 @@ jobs:
             For each gap meeting ALL of these:
               - Concrete (one sentence describing the new capability)
               - Atomic (one capability per proposal — no umbrella issues)
-              - Justified (link to specific external evidence: blog post,
-                spec, trending repo)
+              - Justified (link to specific external evidence FROM YOUR
+                STEP 4 SCAN — quote the source URL and the observation
+                that triggered the proposal)
               - Not a duplicate of an open `eva-proposal` issue (you
                 pre-loaded the open set in Step 1)
+
+            Strong preference: at least ONE proposal per run if Step 4
+            surfaced anything notable. A weekly cadence of zero proposals
+            for many runs is a signal that Step 4's signal is too narrow
+            — flag this in "Notes for next run" so the operator can
+            broaden the source list.
 
             Open an ISSUE — not a PR. Proposals are for discussion before
             implementation. Implementation comes later, after operator
@@ -297,6 +351,10 @@ jobs:
 
             ## Audited areas
             - <area>: <one-line of what was checked>
+            - ...
+
+            ## Sources scanned (from Step 4)
+            - <URL>: <one-line of what's new and why it matters>
             - ...
 
             ## Skills PRs opened

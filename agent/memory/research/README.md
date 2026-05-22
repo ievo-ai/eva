@@ -42,6 +42,7 @@ Each file is YAML-frontmatter + Markdown. Frontmatter keys:
 
 Body sections (each optional, omit if empty):
 - `## Audited areas`
+- `## Sources scanned` — official news / docs / releases reviewed in Step 4 (URL + 1-line summary each)
 - `## Skills PRs opened` — atomic fix PRs to existing functionality
 - `## Feature proposals opened` — new-capability `eva-proposal` issues
 - `## Deferred findings`
