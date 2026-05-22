@@ -16,7 +16,7 @@ Filename uses UTC timestamp. The `skills-audit` suffix anticipates future audit 
 
 - **No merge conflicts** when two runs land close together (each writes its own file)
 - **Immutable history** — past audits never get amended, the record is the record
-- **Easy to glob** — `agent/memory/research/*-skills-audit.md` gives the full skills audit history
+- **Easy to glob** — `researches/*-skills-audit.md` gives the full skills audit history
 - **Easy to truncate** — drop oldest files when the directory grows unwieldy without touching anything else
 
 ## How Eva uses prior reports
@@ -42,12 +42,16 @@ Each file is YAML-frontmatter + Markdown. Frontmatter keys:
 
 Body sections (each optional, omit if empty):
 - `## Audited areas`
-- `## Sources scanned` — official news / docs / releases reviewed in Step 4 (URL + 1-line summary each)
+- `## Sources scanned` — summary of this run's Step 4 scan (changes detected + errors). Full per-URL state lives in `sources-index.md`.
 - `## Skills PRs opened` — atomic fix PRs to existing functionality
 - `## Feature proposals opened` — new-capability `eva-proposal` issues
 - `## Deferred findings`
 - `## Blockers`
 - `## Notes for next run`
+
+## Companion files in this directory
+
+- **`sources-index.md`** — append-only index of external news / docs / release URLs Eva scans during Step 4. One section per URL with YAML metadata block + history of scans. Eva reads it at run start to build a "last seen" map, and updates it per URL during the scan. New URLs encountered in the wild get appended as new sections. See the file's own header for the format spec.
 
 ## Lifecycle
 
