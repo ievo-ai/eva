@@ -250,19 +250,25 @@ jobs:
             flag in "Notes for next run" so the operator can broaden the
             source list.
 
-            **Open a DRAFT PR — not an issue.** Operator preference
-            2026-05-22 changed: ship concrete code for review rather than
-            text proposals for triage. The operator reviews the diff and
-            either marks Ready (proposal accepted, will merge) or closes
-            the PR (rejected). This costs more turns up-front per proposal
-            but eliminates the issue → implementation handoff gap.
+            **Open a REGULAR (non-draft) PR — not an issue, not a draft.**
+            Operator preference 2026-05-22 changed twice today:
+              First: issue → too distant from code; can't auto-review.
+              Then: draft PR → Claude Code Review on the skills repo only
+                fires on non-draft PRs, so drafts also miss the
+                auto-review signal.
+              Final (this version): regular PR with `feature-proposal`
+                label. The skills repo's Claude Code Review action picks
+                it up immediately and posts a review. Operator sees both
+                Eva's proposal AND Claude's automated review side by
+                side; merges, closes, or pushes follow-up commits as
+                needed.
 
             For each proposal:
 
               # Ensure the feature-proposal label exists
               gh label create "feature-proposal" \
                 --repo ievo-ai/skills \
-                --description "Draft PR proposing a new capability — Eva research" \
+                --description "PR proposing a new capability — Eva research" \
                 --color "1d76db" \
                 2>/dev/null || true   # ignore "already exists"
 
@@ -280,7 +286,7 @@ jobs:
               git add -A && git commit -m "feat(propose): <one-line>" \
                 -m "Co-Authored-By: iEVO <noreply@ievo.ai>"
               git push origin "feat/v<x.y.z>-propose-<slug>"
-              gh pr create --draft \
+              gh pr create \
                 --repo ievo-ai/skills \
                 --label "feature-proposal" \
                 --title "Propose: <one-line capability description>" \
@@ -310,22 +316,24 @@ jobs:
 
               ## How to accept
 
-              Mark this PR as Ready for review. Operator (or follow-up
-              implementer) finishes the TODOs and merges. To reject:
-              close the PR with a one-line reason.
+              Skills-repo Claude Code Review will post its take
+              automatically. Operator merges if the proposal + review
+              look good; closes the PR if not. To request changes, push
+              follow-up commits.
 
               ---
               Filed by Eva research run <$GITHUB_RUN_ID>.
               ```
 
-            Hard cap: 3 draft PRs per run. Proposals are heavier than
+            Hard cap: 3 proposal PRs per run. Proposals are heavier than
             audit-fix PRs (need full implementation scaffolding); three
             is plenty.
 
-            DO NOT use draft PRs to track audit-fix findings — those go
-            as REGULAR (non-draft) PRs in Step 5 or as Deferred findings
-            in Step 6. Draft PRs are EXCLUSIVELY for new-capability
-            proposals.
+            DO NOT use the `feature-proposal` label on audit-fix
+            findings — those go as REGULAR PRs in Step 5 (no label) or
+            as Deferred findings in Step 6. The `feature-proposal`
+            label is EXCLUSIVELY for new-capability proposals so the
+            operator can filter / triage them as a class.
 
             ### Credit the contributors
 
