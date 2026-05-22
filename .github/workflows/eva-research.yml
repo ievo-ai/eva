@@ -18,7 +18,17 @@ name: Eva Research
 
 on:
   schedule:
-    - cron: '0 6 * * 1'  # Weekly, Monday 6am UTC
+    # Daily at 06:00 UTC (07:00 Europe/GMT+1, 08:00 Europe/GMT+2 summer).
+    # Operator preference 2026-05-22 — switched from weekly Monday to daily
+    # so Eva surfaces drift faster. Noise floor with daily cron: ~7
+    # audit-report PRs/week guaranteed (one per run), plus 0–35 skills
+    # PRs/week depending on findings. Each merged PR fires Telegram via
+    # publish-evolution.yml (PR #25 trigger). If the cadence proves too
+    # loud, options without going back to weekly: (a) gate audit-report
+    # PR's Telegram fire behind a "silent" label, (b) skip audit-report
+    # PR on zero-finding runs (lossy — we lose the "audited X, found
+    # nothing" data point).
+    - cron: '0 6 * * *'
   workflow_dispatch: {}
 
 permissions:
