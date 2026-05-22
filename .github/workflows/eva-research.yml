@@ -122,16 +122,31 @@ jobs:
                     wrote them (you did)
               - If the directory is empty (first run), proceed normally.
 
-            Past feature proposals — for dedupe later (Step 4b):
-              - Draft PRs with `feature-proposal` label (current scheme):
+            Findings backlog — the canonical source of past proposals
+            (Step 4b reads/appends to this):
+              - Read `researches/findings-backlog.md` (entire file)
+              - Build a `discovered_already` set keyed by `evidence` URLs
+                AND `title` semantic match
+              - During Step 4b, SKIP any finding represented here
+                regardless of status (raw / issued / accepted /
+                implemented / rejected / parked) — don't re-propose
+
+            Past feature proposals in target repos — secondary dedup
+            layer (in case a finding got into a repo's issues without
+            backlog tracking, e.g. operator opened it manually):
+              - Issues with `feature-proposal` label (current scheme,
+                post-2026-05-22):
+                `gh issue list --repo ievo-ai/skills --state open
+                --label feature-proposal --json number,title`
+              - Legacy PRs with `feature-proposal` label
+                (transitional period 2026-05-22 PM):
                 `gh pr list --repo ievo-ai/skills --state open
                 --label feature-proposal --json number,title`
-              - Legacy issues with `eva-proposal` label (pre-2026-05-22):
+              - Legacy issues with `eva-proposal` label (initial scheme,
+                pre-2026-05-22 PM):
                 `gh issue list --repo ievo-ai/skills --state open
                 --label eva-proposal --json number,title`
-              - Build a unified "proposed already" set across both
-                sources. When you do feature discovery later (Step 4b),
-                SKIP proposals already in this set.
+              - Merge with `discovered_already` from backlog.
 
             Sources index — for diff-based scanning later (Step 4):
               - Read `researches/sources-index.md` (entire file)
@@ -226,11 +241,12 @@ jobs:
             from this run) and refer the reader to the index for the
             full state.
 
-            ## Step 4b — Feature gap discovery (new capabilities)
+            ## Step 4b — Feature gap discovery (findings → backlog → issue)
 
             Audit finds bugs in existing functionality (Step 3-5). Step 4b
-            looks for capabilities the skills repo is MISSING — things
-            that should exist but don't. Examples:
+            looks for capabilities the target repo (skills / cortex /
+            agents / etc.) is MISSING — things that should exist but
+            don't. Examples:
               - A pattern Cursor/Codex shipped that skills lacks
               - A new agent role that would improve quality / dev velocity
               - An integration with a popular MCP server
@@ -238,108 +254,123 @@ jobs:
 
             For each gap meeting ALL of these:
               - Concrete (one sentence describing the new capability)
-              - Atomic (one capability per proposal — no umbrella PRs)
+              - Atomic (one capability per finding — no umbrella issues)
               - Justified (link to specific external evidence FROM YOUR
                 STEP 4 SCAN — quote the source URL and the observation
-                that triggered the proposal)
-              - Not a duplicate of an open `feature-proposal` PR or
-                `eva-proposal` issue (you pre-loaded the open set in Step 1)
+                that triggered this)
+              - Not a duplicate of any finding already in
+                `researches/findings-backlog.md` (any status) OR any
+                open `feature-proposal` issue in the target repo
+                (you pre-loaded both sets in Step 1)
 
-            Strong preference: at least ONE proposal per run if Step 4
-            surfaced anything notable. Many zero-proposal runs in a row =
+            Strong preference: at least ONE finding per run if Step 4
+            surfaced anything notable. Many zero-finding runs in a row =
             flag in "Notes for next run" so the operator can broaden the
             source list.
 
-            **Open a REGULAR (non-draft) PR — not an issue, not a draft.**
-            Operator preference 2026-05-22 changed twice today:
-              First: issue → too distant from code; can't auto-review.
-              Then: draft PR → Claude Code Review on the skills repo only
-                fires on non-draft PRs, so drafts also miss the
-                auto-review signal.
-              Final (this version): regular PR with `feature-proposal`
-                label. The skills repo's Claude Code Review action picks
-                it up immediately and posts a review. Operator sees both
-                Eva's proposal AND Claude's automated review side by
-                side; merges, closes, or pushes follow-up commits as
-                needed.
+            **Findings-first flow (operator preference 2026-05-22, switched
+            from prior PR-as-default). Eva NO LONGER opens PRs with
+            scaffolded code for proposals. Eva opens detailed ISSUES.**
 
-            For each proposal:
+            History of this design (preserved so a future editor knows
+            the journey and doesn't accidentally revert):
+              v1: open ISSUE with brief body → too vague for action
+              v2: open DRAFT PR with scaffolded code → Claude Code Review
+                  doesn't fire on drafts
+              v3: open REGULAR PR with scaffolded code → Claude Code
+                  Review fires, but Eva sinks 15-20 turns per proposal
+                  even for ones that get rejected; PRs only target
+                  skills (where Eva has admin)
+              v4 (CURRENT): findings-backlog + detailed ISSUE per finding
+                  → ~3 turns per proposal, persistent backlog, any
+                  target repo, implementation deferred to operator or
+                  Issue Triage helper (godfather task #42)
 
-              # Ensure the feature-proposal label exists
+            For each gap surfaced this run:
+
+            **Step 4b.1 — Append to findings-backlog**
+
+            Open `researches/findings-backlog.md` and append a new
+            section. Generate the finding ID:
+              - Date: `date -u +%Y-%m-%d`
+              - Sequence: scan the file for `id: F-<today>-NNN` entries,
+                pick the next zero-padded 3-digit number (start at 001
+                if today is empty)
+
+            New section format (use the Edit tool to append; don't
+            rewrite the whole file):
+
+              ```markdown
+              ## F-YYYY-MM-DD-NNN — <title>
+
+              ```yaml
+              id: F-YYYY-MM-DD-NNN
+              discovered_at: <ISO 8601 UTC>
+              run_id: <$GITHUB_RUN_ID>
+              target_repo: ievo-ai/<repo>
+              title: <one-line capability name>
+              status: raw
+              issue_url:
+              effort: <low | medium | high>
+              scope: <single-file | multi-file | new-skill | architecture-change>
+              evidence:
+                - <URL>: <what triggered this>
+              ```
+
+              <detailed proposal body — same content the issue will use,
+              following the template in researches/findings-backlog.md
+              "Issue body template" section>
+              ```
+
+            **Step 4b.2 — Open detailed issue in target_repo**
+
+            Read the "Issue body template" section of
+            `researches/findings-backlog.md` and prepare the issue body
+            literally per that template — every section present
+            (Summary, Problem, Evidence, Proposed solution, Files
+            affected, API/UX, Acceptance criteria, Effort estimate,
+            Open questions, Related). The operator wants VERY DETAILED
+            issues — not the 4-section shallow body of the earlier
+            scheme.
+
+            Then create the label (idempotent) and open the issue:
+
               gh label create "feature-proposal" \
-                --repo ievo-ai/skills \
-                --description "PR proposing a new capability — Eva research" \
+                --repo <target_repo> \
+                --description "Capability proposal from Eva research — needs operator triage" \
                 --color "1d76db" \
                 2>/dev/null || true   # ignore "already exists"
 
-              cd /tmp/skills
-              git config user.email "noreply@ievo.ai"
-              git config user.name "ievo-eva"
-              git checkout -b feat/v<x.y.z>-propose-<slug>
-              # Implement the proposal: create new SKILL.md / agent / script
-              # files via Write tool. Include enough scaffolding that the
-              # PR is *reviewable* — frontmatter, brief body, file
-              # structure. Do NOT ship a full production-ready
-              # implementation; leave clear TODOs for the operator
-              # showing what completion looks like.
-              # Bump version in BOTH manifests per AGENTS.md.
-              git add -A && git commit -m "feat(propose): <one-line>" \
-                -m "Co-Authored-By: iEVO <noreply@ievo.ai>"
-              git push origin "feat/v<x.y.z>-propose-<slug>"
-              gh pr create \
-                --repo ievo-ai/skills \
+              gh issue create \
+                --repo <target_repo> \
                 --label "feature-proposal" \
-                --title "Propose: <one-line capability description>" \
-                --body-file /tmp/pr-body.md
+                --title "Propose: <one-line capability>" \
+                --body-file /tmp/issue-body.md
 
-            PR body template (write to /tmp/pr-body.md):
-              ```markdown
-              ## Capability
+            **Step 4b.3 — Update backlog entry with issue URL**
 
-              <one paragraph: what the new skill/agent/script does>
+            Use the Edit tool to update the yaml block of this finding's
+            section in `researches/findings-backlog.md`:
+              - `status: issued`
+              - `issue_url: <URL returned by gh issue create>`
+            Touch only this finding's yaml block; don't disturb other
+            sections.
 
-              ## Why now
+            **Hard cap: 3 findings per run.** Findings compound across
+            runs via the backlog; three high-quality is plenty per
+            audit. Additional gaps go in Deferred findings of the audit
+            report.
 
-              <evidence — quote / cite / link the external trigger from
-              your Step 4 scan>
-
-              ## What's in this PR
-
-              <list of files added/modified — readable summary of the
-              diff>
-
-              ## What's NOT in this PR (operator decisions)
-
-              - <TODOs that need operator input before this is
-                production-ready>
-              - ...
-
-              ## How to accept
-
-              Skills-repo Claude Code Review will post its take
-              automatically. Operator merges if the proposal + review
-              look good; closes the PR if not. To request changes, push
-              follow-up commits.
-
-              ---
-              Filed by Eva research run <$GITHUB_RUN_ID>.
-              ```
-
-            Hard cap: 3 proposal PRs per run. Proposals are heavier than
-            audit-fix PRs (need full implementation scaffolding); three
-            is plenty.
-
-            DO NOT use the `feature-proposal` label on audit-fix
-            findings — those go as REGULAR PRs in Step 5 (no label) or
-            as Deferred findings in Step 6. The `feature-proposal`
-            label is EXCLUSIVELY for new-capability proposals so the
-            operator can filter / triage them as a class.
+            **DO NOT use `feature-proposal` label on audit-fix
+            findings** — those go as REGULAR PRs in Step 5 (no label)
+            or as Deferred findings. The `feature-proposal` label is
+            EXCLUSIVELY for new-capability findings filed as issues.
 
             ### Credit the contributors
 
             ALWAYS credit external sources whose pattern, repo, or
-            specific work inspired the proposal. After opening each
-            draft PR (or any issue/PR that cites external work),
+            specific work inspired the finding. After opening each
+            issue (or any issue/PR that cites external work),
             immediately post a comment that:
               - @-mentions the author or repo (use the actual GitHub
                 handle, e.g. `@DenisSergeevitch`, `@anthropic`)
@@ -347,8 +378,10 @@ jobs:
               - Thanks them concretely (one line about what their work
                 enabled here)
 
-            Command pattern:
-              gh pr comment <PR_NUM> --repo ievo-ai/skills \
+            Command pattern (use `gh issue comment` for findings issues
+            opened in Step 4b; use `gh pr comment` for audit-fix PRs in
+            Step 5 that cite external sources):
+              gh issue comment <NUM> --repo <target_repo> \
                 --body "🙏 Credit: this proposal was inspired by
                 @<handle>'s [<project>](<url>) — <one line of
                 what their work enabled>. Thanks for shipping
@@ -411,7 +444,7 @@ jobs:
             duration: <approximate, "Xm Ys" — you can read from action context if available, else estimate>
             turns: <your best estimate of turns consumed so far>
             cost_usd: <leave blank if unknown; the runner reports total cost in the post-step summary>
-            verdict: <skills_prs_opened | feature_proposals_opened | both | no_high_confidence | blocked>
+            verdict: <skills_prs_opened | findings_filed | both | no_high_confidence | blocked>
             ---
 
             ## Audited areas
@@ -431,9 +464,10 @@ jobs:
             - skills#<number> — <title>. Source-of-finding: <file:line or rule>. Verdict: <ok-to-merge | needs review>
             - (or just "none" if no PRs opened)
 
-            ## Feature proposals opened
-            - skills#<issue-number> — <title>. Rationale (one line). Evidence: <URL>
+            ## Findings filed
+            - F-YYYY-MM-DD-NNN → <target_repo>#<issue-number> — <title>. Effort: <low/med/high>. Evidence: <URL>
             - (or "none")
+            (Full backlog: `researches/findings-backlog.md`)
 
             ## Deferred findings
             - <one-line finding>: <reason it wasn't opened — "needs deeper investigation" / "duplicate of #N" / "below threshold" / "blocked on spec finalization">
@@ -488,7 +522,7 @@ jobs:
             in this run) listing:
               - Audit report PR URL (the eva-side PR with the report)
               - Skills PRs opened (URLs)
-              - Feature proposals opened (issue URLs)
+              - Findings filed (backlog IDs + issue URLs)
               - Findings found but NOT opened, with reasons
               - Anything blocked
 

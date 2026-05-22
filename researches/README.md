@@ -38,13 +38,13 @@ Each file is YAML-frontmatter + Markdown. Frontmatter keys:
 | `duration` | string | Wall-clock, e.g. `7m44s` |
 | `turns` | int | Claude turns consumed |
 | `cost_usd` | float | Run cost from Claude SDK report |
-| `verdict` | enum | `skills_prs_opened` / `feature_proposals_opened` / `both` / `no_high_confidence` / `blocked` |
+| `verdict` | enum | `skills_prs_opened` / `findings_filed` / `both` / `no_high_confidence` / `blocked` |
 
 Body sections (each optional, omit if empty):
 - `## Audited areas`
 - `## Sources scanned` — summary of this run's Step 4 scan (changes detected + errors). Full per-URL state lives in `sources-index.md`.
-- `## Skills PRs opened` — atomic fix PRs to existing functionality
-- `## Feature proposals opened` — new-capability `eva-proposal` issues
+- `## Skills PRs opened` — atomic fix PRs to existing functionality (Step 5 output)
+- `## Findings filed` — new-capability findings filed as issues (Step 4b output); references backlog IDs + issue URLs. Full backlog lives in `findings-backlog.md`.
 - `## Deferred findings`
 - `## Blockers`
 - `## Notes for next run`
@@ -52,6 +52,7 @@ Body sections (each optional, omit if empty):
 ## Companion files in this directory
 
 - **`sources-index.md`** — append-only index of external news / docs / release URLs Eva scans during Step 4. One section per URL with YAML metadata block + history of scans. Eva reads it at run start to build a "last seen" map, and updates it per URL during the scan. New URLs encountered in the wild get appended as new sections. See the file's own header for the format spec.
+- **`findings-backlog.md`** — append-only log of every feature gap / capability finding Eva surfaces during research runs. One section per finding with YAML metadata + the detailed proposal body. Eva opens an issue in `target_repo` for each finding (Step 4b) and tracks status (`raw` / `issued` / `accepted` / `implemented` / `rejected` / `parked`) in the YAML block. See the file's own header for the issue body template (operator-mandated detailed structure, 2026-05-22).
 
 ## Lifecycle
 
