@@ -1,6 +1,10 @@
 # Eva — PR Gatekeeper
 # Reviews PRs via Claude Code CLI, auto-merges on approval.
-# Triggers: cross-repo dispatch (child repos) + workflow_run (self-review)
+# Triggers:
+#   - repository_dispatch (cross-repo, child repos dispatch when their tests pass)
+#   - workflow_run on Tests (Eva self-review when CI runs on a non-draft PR)
+#   - pull_request: ready_for_review (PR transitions from draft → open; CI
+#     already ran while it was a draft, no new push to retrigger workflow_run)
 
 name: "Eva: Review PR"
 
@@ -14,13 +18,20 @@ on:
     workflows: ["Tests"]
     types: [completed]
 
+  # Self-review: PR transitions from draft to ready-for-review. The
+  # workflow_run path above won't fire on this transition (no new CI run is
+  # triggered when a PR's draft flag flips). Without this, draft-then-ready
+  # PRs sit unreviewed unless the operator pushes an empty commit to force CI.
+  pull_request:
+    types: [ready_for_review]
+
 permissions:
   contents: write
   pull-requests: write
   issues: read
 
 concurrency:
-  group: eva-review-${{ github.event.client_payload.repo || github.repository }}-${{ github.event.client_payload.pr_number || github.event.workflow_run.id }}
+  group: eva-review-${{ github.event.client_payload.repo || github.repository }}-${{ github.event.client_payload.pr_number || github.event.pull_request.number || github.event.workflow_run.id }}
   cancel-in-progress: true
 
 jobs:
@@ -38,7 +49,11 @@ jobs:
        github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event == 'pull_request' &&
        github.event.workflow_run.triggering_actor.login != 'ievo-eva' &&
-       github.event.workflow_run.triggering_actor.login != 'github-actions[bot]')
+       github.event.workflow_run.triggering_actor.login != 'github-actions[bot]') ||
+      (github.event_name == 'pull_request' &&
+       github.event.action == 'ready_for_review' &&
+       github.event.pull_request.user.login != 'ievo-eva' &&
+       github.event.pull_request.user.login != 'github-actions[bot]')
 
     steps:
       # --- Auth ---
@@ -63,7 +78,7 @@ jobs:
             echo "token=$PAT_TOKEN" >> "$GITHUB_OUTPUT"
           fi
 
-      # --- Resolve PR context (dispatch vs workflow_run) ---
+      # --- Resolve PR context (dispatch vs workflow_run vs pull_request) ---
       - name: Resolve PR context
         id: ctx
         env:
@@ -71,11 +86,17 @@ jobs:
           DISPATCH_REPO: ${{ github.event.client_payload.repo }}
           DISPATCH_PR: ${{ github.event.client_payload.pr_number }}
           WR_SHA: ${{ github.event.workflow_run.head_sha }}
+          PR_NUMBER_FROM_EVENT: ${{ github.event.pull_request.number }}
         run: |
-          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+          EVENT="${{ github.event_name }}"
+          if [ "$EVENT" = "repository_dispatch" ]; then
             REPO="$DISPATCH_REPO"
             PR_NUM="$DISPATCH_PR"
+          elif [ "$EVENT" = "pull_request" ]; then
+            REPO="${{ github.repository }}"
+            PR_NUM="$PR_NUMBER_FROM_EVENT"
           else
+            # workflow_run — find PR by head_sha
             REPO="${{ github.repository }}"
             PR_NUM=$(gh api "repos/$REPO/pulls?state=open" \
               --jq ".[] | select(.head.sha == \"$WR_SHA\") | .number" \
@@ -88,12 +109,28 @@ jobs:
             exit 0
           fi
 
-          # Check if PR is draft
+          # Check if PR is draft (defense-in-depth — pull_request:ready_for_review
+          # already filters by action, but a race could leave the PR re-drafted)
           DRAFT=$(gh api "repos/$REPO/pulls/$PR_NUM" --jq '.draft')
           if [ "$DRAFT" = "true" ]; then
             echo "PR is draft, skipping review"
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
+          fi
+
+          # When triggered by pull_request:ready_for_review, Tests already
+          # ran while the PR was a draft (or just ran on the latest push).
+          # Either way we must verify Tests are GREEN on the current head
+          # before reviewing — don't review code with broken tests.
+          if [ "$EVENT" = "pull_request" ]; then
+            HEAD_SHA=$(gh api "repos/$REPO/pulls/$PR_NUM" --jq '.head.sha')
+            TESTS_CONCLUSION=$(gh api "repos/$REPO/commits/$HEAD_SHA/check-runs?check_name=Lint+%26+Test" \
+              --jq '.check_runs[0].conclusion // "missing"')
+            if [ "$TESTS_CONCLUSION" != "success" ]; then
+              echo "Tests not green on head ($TESTS_CONCLUSION), skipping review"
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
           fi
 
           {
