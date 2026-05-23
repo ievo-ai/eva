@@ -98,13 +98,36 @@ jobs:
       - name: Set auth token
         id: auth
         env:
+          EVENT_NAME: ${{ github.event_name }}
           APP_TOKEN: ${{ steps.app-token.outputs.token }}
           PAT_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
         run: |
-          if [ -n "$APP_TOKEN" ]; then
+          # Token selection rationale (2026-05-23):
+          #
+          # `pull_request` event on a workflow-modifying PR causes GitHub
+          # to restrict the App installation token's effective scope at
+          # the workflow boundary, regardless of installation-level
+          # permissions (even with `workflows: write` granted). Result:
+          # `gh api repos/X/pulls/N` returns 403 "Resource not accessible
+          # by integration". Empirically confirmed:
+          #   - PR #54 (modifies eva-research.yml), run 26327402101
+          #     2026-05-23T07:52Z — failed 403 even after
+          #     ievo-eva App's workflows:write grant on 2026-05-22T17:01Z
+          #
+          # PATs are user-bound, not subject to App-installation-scope
+          # downgrades. Force PAT specifically for `pull_request` events
+          # to avoid the 403. Other paths (workflow_run, repository_
+          # dispatch) keep App-token-preferred behavior — they run from
+          # main and don't hit the workflow-modifying-PR restriction.
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            echo "token=$PAT_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "Using PAT (pull_request event — App token gets restricted on workflow-modifying PRs)"
+          elif [ -n "$APP_TOKEN" ]; then
             echo "token=$APP_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "Using App token"
           else
             echo "token=$PAT_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "Using PAT (App token unavailable)"
           fi
 
       # --- Resolve PR context (dispatch vs workflow_run vs pull_request) ---
