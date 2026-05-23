@@ -1,5 +1,10 @@
 name: Eva Research
 
+# Trivial test marker: smoke test for sensitive-path gate on
+# `.github/workflows/` (godfather task #41, verification 2026-05-23).
+# Expected: Eva approves + posts operator-required comment +
+# auto-merge BLOCKED.
+
 # Skills-only Researcher MVP (godfather task #39, Variant 1).
 #
 # Eva audits ievo-ai/skills end-to-end and opens atomic improvement PRs
