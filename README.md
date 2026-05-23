@@ -210,3 +210,4 @@ Full technical docs at [ievo-ai.github.io/eva](https://ievo-ai.github.io/eva/) o
 - [ievo-ai/marketplace](https://github.com/ievo-ai/marketplace) — Agent registry
 - [ievo-ai/sdk](https://github.com/ievo-ai/sdk) — Developer toolkit
 - [ievo.ai](https://ievo.ai) — Project homepage
+<!-- Eva PR Review smoke test 2026-05-23 -->
