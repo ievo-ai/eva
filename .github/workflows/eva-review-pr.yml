@@ -27,16 +27,27 @@ on:
 
 # Workflow-level permissions (for the automatic GITHUB_TOKEN if used).
 #
-# IMPORTANT: this workflow's actual auth flows through the `ievo-eva`
-# GitHub App via `actions/create-github-app-token@v1` (preferred) or
-# falls back to `EVA_PAT_GITHUB_TOKEN` PAT. The App installation in
-# `ievo-ai` org MUST have `workflows: write` permission — without it,
-# `gh api repos/X/pulls/N` returns 403 "Resource not accessible by
-# integration" whenever the PR being reviewed modifies any file under
-# `.github/workflows/`. This was the root cause of the 2026-05-22 spate
-# of Eva-review-pr failures on workflow-touching PRs. App permission
-# panel: https://github.com/organizations/ievo-ai/settings/apps/ievo-eva/permissions
-# Installation review URL: https://github.com/organizations/ievo-ai/settings/installations/113079602
+# IMPORTANT: this workflow's actual auth flows through one of two tokens
+# selected per-event in the "Set auth token" step:
+#
+#   - `workflow_run` / `repository_dispatch` events → App installation
+#     token from `actions/create-github-app-token@v1`. Preferred path
+#     since these events run from main's workflow file and the App
+#     token doesn't hit pull-request-scope restrictions.
+#
+#   - `pull_request` events → forced to PAT (`EVA_PAT_GITHUB_TOKEN`).
+#     The App installation token, even with `workflows: write` granted,
+#     gets restricted at the workflow boundary on workflow-modifying PRs
+#     and returns 403 "Resource not accessible by integration" on
+#     `gh api repos/X/pulls/N`. PR #54 (2026-05-23 cron failure +
+#     review failure) confirmed the App permission grant doesn't fully
+#     resolve this on `pull_request` events. PAT is user-bound and
+#     bypasses the App-installation-scope downgrade.
+#
+# App permission panel:
+#   https://github.com/organizations/ievo-ai/settings/apps/ievo-eva/permissions
+# Installation review URL:
+#   https://github.com/organizations/ievo-ai/settings/installations/113079602
 permissions:
   contents: write
   pull-requests: write
