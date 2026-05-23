@@ -296,19 +296,36 @@ jobs:
 
           REVIEW=$(cat /tmp/prompt.txt | claude -p --model opus --allowedTools "Bash(read-only),Read,Glob,Grep") || true
 
+          # SAFETY (2026-05-23): on CLI failure, default to REQUEST_CHANGES
+          # — operator decides. Previously defaulted to APPROVE which let
+          # broken-Claude runs auto-merge garbage. Original line said:
+          # "Auto-approving based on passing tests" — but passing Tests
+          # only verifies lint+pytest, says nothing about whether the
+          # change is correct, safe, or intended. APPROVE without an
+          # actual review is rubber-stamping.
           if [ -z "$REVIEW" ]; then
-            echo "decision=APPROVE" >> "$GITHUB_OUTPUT"
-            echo "comment=Eva could not complete review (CLI timeout). Auto-approving based on passing tests." >> "$GITHUB_OUTPUT"
+            echo "decision=REQUEST_CHANGES" >> "$GITHUB_OUTPUT"
+            {
+              echo "comment<<EOFCOMMENT"
+              echo "Eva could not complete review (Claude CLI returned empty or timed out)."
+              echo ""
+              echo "Defaulting to REQUEST_CHANGES so the PR doesn't auto-merge without a real review."
+              echo "Operator: please review manually or re-run Eva via repository_dispatch."
+              echo "EOFCOMMENT"
+            } >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           DECISION=$(echo "$REVIEW" | head -1 | tr -d '[:space:]')
           COMMENT=$(echo "$REVIEW" | sed '1,/^---$/d')
 
-          # Default to APPROVE if parsing fails
+          # SAFETY (2026-05-23): on parse failure, default to REQUEST_CHANGES.
+          # Previously defaulted to APPROVE, which let any malformed Claude
+          # output trigger auto-merge. A parse failure is NOT an approval
+          # signal — it means we don't know what Claude decided.
           if [ "$DECISION" != "APPROVE" ] && [ "$DECISION" != "REQUEST_CHANGES" ]; then
-            DECISION="APPROVE"
-            COMMENT="$REVIEW"
+            DECISION="REQUEST_CHANGES"
+            COMMENT="$(printf 'Eva could not parse her own review output (expected APPROVE or REQUEST_CHANGES as first line). Defaulting to REQUEST_CHANGES so the PR does NOT auto-merge. Raw Claude output below — operator decides.\n\n---\n\n%s' "$REVIEW")"
           fi
 
           echo "decision=$DECISION" >> "$GITHUB_OUTPUT"
@@ -346,9 +363,67 @@ jobs:
             -f event="COMMENT" \
             -f body="$BODY (could not submit as $EVENT — likely own-PR restriction)"
 
-      # --- Auto-merge on approval ---
-      - name: Auto-merge
+      # --- Sensitive-path gate (godfather task #41, 2026-05-23) ---
+      # Block auto-merge on PRs that touch Eva's own behavior or critical
+      # platform infrastructure. Operator MUST manually merge those.
+      #
+      # Rationale: Eva approving Eva's own self-modifying PRs is a
+      # single-reviewer loop. Mechanical fixes can auto-merge; behavioral
+      # changes need a human in the loop.
+      - name: Sensitive-path check
+        id: sensitive
         if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large != 'true' && steps.review.outputs.decision == 'APPROVE'
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          REPO: ${{ steps.ctx.outputs.repo }}
+          PR_NUM: ${{ steps.ctx.outputs.pr_number }}
+        run: |
+          # Get the list of files changed in this PR
+          CHANGED=$(gh api "repos/$REPO/pulls/$PR_NUM/files" --paginate \
+            --jq '.[].filename')
+
+          # Patterns that require operator approval (no auto-merge).
+          # Each pattern checked as a Bash glob prefix / substring.
+          SENSITIVE_PATTERNS=(
+            ".github/workflows/"      # any workflow file change
+            "agent/ROLE.md"           # Eva's identity
+            "agent/memory/"           # Eva's memory store
+            "CLAUDE.md"               # project rules
+            "src/eva/sources/"        # data source connectors (touch behavior)
+            "src/eva/pipeline.py"     # main scan pipeline
+            "src/eva/analysis/"       # pattern detection logic
+            "src/eva/mutations/"      # mutation generator
+            "researches/sources-index.md"   # research source list
+            "researches/findings-backlog.md" # findings strategic layer
+          )
+
+          SENSITIVE_HITS=""
+          while IFS= read -r f; do
+            for pattern in "${SENSITIVE_PATTERNS[@]}"; do
+              if [[ "$f" == *"$pattern"* ]]; then
+                SENSITIVE_HITS="${SENSITIVE_HITS}- $f (matches: $pattern)"$'\n'
+                break
+              fi
+            done
+          done <<< "$CHANGED"
+
+          if [ -n "$SENSITIVE_HITS" ]; then
+            echo "is_sensitive=true" >> "$GITHUB_OUTPUT"
+            echo "Sensitive paths touched — operator must manually merge:"
+            printf '%s' "$SENSITIVE_HITS"
+            {
+              echo "hits<<EOFHITS"
+              printf '%s' "$SENSITIVE_HITS"
+              echo "EOFHITS"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "is_sensitive=false" >> "$GITHUB_OUTPUT"
+            echo "No sensitive paths touched — auto-merge allowed"
+          fi
+
+      # --- Auto-merge on approval (only if not sensitive) ---
+      - name: Auto-merge
+        if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large != 'true' && steps.review.outputs.decision == 'APPROVE' && steps.sensitive.outputs.is_sensitive == 'false'
         env:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           REPO: ${{ steps.ctx.outputs.repo }}
@@ -356,6 +431,19 @@ jobs:
         run: |
           gh pr merge "$PR_NUM" --repo "$REPO" --auto --squash \
             || echo "Auto-merge not available — branch protection may require additional checks"
+
+      # --- Operator-required comment on sensitive PRs ---
+      - name: Operator-required notification
+        if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large != 'true' && steps.review.outputs.decision == 'APPROVE' && steps.sensitive.outputs.is_sensitive == 'true'
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          REPO: ${{ steps.ctx.outputs.repo }}
+          PR_NUM: ${{ steps.ctx.outputs.pr_number }}
+          HITS: ${{ steps.sensitive.outputs.hits }}
+        run: |
+          BODY=$(printf '⚠️ **Operator review required** — Eva approves this PR but it touches sensitive paths. Auto-merge is blocked.\n\nSensitive files touched:\n%s\nThese paths govern Eva'"'"'s own behavior or platform-critical infrastructure. Single-reviewer (Eva-approves-Eva) is not enough for these — operator must manually merge after inspecting the diff.\n\nReference: godfather task #41 (Eva self-review strengthening, 2026-05-23).' "$HITS")
+
+          gh pr comment "$PR_NUM" --repo "$REPO" --body "$BODY"
 
       # Telegram publish lives in publish-evolution.yml, triggered directly by
       # GitHub on `pull_request: closed && merged == true`. No caller-side
