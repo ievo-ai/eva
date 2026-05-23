@@ -148,11 +148,27 @@ jobs:
             REPO="${{ github.repository }}"
             PR_NUM="$PR_NUMBER_FROM_EVENT"
           else
-            # workflow_run — find PR by head_sha
+            # workflow_run — find PR via the event payload's
+            # `pull_requests[]` array (direct PR association from GitHub).
+            # The legacy `head.sha == workflow_run.head_sha` lookup
+            # fails for pull_request-triggered Tests because GitHub uses
+            # the synthetic merge commit's SHA (not the PR's HEAD) in
+            # workflow_run.head_sha — confirmed empirically PR #59
+            # (2026-05-23T10:25Z): WR_SHA was 425d0525 (merge commit),
+            # PR HEAD was da176238, lookup returned empty, review
+            # skipped. Reading event JSON via jq avoids both the
+            # merge-commit SHA issue and the GHA expression
+            # `array[0].field` syntax limitations.
             REPO="${{ github.repository }}"
-            PR_NUM=$(gh api "repos/$REPO/pulls?state=open" \
-              --jq ".[] | select(.head.sha == \"$WR_SHA\") | .number" \
-              | head -1)
+            PR_NUM=$(jq -r '.workflow_run.pull_requests[0].number // empty' "$GITHUB_EVENT_PATH")
+            if [ -z "$PR_NUM" ]; then
+              # Fallback: legacy head_sha lookup (works for push events
+              # or rare cases where pull_requests[] is empty in the
+              # event payload)
+              PR_NUM=$(gh api "repos/$REPO/pulls?state=open" \
+                --jq ".[] | select(.head.sha == \"$WR_SHA\") | .number" \
+                | head -1)
+            fi
           fi
 
           if [ -z "$PR_NUM" ]; then
