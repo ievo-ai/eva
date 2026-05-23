@@ -83,6 +83,15 @@ jobs:
           # Claude's drafts leak into a public PR thread; in a scheduled
           # background workflow, full output is exactly what we need.
           show_full_output: true
+          # Allow the GitHub App `ievo-eva` to initiate this workflow
+          # via cron. By default `anthropics/claude-code-action@v1`
+          # rejects non-human actors with "actor not found on GitHub".
+          # Scheduled runs report the App as the triggering actor,
+          # which fails this check. Confirmed empirically 2026-05-23
+          # at 07:04 UTC — first scheduled run (26326481678) failed
+          # exactly here. Manual workflow_dispatch runs report the
+          # operator as actor and skip this check.
+          allowed_bots: "ievo-eva"
           claude_args: |
             --model sonnet
             --allowedTools "Bash,Edit,Read,Write,Glob,Grep,WebFetch,WebSearch"
