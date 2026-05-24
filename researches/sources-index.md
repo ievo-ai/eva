@@ -45,6 +45,7 @@ run_id: 26389613586
 
 History:
 - 2026-05-25T07:48:17Z — changed: Project Glasswing (May 22) security initiative; no model releases or Claude Code-specific changes
+- 2026-05-24T07:23:12Z — changed: Project Glasswing announcement (May 22); no new model/Claude Code releases
 - 2026-05-22T17:34:04Z — unchanged: no new announcements since 14:47 scan
 - 2026-05-22T14:47:55Z — unchanged: no new Claude Code-relevant announcements since last scan
 - 2026-05-22T10:50:58Z — changed: Stainless acquisition, Claude for Small Business, KPMG partnership; no model releases
@@ -63,6 +64,7 @@ run_id: 26389613586
 
 History:
 - 2026-05-25T07:48:17Z — changed: v2.1.149 effort: frontmatter fix, /usage per-category, Tab-completion fix; v2.1.150 internal; Routines + Channels newly documented
+- 2026-05-24T07:23:12Z — changed: v2.1.149 (/usage per-category, PowerShell security fix, worktree sandbox fix, Bash find crash fix); v2.1.150 (infra only)
 - 2026-05-22T17:34:04Z — unchanged: still at v2.1.148; no new releases since 14:47 scan
 - 2026-05-22T14:47:55Z — unchanged: still at v2.1.148; no new releases since 10:54 scan; terminalSequence (v2.1.141) noted as evidence for hooks-setup proposal
 - 2026-05-22T10:50:58Z — changed: CLAUDE_CODE_SUBAGENT_MODEL env var, /code-review breaking rename, multi-agent teams, MCP CLAUDE_PROJECT_DIR
@@ -81,6 +83,7 @@ run_id: 26389613586
 
 History:
 - 2026-05-25T07:48:17Z — changed: v1.0.131–133; v1.0.133 adds OIDC Workload Identity Federation; no breaking input changes
+- 2026-05-24T07:23:12Z — changed: v1.0.129-133; OIDC auth support (v1.0.130, v1.0.133); Eva workflows deferred audit still pending
 - 2026-05-22T14:47:55Z — changed: v1.0 GA with breaking API; skills repo already on v1; check eva repo workflows
 - 2026-05-22T10:50:58Z — error: not included in fetch batch this run; will scan next run
 
@@ -129,6 +132,7 @@ run_id: 26389613586
 
 History:
 - 2026-05-25T07:48:17Z — changed: rust-v0.134.0-alpha.1/2/3 (May 22-23); Rust rewrite in alpha; no breaking skill-format changes
+- 2026-05-24T07:23:12Z — unchanged: v0.133.0 still latest stable; v0.134.0-alpha.1–alpha.3 tags dropped May 22–23 with no notes
 - 2026-05-22T17:34:04Z — unchanged: still at v0.133.0; no new releases since 14:47 scan
 - 2026-05-22T14:47:55Z — unchanged: still at v0.133.0; no new releases since 10:54 scan
 - 2026-05-22T10:50:58Z — changed: codex doctor diagnostic (v0.131), extension lifecycle hooks (v0.133), permission profiles with inheritance
@@ -163,6 +167,7 @@ run_id: 26389613586
 
 History:
 - 2026-05-25T07:48:17Z — unchanged: spec stable; allowed-tools field noted (e.g. `Bash(git:*) Read`); no breaking changes
+- 2026-05-24T07:23:12Z — changed: `compatibility` max 500 chars now documented; hooks-setup SKILL.md at 537 chars violates this (audit fix PR v0.6.13)
 - 2026-05-22T17:34:04Z — unchanged: spec stable; progressive disclosure 3-layer model confirmed (metadata → body → resources)
 - 2026-05-22T14:47:55Z — unchanged: spec stable; name field constraints confirmed (max 64, no consecutive hyphens, must match dir)
 - 2026-05-22T10:50:58Z — unchanged: spec stable, no breaking changes; allowed-tools field confirmed experimental
@@ -181,6 +186,7 @@ run_id: 26389613586
 
 History:
 - 2026-05-25T07:48:17Z — unchanged: last commit May 20; open PRs #380, #386, #345 still pending; no spec changes
+- 2026-05-24T07:23:12Z — changed: new PRs #402 (ZeroClaw clients) + #403 (flowhunt-skill submission); tracked PRs #380, #386, #345 still open
 - 2026-05-22T17:34:04Z — changed: client showcase PRs #377, #340, #349, #334, #332 confirmed merged; no spec-level changes; open PRs #380, #386, #345 still pending
 - 2026-05-22T14:47:55Z — unchanged: same open PRs (#380, #386); no new merges since 10:54 scan; PR #345 (unicode name clarification) noted
 - 2026-05-22T10:50:58Z — changed: PR #384 name-field validation fix merged; PR #380 optional skill versioning proposed; PR #386 Windows UTF-8 fix
@@ -199,6 +205,7 @@ run_id: 26389613586
 
 History:
 - 2026-05-25T07:48:17Z — unchanged: most recent entry v3.5 (May 20); no new changes
+- 2026-05-24T07:23:12Z — unchanged: no new entries since May 20
 - 2026-05-22T17:34:04Z — unchanged: no new entries since 14:47 scan
 - 2026-05-22T14:47:55Z — unchanged: no new entries since 10:54 scan; same v3.4/v3.5 content
 - 2026-05-22T10:50:58Z — changed: Composer 2.5, Jira integration, multi-repo Automations, Dockerfile cloud dev envs
@@ -217,6 +224,7 @@ run_id: 26389613586
 
 History:
 - 2026-05-25T07:48:17Z — unchanged: no relevant AI agent tooling posts on front page at scan time
+- 2026-05-24T07:23:12Z — unchanged: no relevant AI agent tooling topics on front page at snapshot time
 - 2026-05-22T10:50:58Z — unchanged: no relevant AI agent tooling topics on front page at snapshot time
 
 ---
@@ -233,6 +241,7 @@ run_id: 26389613586
 
 History:
 - 2026-05-25T07:48:17Z — unchanged: last commit May 15; no changes since last scan
+- 2026-05-24T07:23:12Z — unchanged: no new commits/files since May 15; stars grew to 1,034; checklists.md read for F-2026-05-24-002 evidence
 - 2026-05-22T17:34:04Z — changed: full 15-file reference list confirmed; agent-legibility-feedback-loops.md content retrieved; legibility principle cited as evidence for F-2026-05-22-003 (overlay-status skill)
 - 2026-05-22T10:50:58Z — changed: first scan; eight harness principles; coverage-audit.md pattern noted as iEvo gap
 

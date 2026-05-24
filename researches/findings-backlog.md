@@ -190,6 +190,49 @@ A new `/ievo:overlay-status` skill (in `plugins/ievo/skills/overlay-status/SKILL
 
 ---
 
+## F-2026-05-24-001 — /ievo:inspect skill — pre-install structured summary of a remote skill/repo
+
+```yaml
+id: F-2026-05-24-001
+discovered_at: 2026-05-24T07:23:12Z
+run_id: 26354909799
+target_repo: ievo-ai/skills
+title: /ievo:inspect skill — lightweight pre-install inspection of a remote skill or plugin repo
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/67
+effort: low
+scope: new-skill
+evidence:
+  - https://github.com/anthropics/claude-code/releases/tag/v2.1.145: /plugin Discover/Browse now shows commands, agents, skills, hooks, and MCP/LSP servers BEFORE installation — Claude Code's native preview surfaces capability summary before install commitment
+  - https://github.com/DenisSergeevitch/agents-best-practices/blob/main/references/checklists.md: Skills checklist item "Skill does not silently expand permissions" — implies pre-install verification; the harness principle is that capabilities should be inspectable before they are invoked
+```
+
+A new `/ievo:inspect <owner>/<repo>` skill that produces a structured human-readable summary of what a remote skill/plugin repo contains — without running the full 6-stage `/ievo:init` pipeline. Activates when the user asks "what does this skill do?", "show me what's in `anthropics/claude-skills`", "inspect `owner/repo` before I install it", or "summarise this skill without installing". The skill fetches the repo's SKILL.md (or AGENTS.md) via `gh api`, extracts the names and descriptions of all skills/agents/commands/scripts, and renders a capability summary: what the plugin does, what permissions it needs (`allowed-tools`), and which platforms it targets (`compatibility`). Does NOT run security scan (security-check handles that). Does NOT install anything. Replaces the current workaround of manually catting files via `gh api repos/<owner>/<repo>/contents/`. Implementation: pure gh API calls + Read, no scripts required, single new SKILL.md (~100 lines). The coverage-audit.md does not have a row for standalone pre-install inspection.
+
+---
+
+## F-2026-05-24-002 — validate_skills.mjs — mechanical SKILL.md spec compliance validator
+
+```yaml
+id: F-2026-05-24-002
+discovered_at: 2026-05-24T07:23:12Z
+run_id: 26354909799
+target_repo: ievo-ai/skills
+title: Add validate_skills.mjs to enforce agentskills.io spec constraints on SKILL.md frontmatter
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/68
+effort: medium
+scope: multi-file
+evidence:
+  - https://agentskills.io/specification: compatibility field max 500 chars now explicitly documented; description ≤1024; name ≤64 lowercase alnum+hyphens no consecutive/leading/trailing, must match directory — multiple constraints checkable without LLM reasoning
+  - https://github.com/DenisSergeevitch/agents-best-practices/blob/main/references/checklists.md: Mechanical invariant checklist — "Repeated prompt guidance has been converted into validators where possible. Validator errors include model-readable remediation instructions." — the spec constraints are exactly "repeated prompt guidance" and exactly machine-enforceable
+  - hooks-setup/SKILL.md: compatibility field is 537 chars (over the 500-char limit) — this violation shipped in v0.6.9 and was caught only by a manual audit run, not mechanically
+```
+
+Add `plugins/ievo/scripts/validate_skills.mjs` that checks every `plugins/ievo/skills/*/SKILL.md` against the agentskills.io spec constraints: (1) `name` present, ≤64 chars, lowercase alnum+hyphens, no consecutive/leading/trailing hyphens, matches parent directory name; (2) `description` present, ≤1024 chars; (3) `compatibility` present-if-set and ≤500 chars; (4) no CRLF in frontmatter (already checked by `crlf-frontmatter.mjs` but only for agents — needs extension or a separate SKILL.md-specific pass). Wire into `.pre-commit-config.yaml` and the `pre-commit-gate.yml` workflow alongside the existing 5 validators. Must have 100% test coverage per AGENTS.md rule (the script lives in `plugins/ievo/scripts/` — not in `.github/scripts/validators/`). Concrete precedent: `validate_agents.mjs` already does this for `agents/*.md` vendor-neutral model checking; `validate_skills.mjs` is the parallel for `skills/*/SKILL.md`. Immediate payoff: the `hooks-setup/SKILL.md` compatibility-length violation fixed in v0.6.13 would have been caught at commit time instead of requiring a dedicated audit run.
+
+---
+
 ## F-2026-05-25-001 — Add `effort:` frontmatter to all 9 SKILL.md files
 
 ```yaml
