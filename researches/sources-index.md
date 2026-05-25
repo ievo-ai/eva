@@ -36,14 +36,15 @@ run_id: <GitHub Actions run ID or null>
 ## https://www.anthropic.com/news
 
 ```yaml
-last_scan: 2026-05-22T17:34:04Z
-status: unchanged
-run_id: 26302374682
+last_scan: 2026-05-25T07:48:17Z
+status: changed
+run_id: 26389613586
 ```
 
-**Summary:** Anthropic acquired Stainless (May 18, likely impacting API/SDK tooling), launched Claude for Small Business (May 13), and announced KPMG strategic partnership deploying Claude to 276,000+ employees (May 19). No model releases or Claude Code-specific breaking changes in the window.
+**Summary:** "Project Glasswing" (2026-05-22) — software security initiative via industry collaboration; no Claude Code or agent API announcements in the window. Prior entries: Stainless acquisition, Claude for Small Business, KPMG partnership (all pre-May-22).
 
 History:
+- 2026-05-25T07:48:17Z — changed: Project Glasswing (May 22) security initiative; no model releases or Claude Code-specific changes
 - 2026-05-22T17:34:04Z — unchanged: no new announcements since 14:47 scan
 - 2026-05-22T14:47:55Z — unchanged: no new Claude Code-relevant announcements since last scan
 - 2026-05-22T10:50:58Z — changed: Stainless acquisition, Claude for Small Business, KPMG partnership; no model releases
@@ -53,14 +54,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-05-22T17:34:04Z
-status: unchanged
-run_id: 26302374682
+last_scan: 2026-05-25T07:48:17Z
+status: changed
+run_id: 26389613586
 ```
 
-**Summary:** Very active cadence — 10 releases (v2.1.139–v2.1.148) in 14-day window. Key new features: `CLAUDE_CODE_SUBAGENT_MODEL` env var (operator-level model override for subagents — **potential security-auditor impact**), `/code-review` command (replaces `/simplify` — BREAKING rename), `claude agents` unified dashboard, `/goal` autonomous completion, MCP stdio now receives `CLAUDE_PROJECT_DIR`, hook `args: string[]` exec-form support (v2.1.139), `terminalSequence` hook field (v2.1.141), `background_tasks` + `session_crons` fields in Stop/SubagentStop hook input (v2.1.145), multi-agent team orchestration with agent ID tracking in OTEL.
+**Summary:** v2.1.149 (2026-05-22) — major quality release: `/usage` now shows per-category breakdown (skills, subagents, plugins, per-MCP-server cost); `allowAllClaudeAiMcps` enterprise managed setting; fixed PowerShell permission bypass; fixed skill frontmatter `name:` vs directory basename mismatch breaking Tab-completion; **fixed `effort:` frontmatter not reflected in status bar**; fixed skill/agent `effort:` display. v2.1.150 (2026-05-23) — internal infrastructure improvements only. `effort:` is now a first-class frontmatter field (values: low/medium/high/xhigh/max), documented at code.claude.com/docs/en/skills.md. Routines (/schedule) and Channels (Telegram/Discord/iMessage push events) added to Claude Code docs.
 
 History:
+- 2026-05-25T07:48:17Z — changed: v2.1.149 effort: frontmatter fix, /usage per-category, Tab-completion fix; v2.1.150 internal; Routines + Channels newly documented
 - 2026-05-22T17:34:04Z — unchanged: still at v2.1.148; no new releases since 14:47 scan
 - 2026-05-22T14:47:55Z — unchanged: still at v2.1.148; no new releases since 10:54 scan; terminalSequence (v2.1.141) noted as evidence for hooks-setup proposal
 - 2026-05-22T10:50:58Z — changed: CLAUDE_CODE_SUBAGENT_MODEL env var, /code-review breaking rename, multi-agent teams, MCP CLAUDE_PROJECT_DIR
@@ -70,14 +72,15 @@ History:
 ## https://github.com/anthropics/claude-code-action/releases
 
 ```yaml
-last_scan: 2026-05-22T14:47:55Z
+last_scan: 2026-05-25T07:48:17Z
 status: changed
-run_id: 26294170594
+run_id: 26389613586
 ```
 
-**Summary:** v1.0 GA released (breaking changes from v0.x): `mode`/`direct_prompt`/`override_prompt` removed — replaced by single `prompt` input; `custom_instructions`/`model`/`allowed_tools`/`mcp_config` deprecated — replaced by `claude_args`. Skills repo already uses `@v1` (both `claude-code-review.yml` and `claude.yml`) — no action needed there. v1.0.130: Workload Identity Federation (OIDC) support added. Eva's own eva-review-pr.yml and similar workflows should be verified against v1.0 migration guide.
+**Summary:** v1.0.131 + v1.0.132 (2026-05-22, no changelog bodies) + v1.0.133 (2026-05-23) — Workload Identity Federation for Claude auth in CI workflows (OIDC, PR #1344). Prior: v1.0 GA breaking changes: `mode`/`direct_prompt`/`override_prompt` removed (replaced by `prompt`); `model`/`allowed_tools`/`mcp_config` deprecated (replaced by `claude_args`). Eva's own workflows should still be audited for v0.x inputs.
 
 History:
+- 2026-05-25T07:48:17Z — changed: v1.0.131–133; v1.0.133 adds OIDC Workload Identity Federation; no breaking input changes
 - 2026-05-22T14:47:55Z — changed: v1.0 GA with breaking API; skills repo already on v1; check eva repo workflows
 - 2026-05-22T10:50:58Z — error: not included in fetch batch this run; will scan next run
 
@@ -86,14 +89,15 @@ History:
 ## https://docs.anthropic.com/en/docs/claude-code/overview
 
 ```yaml
-last_scan: 2026-05-22T10:50:58Z
+last_scan: 2026-05-25T07:48:17Z
 status: changed
-run_id: 26283289533
+run_id: 26389613586
 ```
 
-**Summary:** Docs moved to code.claude.com (redirects cleanly). Overview now prominently features Agent SDK, Skills & Hooks, Routines/scheduling, Remote Control (cross-platform session mobility), and MCP integrations (Google Drive, Jira, Slack). Auto memory and Agent teams listed as current capabilities.
+**Summary:** Docs migrated to code.claude.com. New docs confirmed: Routines at code.claude.com/docs/en/routines.md (scheduled sessions via `/schedule`, account-level, Pro/Max+ required, also triggerable via GitHub events or HTTP API); Channels at code.claude.com/docs/en/channels.md (push events from Telegram/Discord/iMessage into sessions — research preview, requires Bun); Skills page now documents `effort:` frontmatter (low/medium/high/xhigh/max).
 
 History:
+- 2026-05-25T07:48:17Z — changed: Routines + Channels now documented; effort: frontmatter documented in skills.md
 - 2026-05-22T10:50:58Z — changed: docs migrated to code.claude.com; Agent SDK, Skills & Hooks, Routines, Remote Control added to overview
 
 ---
@@ -116,14 +120,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-05-22T17:34:04Z
-status: unchanged
-run_id: 26302374682
+last_scan: 2026-05-25T07:48:17Z
+status: changed
+run_id: 26389613586
 ```
 
-**Summary:** Three releases in the window (v0.131–v0.133): v0.131.0 (May 18) — unified `@` mentions, plugin marketplace commands, `codex doctor` diagnostic tool; v0.132.0 (May 20) — Python SDK auth, simplified turn APIs, `--output-schema`; v0.133.0 (May 21) — goals by default with dedicated storage, **extension lifecycle hooks** (subagent start/stop + tool execution), expanded permission profiles with inheritance. Strong trend toward autonomous orchestration and policy-based access control.
+**Summary:** Three 0.134.0 alpha releases (May 22–23): rust-v0.134.0-alpha.1, alpha.2, alpha.3 — all no-changelog-body; active Rust rewrite in progress. No skill-format or API-facing changes visible. Prior stable: v0.133.0 (May 21) — extension lifecycle hooks, goals by default.
 
 History:
+- 2026-05-25T07:48:17Z — changed: rust-v0.134.0-alpha.1/2/3 (May 22-23); Rust rewrite in alpha; no breaking skill-format changes
 - 2026-05-22T17:34:04Z — unchanged: still at v0.133.0; no new releases since 14:47 scan
 - 2026-05-22T14:47:55Z — unchanged: still at v0.133.0; no new releases since 10:54 scan
 - 2026-05-22T10:50:58Z — changed: codex doctor diagnostic (v0.131), extension lifecycle hooks (v0.133), permission profiles with inheritance
@@ -133,14 +138,15 @@ History:
 ## https://blog.google/technology/google-deepmind/
 
 ```yaml
-last_scan: 2026-05-22T10:50:58Z
+last_scan: 2026-05-25T07:48:17Z
 status: unchanged
-run_id: 26283289533
+run_id: 26389613586
 ```
 
-**Summary:** Most recent post in window: "Gemini for Science" (May 8) — AI tools for scientific research. No agent framework, MCP, or skill-spec relevant announcements visible on the blog index.
+**Summary:** Most recent posts: Gemini for Science (May 8). No agent framework, MCP, or skill-spec relevant announcements since last scan.
 
 History:
+- 2026-05-25T07:48:17Z — unchanged: no new agent tooling posts since last scan
 - 2026-05-22T10:50:58Z — unchanged: Gemini for Science post; no agent tooling changes relevant to skills repo
 
 ---
@@ -148,14 +154,15 @@ History:
 ## https://agentskills.io/specification
 
 ```yaml
-last_scan: 2026-05-22T17:34:04Z
+last_scan: 2026-05-25T07:48:17Z
 status: unchanged
-run_id: 26302374682
+run_id: 26389613586
 ```
 
-**Summary:** Required fields: `name` + `description` (≤1024 chars). Optional: `license`, `compatibility`, `metadata`, `allowed-tools` (experimental). `name` must be max 64 chars, lowercase alphanumeric + hyphens, no consecutive hyphens, must match directory name. Spec emphasizes progressive disclosure (metadata ~100 tokens at startup, full body on activation, referenced files on demand) and body ≤500 lines. No breaking changes documented.
+**Summary:** Required fields: `name` + `description` (≤1024 chars). Optional: `license`, `compatibility`, `metadata`, `allowed-tools` (experimental, space-separated pre-approved tools). `name` max 64 chars, lowercase alphanumeric+hyphens, no consecutive hyphens, must match directory. Progressive disclosure: metadata ~100 tokens at startup, full body on activation, referenced files on demand. Body ≤500 lines. Spec stable.
 
 History:
+- 2026-05-25T07:48:17Z — unchanged: spec stable; allowed-tools field noted (e.g. `Bash(git:*) Read`); no breaking changes
 - 2026-05-22T17:34:04Z — unchanged: spec stable; progressive disclosure 3-layer model confirmed (metadata → body → resources)
 - 2026-05-22T14:47:55Z — unchanged: spec stable; name field constraints confirmed (max 64, no consecutive hyphens, must match dir)
 - 2026-05-22T10:50:58Z — unchanged: spec stable, no breaking changes; allowed-tools field confirmed experimental
@@ -165,14 +172,15 @@ History:
 ## https://github.com/agentskills/agentskills
 
 ```yaml
-last_scan: 2026-05-22T17:34:04Z
-status: changed
-run_id: 26302374682
+last_scan: 2026-05-25T07:48:17Z
+status: unchanged
+run_id: 26389613586
 ```
 
-**Summary:** Active development in window. PR #384 (May 20, MERGED) — fixed `name` field alphanumeric range validation in spec. PR #386 (May 19) — Windows UTF-8 fix in `skills-ref` validation tool. New client showcases: Superconductor, Vita, Tabnine, bub (May 19–20). Open (not merged): PR #380 proposes optional skill versioning in `.well-known` spec; PR #386 Windows UTF-8 fix; PR #345 — clarifying Unicode in skill name. Additional showcase merges since last scan: PR #377 (Superconductor), #340 (bub), #349 (Tabnine) all merged May 20; PR #334 (README flesh-out), #332 (Vita logo) merged May 19. No new spec-level changes — all ecosystem additions.
+**Summary:** Last commit 2026-05-20 (docs fix correcting `name` field character range to include digits). Client showcases merged (bub, Superconductor). Open PRs #380 (optional skill versioning), #386 (Windows UTF-8 fix), #345 (Unicode name clarification) still pending — no new merges since 2026-05-22.
 
 History:
+- 2026-05-25T07:48:17Z — unchanged: last commit May 20; open PRs #380, #386, #345 still pending; no spec changes
 - 2026-05-22T17:34:04Z — changed: client showcase PRs #377, #340, #349, #334, #332 confirmed merged; no spec-level changes; open PRs #380, #386, #345 still pending
 - 2026-05-22T14:47:55Z — unchanged: same open PRs (#380, #386); no new merges since 10:54 scan; PR #345 (unicode name clarification) noted
 - 2026-05-22T10:50:58Z — changed: PR #384 name-field validation fix merged; PR #380 optional skill versioning proposed; PR #386 Windows UTF-8 fix
@@ -182,14 +190,15 @@ History:
 ## https://www.cursor.com/changelog
 
 ```yaml
-last_scan: 2026-05-22T17:34:04Z
+last_scan: 2026-05-25T07:48:17Z
 status: unchanged
-run_id: 26302374682
+run_id: 26389613586
 ```
 
-**Summary:** Notable May 8–22: Composer 2.5 (May 18, better long-task performance), Cursor in Jira (May 19 — `@Cursor` mentions trigger cloud agents from tickets), multi-repo and no-repo Automations in Agents window (May 20), v3.4 (May 13 — Dockerfile-based cloud agent dev environments, 70% faster cached builds, MCP/OAuth fixes). Strong trend toward autonomous multi-repo agent orchestration and third-party workflow integrations.
+**Summary:** Most recent entry is v3.5 (2026-05-20). No new changelog entries on or after 2026-05-22.
 
 History:
+- 2026-05-25T07:48:17Z — unchanged: most recent entry v3.5 (May 20); no new changes
 - 2026-05-22T17:34:04Z — unchanged: no new entries since 14:47 scan
 - 2026-05-22T14:47:55Z — unchanged: no new entries since 10:54 scan; same v3.4/v3.5 content
 - 2026-05-22T10:50:58Z — changed: Composer 2.5, Jira integration, multi-repo Automations, Dockerfile cloud dev envs
@@ -199,14 +208,15 @@ History:
 ## https://news.ycombinator.com
 
 ```yaml
-last_scan: 2026-05-22T10:50:58Z
+last_scan: 2026-05-25T07:48:17Z
 status: unchanged
-run_id: 26283289533
+run_id: 26389613586
 ```
 
-**Summary:** Front page at fetch time had no posts matching `claude code`, `codex`, `agent skills`, or `MCP`. HN is point-in-time; limited signal from a single snapshot. Consider fetching HN Algolia search API instead for topic-filtered results.
+**Summary:** Front page at fetch time had no posts matching `claude code`, `codex`, `agent skills`, or `MCP`. HN is point-in-time; limited signal. Consider fetching HN Algolia search API instead for topic-filtered results.
 
 History:
+- 2026-05-25T07:48:17Z — unchanged: no relevant AI agent tooling posts on front page at scan time
 - 2026-05-22T10:50:58Z — unchanged: no relevant AI agent tooling topics on front page at snapshot time
 
 ---
@@ -214,13 +224,59 @@ History:
 ## https://github.com/DenisSergeevitch/agents-best-practices
 
 ```yaml
-last_scan: 2026-05-22T17:34:04Z
-status: changed
-run_id: 26302374682
+last_scan: 2026-05-25T07:48:17Z
+status: unchanged
+run_id: 26389613586
 ```
 
-**Summary:** Provider-neutral agent skill best-practices repo (~950 stars, agentskills.io-compatible). Defines eight core harness principles: harness acts/model proposes, every tool call gets a result, risk-tiered loop design, draft-vs-commit separation, selective context construction, runtime budgets, progressive skill disclosure, failure-driven harness features. Ships **15** structured reference guides in `references/` (confirmed full list: agent-legibility-feedback-loops.md, agentic-loop.md, architecture.md, checklists.md, context-memory-compaction.md, coverage-audit.md, mvp-agent-blueprint.md, planning-and-goals.md, prompt-caching-and-cost.md, provider-api-patterns.md, security-evals-observability.md, skills-and-connectors.md, source-links.md, system-prompts-instructions.md, tools-and-permissions.md). High-value for iEvo: `agent-legibility-feedback-loops.md` — "What the agent cannot inspect, retrieve, validate, or act on through approved tools is operationally absent" — directly justifies overlay-status skill gap in ievo-ai/skills coverage-audit.md.
+**Summary:** Last commit was 2026-05-15 (v1.2.0 skill release with reformatted README and Claude Code skill support documentation). No changes in the window of interest (May 22–25). 15-file references/ confirmed in prior scan; unchanged.
 
 History:
+- 2026-05-25T07:48:17Z — unchanged: last commit May 15; no changes since last scan
 - 2026-05-22T17:34:04Z — changed: full 15-file reference list confirmed; agent-legibility-feedback-loops.md content retrieved; legibility principle cited as evidence for F-2026-05-22-003 (overlay-status skill)
 - 2026-05-22T10:50:58Z — changed: first scan; eight harness principles; coverage-audit.md pattern noted as iEvo gap
+
+---
+
+## https://code.claude.com/docs/en/skills.md
+
+```yaml
+last_scan: 2026-05-25T07:48:17Z
+status: first-scan
+run_id: 26389613586
+```
+
+**Summary:** Official Claude Code skills documentation. Documents `effort:` as a first-class frontmatter field (values: low/medium/high/xhigh/max) — overrides session effort level when the skill is active. Also documents `name`, `description`, `compatibility`, `metadata`, `allowed-tools` (same as agentskills.io spec). v2.1.149 fixed a bug where `effort:` was not reflected in the status bar.
+
+History:
+- 2026-05-25T07:48:17Z — first-scan: effort: frontmatter documented; values low/medium/high/xhigh/max; triggered F-2026-05-25-001
+
+---
+
+## https://code.claude.com/docs/en/routines.md
+
+```yaml
+last_scan: 2026-05-25T07:48:17Z
+status: first-scan
+run_id: 26389613586
+```
+
+**Summary:** Claude Code Routines — scheduled sessions on Anthropic-managed infra. Created via `/schedule` CLI command, claude.ai/code/routines web UI, or Desktop app sidebar. Account-level config (Pro/Max/Team/Enterprise required). Triggers: cron, HTTP API POST, GitHub events (PR/release). Not available if ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN is set.
+
+History:
+- 2026-05-25T07:48:17Z — first-scan: Routines API documented; /schedule command; triggered F-2026-05-25-002
+
+---
+
+## https://code.claude.com/docs/en/channels.md
+
+```yaml
+last_scan: 2026-05-25T07:48:17Z
+status: first-scan
+run_id: 26389613586
+```
+
+**Summary:** Claude Code Channels — push events from Telegram/Discord/iMessage into Claude Code sessions. Research preview, requires Bun. Plugin-based (`/plugin install telegram@claude-plugins-official`), then `claude --channels plugin:...`. Enterprise: `channelsEnabled: true` managed setting.
+
+History:
+- 2026-05-25T07:48:17Z — first-scan: Channels in research preview; Bun required; push events from Telegram/Discord/iMessage
