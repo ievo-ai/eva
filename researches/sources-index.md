@@ -36,14 +36,15 @@ run_id: <GitHub Actions run ID or null>
 ## https://www.anthropic.com/news
 
 ```yaml
-last_scan: 2026-05-25T07:48:17Z
-status: changed
-run_id: 26389613586
+last_scan: 2026-05-26T07:30:00Z
+status: unchanged
+run_id: 26438438877
 ```
 
-**Summary:** "Project Glasswing" (2026-05-22) — software security initiative via industry collaboration; no Claude Code or agent API announcements in the window. Prior entries: Stainless acquisition, Claude for Small Business, KPMG partnership (all pre-May-22).
+**Summary:** "Project Glasswing" (2026-05-22) — software security initiative via industry collaboration; no Claude Code or agent API announcements in the window. Chris Olah remarks (May 25) — interpretability; no technical agent changes.
 
 History:
+- 2026-05-26T07:30:00Z — unchanged: Chris Olah article (May 25) interpretability; no Claude Code or agent API changes
 - 2026-05-25T07:48:17Z — changed: Project Glasswing (May 22) security initiative; no model releases or Claude Code-specific changes
 - 2026-05-24T07:23:12Z — changed: Project Glasswing announcement (May 22); no new model/Claude Code releases
 - 2026-05-22T17:34:04Z — unchanged: no new announcements since 14:47 scan
@@ -55,14 +56,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-05-25T07:48:17Z
-status: changed
-run_id: 26389613586
+last_scan: 2026-05-26T07:30:00Z
+status: unchanged
+run_id: 26438438877
 ```
 
-**Summary:** v2.1.149 (2026-05-22) — major quality release: `/usage` now shows per-category breakdown (skills, subagents, plugins, per-MCP-server cost); `allowAllClaudeAiMcps` enterprise managed setting; fixed PowerShell permission bypass; fixed skill frontmatter `name:` vs directory basename mismatch breaking Tab-completion; **fixed `effort:` frontmatter not reflected in status bar**; fixed skill/agent `effort:` display. v2.1.150 (2026-05-23) — internal infrastructure improvements only. `effort:` is now a first-class frontmatter field (values: low/medium/high/xhigh/max), documented at code.claude.com/docs/en/skills.md. Routines (/schedule) and Channels (Telegram/Discord/iMessage push events) added to Claude Code docs.
+**Summary:** No new releases since v2.1.150 (May 23, 2026). Latest user-facing: v2.1.149 — `effort:` frontmatter fix, `/usage` per-category, Tab-completion fix; v2.1.150 — internal infrastructure only. No new releases as of 2026-05-26.
 
 History:
+- 2026-05-26T07:30:00Z — unchanged: no new releases after v2.1.150 (May 23); latest user-facing changes in v2.1.149
 - 2026-05-25T07:48:17Z — changed: v2.1.149 effort: frontmatter fix, /usage per-category, Tab-completion fix; v2.1.150 internal; Routines + Channels newly documented
 - 2026-05-24T07:23:12Z — changed: v2.1.149 (/usage per-category, PowerShell security fix, worktree sandbox fix, Bash find crash fix); v2.1.150 (infra only)
 - 2026-05-22T17:34:04Z — unchanged: still at v2.1.148; no new releases since 14:47 scan
@@ -74,14 +76,15 @@ History:
 ## https://github.com/anthropics/claude-code-action/releases
 
 ```yaml
-last_scan: 2026-05-25T07:48:17Z
-status: changed
-run_id: 26389613586
+last_scan: 2026-05-26T07:30:00Z
+status: unchanged
+run_id: 26438438877
 ```
 
-**Summary:** v1.0.131 + v1.0.132 (2026-05-22, no changelog bodies) + v1.0.133 (2026-05-23) — Workload Identity Federation for Claude auth in CI workflows (OIDC, PR #1344). Prior: v1.0 GA breaking changes: `mode`/`direct_prompt`/`override_prompt` removed (replaced by `prompt`); `model`/`allowed_tools`/`mcp_config` deprecated (replaced by `claude_args`). Eva's own workflows should still be audited for v0.x inputs.
+**Summary:** No new releases since v1.0.133 (May 23, 2026). Latest: v1.0.133 adds OIDC Workload Identity Federation for keyless GitHub Actions auth. v1.0 GA breaking changes still unaddressed in eva workflows (tracked as F-2026-05-25-003 / eva#65).
 
 History:
+- 2026-05-26T07:30:00Z — unchanged: no new releases after v1.0.133 (May 23); eva#65 still open for workflow migration
 - 2026-05-25T07:48:17Z — changed: v1.0.131–133; v1.0.133 adds OIDC Workload Identity Federation; no breaking input changes
 - 2026-05-24T07:23:12Z — changed: v1.0.129-133; OIDC auth support (v1.0.130, v1.0.133); Eva workflows deferred audit still pending
 - 2026-05-22T14:47:55Z — changed: v1.0 GA with breaking API; skills repo already on v1; check eva repo workflows
@@ -123,14 +126,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-05-25T07:48:17Z
-status: changed
-run_id: 26389613586
+last_scan: 2026-05-26T07:30:00Z
+status: unchanged
+run_id: 26438438877
 ```
 
-**Summary:** Three 0.134.0 alpha releases (May 22–23): rust-v0.134.0-alpha.1, alpha.2, alpha.3 — all no-changelog-body; active Rust rewrite in progress. No skill-format or API-facing changes visible. Prior stable: v0.133.0 (May 21) — extension lifecycle hooks, goals by default.
+**Summary:** No new releases since rust-v0.134.0-alpha.3 (May 23, 2026). v0.132.0 (May 20): Python SDK renamed to openai-codex, device-code auth, codex exec resume --output-schema. v0.133.0 (May 21): goals by default, extension lifecycle hooks, permission profile inheritance. Rust rewrite in active alpha.
 
 History:
+- 2026-05-26T07:30:00Z — unchanged: no new releases after alpha.3 (May 23); v0.132/0.133 highlights noted
 - 2026-05-25T07:48:17Z — changed: rust-v0.134.0-alpha.1/2/3 (May 22-23); Rust rewrite in alpha; no breaking skill-format changes
 - 2026-05-24T07:23:12Z — unchanged: v0.133.0 still latest stable; v0.134.0-alpha.1–alpha.3 tags dropped May 22–23 with no notes
 - 2026-05-22T17:34:04Z — unchanged: still at v0.133.0; no new releases since 14:47 scan
@@ -177,14 +181,15 @@ History:
 ## https://github.com/agentskills/agentskills
 
 ```yaml
-last_scan: 2026-05-25T07:48:17Z
+last_scan: 2026-05-26T07:30:00Z
 status: unchanged
-run_id: 26389613586
+run_id: 26438438877
 ```
 
-**Summary:** Last commit 2026-05-20 (docs fix correcting `name` field character range to include digits). Client showcases merged (bub, Superconductor). Open PRs #380 (optional skill versioning), #386 (Windows UTF-8 fix), #345 (Unicode name clarification) still pending — no new merges since 2026-05-22.
+**Summary:** Last commit 2026-05-20. 29 open issues, 13 open PRs. Open PRs #380 (optional skill versioning), #386 (Windows UTF-8 fix), #345 (Unicode name clarification) still pending — no new merges since 2026-05-25.
 
 History:
+- 2026-05-26T07:30:00Z — unchanged: 29 open issues, 13 open PRs; #380/#386/#345 still open; no new merges
 - 2026-05-25T07:48:17Z — unchanged: last commit May 20; open PRs #380, #386, #345 still pending; no spec changes
 - 2026-05-24T07:23:12Z — changed: new PRs #402 (ZeroClaw clients) + #403 (flowhunt-skill submission); tracked PRs #380, #386, #345 still open
 - 2026-05-22T17:34:04Z — changed: client showcase PRs #377, #340, #349, #334, #332 confirmed merged; no spec-level changes; open PRs #380, #386, #345 still pending
@@ -196,14 +201,15 @@ History:
 ## https://www.cursor.com/changelog
 
 ```yaml
-last_scan: 2026-05-25T07:48:17Z
+last_scan: 2026-05-26T07:30:00Z
 status: unchanged
-run_id: 26389613586
+run_id: 26438438877
 ```
 
-**Summary:** Most recent entry is v3.5 (2026-05-20). No new changelog entries on or after 2026-05-22.
+**Summary:** Most recent entry is v3.5 (2026-05-20): Shared Canvases, automation multi-repo support, 5 new marketplace templates for non-code workflows. No new entries after May 20.
 
 History:
+- 2026-05-26T07:30:00Z — unchanged: still at v3.5 (May 20); no new entries
 - 2026-05-25T07:48:17Z — unchanged: most recent entry v3.5 (May 20); no new changes
 - 2026-05-24T07:23:12Z — unchanged: no new entries since May 20
 - 2026-05-22T17:34:04Z — unchanged: no new entries since 14:47 scan
@@ -289,3 +295,33 @@ run_id: 26389613586
 
 History:
 - 2026-05-25T07:48:17Z — first-scan: Channels in research preview; Bun required; push events from Telegram/Discord/iMessage
+
+---
+
+## https://code.claude.com/docs/en/sub-agents
+
+```yaml
+last_scan: 2026-05-26T07:30:00Z
+status: first-scan
+run_id: 26438438877
+```
+
+**Summary:** Claude Code sub-agents docs. Model resolution order: (1) CLAUDE_CODE_SUBAGENT_MODEL env var, (2) per-invocation model parameter, (3) agent frontmatter model:, (4) main-conversation model. New features: forked subagents (experimental, CLAUDE_CODE_FORK_SUBAGENT=1) inherit full conversation context; subagent resume (continue previous work with full history); skill preloading via frontmatter; background subagent execution with auto-denial of unprompted permissions. SubagentStart + SubagentStop lifecycle hooks. CLAUDE_CODE_SUBAGENT_MODEL precedence already documented in iEvo AGENTS.md.
+
+History:
+- 2026-05-26T07:30:00Z — first-scan: model resolution order confirmed; forked subagents (experimental) noted; skill preloading via frontmatter noted; triggered awareness of missing vuln-scan orchestrator (F-2026-05-26-001)
+
+---
+
+## https://www.anthropic.com/research/glasswing-initial-update
+
+```yaml
+last_scan: 2026-05-26T07:30:00Z
+status: first-scan
+run_id: 26438438877
+```
+
+**Summary:** Project Glasswing vulnerability scanning research. Multi-phase: Mythos Preview detection → security personnel triage → fix verification → maintainer reports. Results: 1,752 vulnerabilities, 90.6% true positives (1,587), 62.4% confirmed high/critical. Infrastructure: scanning harness maps codebase + spins up scanning subagents; triage + threat modeling for prioritization. Key insight: exploit-chain validation requirement is what achieves high true-positive rate vs traditional SAST. Bottleneck: remediation lag (~2 weeks for high/critical despite fast detection).
+
+History:
+- 2026-05-26T07:30:00Z — first-scan: multi-phase orchestration architecture documented; 90.6% true-positive rate via exploit-chain validation; triggered F-2026-05-26-001 (missing vuln-scan orchestrator)

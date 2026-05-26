@@ -293,3 +293,30 @@ evidence:
 ```
 
 Eva's `.github/workflows/` likely contains workflows (eva-review-pr.yml and others) using deprecated v0.x inputs (`direct_prompt`, `mode`, `model`, `allowed_tools`). If so, the workflows invoke Claude with no operative instruction after the v1.0 migration — silent failure. This finding has been deferred from three consecutive research runs (2026-05-22 ×3). The audit involves reading 3–5 workflow files, identifying deprecated inputs, and rewriting them to use `prompt:` and `claude_args:`. Medium effort, medium risk (CI breaks silently if not done).
+
+---
+
+## F-2026-05-26-001 — Missing project-level `/ievo:vuln-scan` orchestrator skill
+
+```yaml
+id: F-2026-05-26-001
+discovered_at: 2026-05-26T07:30:00Z
+run_id: 26438438877
+target_repo: ievo-ai/skills
+title: Add project-level /ievo:vuln-scan orchestrator skill (Phase 1 threat model + parallel module dispatch + aggregated report)
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/110
+effort: medium
+scope: new-skill
+evidence:
+  - https://www.anthropic.com/research/glasswing-initial-update: describes "scanning harness that maps codebases and spins up scanning subagents" as the required orchestration layer — the current vuln-scan/SKILL.md is only the per-module worker
+  - https://code.claude.com/docs/en/sub-agents: parallel subagent dispatch via Task tool is the mechanism for project-level orchestration; vuln-scanner.md is the per-module agent but has no orchestrator that enumerates modules and kicks off the parallel dispatch
+```
+
+The `vuln-scan/SKILL.md` is written as a per-module worker: its own "Input" section states "Provided by the vuln-scanner agent dispatch: module_path, threat_context, scope_metadata" — these inputs must come from an orchestrator, but no orchestrator exists. The SKILL.md description itself says "orchestrated by the /ievo:vuln-scan command" — confirming a separate orchestrator was intended but not shipped.
+
+Without the orchestrator, a user who invokes `/ievo:vuln-scan` gets the per-module worker with no module path, no threat model, and no aggregation — the skill cannot complete Phase 1 (read all source files) or Phase 4 (build exploit chains) without those inputs.
+
+The Glasswing paper describes the required orchestration: (1) codebase mapping — enumerate modules/packages, (2) threat modeling — identify entry points, trust boundaries, attack surfaces for each module, (3) parallel dispatch — spin up one scanner per module, (4) triage and aggregation — correlate cross-module findings, de-duplicate, rank by severity.
+
+Proposed solution: a new `plugins/ievo/skills/init-vuln-scan/SKILL.md` (or a top-level `vuln-scan` orchestrator body replacing the current per-module body) that handles the full lifecycle. The current vuln-scan/SKILL.md should be renamed to distinguish the per-module worker from the project-level command.
