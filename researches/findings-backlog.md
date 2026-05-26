@@ -187,3 +187,66 @@ evidence:
 ```
 
 A new `/ievo:overlay-status` skill (in `plugins/ievo/skills/overlay-status/SKILL.md`) that reads `.ievo/evolution/` tree and produces a structured summary: which scopes have overlays (agents/, skills/, project/), how many lessons per scope, last-modified dates, and the one-line summary of each overlay's content. Activates when user asks "what evolutions have I captured?", "show my iEvo overlays", "what rules are active?", or "summarize my .ievo/evolution/". Implementation: pure Read + Glob calls, no sub-agent needed. No scripts required (no test coverage obligation). Single new SKILL.md, ~100–150 lines. The coverage-audit.md gap row should also be updated to "covered" when implemented.
+
+---
+
+## F-2026-05-25-001 — Add `effort:` frontmatter to all 9 SKILL.md files
+
+```yaml
+id: F-2026-05-25-001
+discovered_at: 2026-05-25T07:48:17Z
+run_id: 26389613586
+target_repo: ievo-ai/skills
+title: Add effort: frontmatter to all 9 SKILL.md files to enable status-bar effort display
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/83
+effort: low
+scope: multi-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.149 fixed effort: frontmatter not reflected in status bar — fix is live but iEvo skills don't declare effort values
+  - https://code.claude.com/docs/en/skills.md: effort: documented as first-class frontmatter field (low/medium/high/xhigh/max); overrides session effort when skill is active
+```
+
+None of the 9 iEvo SKILL.md files declare `effort:` frontmatter. Claude Code v2.1.149 fixed the bug where this field was not shown in the status bar — but the fix only helps skills that have the field. Adding accurate values (init→max, security-check→high, index-repos→medium, all others→low) lets users see the expected time/cost before activation. Multi-file but purely additive frontmatter change: one line per SKILL.md file, no logic or body content modified.
+
+---
+
+## F-2026-05-25-002 — `/ievo:schedule` skill for creating Claude Code Routines
+
+```yaml
+id: F-2026-05-25-002
+discovered_at: 2026-05-25T07:48:17Z
+run_id: 26389613586
+target_repo: ievo-ai/skills
+title: /ievo:schedule skill — guided wizard for creating a Routine to periodically run iEvo operations
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/84
+effort: medium
+scope: new-skill
+evidence:
+  - https://code.claude.com/docs/en/routines.md: Routines newly documented — /schedule command creates account-level scheduled sessions; triggers: cron, GitHub events, HTTP API; Pro/Max/Team/Enterprise required
+  - https://github.com/anthropics/claude-code/releases: v2.1.149 confirms Routines shipped and stable
+```
+
+A new `/ievo:schedule` skill that guides users through creating a Claude Code Routine for periodic iEvo operations (weekly security audits, daily evolution captures, on-PR dependency scans). Uses AskUserQuestion to select operation type and frequency, then invokes `/schedule` with a constructed prompt. Handles the unavailability case (ANTHROPIC_API_KEY set, Free plan) with CI cron job fallback instructions. Fills the gap where iEvo currently only runs on manual invocation — security drift accumulates silently between runs.
+
+---
+
+## F-2026-05-25-003 — Audit ievo-ai/eva workflows for deprecated claude-code-action@v0.x inputs
+
+```yaml
+id: F-2026-05-25-003
+discovered_at: 2026-05-25T07:48:17Z
+run_id: 26389613586
+target_repo: ievo-ai/eva
+title: Audit and migrate ievo-ai/eva GitHub Actions workflows from deprecated claude-code-action@v0.x inputs to v1.0 API
+status: issued
+issue_url: https://github.com/ievo-ai/eva/issues/65
+effort: medium
+scope: multi-file
+evidence:
+  - https://github.com/anthropics/claude-code-action/releases: v1.0 GA (2026-05-13) removed mode/direct_prompt/override_prompt and deprecated model/allowed_tools/mcp_config/custom_instructions — replaced by prompt + claude_args
+  - https://github.com/ievo-ai/eva/actions: deferred from three consecutive research runs (26283289533, 26294170594, 26302374682) — overdue
+```
+
+Eva's `.github/workflows/` likely contains workflows (eva-review-pr.yml and others) using deprecated v0.x inputs (`direct_prompt`, `mode`, `model`, `allowed_tools`). If so, the workflows invoke Claude with no operative instruction after the v1.0 migration — silent failure. This finding has been deferred from three consecutive research runs (2026-05-22 ×3). The audit involves reading 3–5 workflow files, identifying deprecated inputs, and rewriting them to use `prompt:` and `claude_args:`. Medium effort, medium risk (CI breaks silently if not done).
