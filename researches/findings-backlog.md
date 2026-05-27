@@ -320,3 +320,67 @@ Without the orchestrator, a user who invokes `/ievo:vuln-scan` gets the per-modu
 The Glasswing paper describes the required orchestration: (1) codebase mapping — enumerate modules/packages, (2) threat modeling — identify entry points, trust boundaries, attack surfaces for each module, (3) parallel dispatch — spin up one scanner per module, (4) triage and aggregation — correlate cross-module findings, de-duplicate, rank by severity.
 
 Proposed solution: a new `plugins/ievo/skills/init-vuln-scan/SKILL.md` (or a top-level `vuln-scan` orchestrator body replacing the current per-module body) that handles the full lifecycle. The current vuln-scan/SKILL.md should be renamed to distinguish the per-module worker from the project-level command.
+
+---
+
+## F-2026-05-27-001 — Add `disallowed-tools` to security-check and vuln-scan SKILL.md for read-only enforcement
+
+```yaml
+id: F-2026-05-27-001
+discovered_at: 2026-05-27T07:38:00Z
+run_id: 26497701957
+target_repo: ievo-ai/skills
+title: Add disallowed-tools frontmatter to security-check and vuln-scan skills to enforce read-only mode during assessment
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/139
+effort: low
+scope: multi-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.152 (2026-05-27) added disallowed-tools in skill/command frontmatter — skills can now block specific tools during execution
+  - https://code.claude.com/docs/en/skills.md: disallowed-tools documented as complement to allowed-tools; space-separated tool specs (Bash(rm*), Write, Edit, etc.)
+```
+
+Claude Code v2.1.152 introduced `disallowed-tools` frontmatter for skills, complementing the existing `allowed-tools` field. The security-check and vuln-scan skills perform threat assessment of third-party code — but currently run with full tool access. Adding `disallowed-tools: Write Edit Bash(rm*) Bash(mv*) Bash(curl*) Bash(wget*)` (or similar) to both SKILL.md files would enforce read-only mode during security assessment, reducing the blast radius if a malicious skill under review manages to influence the assessor's execution context. This is a concrete security hardening enabled by v2.1.152.
+
+---
+
+## F-2026-05-27-002 — hooks-setup/SKILL.md stale on v2.1.152 hook additions (MessageDisplay + SessionStart enhancements)
+
+```yaml
+id: F-2026-05-27-002
+discovered_at: 2026-05-27T07:38:00Z
+run_id: 26497701957
+target_repo: ievo-ai/skills
+title: Update hooks-setup/SKILL.md to document Claude Code v2.1.152 hook additions (MessageDisplay hook + SessionStart reloadSkills/sessionTitle)
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/140
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.152 added MessageDisplay hook type (fires when a message is displayed) + SessionStart hook can now return reloadSkills: true and set sessionTitle
+  - https://github.com/anthropics/claude-code/releases: /reload-skills command added in v2.1.152 — can be triggered from SessionStart hook return value
+```
+
+Claude Code v2.1.152 added two hook enhancements not yet documented in `hooks-setup/SKILL.md`: (1) a new `MessageDisplay` hook type that fires each time a message is displayed, useful for session logging or custom display; (2) `SessionStart` hooks can now return `{ reloadSkills: true, sessionTitle: "..." }` — auto-reloads skills without requiring a manual `/reload-skills` command and sets the session display title. The hooks-setup skill covers PostToolUse and Stop hooks but has no reference to v2.1.152 additions. Update SKILL.md body to document both: (a) add `MessageDisplay` to the hook type table with an example use case, (b) document SessionStart return fields `reloadSkills` and `sessionTitle` with a concrete iEvo use case (auto-reload skills when `.ievo/` directory is detected on project open).
+
+---
+
+## F-2026-05-27-003 — validate_skills.mjs missing effort: field validation
+
+```yaml
+id: F-2026-05-27-003
+discovered_at: 2026-05-27T07:38:00Z
+run_id: 26497701957
+target_repo: ievo-ai/skills
+title: Add effort: field validation to validate_skills.mjs (warn on absent, error on invalid value)
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/141
+effort: low
+scope: multi-file
+evidence:
+  - https://code.claude.com/docs/en/skills.md: effort: is documented as a first-class frontmatter field; valid values: low, medium, high, xhigh, max
+  - https://github.com/anthropics/claude-code/releases: v2.1.149 fixed effort: not being reflected in status bar — field is now user-visible and incorrect values are silent failures
+  - plugins/ievo/scripts/validate_skills.mjs: does not validate effort: field at all (confirmed by reading source)
+```
+
+All 13 iEvo SKILL.md files now declare `effort:` (added via skills#83) but `validate_skills.mjs` does not validate this field. Since `effort:` is now a user-visible field (Claude Code status bar since v2.1.149), a typo (e.g. `effort: hight`) or a missing value on a new skill would pass validation silently. The fix: add a `checkEffortField(effort)` function that (1) warns if `effort:` is absent, (2) errors if the value is not in `{low, medium, high, xhigh, max}`. Wire into `validateSkillContent()`. Also requires updating `validate_skills.test.mjs` with test cases for each branch (absent, valid, invalid value) — the 100% coverage rule applies since `validate_skills.mjs` lives in `plugins/ievo/scripts/`. Scope: validate_skills.mjs + validate_skills.test.mjs (~30 new lines + ~6 new test cases).
