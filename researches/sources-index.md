@@ -36,14 +36,15 @@ run_id: <GitHub Actions run ID or null>
 ## https://www.anthropic.com/news
 
 ```yaml
-last_scan: 2026-05-27T07:38:00Z
+last_scan: 2026-05-28T08:00:00Z
 status: unchanged
-run_id: 26497701957
+run_id: 26561249253
 ```
 
-**Summary:** Posts since May 22: Anthropic co-founder remarks on Pope Leo XIV's AI encyclical (May 25); KiYoung Choi appointed Representative Director of Korea ahead of Seoul office opening (May 26). No developer-tool or agent-platform announcements.
+**Summary:** No new Claude Code or agent API announcements since May 22 (Project Glasswing). Prior entries: Stainless acquisition, Claude for Small Business, KPMG partnership (all pre-May-22).
 
 History:
+- 2026-05-28T08:00:00Z — unchanged: no new announcements since May 22 scan
 - 2026-05-27T07:38:00Z — unchanged: no developer/agent-platform announcements; two non-technical posts (papal AI comment, Korea appointment)
 - 2026-05-26T07:30:00Z — unchanged: Chris Olah article (May 25) interpretability; no Claude Code or agent API changes
 - 2026-05-25T07:48:17Z — changed: Project Glasswing (May 22) security initiative; no model releases or Claude Code-specific changes
@@ -57,14 +58,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-05-27T07:38:00Z
+last_scan: 2026-05-28T08:00:00Z
 status: changed
-run_id: 26497701957
+run_id: 26561249253
 ```
 
-**Summary:** v2.1.152 (2026-05-27) — major additions: `disallowed-tools` in skill/command frontmatter (security hardening), `/reload-skills` command, `SessionStart` hook can return `reloadSkills: true` + set `sessionTitle`, new `MessageDisplay` hook type, `pluginSuggestionMarketplaces` managed setting, `--fallback-model` flag, ~20 bug fixes. v2.1.150 (2026-05-23) — internal only.
+**Summary:** v2.1.152 (2026-05-27) — `disallowed-tools` frontmatter for skills (block tools while skill active); new `MessageDisplay` hook type (fires on every assistant message display); `SessionStart` hooks can return `{ reloadSkills: true, sessionTitle: "..." }`; `/reload-skills` command; auto mode no longer requires consent; `pluginSuggestionMarketplaces` managed setting. v2.1.153 (2026-05-28) — `skipLfs` option for `github`/`git` MCP plugins; status line scripts now receive `COLUMNS`/`LINES` env vars; `claude agents` autocomplete shows native commands and bundled skills. Prior: v2.1.150 internal-only.
 
 History:
+- 2026-05-28T08:00:00Z — changed: v2.1.152 disallowed-tools, MessageDisplay hook, SessionStart return fields, /reload-skills; v2.1.153 COLUMNS/LINES in status line, claude agents autocomplete
 - 2026-05-27T07:38:00Z — changed: v2.1.152; `disallowed-tools` frontmatter, MessageDisplay hook, SessionStart enhancements, /reload-skills command; triggered F-2026-05-27-001, F-2026-05-27-002
 - 2026-05-26T07:30:00Z — unchanged: no new releases after v2.1.150 (May 23); latest user-facing changes in v2.1.149
 - 2026-05-25T07:48:17Z — changed: v2.1.149 effort: frontmatter fix, /usage per-category, Tab-completion fix; v2.1.150 internal; Routines + Channels newly documented
@@ -78,14 +80,15 @@ History:
 ## https://github.com/anthropics/claude-code-action/releases
 
 ```yaml
-last_scan: 2026-05-27T07:38:00Z
+last_scan: 2026-05-28T08:00:00Z
 status: unchanged
-run_id: 26497701957
+run_id: 26561249253
 ```
 
-**Summary:** Still at v1.0.133 (2026-05-23). No new releases. OIDC Workload Identity Federation (PR #1344) was the latest addition.
+**Summary:** Latest v1.0.133 (2026-05-23) — Workload Identity Federation (OIDC). No new releases since May 23. Eva workflows audit (ievo-ai/eva#65) still open and unresolved.
 
 History:
+- 2026-05-28T08:00:00Z — unchanged: still at v1.0.133; no new releases since May 23
 - 2026-05-27T07:38:00Z — unchanged: still at v1.0.133; no new releases
 - 2026-05-26T07:30:00Z — unchanged: no new releases after v1.0.133 (May 23); eva#65 still open for workflow migration
 - 2026-05-25T07:48:17Z — changed: v1.0.131–133; v1.0.133 adds OIDC Workload Identity Federation; no breaking input changes
@@ -130,14 +133,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-05-27T07:38:00Z
+last_scan: 2026-05-28T08:00:00Z
 status: changed
-run_id: 26497701957
+run_id: 26561249253
 ```
 
-**Summary:** rust-v0.134.0 is now **stable** (2026-05-26, no longer alpha). Key additions: conversation history search, `--profile` as primary model selector (legacy v1 behavior removed — breaking), concurrent read-only MCP tools, richer hook context with subagent identity, OAuth for MCP servers, Windows TUI fix. The `--profile` change is potentially breaking for scripts that relied on v1 selector behavior.
+**Summary:** v0.134.0 (May 26, stable) — added subagent identity to hook inputs + trace_id to TurnStartedEvent (SubagentStart/SubagentStop/TurnStartedEvent hooks pre-date this release, Codex Hooks GA ~May 14); `--profile` flag as primary selector with profile inheritance and runtime refresh; extension tools can access conversation history; read-only MCP tools support concurrent execution when annotated. Prior alphas (May 22–23) had no changelog.
 
 History:
+- 2026-05-28T08:00:00Z — changed: v0.134.0 stable (May 26) — subagent identity in hook inputs + trace_id on TurnStartedEvent (SubagentStart/SubagentStop/TurnStartedEvent hooks pre-date this); --profile flag; conversation history in tools → triggered F-2026-05-28-001
 - 2026-05-27T07:38:00Z — changed: rust-v0.134.0 stable (May 26); `--profile` breaking change, subagent identity in hooks, concurrent read-only MCP, OAuth for MCP
 - 2026-05-26T07:30:00Z — unchanged: no new releases after alpha.3 (May 23); v0.132/0.133 highlights noted
 - 2026-05-25T07:48:17Z — changed: rust-v0.134.0-alpha.1/2/3 (May 22-23); Rust rewrite in alpha; no breaking skill-format changes

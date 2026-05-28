@@ -384,3 +384,23 @@ evidence:
 ```
 
 All 13 iEvo SKILL.md files now declare `effort:` (added via skills#83) but `validate_skills.mjs` does not validate this field. Since `effort:` is now a user-visible field (Claude Code status bar since v2.1.149), a typo (e.g. `effort: hight`) or a missing value on a new skill would pass validation silently. The fix: add a `checkEffortField(effort)` function that (1) warns if `effort:` is absent, (2) errors if the value is not in `{low, medium, high, xhigh, max}`. Wire into `validateSkillContent()`. Also requires updating `validate_skills.test.mjs` with test cases for each branch (absent, valid, invalid value) — the 100% coverage rule applies since `validate_skills.mjs` lives in `plugins/ievo/scripts/`. Scope: validate_skills.mjs + validate_skills.test.mjs (~30 new lines + ~6 new test cases).
+
+---
+
+## F-2026-05-28-001 — Codex v0.134.0 hook parity in hooks-setup/SKILL.md
+
+```yaml
+id: F-2026-05-28-001
+discovered_at: 2026-05-28T08:00:00Z
+run_id: 26561249253
+target_repo: ievo-ai/skills
+title: Add Codex hook types (SubagentStart, SubagentStop, TurnStartedEvent) to hooks-setup/SKILL.md for universal positioning
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/155
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/openai/codex/releases: v0.134.0 (2026-05-26) — added subagent identity to hook inputs + trace_id to TurnStartedEvent; the SubagentStart/SubagentStop/TurnStartedEvent hooks themselves pre-date this release (Codex Hooks GA ~May 14); conversation history available in extensions
+```
+
+Codex v0.134.0 (2026-05-26) added subagent identity to hook inputs and trace_id to TurnStartedEvent; the SubagentStart, SubagentStop, and TurnStartedEvent hooks themselves pre-date this release (Codex Hooks GA ~May 14). The `hooks-setup/SKILL.md` is the authoritative iEvo guide for configuring lifecycle hooks, but it currently only documents Claude Code hooks (PostToolUse, Stop, SessionStart, MessageDisplay). Since iEvo explicitly supports Codex (ships `.codex-plugin/marketplace.json`) and AGENTS.md states "Not a Claude Code-only plugin", the hooks-setup skill should document equivalent Codex hooks. Users running iEvo on Codex see Claude Code hook instructions but have no guidance on Codex-native equivalents — violating the universal positioning promise. Implementation: add a "Codex hooks" section documenting SubagentStart (fires when a sub-agent starts), SubagentStop (fires when sub-agent completes — counterpart to Claude Code's SubagentStop hook already in Stop section), TurnStartedEvent (per-turn trigger). Pure documentation addition, no scripts required, no test coverage obligation.
