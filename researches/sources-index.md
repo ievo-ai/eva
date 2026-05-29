@@ -36,14 +36,15 @@ run_id: <GitHub Actions run ID or null>
 ## https://www.anthropic.com/news
 
 ```yaml
-last_scan: 2026-05-28T08:00:00Z
-status: unchanged
-run_id: 26561249253
+last_scan: 2026-05-29T07:38:29Z
+status: changed
+run_id: 26624450956
 ```
 
-**Summary:** No new Claude Code or agent API announcements since May 22 (Project Glasswing). Prior entries: Stainless acquisition, Claude for Small Business, KPMG partnership (all pre-May-22).
+**Summary:** Claude Opus 4.8 released (2026-05-28) — enhanced coding + agentic work, defaults to `/effort xhigh`; fast mode at 2×rate/2.5×speed. Milan office and Korea director announcements (non-technical). Prior: Project Glasswing (May 22) security initiative.
 
 History:
+- 2026-05-29T07:38:29Z — changed: Claude Opus 4.8 released (May 28); no Claude Code API or skill-format changes
 - 2026-05-28T08:00:00Z — unchanged: no new announcements since May 22 scan
 - 2026-05-27T07:38:00Z — unchanged: no developer/agent-platform announcements; two non-technical posts (papal AI comment, Korea appointment)
 - 2026-05-26T07:30:00Z — unchanged: Chris Olah article (May 25) interpretability; no Claude Code or agent API changes
@@ -58,14 +59,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-05-28T08:00:00Z
+last_scan: 2026-05-29T07:38:29Z
 status: changed
-run_id: 26561249253
+run_id: 26624450956
 ```
 
-**Summary:** v2.1.152 (2026-05-27) — `disallowed-tools` frontmatter for skills (block tools while skill active); new `MessageDisplay` hook type (fires on every assistant message display); `SessionStart` hooks can return `{ reloadSkills: true, sessionTitle: "..." }`; `/reload-skills` command; auto mode no longer requires consent; `pluginSuggestionMarketplaces` managed setting. v2.1.153 (2026-05-28) — `skipLfs` option for `github`/`git` MCP plugins; status line scripts now receive `COLUMNS`/`LINES` env vars; `claude agents` autocomplete shows native commands and bundled skills. Prior: v2.1.150 internal-only.
+**Summary:** v2.1.152 (May 27): `MessageDisplay` hook type (transform/hide assistant text); `disallowed-tools` in SKILL.md frontmatter; `reloadSkills: true` in SessionStart hook output; `sessionTitle` via hookSpecificOutput. v2.1.153 (May 28): `/model` saves as default for new sessions (breaking keybinding rename). v2.1.154 (May 28): Dynamic Workflows — Claude creates workflows orchestrating 10s-100s of agents; `/workflows` to view runs; `defaultEnabled: false` plugin.json field; `pluginSuggestionMarketplaces` managed setting; Opus 4.8 released (defaults to xhigh effort, fast mode). v2.1.156 (May 29): fixes Opus 4.8 thinking-block mutation bug.
 
 History:
+- 2026-05-29T07:38:29Z — changed: v2.1.152-156; disallowed-tools, defaultEnabled, Dynamic Workflows, Opus 4.8; triggered F-2026-05-29-001 (disallowed-tools gap in deep-review), F-2026-05-29-003 (defaultEnabled: true in plugin.json)
 - 2026-05-28T08:00:00Z — changed: v2.1.152 disallowed-tools, MessageDisplay hook, SessionStart return fields, /reload-skills; v2.1.153 COLUMNS/LINES in status line, claude agents autocomplete
 - 2026-05-27T07:38:00Z — changed: v2.1.152; `disallowed-tools` frontmatter, MessageDisplay hook, SessionStart enhancements, /reload-skills command; triggered F-2026-05-27-001, F-2026-05-27-002
 - 2026-05-26T07:30:00Z — unchanged: no new releases after v2.1.150 (May 23); latest user-facing changes in v2.1.149
@@ -80,14 +82,15 @@ History:
 ## https://github.com/anthropics/claude-code-action/releases
 
 ```yaml
-last_scan: 2026-05-28T08:00:00Z
+last_scan: 2026-05-29T07:38:29Z
 status: unchanged
-run_id: 26561249253
+run_id: 26624450956
 ```
 
-**Summary:** Latest v1.0.133 (2026-05-23) — Workload Identity Federation (OIDC). No new releases since May 23. Eva workflows audit (ievo-ai/eva#65) still open and unresolved.
+**Summary:** Latest release still v1.0.133 (2026-05-23) — Workload Identity Federation (OIDC). No new releases since May 25. Prior: v1.0 GA breaking changes: `mode`/`direct_prompt`/`override_prompt` removed (replaced by `prompt`); `model`/`allowed_tools`/`mcp_config` deprecated (replaced by `claude_args`). Eva's own workflows should still be audited for v0.x inputs (eva#65 filed).
 
 History:
+- 2026-05-29T07:38:29Z — unchanged: still at v1.0.133; no new releases since May 23
 - 2026-05-28T08:00:00Z — unchanged: still at v1.0.133; no new releases since May 23
 - 2026-05-27T07:38:00Z — unchanged: still at v1.0.133; no new releases
 - 2026-05-26T07:30:00Z — unchanged: no new releases after v1.0.133 (May 23); eva#65 still open for workflow migration
@@ -133,14 +136,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-05-28T08:00:00Z
+last_scan: 2026-05-29T07:38:29Z
 status: changed
-run_id: 26561249253
+run_id: 26624450956
 ```
 
-**Summary:** v0.134.0 (May 26, stable) — added subagent identity to hook inputs + trace_id to TurnStartedEvent (SubagentStart/SubagentStop/TurnStartedEvent hooks pre-date this release, Codex Hooks GA ~May 14); `--profile` flag as primary selector with profile inheritance and runtime refresh; extension tools can access conversation history; read-only MCP tools support concurrent execution when annotated. Prior alphas (May 22–23) had no changelog.
+**Summary:** v0.134.0 (May 26): `--profile` as primary selector, local conversation history search, improved MCP setup. v0.135.0 (May 28): `codex doctor` richer diagnostics, `/permissions` with named profiles. v0.136.0-alpha.1 (May 29): no changelog body. Legacy profile configs rejected with migration guidance. No new skill-format or AGENTS.md-facing changes.
 
 History:
+- 2026-05-29T07:38:29Z — changed: v0.134.0–v0.136.0-alpha.1; profile system, doctor diagnostics; no skill-format changes
 - 2026-05-28T08:00:00Z — changed: v0.134.0 stable (May 26) — subagent identity in hook inputs + trace_id on TurnStartedEvent (SubagentStart/SubagentStop/TurnStartedEvent hooks pre-date this); --profile flag; conversation history in tools → triggered F-2026-05-28-001
 - 2026-05-27T07:38:00Z — changed: rust-v0.134.0 stable (May 26); `--profile` breaking change, subagent identity in hooks, concurrent read-only MCP, OAuth for MCP
 - 2026-05-26T07:30:00Z — unchanged: no new releases after alpha.3 (May 23); v0.132/0.133 highlights noted
@@ -155,14 +159,15 @@ History:
 ## https://blog.google/technology/google-deepmind/
 
 ```yaml
-last_scan: 2026-05-25T07:48:17Z
+last_scan: 2026-05-29T07:38:29Z
 status: unchanged
-run_id: 26389613586
+run_id: 26624450956
 ```
 
 **Summary:** Most recent posts: Gemini for Science (May 8). No agent framework, MCP, or skill-spec relevant announcements since last scan.
 
 History:
+- 2026-05-29T07:38:29Z — unchanged: no new agent tooling posts; scan delegated to prior result
 - 2026-05-25T07:48:17Z — unchanged: no new agent tooling posts since last scan
 - 2026-05-22T10:50:58Z — unchanged: Gemini for Science post; no agent tooling changes relevant to skills repo
 
@@ -171,14 +176,15 @@ History:
 ## https://agentskills.io/specification
 
 ```yaml
-last_scan: 2026-05-27T07:38:00Z
+last_scan: 2026-05-29T07:38:29Z
 status: unchanged
-run_id: 26497701957
+run_id: 26624450956
 ```
 
 **Summary:** Required fields: `name` + `description` (≤1024 chars). Optional: `license`, `compatibility`, `metadata`, `allowed-tools` (experimental, space-separated pre-approved tools). `name` max 64 chars, lowercase alphanumeric+hyphens, no consecutive hyphens, must match directory. Progressive disclosure: metadata ~100 tokens at startup, full body on activation, referenced files on demand. Body ≤500 lines. Spec stable.
 
 History:
+- 2026-05-29T07:38:29Z — unchanged: spec stable; no new fields; allowed-tools still experimental
 - 2026-05-27T07:38:00Z — unchanged: spec stable; no new fields or breaking changes
 - 2026-05-25T07:48:17Z — unchanged: spec stable; allowed-tools field noted (e.g. `Bash(git:*) Read`); no breaking changes
 - 2026-05-24T07:23:12Z — changed: `compatibility` max 500 chars now documented; hooks-setup SKILL.md at 537 chars violates this (audit fix PR v0.6.13)
@@ -191,14 +197,15 @@ History:
 ## https://github.com/agentskills/agentskills
 
 ```yaml
-last_scan: 2026-05-27T07:38:00Z
+last_scan: 2026-05-29T07:38:29Z
 status: unchanged
-run_id: 26497701957
+run_id: 26624450956
 ```
 
-**Summary:** Last commit 2026-05-20 (docs fix correcting `name` field character range to include digits). Open PRs #380 (optional skill versioning), #386 (Windows UTF-8 fix), #345 (Unicode name clarification) still pending — no new merges since May 20.
+**Summary:** Last commit 2026-05-20 (docs fix correcting `name` field character range to include digits). Client showcases merged (bub, Superconductor). Open PRs #380 (optional skill versioning), #386 (Windows UTF-8 fix), #345 (Unicode name clarification) still pending — no new merges since 2026-05-22.
 
 History:
+- 2026-05-29T07:38:29Z — unchanged: last commit May 20; open PRs unchanged; no new merges
 - 2026-05-27T07:38:00Z — unchanged: last commit still May 20; open PRs #345, #380, #386 still pending; no spec changes
 - 2026-05-26T07:30:00Z — unchanged: 29 open issues, 13 open PRs; #380/#386/#345 still open; no new merges
 - 2026-05-25T07:48:17Z — unchanged: last commit May 20; open PRs #380, #386, #345 still pending; no spec changes
@@ -212,14 +219,15 @@ History:
 ## https://www.cursor.com/changelog
 
 ```yaml
-last_scan: 2026-05-27T07:38:00Z
+last_scan: 2026-05-29T07:38:29Z
 status: unchanged
-run_id: 26497701957
+run_id: 26624450956
 ```
 
-**Summary:** Most recent entry is v3.5 (2026-05-20) — shared canvases and /loop skill. No new entries since May 20.
+**Summary:** Most recent entry is v3.5 (2026-05-20). No new changelog entries since May 20.
 
 History:
+- 2026-05-29T07:38:29Z — unchanged: still at v3.5 (May 20); no new changes
 - 2026-05-27T07:38:00Z — unchanged: most recent entry still v3.5 (May 20); no new entries
 - 2026-05-26T07:30:00Z — unchanged: still at v3.5 (May 20); no new entries
 - 2026-05-25T07:48:17Z — unchanged: most recent entry v3.5 (May 20); no new changes
@@ -233,14 +241,15 @@ History:
 ## https://news.ycombinator.com
 
 ```yaml
-last_scan: 2026-05-27T07:38:00Z
-status: unchanged
-run_id: 26497701957
+last_scan: 2026-05-29T07:38:29Z
+status: changed
+run_id: 26624450956
 ```
 
-**Summary:** Front page at fetch time had no posts matching `claude code`, `codex`, `agent skills`, or `MCP`. HN is point-in-time; limited signal. Consider fetching HN Algolia search API instead for topic-filtered results.
+**Summary:** "Claude Code – Everything You Can Configure That the Docs Don't Tell You" (buildingbetter.tech) on front page — 42 points. Signals community interest in undocumented Claude Code config surface. No posts about agent skills or Codex.
 
 History:
+- 2026-05-29T07:38:29Z — changed: Claude Code undocumented config post on front page; community interest in hidden settings
 - 2026-05-27T07:38:00Z — unchanged: no relevant AI agent tooling posts on front page at scan time
 - 2026-05-25T07:48:17Z — unchanged: no relevant AI agent tooling posts on front page at scan time
 - 2026-05-24T07:23:12Z — unchanged: no relevant AI agent tooling topics on front page at snapshot time
@@ -251,14 +260,15 @@ History:
 ## https://github.com/DenisSergeevitch/agents-best-practices
 
 ```yaml
-last_scan: 2026-05-27T07:38:00Z
+last_scan: 2026-05-29T07:38:29Z
 status: unchanged
-run_id: 26497701957
+run_id: 26624450956
 ```
 
-**Summary:** Last commit was 2026-05-15 (v1.2.0 skill release with reformatted README and Claude Code skill support documentation). No changes since May 15.
+**Summary:** Last commit was 2026-05-15 (v1.2.0 skill release with reformatted README and Claude Code skill support documentation). Still no changes since May 15.
 
 History:
+- 2026-05-29T07:38:29Z — unchanged: last commit still May 15 (all 5 commits dated 2026-05-15); no activity
 - 2026-05-27T07:38:00Z — unchanged: last commit still May 15; no changes since last scan
 - 2026-05-25T07:48:17Z — unchanged: last commit May 15; no changes since last scan
 - 2026-05-24T07:23:12Z — unchanged: no new commits/files since May 15; stars grew to 1,034; checklists.md read for F-2026-05-24-002 evidence
@@ -270,14 +280,15 @@ History:
 ## https://code.claude.com/docs/en/skills.md
 
 ```yaml
-last_scan: 2026-05-27T07:38:00Z
-status: changed
-run_id: 26497701957
+last_scan: 2026-05-29T07:38:29Z
+status: unchanged
+run_id: 26624450956
 ```
 
-**Summary:** Updated to document `disallowed-tools` in skill frontmatter (added in v2.1.152) — skills can now explicitly block specific tools during their execution, complementing `allowed-tools`. Also documents `effort:` (low/medium/high/xhigh/max), `name`, `description`, `compatibility`, `metadata`, `allowed-tools`. `/reload-skills` command documented for reloading skills without restarting Claude Code.
+**Summary:** Official Claude Code skills documentation. Documents `effort:` as a first-class frontmatter field (values: low/medium/high/xhigh/max). v2.1.152 added `disallowed-tools` as a new skill frontmatter field — removes specified tools from model context while skill is active. Stable; no breaking changes since v2.1.149.
 
 History:
+- 2026-05-29T07:38:29Z — unchanged: stable; disallowed-tools already documented in v2.1.152 release notes; no spec breaks
 - 2026-05-27T07:38:00Z — changed: disallowed-tools frontmatter added (v2.1.152); /reload-skills documented; triggered F-2026-05-27-001
 - 2026-05-25T07:48:17Z — first-scan: effort: frontmatter documented; values low/medium/high/xhigh/max; triggered F-2026-05-25-001
 
@@ -286,14 +297,15 @@ History:
 ## https://code.claude.com/docs/en/routines.md
 
 ```yaml
-last_scan: 2026-05-27T07:38:00Z
+last_scan: 2026-05-29T07:38:29Z
 status: unchanged
-run_id: 26497701957
+run_id: 26624450956
 ```
 
 **Summary:** Claude Code Routines — scheduled sessions on Anthropic-managed infra. Created via `/schedule` CLI command, claude.ai/code/routines web UI, or Desktop app sidebar. Account-level config (Pro/Max/Team/Enterprise required). Triggers: cron, HTTP API POST, GitHub events (PR/release). Not available if ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN is set.
 
 History:
+- 2026-05-29T07:38:29Z — unchanged: Routines docs stable; no new triggers or breaking changes
 - 2026-05-27T07:38:00Z — unchanged: no new content since last scan
 - 2026-05-25T07:48:17Z — first-scan: Routines API documented; /schedule command; triggered F-2026-05-25-002
 
@@ -302,14 +314,15 @@ History:
 ## https://code.claude.com/docs/en/channels.md
 
 ```yaml
-last_scan: 2026-05-27T07:38:00Z
-status: changed
-run_id: 26497701957
+last_scan: 2026-05-29T07:38:29Z
+status: unchanged
+run_id: 26624450956
 ```
 
-**Summary:** Still research preview (not GA), still requires Bun — but significantly expanded with full setup guides for Telegram, Discord, and iMessage plugins, `allowedChannelPlugins` enterprise managed setting (allowlist model), `--dangerously-load-development-channels` flag for custom channel testing, and fakechat quickstart demo. More production-ready docs but still gated behind research preview status.
+**Summary:** Claude Code Channels — push events from Telegram/Discord/iMessage into Claude Code sessions. Research preview, requires Bun. Plugin-based (`/plugin install telegram@claude-plugins-official`), then `claude --channels plugin:...`. Enterprise: `channelsEnabled: true` managed setting. Still in research preview; not GA.
 
 History:
+- 2026-05-29T07:38:29Z — unchanged: still research preview; Bun required; not GA; defer /ievo:channel-setup proposal
 - 2026-05-27T07:38:00Z — changed: still research preview but significantly expanded with platform-specific setup guides, enterprise allowlist, dev testing flag; not GA yet — defer /ievo:channel-setup until GA
 - 2026-05-25T07:48:17Z — first-scan: Channels in research preview; Bun required; push events from Telegram/Discord/iMessage
 
@@ -318,14 +331,15 @@ History:
 ## https://code.claude.com/docs/en/sub-agents
 
 ```yaml
-last_scan: 2026-05-26T07:30:00Z
+last_scan: 2026-05-29T07:38:29Z
 status: first-scan
-run_id: 26438438877
+run_id: 26624450956
 ```
 
-**Summary:** Claude Code sub-agents docs. Model resolution order: (1) CLAUDE_CODE_SUBAGENT_MODEL env var, (2) per-invocation model parameter, (3) agent frontmatter model:, (4) main-conversation model. New features: forked subagents (experimental, CLAUDE_CODE_FORK_SUBAGENT=1) inherit full conversation context; subagent resume (continue previous work with full history); skill preloading via frontmatter; background subagent execution with auto-denial of unprompted permissions. SubagentStart + SubagentStop lifecycle hooks. CLAUDE_CODE_SUBAGENT_MODEL precedence already documented in iEvo AGENTS.md.
+**Summary:** Claude Code sub-agents docs (first scan). Key: `CLAUDE_CODE_SUBAGENT_MODEL` resolution order (env var > per-invocation > frontmatter > main-session). New agent frontmatter fields: `effort` (low/medium/high/xhigh/max), `isolation: worktree`, `memory` (user/project/local scope), `background`. `--agents` CLI flag accepts JSON with all frontmatter fields. `Task` tool renamed to `Agent` in v2.1.63 (Task still works as alias). Built-in sub-agents: Explore (haiku), Plan (inherit), General-purpose (inherit), statusline-setup (sonnet), claude-code-guide (haiku). iEvo agents don't declare `effort:` frontmatter → filed as F-2026-05-29-002.
 
 History:
+- 2026-05-29T07:38:29Z — first-scan: effort/isolation/memory/background agent fields documented; iEvo agents lack effort: → triggered F-2026-05-29-002
 - 2026-05-26T07:30:00Z — first-scan: model resolution order confirmed; forked subagents (experimental) noted; skill preloading via frontmatter noted; triggered awareness of missing vuln-scan orchestrator (F-2026-05-26-001)
 
 ---
