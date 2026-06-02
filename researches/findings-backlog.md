@@ -404,3 +404,102 @@ evidence:
 ```
 
 Codex v0.134.0 (2026-05-26) added subagent identity to hook inputs and trace_id to TurnStartedEvent; the SubagentStart, SubagentStop, and TurnStartedEvent hooks themselves pre-date this release (Codex Hooks GA ~May 14). The `hooks-setup/SKILL.md` is the authoritative iEvo guide for configuring lifecycle hooks, but it currently only documents Claude Code hooks (PostToolUse, Stop, SessionStart, MessageDisplay). Since iEvo explicitly supports Codex (ships `.codex-plugin/marketplace.json`) and AGENTS.md states "Not a Claude Code-only plugin", the hooks-setup skill should document equivalent Codex hooks. Users running iEvo on Codex see Claude Code hook instructions but have no guidance on Codex-native equivalents — violating the universal positioning promise. Implementation: add a "Codex hooks" section documenting SubagentStart (fires when a sub-agent starts), SubagentStop (fires when sub-agent completes — counterpart to Claude Code's SubagentStop hook already in Stop section), TurnStartedEvent (per-turn trigger). Pure documentation addition, no scripts required, no test coverage obligation.
+
+---
+
+## F-2026-05-29-001 — Add `disallowed-tools` safety constraint to `deep-review/SKILL.md`
+
+```yaml
+id: F-2026-05-29-001
+discovered_at: 2026-05-29T07:38:29Z
+run_id: 26624450956
+target_repo: ievo-ai/skills
+title: Add disallowed-tools safety constraint to deep-review/SKILL.md to enforce read-only pledge at platform level
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/156
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.152 (2026-05-27) added disallowed-tools as a first-class SKILL.md frontmatter field — removes named tools from the model while the skill is active
+  - /tmp/skills/plugins/ievo/skills/security-check/SKILL.md: already uses disallowed-tools: [Write, Edit, Bash(rm*)] — established pattern in the repo
+  - /tmp/skills/plugins/ievo/skills/vuln-scan/SKILL.md: same disallowed-tools pattern — confirmed both security-critical skills use it
+  - /tmp/skills/plugins/ievo/skills/deep-review/SKILL.md: no allowed-tools or disallowed-tools declared despite explicit read-only design intent (gap-detection only, no file modifications)
+```
+
+`deep-review/SKILL.md` describes a read-only gap-detection review skill: "Structured 10-point gap-detection review of a diff before commit." The skill orchestrates a `deep-reviewer` sub-agent and performs diff analysis. It has no tool constraints — any tool the model can access remains accessible while the skill is active.
+
+Both security-critical sibling skills (`security-check`, `vuln-scan`) already declare `disallowed-tools: [Write, Edit, Bash(rm*)]`, making their read-only pledge verifiable at the platform level rather than just as text in the skill body. `deep-review` lacks this, leaving a gap between its stated intent and its actual platform-enforced behavior.
+
+Adding `disallowed-tools: [Write, Edit, Bash(rm*)]` to `deep-review/SKILL.md` would:
+1. Enforce the read-only contract at the platform level (Claude Code + Codex honor `disallowed-tools`)
+2. Prevent accidental file modifications if the skill body or the deep-reviewer agent steps deviate
+3. Align `deep-review` with the security pattern already established by `security-check` and `vuln-scan`
+
+The change requires a version bump per AGENTS.md rules (four files + CHANGELOG.md entry).
+
+---
+
+## F-2026-05-29-002 — Add `effort:` frontmatter to all 5 agent .md files
+
+```yaml
+id: F-2026-05-29-002
+discovered_at: 2026-05-29T07:38:29Z
+run_id: 26624450956
+target_repo: ievo-ai/skills
+title: Add effort: frontmatter to all 5 iEvo agent .md files to pin reasoning depth per agent role
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/157
+effort: low
+scope: multi-file
+evidence:
+  - https://code.claude.com/docs/en/sub-agents: effort: is now a first-class agent frontmatter field (values low/medium/high/xhigh/max); overrides session effort when the sub-agent is active
+  - https://github.com/anthropics/claude-code/releases: v2.1.154 (2026-05-28) released Opus 4.8 defaulting to effort xhigh; v2.1.152 formalized effort: field for agents
+  - /tmp/skills/plugins/ievo/agents/evolution.md: model: opus — with Opus 4.8 defaulting to xhigh, this agent inherits xhigh effort for a task (append lesson to overlay file) that needs only low reasoning depth
+  - /tmp/skills/plugins/ievo/agents/*.md: none of the 5 iEvo agents declare effort: frontmatter
+```
+
+All 5 iEvo agent files (`deep-reviewer.md`, `evolution.md`, `repo-indexer.md`, `security-auditor.md`, `vuln-scanner.md`) lack `effort:` frontmatter. Per Claude Code's sub-agents documentation, `effort:` overrides the session effort level when the sub-agent is dispatched.
+
+Without `effort:`, agents inherit the parent session's effort setting. With Opus 4.8 now defaulting to `effort: xhigh`, this creates a cost asymmetry: the `evolution` agent (model: opus, task: append structured text to overlay file) may run at `xhigh` effort, burning significant tokens on a mechanical task. Conversely, the `security-auditor` and `vuln-scanner` agents (deep security analysis) would benefit from an explicit `effort: high` to ensure thorough analysis regardless of the session context.
+
+Proposed `effort:` values per agent role:
+
+| Agent | Model | Task complexity | Proposed effort |
+|-------|-------|-----------------|-----------------|
+| `evolution.md` | opus | Append lesson to overlay file | `low` |
+| `deep-reviewer.md` | sonnet | Structured code review | `medium` |
+| `repo-indexer.md` | sonnet | Mechanical repo scanning (scan_repo.mjs) | `low` |
+| `security-auditor.md` | sonnet | Deep security analysis | `high` |
+| `vuln-scanner.md` | sonnet | Exploit-chain vulnerability analysis | `high` |
+
+This prevents both over-spending (evolution at xhigh) and under-investing (security agents at low from a haiku-tier session).
+
+---
+
+## F-2026-05-29-003 — Explicitly declare `defaultEnabled: true` in plugin.json
+
+```yaml
+id: F-2026-05-29-003
+discovered_at: 2026-05-29T07:38:29Z
+run_id: 26624450956
+target_repo: ievo-ai/skills
+title: Add defaultEnabled: true to plugin.json to be explicit about plugin activation intent
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/158
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.154 (2026-05-28) introduced defaultEnabled: false as a new plugin.json field — plugins can now explicitly opt out of being enabled by default
+  - /tmp/skills/plugins/ievo/.claude-plugin/plugin.json: current file has no defaultEnabled field; relies on implicit default behavior that is now configurable
+```
+
+Claude Code v2.1.154 introduced `defaultEnabled: false` as an explicit plugin.json field. Before this release, plugins had no such field and were presumably always enabled after install. The introduction of the field means the runtime now reads and acts on this value.
+
+iEvo's `plugins/ievo/.claude-plugin/plugin.json` currently has no `defaultEnabled` field. Relying on implicit default behavior is fragile — if a future Claude Code version changes the absent-field semantics (e.g., to require explicit opt-in for enterprise compliance reasons), iEvo would silently become disabled for existing installations.
+
+Adding `"defaultEnabled": true` is a 1-line JSON addition that:
+1. Makes iEvo's activation intent explicit and self-documenting
+2. Future-proofs against potential semantics changes in the `defaultEnabled` field
+3. Follows the principle of "explicit is better than implicit" for platform manifests
+
+The change requires a version bump per AGENTS.md rules (four files + CHANGELOG.md entry).
