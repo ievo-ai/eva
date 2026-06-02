@@ -690,3 +690,76 @@ evidence:
 ```
 
 `AGENTS.md` security model section already documents `CLAUDE_CODE_SUBAGENT_MODEL` as an operator gotcha: if the env var is set to a Haiku-tier value, `security-auditor` runs at Haiku reasoning despite `model: sonnet` in its frontmatter, silently degrading the security guarantee. Claude Code v2.1.157 introduced a parallel bypass path: the `agent:` field in `settings.json`. If an operator has set `agent: some-other-agent` (or any agent profile that maps to a Haiku-class model), all Task-tool-dispatched sub-agents inherit that agent profile, overriding `security-auditor.md` frontmatter. Users who follow documentation to configure session-level agents for other purposes could unknowingly degrade iEvo's security scan quality. The fix is documentation-only: add a bullet to the `AGENTS.md` "Security model" section alongside the existing `CLAUDE_CODE_SUBAGENT_MODEL` note, and optionally add a pre-flight check in `security-check/SKILL.md` that warns the user if `agent:` is set in `.claude/settings.json` before dispatching parallel security-auditor sub-agents.
+
+---
+
+## F-2026-06-02-001 — Add Codex rust-v0.136.0 hook output schema tightening note to hooks-setup/SKILL.md
+
+```yaml
+id: F-2026-06-02-001
+discovered_at: 2026-06-02T08:04:18Z
+run_id: 26806183547
+target_repo: ievo-ai/skills
+title: Document Codex rust-v0.136.0 hook output event schema tightening in hooks-setup/SKILL.md compatibility note
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/168
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/openai/codex/releases: rust-v0.136.0 (2026-06-01) "Tighten hook output event schemas (#24962)" — breaking change for any hook output parser that relied on prior schema lenience
+```
+
+Codex rust-v0.136.0 (2026-06-01) tightened hook output event schemas via PR #24962. This is a documented breaking change: any code or tooling that parses raw Codex hook output events and relied on the prior (more lenient) schema may break after upgrading to v0.136. The `hooks-setup/SKILL.md` teaches users how to write Claude Code and Codex lifecycle hooks, including the expected output format. The compatibility field currently says "Codex hook schema may differ" — a hedge, but not actionable. A concrete note documenting the v0.136 breaking change gives users a specific version boundary to test against and an action: verify custom Codex hook output parsers against rust-v0.136.0.
+
+Concrete proposal: Update `hooks-setup/SKILL.md` compatibility field and/or add a versioned compatibility note in the skill body. The update should: (a) replace the vague "Codex hook schema may differ" with a specific note mentioning v0.136.0; (b) link to the Codex release notes; (c) describe the actionable mitigation (test hooks against v0.136.0, focus on the hook output event structure your hooks return). No new script or coverage obligation — this is a SKILL.md body/frontmatter documentation change only.
+
+---
+
+## F-2026-06-02-002 — Document Claude Code v2.1.160 `acceptEdits` prompt for `.pre-commit-config.yaml` in AGENTS.md
+
+```yaml
+id: F-2026-06-02-002
+discovered_at: 2026-06-02T08:04:18Z
+run_id: 26806183547
+target_repo: ievo-ai/skills
+title: Add Claude Code v2.1.160 acceptEdits permission-prompt note to AGENTS.md pre-commit contributor guide
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/169
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.160 (2026-06-02) — acceptEdits mode now prompts before writing build-tool config files including .pre-commit-config.yaml, .npmrc, .yarnrc*, bunfig.toml, .bazelrc, .devcontainer/
+```
+
+Claude Code v2.1.160 (2026-06-02) extended the `acceptEdits` permission-prompt surface to include build-tool config files: `.pre-commit-config.yaml`, `.npmrc`, `.yarnrc*`, `bunfig.toml`, `.bazelrc`, and `.devcontainer/`. When an agent running in `acceptEdits` mode (the default for human-interactive sessions) tries to write to `.pre-commit-config.yaml`, Claude Code will now prompt the user for approval before proceeding.
+
+The `AGENTS.md` § "Pre-commit hooks + workflow gate" section currently instructs contributors: "Adding a new validator: drop a `.mjs` in `.github/scripts/validators/` + a hook entry in `.pre-commit-config.yaml`." Contributors who follow this guidance using Claude Code v2.1.160+ as their coding agent will encounter an unexpected `acceptEdits` prompt when the agent writes to `.pre-commit-config.yaml`. Without forewarning, the contributor may deny the prompt (thinking it's an error) and end up with an incomplete validator addition.
+
+Concrete proposal: Add one sentence to the AGENTS.md pre-commit section, immediately after "Adding a new validator" instructions: "Note: Claude Code v2.1.160+ requires explicit `acceptEdits` approval before writing to `.pre-commit-config.yaml` — this prompt is expected behavior; approve it to complete the validator addition." The note prevents confusion and avoids a false-deny scenario that leaves the validator partially installed.
+
+Files affected: `AGENTS.md` (§ Pre-commit hooks + workflow gate, ~line 232). Single sentence addition. No version bump required (AGENTS.md § compliance-ledger bumps happen alongside functional changes, not documentation notes, per the repo's convention).
+
+---
+
+## F-2026-06-02-003 — Document Codex rust-v0.135.0 named permission profiles for iEvo security scan in security-check/SKILL.md
+
+```yaml
+id: F-2026-06-02-003
+discovered_at: 2026-06-02T08:04:18Z
+run_id: 26806183547
+target_repo: ievo-ai/skills
+title: Add Codex v0.135.0 named permission profile guidance to security-check/SKILL.md as Codex equivalent of disallowed-tools
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/170
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/openai/codex/releases: rust-v0.135.0 (2026-05-28) "Named permission profiles in /permissions (#21559)" — Codex now supports named profiles with custom permission sets, analogous to Claude Code's disallowed-tools frontmatter
+  - https://github.com/ievo-ai/skills/blob/main/plugins/ievo/skills/security-check/SKILL.md: disallowed-tools frontmatter (Write, Edit, Bash(rm*), etc.) enforces read-only mode during security assessment on Claude Code; Codex has no disallowed-tools frontmatter equivalent, leaving Codex users without a parallel safety constraint
+```
+
+Claude Code v2.1.152 introduced `disallowed-tools` frontmatter and iEvo implemented it in `security-check/SKILL.md` (shipped in v0.12.0) — the security-check skill now blocks Write, Edit, Bash(rm*), Bash(mv*), Bash(cp*), Bash(curl*), Bash(wget*) on Claude Code. This enforces read-only mode during third-party skill assessment.
+
+Codex v0.135.0 introduced named permission profiles via `/permissions` command (#21559) — a user can create a named profile (e.g., `ievo-security-scan`) that restricts the tool set available during a Codex session. While not frontmatter-level enforcement (the agent cannot self-impose the profile at skill activation time), a named profile is the closest Codex equivalent. A Codex user running `/ievo:security-check` can pre-activate their `ievo-security-scan` profile before the skill starts to achieve the same read-only enforcement.
+
+Concrete proposal: Add a Codex-specific section or compatibility callout to `security-check/SKILL.md` (currently 288 lines, well under the 500-line limit). The addition describes: (a) the parity gap (Claude Code gets `disallowed-tools` enforcement automatically; Codex users must set up a named permission profile manually); (b) how to create the profile in Codex via `/permissions`; (c) recommended tool restrictions (Read, Grep, Glob, WebFetch only — matches the security-auditor agent's `tools:` allowlist); (d) the instruction to activate it with `/permissions use ievo-security-scan` before running the skill. No scripts needed, no coverage obligation — pure SKILL.md documentation addition.
