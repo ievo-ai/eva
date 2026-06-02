@@ -332,7 +332,26 @@ jobs:
             exit 0
           fi
 
-          DECISION=$(echo "$REVIEW" | head -1 | tr -d '[:space:]')
+          # Decision extraction (godfather, 2026-06-02): we instruct Claude to
+          # put APPROVE / REQUEST_CHANGES on the FIRST line, but it routinely
+          # adds a sentence of preamble first. Reading only `head -1` then
+          # mis-classified a clear APPROVE as a parse failure → REQUEST_CHANGES,
+          # which (together with the sensitive gate) is why approved audits
+          # never auto-merged. Instead, find an explicit STANDALONE decision
+          # token anywhere in the output. Still strict: the line must be exactly
+          # the token (so prose like "I cannot APPROVE this" does NOT match),
+          # and an output with neither — or both (contradictory) — falls through
+          # to the safe REQUEST_CHANGES default below. This fixes the parser; it
+          # does NOT loosen the safety semantics.
+          APPROVE_N=$(printf '%s\n' "$REVIEW" | grep -cE '^[[:space:]]*APPROVE[[:space:]]*$' || true)
+          RC_N=$(printf '%s\n' "$REVIEW" | grep -cE '^[[:space:]]*REQUEST_CHANGES[[:space:]]*$' || true)
+          if [ "${APPROVE_N:-0}" -ge 1 ] && [ "${RC_N:-0}" -eq 0 ]; then
+            DECISION="APPROVE"
+          elif [ "${RC_N:-0}" -ge 1 ] && [ "${APPROVE_N:-0}" -eq 0 ]; then
+            DECISION="REQUEST_CHANGES"
+          else
+            DECISION="UNPARSEABLE"
+          fi
           COMMENT=$(echo "$REVIEW" | sed '1,/^---$/d')
 
           # SAFETY (2026-05-23): on parse failure, default to REQUEST_CHANGES.
@@ -341,7 +360,7 @@ jobs:
           # signal — it means we don't know what Claude decided.
           if [ "$DECISION" != "APPROVE" ] && [ "$DECISION" != "REQUEST_CHANGES" ]; then
             DECISION="REQUEST_CHANGES"
-            COMMENT="$(printf 'Eva could not parse her own review output (expected APPROVE or REQUEST_CHANGES as first line). Defaulting to REQUEST_CHANGES so the PR does NOT auto-merge. Raw Claude output below — operator decides.\n\n---\n\n%s' "$REVIEW")"
+            COMMENT="$(printf 'Eva could not parse her own review output (no standalone APPROVE or REQUEST_CHANGES line, or both present). Defaulting to REQUEST_CHANGES so the PR does NOT auto-merge. Raw Claude output below — operator decides.\n\n---\n\n%s' "$REVIEW")"
           fi
 
           echo "decision=$DECISION" >> "$GITHUB_OUTPUT"
@@ -423,7 +442,30 @@ jobs:
             done
           done <<< "$CHANGED"
 
-          if [ -n "$SENSITIVE_HITS" ]; then
+          # Routine research-audit exception (godfather, 2026-06-02):
+          # researches/sources-index.md + findings-backlog.md are in the
+          # sensitive list so non-routine edits get operator review — but that
+          # ALSO blocked every daily `eva-research` audit (each one always
+          # appends to both), so approved audits piled up needing manual merge.
+          # Allow auto-merge for routine audits only: head branch matches
+          # research/audit-* AND every changed file lives under researches/.
+          # Any other edit to those strategic files (or any behavioral/workflow
+          # path) still hits the operator-review gate below. The workflow_run
+          # trust filter already blocks fork PRs from reaching this point.
+          HEAD_REF=$(gh api "repos/$REPO/pulls/$PR_NUM" --jq '.head.ref')
+          IS_AUDIT=false
+          if [[ "$HEAD_REF" == research/audit-* ]]; then
+            IS_AUDIT=true
+            while IFS= read -r f; do
+              [ -z "$f" ] && continue
+              if [[ "$f" != researches/* ]]; then IS_AUDIT=false; break; fi
+            done <<< "$CHANGED"
+          fi
+
+          if [ "$IS_AUDIT" = "true" ]; then
+            echo "is_sensitive=false" >> "$GITHUB_OUTPUT"
+            echo "Routine research-audit PR ($HEAD_REF; all files under researches/) — auto-merge allowed despite researches/ being in the sensitive list"
+          elif [ -n "$SENSITIVE_HITS" ]; then
             echo "is_sensitive=true" >> "$GITHUB_OUTPUT"
             echo "Sensitive paths touched — operator must manually merge:"
             printf '%s' "$SENSITIVE_HITS"
@@ -445,8 +487,16 @@ jobs:
           REPO: ${{ steps.ctx.outputs.repo }}
           PR_NUM: ${{ steps.ctx.outputs.pr_number }}
         run: |
-          gh pr merge "$PR_NUM" --repo "$REPO" --auto --squash \
-            || echo "Auto-merge not available — branch protection may require additional checks"
+          # This step runs after Tests complete, so required checks are green.
+          # Try a direct merge first — it succeeds when the PR is already
+          # mergeable (the common case). `gh pr merge --auto` ALONE silently
+          # no-ops when there are no pending required checks (the PR is already
+          # clean), which is why approved PRs used to sit open. Fall back to
+          # --auto to QUEUE the merge if the PR is momentarily behind main or a
+          # required check is still settling.
+          gh pr merge "$PR_NUM" --repo "$REPO" --squash --delete-branch \
+            || gh pr merge "$PR_NUM" --repo "$REPO" --auto --squash --delete-branch \
+            || echo "Could not merge now and could not enable auto-merge — operator may need to merge manually (check mergeable state / branch protection)."
 
       # --- Operator-required comment on sensitive PRs ---
       - name: Operator-required notification
