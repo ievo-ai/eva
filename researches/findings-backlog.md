@@ -503,3 +503,66 @@ Adding `"defaultEnabled": true` is a 1-line JSON addition that:
 3. Follows the principle of "explicit is better than implicit" for platform manifests
 
 The change requires a version bump per AGENTS.md rules (four files + CHANGELOG.md entry).
+
+---
+
+## F-2026-05-30-001 — `hooks` frontmatter in iEvo SKILL.md files for per-skill lifecycle hooks
+
+```yaml
+id: F-2026-05-30-001
+discovered_at: 2026-05-30T07:15:49Z
+run_id: 26677717819
+target_repo: ievo-ai/skills
+title: Add hooks frontmatter to evolution, security-check, and init SKILL.md files for per-skill lifecycle hooks
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/159
+effort: medium
+scope: multi-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.152 introduced hooks as a first-class SKILL.md frontmatter field — lifecycle hooks scoped to the skill's active context
+  - https://code.claude.com/docs/en/skills.md: hooks frontmatter documented alongside effort:, disallowed-tools, context:fork — enables per-skill PostToolUse/Stop hooks without global settings.json changes
+```
+
+Claude Code v2.1.152 introduced `hooks` as a SKILL.md frontmatter field, enabling skills to declare lifecycle hooks scoped to the skill itself. None of the 14 current iEvo SKILL.md files use this. The `evolution`, `init`, and `security-check` skills each have natural completion events (overlay write, pipeline complete, parallel scan complete) that users want to observe. Currently users must set up global hooks via `/ievo:hooks-setup` — per-skill hooks provide a zero-configuration alternative bundled with each skill. Additionally, `hooks-setup/SKILL.md` should document per-skill hooks as a complementary tier.
+
+---
+
+## F-2026-05-30-002 — Document `.claude/skills` auto-load install path in README and init skill
+
+```yaml
+id: F-2026-05-30-002
+discovered_at: 2026-05-30T07:15:49Z
+run_id: 26677717819
+target_repo: ievo-ai/skills
+title: Document git-clone install path via .claude/skills auto-load (Claude Code v2.1.157)
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/160
+effort: low
+scope: multi-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.157 (2026-05-29) — plugins in .claude/skills directories now auto-load without marketplace; claude plugin init scaffolds plugins
+  - https://code.claude.com/docs/en/skills.md: .claude/skills/ confirmed as canonical auto-load path for local plugin development and Routines
+```
+
+Claude Code v2.1.157 added auto-loading of plugins from `.claude/skills` directories without marketplace registration. iEvo's README only documents marketplace install and manual copy. The new `git clone https://github.com/ievo-ai/skills.git ~/.claude/skills/ievo` path is simpler and version-controlled. The `schedule/SKILL.md` compatibility note should also clarify that Routines use skills from the project's `.claude/skills/` directory (different from the global `~/.claude/skills/`).
+
+---
+
+## F-2026-05-30-003 — Dynamic context injection for prerequisite verification in init/SKILL.md
+
+```yaml
+id: F-2026-05-30-003
+discovered_at: 2026-05-30T07:15:49Z
+run_id: 26677717819
+target_repo: ievo-ai/skills
+title: Add dynamic context injection (!`command`) to init/SKILL.md and security-check/SKILL.md for prerequisite verification
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/161
+effort: low
+scope: multi-file
+evidence:
+  - https://code.claude.com/docs/en/skills.md: documents !`command` syntax for dynamic context injection — shell output inlined at skill load time before Claude reads the body; also $CLAUDE_SKILL_DIR/$CLAUDE_SESSION_ID/$CLAUDE_EFFORT substitution vars
+  - https://github.com/anthropics/claude-code/releases: v2.1.152 shipped context:fork and dynamic context injection as part of the skill extensibility release
+```
+
+Claude Code v2.1.152+ supports `` !`command` `` syntax in SKILL.md: shell commands whose stdout is injected into the skill context at load time. `/ievo:init` requires Node 18+, gh CLI, git, and network access, but surfaces missing prerequisites only after mid-pipeline failure. A `context:` frontmatter block with 4 `` !`command` `` checks (node, gh auth, git, network) would surface all issues in the first skill response. `/ievo:security-check` would benefit from a gh auth check. On platforms without the feature, unknown frontmatter is ignored gracefully.
