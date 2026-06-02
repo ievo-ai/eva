@@ -629,3 +629,64 @@ evidence:
 ```
 
 The current `/ievo:security-check` flow dispatches a full security-auditor sub-agent (Sonnet, deep multi-file analysis) for every candidate in parallel. For small install runs this is fine. But as iEvo scales to org-wide security sweeps (enabled by Dynamic Workflows), the cost of running a full deep scan on 50+ repos is prohibitive. Cursor v3.6's Auto-review Run Mode demonstrates the pattern: a lightweight classifier subagent runs first (single-turn, fast, cheap) to categorize candidates as obviously-safe / needs-deep-scan / obviously-red. Only the needs-deep-scan candidates get the full security-auditor treatment. Proposal: add a pre-classifier step to `security-check/SKILL.md` (and/or `init/SKILL.md`'s security phase) that reads the candidate's SKILL.md description, source URL, author metadata, and `scan_repo.mjs` structural output to produce an initial triage verdict before expensive deep scanning.
+
+---
+
+## F-2026-06-01-001 — Document Codex rust-v0.135.0 thread-idle lifecycle hook in hooks-setup/SKILL.md
+
+```yaml
+id: F-2026-06-01-001
+discovered_at: 2026-06-01T08:08:22Z
+run_id: 26742668563
+target_repo: ievo-ai/skills
+title: Add Codex rust-v0.135.0 thread-idle lifecycle hook documentation to hooks-setup/SKILL.md
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/165
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/openai/codex/releases: rust-v0.135.0 (2026-05-28) added a "thread idle lifecycle hook" — fires when an agent thread goes idle; new hook type distinct from SubagentStart/SubagentStop/TurnStartedEvent which shipped in v0.134.0
+```
+
+The `hooks-setup/SKILL.md` Codex hook section currently covers hook types up to what was available before v0.134.0. Issue #155 (open) proposes adding the v0.134.0 types (SubagentStart, SubagentStop, TurnStartedEvent). The v0.135.0 **thread idle** hook is a distinct new type not covered by either the current SKILL.md or the pending #155. This hook fires when an agent thread has no pending work — enabling use cases like "notify me when the background security scan finishes sitting idle for 30s" or "checkpoint progress when idle". In iEvo's parallel security-auditor + repo-indexer dispatch context, a thread-idle hook could trigger a completion notification more reliably than a simple timeout. The hook body receives thread context (thread ID, idle duration). Implementation: single addition to the Codex hook table in `hooks-setup/SKILL.md`, no scripts required. Effort: low (~15 min).
+
+---
+
+## F-2026-06-01-002 — update.md step 6 should reference /reload-skills (Claude Code v2.1.152)
+
+```yaml
+id: F-2026-06-01-002
+discovered_at: 2026-06-01T08:08:22Z
+run_id: 26742668563
+target_repo: ievo-ai/skills
+title: Update /ievo:update command to use /reload-skills (v2.1.152) instead of /reload-plugins for refreshed skill directories
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/166
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.152 (2026-05-27) added /reload-skills command — re-scans skill directories without restarting the session; specifically designed for picking up freshly installed or updated skills
+```
+
+The `commands/update.md` Step 6 reminder currently says: `"Run /reload-plugins to pick up refreshed agent/skill definitions."` Claude Code v2.1.152 (2026-05-27) shipped `/reload-skills` — a command that explicitly re-scans skill directories without requiring a session restart. Since `/ievo:update` refreshes vendored skills to `.claude/skills/<name>/`, the correct post-update prompt is `/reload-skills` (for the skill content) rather than `/reload-plugins` (which targets plugin manifests). If `/reload-plugins` is not a real CLI command, users following the step 6 reminder would see a command-not-found error. Even if both commands exist, `/reload-skills` is the targeted command for the update.md use case. Fix: replace the step 6 reminder text to reference `/reload-skills` for skill refreshes, with a note on the minimum required version (v2.1.152+).
+
+---
+
+## F-2026-06-01-003 — Document agent: settings.json field as security-auditor bypass vector (v2.1.157)
+
+```yaml
+id: F-2026-06-01-003
+discovered_at: 2026-06-01T08:08:22Z
+run_id: 26742668563
+target_repo: ievo-ai/skills
+title: Document agent: settings.json field (v2.1.157) as additional security-auditor model bypass vector alongside CLAUDE_CODE_SUBAGENT_MODEL
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/167
+effort: low
+scope: multi-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.157 (2026-05-29) — agent: field in settings.json honored for dispatched sessions; --agent <name> CLI flag to override per-session
+  - https://code.claude.com/docs/en/sub-agents.md: model resolution order confirmed — (1) CLAUDE_CODE_SUBAGENT_MODEL env var, (2) per-invocation parameter, (3) agent frontmatter model:, (4) main-conversation model; agent: in settings.json adds a new override path at or above level (3)
+```
+
+`AGENTS.md` security model section already documents `CLAUDE_CODE_SUBAGENT_MODEL` as an operator gotcha: if the env var is set to a Haiku-tier value, `security-auditor` runs at Haiku reasoning despite `model: sonnet` in its frontmatter, silently degrading the security guarantee. Claude Code v2.1.157 introduced a parallel bypass path: the `agent:` field in `settings.json`. If an operator has set `agent: some-other-agent` (or any agent profile that maps to a Haiku-class model), all Task-tool-dispatched sub-agents inherit that agent profile, overriding `security-auditor.md` frontmatter. Users who follow documentation to configure session-level agents for other purposes could unknowingly degrade iEvo's security scan quality. The fix is documentation-only: add a bullet to the `AGENTS.md` "Security model" section alongside the existing `CLAUDE_CODE_SUBAGENT_MODEL` note, and optionally add a pre-flight check in `security-check/SKILL.md` that warns the user if `agent:` is set in `.claude/settings.json` before dispatching parallel security-auditor sub-agents.
