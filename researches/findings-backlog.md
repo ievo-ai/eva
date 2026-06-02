@@ -566,3 +566,66 @@ evidence:
 ```
 
 Claude Code v2.1.152+ supports `` !`command` `` syntax in SKILL.md: shell commands whose stdout is injected into the skill context at load time. `/ievo:init` requires Node 18+, gh CLI, git, and network access, but surfaces missing prerequisites only after mid-pipeline failure. A `context:` frontmatter block with 4 `` !`command` `` checks (node, gh auth, git, network) would surface all issues in the first skill response. `/ievo:security-check` would benefit from a gh auth check. On platforms without the feature, unknown frontmatter is ignored gracefully.
+
+---
+
+## F-2026-05-31-001 — `/ievo:workflow` skill for large-scale parallel orchestration via Dynamic Workflows
+
+```yaml
+id: F-2026-05-31-001
+discovered_at: 2026-05-31T00:00:00Z
+run_id: 26706515829
+target_repo: ievo-ai/skills
+title: /ievo:workflow skill — guided setup for large-scale parallel agent orchestration using Claude Code Dynamic Workflows
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/162
+effort: medium
+scope: new-skill
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.154 (2026-05-28) — Dynamic Workflows launched: /workflows command orchestrates tens to hundreds of background agents for large-scale tasks
+  - https://github.com/DenisSergeevitch/agents-best-practices: new references/workflow-orchestration.md (+261 lines, 2026-05-30) — concrete workflow orchestration patterns for multi-agent pipelines
+```
+
+A new `/ievo:workflow` skill that guides users through setting up a Claude Code Dynamic Workflow for large-scale iEvo operations — security scanning an entire GitHub org's repos, running evolution captures across multiple projects simultaneously, or doing a bulk skill-discovery pass. Dynamic Workflows (v2.1.154) orchestrate tens to hundreds of background agents, viewable via `/workflows`. This directly extends iEvo's existing parallel agent patterns (init already dispatches security-auditor + repo-indexer in parallel for a handful of candidates) to a much larger scale. The skill would help users construct the workflow prompt, select target repos, and configure the `/schedule` trigger for recurring runs. Fills the gap between single-project iEvo operations and org-wide continuous security posture management.
+
+---
+
+## F-2026-05-31-002 — Add `effort:` field validation to `validate_agents.mjs`
+
+```yaml
+id: F-2026-05-31-002
+discovered_at: 2026-05-31T00:00:00Z
+run_id: 26706515829
+target_repo: ievo-ai/skills
+title: Add effort: field validation to validate_agents.mjs (warn on absent, error on invalid value)
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/163
+effort: low
+scope: multi-file
+evidence:
+  - https://code.claude.com/docs/en/sub-agents: effort: field documented as valid agent frontmatter (low/medium/high/xhigh/max) — overrides session effort when the agent runs; first-scan 2026-05-31
+  - https://github.com/anthropics/claude-code/releases: v2.1.154 Opus 4.8 defaults to high effort — effort: frontmatter in agents lets operators pin the intended effort regardless of session default
+```
+
+`validate_skills.mjs` already validates `effort:` in SKILL.md files — warning on absent, error on invalid value. But `validate_agents.mjs` only validates `model:` field for vendor-neutral aliases; it does not check `effort:`. Now that the sub-agents documentation explicitly documents `effort:` as a valid agent frontmatter field (same values: low/medium/high/xhigh/max), the validator should enforce the same pattern for consistency. This catches mis-typed values before they silently fail (e.g. `effort: medium-high` or `effort: fast`). Implementation: extend `validate_agents.mjs` with the same effort-validation logic as `validate_skills.mjs`; add corresponding test cases to `validate_agents.test.mjs` to maintain 100% coverage.
+
+---
+
+## F-2026-05-31-003 — Lightweight pre-classifier step in `/ievo:security-check` to triage before deep scan
+
+```yaml
+id: F-2026-05-31-003
+discovered_at: 2026-05-31T00:00:00Z
+run_id: 26706515829
+target_repo: ievo-ai/skills
+title: Lightweight pre-classifier step in /ievo:security-check to triage candidates before deep security-auditor dispatch
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/164
+effort: medium
+scope: multi-file
+evidence:
+  - https://www.cursor.com/changelog: Cursor v3.6 (2026-05-29) — Auto-review Run Mode uses a lightweight classifier subagent to categorize tool calls as allowlisted/sandboxed/escalated before executing, reducing unnecessary approval prompts by ~60-80%
+  - https://github.com/anthropics/claude-code/releases: v2.1.154 (2026-05-28) — Dynamic Workflows + parallel subagents infrastructure mature; classifier-then-scan pattern enabled at scale
+```
+
+The current `/ievo:security-check` flow dispatches a full security-auditor sub-agent (Sonnet, deep multi-file analysis) for every candidate in parallel. For small install runs this is fine. But as iEvo scales to org-wide security sweeps (enabled by Dynamic Workflows), the cost of running a full deep scan on 50+ repos is prohibitive. Cursor v3.6's Auto-review Run Mode demonstrates the pattern: a lightweight classifier subagent runs first (single-turn, fast, cheap) to categorize candidates as obviously-safe / needs-deep-scan / obviously-red. Only the needs-deep-scan candidates get the full security-auditor treatment. Proposal: add a pre-classifier step to `security-check/SKILL.md` (and/or `init/SKILL.md`'s security phase) that reads the candidate's SKILL.md description, source URL, author metadata, and `scan_repo.mjs` structural output to produce an initial triage verdict before expensive deep scanning.
