@@ -741,6 +741,59 @@ Files affected: `AGENTS.md` (§ Pre-commit hooks + workflow gate, ~line 232). Si
 
 ---
 
+## F-2026-06-03-001 — Add OTEL_RESOURCE_ATTRIBUTES cost-attribution note to debug-on/SKILL.md
+
+```yaml
+id: F-2026-06-03-001
+discovered_at: 2026-06-03T07:45:00Z
+run_id: 26850000000
+target_repo: ievo-ai/skills
+title: Add OTEL_RESOURCE_ATTRIBUTES cost-attribution guidance to debug-on/SKILL.md for enterprise iEvo cost monitoring
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/171
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.161 (2026-06-02) — OTEL_RESOURCE_ATTRIBUTES values now included as labels on metric datapoints, allowing usage metrics to be sliced by custom dimensions like team or repo
+  - /tmp/skills/plugins/ievo/skills/debug-on/SKILL.md: has comprehensive iEvo operational logging (verbose flag, per-step log files) but no guidance on Claude Code-level usage cost attribution — a gap for enterprise users tracking token spend across iEvo operations
+```
+
+Claude Code v2.1.161 introduced `OTEL_RESOURCE_ATTRIBUTES` label propagation to usage metric datapoints. Setting `OTEL_RESOURCE_ATTRIBUTES=ievo_skill=init,project=myapp` tags all Claude Code token usage during that session with those dimensions in any OTel-compatible metrics backend (Datadog, Prometheus, Grafana Cloud, etc.). Enterprise teams running iEvo across many repos currently have no way to distinguish iEvo token costs (e.g., security-check scans) from normal coding costs in their usage dashboards.
+
+`debug-on/SKILL.md` is the natural home for this guidance — it already covers operational visibility for iEvo sessions. Adding a `## Cost monitoring (v2.1.161+)` section to `debug-on/SKILL.md` that: (a) explains the `OTEL_RESOURCE_ATTRIBUTES` env var and requires Claude Code ≥ v2.1.161, (b) documents suggested dimension patterns per skill (e.g., `ievo_skill=security-check`, `ievo_skill=init`, `ievo_skill=evolution`), (c) notes the prerequisite of having an OTel metrics backend configured in the user's Claude Code settings (`metrics.endpoint`, `metrics.headers`), and (d) explicitly scopes this to enterprise/team use cases (irrelevant for individual developers without an OTel backend). Single-file documentation addition, no scripts, no coverage obligation.
+
+---
+
+## F-2026-06-03-002 — Escalate DEFER-01: split init/SKILL.md to bring it under the 500-line agentskills.io body limit
+
+```yaml
+id: F-2026-06-03-002
+discovered_at: 2026-06-03T07:45:00Z
+run_id: 26850000000
+target_repo: ievo-ai/skills
+title: Split init/SKILL.md (951 lines) to comply with agentskills.io 500-line body limit — extract Phase 3 security-flow and Phase 4 stack references to references/ subfolder
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/172
+effort: medium
+scope: multi-file
+evidence:
+  - https://agentskills.io/specification: "Body should be ≤500 lines; split detail into references/ if more is needed" — init/SKILL.md at 951 lines is 190% of this limit
+  - /tmp/skills/plugins/ievo/skills/init/SKILL.md: 951 lines confirmed by wc -l; this has been DEFER-01 in consecutive audit reports since 2026-05-22 (6+ runs) without resolution
+```
+
+`init/SKILL.md` has been at 951 lines since at least the May 22 audit run. The agentskills.io specification recommends ≤500 lines for progressive disclosure (metadata ~100 tokens at startup, full body on activation, referenced files on demand). A 951-line body is loaded entirely on activation, bloating the model context and potentially degrading performance on lower-tier models (Haiku) that use the skill.
+
+This finding has been deferred from 6+ consecutive audit reports as "needs operator decision." Filing it as an issue to get it into the operator's triage queue with a concrete split proposal.
+
+Proposed split strategy:
+1. **Extract Phase 3 (Parallel security scanning) body** → `plugins/ievo/skills/init/references/security-flow.md` (~200 lines). This section describes the security-auditor sub-agent dispatch protocol, verdict classification, and RED/AMBER/GREEN handling — detail that is referenced during Phase 3 execution but doesn't need to be in the main body.
+2. **Extract Phase 4 stack-taxonomy table** → `plugins/ievo/skills/init/references/stack-taxonomy.md` (~150 lines). The large categorized table mapping stack keywords to categories/types is reference material that can be linked from the Phase 4 description rather than inlined.
+3. Keep the Phase 1 (discover), Phase 2 (index-repos), Phase 5 (install), Phase 6 (init complete) logic in the main body.
+
+Estimated post-split: ~600–650 lines (still over 500 but meaningfully reduced; a second pass could bring it under 500). Alternative: operator defines a target line count and the split proceeds until that target is met.
+
+---
+
 ## F-2026-06-02-003 — Document Codex rust-v0.135.0 named permission profiles for iEvo security scan in security-check/SKILL.md
 
 ```yaml
