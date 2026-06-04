@@ -763,3 +763,95 @@ Claude Code v2.1.152 introduced `disallowed-tools` frontmatter and iEvo implemen
 Codex v0.135.0 introduced named permission profiles via `/permissions` command (#21559) — a user can create a named profile (e.g., `ievo-security-scan`) that restricts the tool set available during a Codex session. While not frontmatter-level enforcement (the agent cannot self-impose the profile at skill activation time), a named profile is the closest Codex equivalent. A Codex user running `/ievo:security-check` can pre-activate their `ievo-security-scan` profile before the skill starts to achieve the same read-only enforcement.
 
 Concrete proposal: Add a Codex-specific section or compatibility callout to `security-check/SKILL.md` (currently 288 lines, well under the 500-line limit). The addition describes: (a) the parity gap (Claude Code gets `disallowed-tools` enforcement automatically; Codex users must set up a named permission profile manually); (b) how to create the profile in Codex via `/permissions`; (c) recommended tool restrictions (Read, Grep, Glob, WebFetch only — matches the security-auditor agent's `tools:` allowlist); (d) the instruction to activate it with `/permissions use ievo-security-scan` before running the skill. No scripts needed, no coverage obligation — pure SKILL.md documentation addition.
+
+---
+
+## F-2026-06-04-001 — Add `when_to_use` frontmatter to iEvo SKILL.md files for precise trigger hints
+
+```yaml
+id: F-2026-06-04-001
+discovered_at: 2026-06-04T07:54:09Z
+run_id: 26938373272
+target_repo: ievo-ai/skills
+title: Add when_to_use frontmatter to iEvo SKILL.md files to separate trigger hints from capability description
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/174
+effort: low
+scope: multi-file
+evidence:
+  - https://code.claude.com/docs/en/skills.md: new when_to_use frontmatter field documented post 2026-06-02 — when present, combined with description toward a 1,536-char activation cap, enabling richer trigger hints without bloating description
+```
+
+Claude Code's skills documentation now documents a `when_to_use` frontmatter field as a companion to `description`. When both are present, they are combined toward a 1,536-character activation cap for trigger matching. This allows a skill to have a concise, capability-focused `description` AND a rich, activation-condition-focused `when_to_use` block — without either being truncated.
+
+Currently all 14 iEvo SKILL.md files pack trigger conditions into `description`, which must simultaneously describe the skill and enumerate when to invoke it. For skills like `init` and `security-check`, the trigger surface is large (multiple phrases, multiple contexts) and already fills most of the description budget. Adding `when_to_use` lets description stay concise while providing a dedicated field for the full activation-phrase list.
+
+Concrete proposal: add a `when_to_use:` frontmatter block to all 14 iEvo SKILL.md files. The block extracts the "Trigger words — ..." portion from each description into its own field, freeing description to be more capability-focused. Files with long, phrase-heavy descriptions benefit most: `debug-on` (7 trigger phrases in description), `debug-off` (4), `hooks-setup` (6), `schedule` (6), `feedback` (5). Files with already-compact descriptions (overlay-status, inspect) still benefit from the separation as future-proofing.
+
+---
+
+## F-2026-06-04-002 — Add `paths` frontmatter to key iEvo SKILL.md files for context-aware auto-activation
+
+```yaml
+id: F-2026-06-04-002
+discovered_at: 2026-06-04T07:54:09Z
+run_id: 26938373272
+target_repo: ievo-ai/skills
+title: Add paths glob-pattern frontmatter to iEvo skills for context-aware file-type auto-activation
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/175
+effort: low
+scope: multi-file
+evidence:
+  - https://code.claude.com/docs/en/skills.md: new paths frontmatter field documented post 2026-06-02 — glob patterns that limit when a skill auto-activates based on files in context; Claude loads the skill only when working with matching files
+```
+
+Claude Code's skills documentation now documents a `paths` frontmatter field: an array of glob patterns that gates a skill's auto-activation to sessions where matching files are in context. When specified, Claude only loads the skill when the user is working with files that match at least one of the patterns. This is a significant UX improvement for context-sensitive skills.
+
+Currently iEvo skills activate based purely on description/when_to_use matching — they're either always available or never available regardless of what the user is working on. With `paths`, specific skills can become contextually available:
+
+- `security-check` — `paths: ["plugins/**", "agents/**", "**/*.md", "**/SKILL.md"]` auto-activates when reviewing plugin/agent files; perfect for the iEvo install pipeline where users are reviewing candidate skills
+- `deep-review` — `paths: ["**/*.ts", "**/*.js", "**/*.py", "**/*.go"]` auto-activates during code review sessions; precisely the context where a structured gap-detection review is useful
+- `index-repos` — `paths: ["**/agent.yaml", "**/ROLE.md", "**/AGENTS.md"]` auto-activates when working with agent package files
+- `vuln-scan` — `paths: ["**/*.ts", "**/*.js", "**/*.py", "src/**"]` auto-activates during source code vulnerability assessment
+
+`init` and `evolution` should NOT declare `paths` (they're project-lifecycle skills that activate across any file context).
+
+Implementation: additive frontmatter addition to 4–5 SKILL.md files. No body changes required. No scripts, no test coverage obligation. Low risk — on platforms that don't support `paths` it's ignored gracefully as unknown frontmatter.
+
+---
+
+## F-2026-06-04-003 — Document `skillOverrides` settings.json field as a security model bypass vector in AGENTS.md
+
+```yaml
+id: F-2026-06-04-003
+discovered_at: 2026-06-04T07:54:09Z
+run_id: 26938373272
+target_repo: ievo-ai/skills
+title: Document skillOverrides settings.json field as a third security-model bypass vector in AGENTS.md
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/176
+effort: low
+scope: single-file
+evidence:
+  - https://code.claude.com/docs/en/skills.md: new skillOverrides setting documented post 2026-06-02 — 4 states (on/name-only/user-invocable-only/off) controlling which skills are loaded; setting to "off" or "user-invocable-only" silently prevents agent-auto-activated skills from running
+```
+
+Claude Code's skills documentation now documents a `skillOverrides` settings.json field with four states:
+- `"on"` — default behavior, all skills loadable
+- `"name-only"` — skills load but only auto-activate if explicitly named
+- `"user-invocable-only"` — only user-typed `/skill:name` invocations work; agent-auto-activation disabled
+- `"off"` — no skills load at all
+
+The `AGENTS.md` security model section already documents two bypass vectors:
+1. `CLAUDE_CODE_SUBAGENT_MODEL` env var — overrides `security-auditor` model frontmatter, silently runs security scan at Haiku reasoning
+2. `agent:` settings.json field — dispatched sessions use the named agent profile, overriding sub-agent model frontmatter
+
+`skillOverrides` is a third bypass path: an operator who sets `skillOverrides: "off"` or `"user-invocable-only"` in their `settings.json` will silently prevent `/ievo:security-check` from auto-activating during the init pipeline. The user then installs skills without security review, believing iEvo protected them.
+
+This is more severe than the model bypass vectors because it disables the security check entirely (not just degrades it). The fix is documentation-only: add a bullet to the `AGENTS.md` § "Security model" section alongside the existing `CLAUDE_CODE_SUBAGENT_MODEL` and `agent:` notes. Optionally, `init/SKILL.md` could add a Step 0 check that reads `settings.json` and warns if `skillOverrides` is set to a value that would prevent `security-check` from running.
+
+Files affected:
+- `AGENTS.md` § Security model — one bullet addition
+- `init/SKILL.md` — optional pre-flight check (Step 0 addition, ~5 lines)
+- `security-check/SKILL.md` — optional compatibility note parallel to the `CLAUDE_CODE_SUBAGENT_MODEL` operator-gotcha already documented
