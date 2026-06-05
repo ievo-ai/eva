@@ -763,3 +763,241 @@ Claude Code v2.1.152 introduced `disallowed-tools` frontmatter and iEvo implemen
 Codex v0.135.0 introduced named permission profiles via `/permissions` command (#21559) — a user can create a named profile (e.g., `ievo-security-scan`) that restricts the tool set available during a Codex session. While not frontmatter-level enforcement (the agent cannot self-impose the profile at skill activation time), a named profile is the closest Codex equivalent. A Codex user running `/ievo:security-check` can pre-activate their `ievo-security-scan` profile before the skill starts to achieve the same read-only enforcement.
 
 Concrete proposal: Add a Codex-specific section or compatibility callout to `security-check/SKILL.md` (currently 288 lines, well under the 500-line limit). The addition describes: (a) the parity gap (Claude Code gets `disallowed-tools` enforcement automatically; Codex users must set up a named permission profile manually); (b) how to create the profile in Codex via `/permissions`; (c) recommended tool restrictions (Read, Grep, Glob, WebFetch only — matches the security-auditor agent's `tools:` allowlist); (d) the instruction to activate it with `/permissions use ievo-security-scan` before running the skill. No scripts needed, no coverage obligation — pure SKILL.md documentation addition.
+
+---
+
+## F-2026-06-05-001 — Add `argument-hint` frontmatter to iEvo skills that accept arguments
+
+```yaml
+id: F-2026-06-05-001
+discovered_at: 2026-06-05T07:40:00Z
+run_id: null
+target_repo: ievo-ai/skills
+title: Add argument-hint frontmatter to inspect, feedback, and index-repos SKILL.md files for autocomplete
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/177
+effort: low
+scope: multi-file
+evidence:
+  - https://code.claude.com/docs/en/skills.md: argument-hint field documented — provides autocomplete hint text (e.g. [owner/repo]) for skills that accept positional arguments; visible in the / menu
+```
+
+Claude Code's skills documentation (post-2026-06-04) now documents `argument-hint` as a SKILL.md frontmatter field that provides autocomplete hint text for skills accepting positional arguments. The hint appears in the `/` command menu alongside the skill name, helping users understand what input to provide.
+
+Three iEvo skills currently accept arguments without providing autocomplete hints:
+
+| Skill | Arguments | Proposed `argument-hint` |
+|-------|-----------|--------------------------|
+| `inspect` | `<owner>/<repo> [ref]` | `[owner/repo] [ref]` |
+| `feedback` | optional title/body context | `[title]` |
+| `index-repos` | one or more `<owner>/<repo>` | `[owner/repo ...]` |
+
+**Problem:** Users invoking `/ievo:inspect` see only the description but no visual cue that they should type `owner/repo` immediately after. This causes a common pattern: the user invokes the skill with no argument, the skill prompts for the repo, the user types it. Adding `argument-hint` eliminates one round-trip and matches the autocomplete UX of built-in commands like `/edit [file]`.
+
+**Evidence:** The `argument-hint` field is confirmed documented in `code.claude.com/docs/en/skills.md` — it accepts a string like `[owner/repo]` or `[filename] [format]` and is displayed in the `/` autocomplete menu. Applicable to any skill that takes typed input.
+
+**Proposed solution:**
+
+Add `argument-hint:` field to the frontmatter of the three affected SKILL.md files:
+
+```yaml
+# inspect/SKILL.md
+argument-hint: "[owner/repo] [ref]"
+
+# feedback/SKILL.md
+argument-hint: "[title]"
+
+# index-repos/SKILL.md
+argument-hint: "[owner/repo ...]"
+```
+
+No logic changes, no script changes, no coverage obligation. The field is purely additive and ignored by platforms that don't support it (safe forward-compat).
+
+## Files affected
+
+| File | Change | Notes |
+|------|--------|-------|
+| `plugins/ievo/skills/inspect/SKILL.md` | add `argument-hint: "[owner/repo] [ref]"` | inspect takes 1 required + 1 optional arg |
+| `plugins/ievo/skills/feedback/SKILL.md` | add `argument-hint: "[title]"` | optional context hint |
+| `plugins/ievo/skills/index-repos/SKILL.md` | add `argument-hint: "[owner/repo ...]"` | variadic repo list |
+
+## API / UX surface
+
+Appears as hint text in the `/ievo:inspect [owner/repo]` autocomplete entry in the Claude Code slash-command menu.
+
+## Acceptance criteria
+
+- [ ] `argument-hint:` field present in inspect/SKILL.md, feedback/SKILL.md, and index-repos/SKILL.md frontmatter
+- [ ] Values follow the `[...]` convention documented in skills.md
+- [ ] All four version-bump files updated (plugin.json, marketplace.json, discover.mjs SCRIPT_VERSION, AGENTS.md compliance ledger)
+- [ ] CHANGELOG.md entry added
+
+## Effort estimate
+
+- Scope: multi-file
+- Effort: low (~20 min)
+- Risk: low (additive frontmatter, no logic change)
+
+## Open questions for the operator
+
+- Should `init` also get an `argument-hint`? Currently `/ievo:init` takes no positional argument (the operator provides a candidate list interactively). If `init` is invoked with `argument-hint: "[skill-or-org]"` it could hint that narrowing to a specific skill or org is optional. Operator decision.
+
+## Related
+
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/null
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: F-2026-06-05-001`
+- **Evidence source:** https://code.claude.com/docs/en/skills.md (argument-hint field documentation)
+
+---
+Filed by Eva research run against `ievo-ai/eva`. Triage with `accepted` / `rejected` / `needs-discussion` labels.
+
+---
+
+## F-2026-06-05-002 — Document `hookSpecificOutput.additionalContext` for Stop/SubagentStop hooks in hooks-setup/SKILL.md
+
+```yaml
+id: F-2026-06-05-002
+discovered_at: 2026-06-05T07:40:00Z
+run_id: null
+target_repo: ievo-ai/skills
+title: Document hookSpecificOutput.additionalContext return field for Stop/SubagentStop hooks in hooks-setup/SKILL.md (Claude Code v2.1.163)
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/178
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.163 (2026-06-04) — Stop and SubagentStop hooks can now return hookSpecificOutput.additionalContext to inject context into the AI's response after the hook fires
+```
+
+Claude Code v2.1.163 (2026-06-04) extended the Stop and SubagentStop hook return contract: hooks can now return `{ hookSpecificOutput: { additionalContext: "..." } }` alongside the existing `{ continue: true/false }`. When set, the additional context string is injected into the AI's next response turn — allowing a Stop hook to effectively prepend metadata about the completed run to the continuation.
+
+**Current state:** `hooks-setup/SKILL.md` documents Stop hooks (exec-form `args: string[]`, `terminalSequence`, `background_tasks` check) but does not cover the `hookSpecificOutput.additionalContext` return value.
+
+**iEvo use case:** iEvo's Stop hook currently fires a notification when background agents complete (`background_tasks.length === 0`). With `additionalContext`, the same hook can also inject a brief context string into the next session turn — e.g. `"iEvo background scan complete: 3 agents finished, check .ievo/reports/ for results"`. This bridges the notification to in-session context, helping the user resume from exactly the right point.
+
+**Proposed solution:** Add a subsection to `hooks-setup/SKILL.md` documenting:
+
+1. The return contract: `{ hookSpecificOutput: { additionalContext: "..." }, continue: true }` (SubagentStop) or `{ continue: true, hookSpecificOutput: { additionalContext: "..." } }` (Stop)
+2. Version gating: requires Claude Code v2.1.163+
+3. Example: iEvo Stop hook that both sends a terminal notification (via `terminalSequence`) AND injects a one-line status into the next turn via `additionalContext`
+4. Compatibility note: `hookSpecificOutput` is a Claude Code extension; Codex hook return contracts may differ
+
+No scripts required, no test coverage obligation. Single SKILL.md documentation addition, requires version bump in all four files.
+
+## Files affected
+
+| File | Change | Notes |
+|------|--------|-------|
+| `plugins/ievo/skills/hooks-setup/SKILL.md` | add subsection on hookSpecificOutput.additionalContext | version gating v2.1.163+, example hook, compatibility note |
+| (version bump files) | standard 4-file bump | plugin.json, marketplace.json, discover.mjs, AGENTS.md ledger |
+
+## API / UX surface
+
+Stop hook handler returns JSON with `hookSpecificOutput.additionalContext`. Skill documents the return contract with a code example.
+
+## Acceptance criteria
+
+- [ ] `hooks-setup/SKILL.md` documents `hookSpecificOutput.additionalContext` return field for Stop and SubagentStop hooks
+- [ ] Example code block shows stop hook returning both `terminalSequence` notification and `additionalContext` string
+- [ ] Version requirement note: v2.1.163+ for `additionalContext`
+- [ ] Compatibility note for Codex (Codex hook return contract may differ)
+- [ ] All four version-bump files updated + CHANGELOG.md entry
+
+## Effort estimate
+
+- Scope: single-file
+- Effort: low (~20 min, ~30 lines added to hooks-setup/SKILL.md)
+- Risk: low (documentation addition)
+
+## Open questions for the operator
+
+- Should the example demonstrate `additionalContext` on SubagentStop only (iEvo's current parallel-agent completion case) or also on the main session Stop hook? Both are documented by v2.1.163 — covering both is more complete but adds ~15 extra lines.
+
+## Related
+
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/null
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: F-2026-06-05-002`
+- **Evidence source:** https://github.com/anthropics/claude-code/releases (v2.1.163 — hookSpecificOutput.additionalContext)
+- **Related open issue:** ievo-ai/skills#59 (Stop hook for background-agents-complete notification — the same hook that would benefit most from additionalContext)
+
+---
+Filed by Eva research run against `ievo-ai/eva`. Triage with `accepted` / `rejected` / `needs-discussion` labels.
+
+---
+
+## F-2026-06-05-003 — Add `model:` frontmatter to security-check, deep-review, and vuln-scan SKILL.md files
+
+```yaml
+id: F-2026-06-05-003
+discovered_at: 2026-06-05T07:40:00Z
+run_id: null
+target_repo: ievo-ai/skills
+title: Add model: sonnet frontmatter to security-check, deep-review, and vuln-scan SKILL.md files for session-model-bypass resilience
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/179
+effort: low
+scope: multi-file
+evidence:
+  - https://code.claude.com/docs/en/skills.md: model: field documented for SKILL.md (not just agents) — applies the specified model to the rest of the turn while the skill is active; values are same as /model command or inherit
+```
+
+Claude Code's skills documentation now documents `model:` as a valid SKILL.md frontmatter field. When set, it overrides the active model for the remainder of the turn while the skill is running (same behavior as the `/model` command, but scoped to the skill's activation). Valid values are the same as `/model` (e.g. `sonnet`, `opus`, `haiku`, or `inherit`).
+
+**Current state:** iEvo's security-critical skills (`security-check`, `deep-review`, `vuln-scan`) rely entirely on their respective sub-agents' `model:` frontmatter for model selection. The skill files themselves have no `model:` field. This creates a gap: if a user invokes `/ievo:security-check` directly (without the init pipeline's agent dispatch), the skill body executes using whatever model the session has active — which may be Haiku-tier.
+
+The `security-check/SKILL.md` compatibility field explicitly warns: "Haiku is insufficient (misses indirection attacks)". But this warning only prevents degradation when the skill is dispatched by the `security-auditor` agent (which declares `model: sonnet`). Direct user invocation bypasses the agent dispatch entirely.
+
+**Evidence:** `code.claude.com/docs/en/skills.md` documents `model:` as a SKILL.md frontmatter field.
+
+**Proposed solution:** Add `model: sonnet` to the frontmatter of the three security-critical skill files:
+
+| Skill | Current frontmatter model | Proposed |
+|-------|--------------------------|----------|
+| `security-check/SKILL.md` | (none) | `model: sonnet` |
+| `deep-review/SKILL.md` | (none) | `model: sonnet` |
+| `vuln-scan/SKILL.md` | (none) | `model: sonnet` |
+
+The other skills (`init`, `inspect`, `overlay-status`, etc.) either are already Sonnet-tier by session default or don't require deep security reasoning — they can continue to `inherit` or be set as `model: inherit` explicitly later.
+
+Using `sonnet` (vendor-neutral alias per AGENTS.md rules) ensures the correct model regardless of session context without breaking the universal positioning requirement.
+
+## Files affected
+
+| File | Change | Notes |
+|------|--------|-------|
+| `plugins/ievo/skills/security-check/SKILL.md` | add `model: sonnet` | prevents Haiku-tier direct invocation |
+| `plugins/ievo/skills/deep-review/SKILL.md` | add `model: sonnet` | deep review needs reasoning depth |
+| `plugins/ievo/skills/vuln-scan/SKILL.md` | add `model: sonnet` | per-module exploit-chain analysis |
+| (version bump files) | standard 4-file bump | plugin.json, marketplace.json, discover.mjs, AGENTS.md ledger |
+
+## API / UX surface
+
+Transparent to the user — model override happens automatically when the skill activates. No additional invocation syntax.
+
+## Acceptance criteria
+
+- [ ] `model: sonnet` present in `security-check/SKILL.md`, `deep-review/SKILL.md`, and `vuln-scan/SKILL.md` frontmatter
+- [ ] Values use the vendor-neutral `sonnet` alias (per AGENTS.md model alias rule)
+- [ ] All four version-bump files updated + CHANGELOG.md entry
+- [ ] `validate_agents.mjs` not affected (the validator only checks agent .md files, not SKILL.md files — confirm no scope expansion needed)
+
+## Effort estimate
+
+- Scope: multi-file
+- Effort: low (~20 min)
+- Risk: low (additive frontmatter; model: applies rest-of-turn only, so no side effects on subsequent turns)
+
+## Open questions for the operator
+
+- Should `init/SKILL.md` also get `model: sonnet`? The `/ievo:init` orchestrator dispatches sub-agents but also does synthesis and decision steps that require reasoning. Counter-argument: init is already long-running and users may intentionally run it with a cheaper model. Operator decision.
+- Is `model: sonnet` appropriate for `deep-review` (currently `effort: medium`) or should it be `model: opus` given the structured 10-point review requirement? Operator decision based on cost tolerance.
+
+## Related
+
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/null
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: F-2026-06-05-003`
+- **Evidence source:** https://code.claude.com/docs/en/skills.md (model: field for SKILL.md frontmatter)
+- **Related open issues:** ievo-ai/skills#156 (deep-review missing disallowed-tools — same skill, different gap); ievo-ai/skills#157 (agent effort: frontmatter — parallel pattern for sub-agents)
+
+---
+Filed by Eva research run against `ievo-ai/eva`. Triage with `accepted` / `rejected` / `needs-discussion` labels.

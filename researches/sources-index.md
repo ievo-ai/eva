@@ -36,14 +36,15 @@ run_id: <GitHub Actions run ID or null>
 ## https://www.anthropic.com/news
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-05T07:40:00Z
 status: unchanged
-run_id: 26806183547
+run_id: null
 ```
 
-**Summary:** No new developer-tool or agent-platform announcements since May 27. Tracking via Claude Code release notes directly for Claude Code changes.
+**Summary:** No new developer-tool or agent-platform announcements since June 3 (Partner Network + Glasswing expansion). Tracking via Claude Code release notes directly for Claude Code changes.
 
 History:
+- 2026-06-05T07:40:00Z — unchanged: not re-fetched (tracking Claude Code releases directly); no relevant dev announcements since Jun 3
 - 2026-06-02T08:04:18Z — unchanged: not re-fetched (tracking Claude Code releases directly via github.com/anthropics/claude-code/releases); no Anthropic blog developer announcements observed
 - 2026-06-01T08:08:22Z — changed: Opus 4.8 released (May 28); Series H; no CC-specific or agent-format changes
 - 2026-05-31T00:00:00Z — changed: Opus 4.8 launched (May 28); `opus` alias now resolves to 4.8 — affects iEvo evolution.md agent; $65B Series H raise; no Claude Code API changes
@@ -63,14 +64,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-05T07:40:00Z
 status: changed
-run_id: 26806183547
+run_id: null
 ```
 
-**Summary:** v2.1.160 (2026-06-02) — `acceptEdits` now prompts for `.pre-commit-config.yaml` + other build-tool configs; Dynamic Workflow trigger renamed `workflow` → `ultracode`; single-file grep satisfies read-before-edit; shell startup file write prompts. v2.1.157 (2026-05-29) — plugins in `.claude/skills/` auto-loaded, `claude plugin init` scaffolds plugins, `agent:` field in settings.json honored for dispatched sessions. v2.1.154 (2026-05-28) — Claude Opus 4.8 default for xhigh effort, Dynamic Workflows feature (tens-to-hundreds of background agents via /workflows), `defaultEnabled: false` in plugin.json, `! <command>` background agent execution. v2.1.153 (2026-05-28) — subagent MCP enforcement fixed (--strict-mcp-config now applies); /model saves as default for new sessions; Status line commands get COLUMNS/LINES env vars. v2.1.152 (2026-05-27) — `disallowed-tools` frontmatter, MessageDisplay hook, SessionStart enhancements, /reload-skills.
+**Summary:** v2.1.165 (2026-06-05) — bug fixes only. v2.1.163 (2026-06-04) — `requiredMinimumVersion`/`requiredMaximumVersion` managed settings; `/plugin list --enabled/--disabled`; `$` escape in skill bodies; `Stop`/`SubagentStop` hooks can return `hookSpecificOutput.additionalContext` (triggered F-2026-06-05-002); MCP stdio servers receive `CLAUDE_CODE_SESSION_ID`. v2.1.162 (2026-06-03) — `settings.json` `agent:` field for dispatched sessions override; suggested plugins by directory relevance. v2.1.160 (2026-06-02) — `acceptEdits` for `.pre-commit-config.yaml`; Dynamic Workflow trigger renamed `workflow` → `ultracode`.
 
 History:
+- 2026-06-05T07:40:00Z — changed: v2.1.163 (hookSpecificOutput.additionalContext on Stop/SubagentStop hooks — triggered F-2026-06-05-002; requiredMin/MaxVersion managed settings; $ escape in skill bodies); v2.1.165 bug fixes only
 - 2026-06-02T08:04:18Z — changed: v2.1.153 through v2.1.160; v2.1.160 acceptEdits for .pre-commit-config.yaml (triggered F-2026-06-02-002); v2.1.157 .claude/skills/ auto-load + claude plugin init; v2.1.154 Opus 4.8 + Dynamic Workflows + defaultEnabled; v2.1.153 MCP enforcement fix
 - 2026-06-01T08:08:22Z — changed: v2.1.152–159; disallowed-tools+/reload-skills+SessionStart reloadSkills (152); Dynamic Workflows+defaultEnabled (154); .claude/skills auto-load+agent: settings.json (157)
 - 2026-05-31T00:00:00Z — changed: v2.1.158 Auto mode Bedrock/Vertex; v2.1.157 plugin auto-load from .claude/skills/, plugin init scaffolding; v2.1.154 Dynamic Workflows + Opus 4.8; v2.1.152 disallowed-tools + SessionStart reloadSkills + MessageDisplay hook
@@ -147,14 +149,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-05T07:40:00Z
 status: changed
-run_id: 26806183547
+run_id: null
 ```
 
-**Summary:** rust-v0.136.0 (2026-06-01) — hook output event schema tightened (breaking for parsers, triggered F-2026-06-02-001); runtime extra skill roots API (#24977); multi-agent assignment tool renamed (breaking); /archive slash command for session archiving; security hardening (/diff no longer runs repo Git helpers, exec-server rejects Origin-header websocket requests); memories moved to SQLite (0.136). rust-v0.135.0 (2026-05-28) — named permission profiles in /permissions (#21559, triggered F-2026-06-02-003); thread-idle lifecycle hook (#24744, covered by open #165); new ad-hoc memory note tool; Python SDK sandbox presets; codex doctor expanded diagnostics; non-interactive install support.
+**Summary:** rust-v0.137.0 (2026-06-04) — multi-agent v2 (improved runtime defaults); `codex plugin list --json` (machine-readable plugin enumeration); breaking rename `assign_task` → `followup_task` in multi-agent v2 API; environment-scoped permission approvals; shared prompts moved to `codex-prompts` crate. Relevant to iEvo: AGENTS.md should note `followup_task` for Codex multi-agent users; `codex plugin list --json` may enable overlay-status Codex parity. rust-v0.136.0 (2026-06-01) — hook output event schema tightened (F-2026-06-02-001); /archive; memories moved to SQLite.
 
 History:
+- 2026-06-05T07:40:00Z — changed: rust-v0.137.0 (assign_task→followup_task rename, codex plugin list --json, multi-agent v2); no new iEvo findings opened (Codex multi-agent rename not directly used by iEvo Task-tool dispatch)
 - 2026-06-02T08:04:18Z — changed: rust-v0.135.0 (named permission profiles, thread-idle hook) + rust-v0.136.0 (hook schema tightening — breaking, runtime skill roots API, /archive); triggered F-2026-06-02-001, F-2026-06-02-003
 - 2026-06-01T08:08:22Z — changed: v0.134.0 stable (subagent identity in hooks, function tools default); v0.135.0 (thread idle hook, named profiles); v0.136.0 alpha
 - 2026-05-31T00:00:00Z — changed: v0.135.0 (May 28); subagent identity in hook inputs; extensions get richer conversation context; Python SDK Sandbox presets
@@ -313,14 +316,15 @@ History:
 ## https://code.claude.com/docs/en/skills.md
 
 ```yaml
-last_scan: 2026-06-01T08:08:22Z
+last_scan: 2026-06-05T07:40:00Z
 status: changed
-run_id: 26742668563
+run_id: null
 ```
 
-**Summary:** v2.1.152 additions: `disallowed-tools` frontmatter (space-separated tool patterns to block while skill runs); `allowed-tools` experimental field now confirmed production. `effort:` field confirmed stable (values: low/medium/high/xhigh/max). Skills in `.claude/skills/` auto-loaded as of v2.1.157 — no marketplace install required. Body ≤500 lines recommendation unchanged.
+**Summary:** New frontmatter fields documented (post-2026-06-04 scan): `argument-hint` (autocomplete hint for commands accepting arguments, e.g. `[owner/repo]`), `model:` (model override while skill is active; `inherit` or same values as `/model`), `disable-model-invocation: true` (prevents semantic auto-invocation, only user-invocable), `user-invocable: false` (hides from `/` menu). `skillOverrides` settings.json (4 states: on/name-only/user-invocable-only/off). `$` escape for literal dollar signs before digits added in v2.1.163. Description + `when_to_use` combined cap 1,536 chars. Triggered F-2026-06-05-001 (argument-hint), F-2026-06-05-003 (model: for security-check/deep-review/vuln-scan).
 
 History:
+- 2026-06-05T07:40:00Z — changed: argument-hint, model:, disable-model-invocation, user-invocable fields documented (newly visible); triggered F-2026-06-05-001 (argument-hint for inspect/feedback/index-repos), F-2026-06-05-003 (model: for security-critical skills)
 - 2026-06-01T08:08:22Z — changed: disallowed-tools frontmatter added (v2.1.152); .claude/skills auto-load (v2.1.157); effort: stable
 - 2026-05-31T00:00:00Z — unchanged: no new fields since last scan; `disallowed-tools` and `effort:` already documented; iEvo security-check and vuln-scan already use disallowed-tools
 - 2026-05-30T07:15:49Z — changed: hooks frontmatter, disallowed-tools, context:fork, dynamic !`cmd` injection, $CLAUDE_SKILL_DIR vars — major expansion; triggered F-2026-05-30-001, F-2026-05-30-003
