@@ -36,14 +36,15 @@ run_id: <GitHub Actions run ID or null>
 ## https://www.anthropic.com/news
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-06T07:21:00Z
 status: unchanged
-run_id: 26806183547
+run_id: 27055918588
 ```
 
-**Summary:** No new developer-tool or agent-platform announcements since May 27. Tracking via Claude Code release notes directly for Claude Code changes.
+**Summary:** No new developer-tool or agent-platform announcements since Jun 2. Tracking via Claude Code release notes directly for Claude Code changes.
 
 History:
+- 2026-06-06T07:21:00Z — unchanged: not re-fetched (tracking Claude Code releases directly via github.com/anthropics/claude-code/releases); no new Anthropic blog developer announcements detected
 - 2026-06-02T08:04:18Z — unchanged: not re-fetched (tracking Claude Code releases directly via github.com/anthropics/claude-code/releases); no Anthropic blog developer announcements observed
 - 2026-06-01T08:08:22Z — changed: Opus 4.8 released (May 28); Series H; no CC-specific or agent-format changes
 - 2026-05-31T00:00:00Z — changed: Opus 4.8 launched (May 28); `opus` alias now resolves to 4.8 — affects iEvo evolution.md agent; $65B Series H raise; no Claude Code API changes
@@ -63,14 +64,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-06T07:21:00Z
 status: changed
-run_id: 26806183547
+run_id: 27055918588
 ```
 
-**Summary:** v2.1.160 (2026-06-02) — `acceptEdits` now prompts for `.pre-commit-config.yaml` + other build-tool configs; Dynamic Workflow trigger renamed `workflow` → `ultracode`; single-file grep satisfies read-before-edit; shell startup file write prompts. v2.1.157 (2026-05-29) — plugins in `.claude/skills/` auto-loaded, `claude plugin init` scaffolds plugins, `agent:` field in settings.json honored for dispatched sessions. v2.1.154 (2026-05-28) — Claude Opus 4.8 default for xhigh effort, Dynamic Workflows feature (tens-to-hundreds of background agents via /workflows), `defaultEnabled: false` in plugin.json, `! <command>` background agent execution. v2.1.153 (2026-05-28) — subagent MCP enforcement fixed (--strict-mcp-config now applies); /model saves as default for new sessions; Status line commands get COLUMNS/LINES env vars. v2.1.152 (2026-05-27) — `disallowed-tools` frontmatter, MessageDisplay hook, SessionStart enhancements, /reload-skills.
+**Summary:** v2.1.167 (2026-06-06) — bug fixes. v2.1.166 (2026-06-06) — `fallbackModel` setting (up to 3 fallback models on overload/unavailable); glob pattern support in deny-rule tool-name position; hardened cross-session messaging (relayed messages lose user authority); `MAX_THINKING_TOKENS=0` disables thinking on default-thinking models; triggered F-2026-06-06-001. v2.1.165 (2026-06-05) — bug fixes. v2.1.163 (2026-06-04) — `requiredMinimumVersion`/`requiredMaximumVersion` managed settings; `/plugin list --enabled/--disabled`; `hookSpecificOutput.additionalContext` for Stop/SubagentStop hooks (open #178); `\$` escape syntax in skill command bodies; triggered F-2026-06-06-002. v2.1.162 (2026-06-03) — `claude agents --json` includes `waitingFor`; `--tools` now recognizes Grep/Glob; `/effort` persists as default; Windsurf→Devin Desktop rename. v2.1.161 (2026-06-02) — OTEL_RESOURCE_ATTRIBUTES as metric labels (open #171); parallel tool calls independent failure.
 
 History:
+- 2026-06-06T07:21:00Z — changed: v2.1.161–167; v2.1.166 fallbackModel (triggered F-2026-06-06-001); v2.1.163 requiredMinimumVersion + /plugin list (triggered F-2026-06-06-002); v2.1.163 hookSpecificOutput.additionalContext (already in #178)
 - 2026-06-02T08:04:18Z — changed: v2.1.153 through v2.1.160; v2.1.160 acceptEdits for .pre-commit-config.yaml (triggered F-2026-06-02-002); v2.1.157 .claude/skills/ auto-load + claude plugin init; v2.1.154 Opus 4.8 + Dynamic Workflows + defaultEnabled; v2.1.153 MCP enforcement fix
 - 2026-06-01T08:08:22Z — changed: v2.1.152–159; disallowed-tools+/reload-skills+SessionStart reloadSkills (152); Dynamic Workflows+defaultEnabled (154); .claude/skills auto-load+agent: settings.json (157)
 - 2026-05-31T00:00:00Z — changed: v2.1.158 Auto mode Bedrock/Vertex; v2.1.157 plugin auto-load from .claude/skills/, plugin init scaffolding; v2.1.154 Dynamic Workflows + Opus 4.8; v2.1.152 disallowed-tools + SessionStart reloadSkills + MessageDisplay hook
@@ -147,14 +149,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-06T07:21:00Z
 status: changed
-run_id: 26806183547
+run_id: 27055918588
 ```
 
-**Summary:** rust-v0.136.0 (2026-06-01) — hook output event schema tightened (breaking for parsers, triggered F-2026-06-02-001); runtime extra skill roots API (#24977); multi-agent assignment tool renamed (breaking); /archive slash command for session archiving; security hardening (/diff no longer runs repo Git helpers, exec-server rejects Origin-header websocket requests); memories moved to SQLite (0.136). rust-v0.135.0 (2026-05-28) — named permission profiles in /permissions (#21559, triggered F-2026-06-02-003); thread-idle lifecycle hook (#24744, covered by open #165); new ad-hoc memory note tool; Python SDK sandbox presets; codex doctor expanded diagnostics; non-interactive install support.
+**Summary:** v0.138.0-alpha.1–6 (2026-06-04 to 06) — pre-release, no stable notes yet. v0.137.0 (2026-06-04) — TUI F13-F24 keybindings; enterprise monthly credit limits + cloud-managed config bundles; remote-control pairing/grants via app-server v2 RPCs; `codex plugin list --json` output and cached remote catalog suggestions (triggered F-2026-06-06-003); multi-agent v2 keeps runtime choice per thread, cleaner follow-up/metadata defaults; plugin loading deduplicates local+remote curated installs + treats malformed `skills` fields as warnings. v0.136.0 (2026-06-01) — hook output event schema tightened (triggered F-2026-06-02-001); memories moved to SQLite; security hardening; /archive command.
 
 History:
+- 2026-06-06T07:21:00Z — changed: v0.137.0 (codex plugin list --json triggered F-2026-06-06-003; multi-agent v2; plugin dedup); v0.138.0 alphas (no notes yet)
 - 2026-06-02T08:04:18Z — changed: rust-v0.135.0 (named permission profiles, thread-idle hook) + rust-v0.136.0 (hook schema tightening — breaking, runtime skill roots API, /archive); triggered F-2026-06-02-001, F-2026-06-02-003
 - 2026-06-01T08:08:22Z — changed: v0.134.0 stable (subagent identity in hooks, function tools default); v0.135.0 (thread idle hook, named profiles); v0.136.0 alpha
 - 2026-05-31T00:00:00Z — changed: v0.135.0 (May 28); subagent identity in hook inputs; extensions get richer conversation context; Python SDK Sandbox presets
@@ -174,14 +177,15 @@ History:
 ## https://blog.google/technology/google-deepmind/
 
 ```yaml
-last_scan: 2026-06-01T08:08:22Z
+last_scan: 2026-06-06T07:21:00Z
 status: unchanged
-run_id: 26742668563
+run_id: 27055918588
 ```
 
 **Summary:** Most recent posts: Gemini for Science (May 8). No agent framework, MCP, or skill-spec relevant announcements since last scan.
 
 History:
+- 2026-06-06T07:21:00Z — unchanged: not re-fetched; no new agent tooling announcements from CC release signals
 - 2026-06-01T08:08:22Z — unchanged: no new agent tooling posts relevant to skills repo
 - 2026-05-30T07:15:49Z — unchanged: no new agent tooling posts since last scan
 - 2026-05-29T07:38:29Z — unchanged: no new agent tooling posts; scan delegated to prior result
@@ -193,14 +197,15 @@ History:
 ## https://agentskills.io/specification
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-06T07:21:00Z
 status: unchanged
-run_id: 26806183547
+run_id: 27055918588
 ```
 
 **Summary:** Required fields: `name` + `description` (≤1024 chars). Optional: `license`, `compatibility`, `metadata`, `allowed-tools` (experimental, space-separated pre-approved tools). `name` max 64 chars, lowercase alphanumeric+hyphens, no consecutive hyphens, must match directory. Progressive disclosure: metadata ~100 tokens at startup, full body on activation, referenced files on demand. Body ≤500 lines. Spec stable. Note: `disallowed-tools` and `effort:` (both Claude Code conventions) are NOT yet in the official agentskills.io spec.
 
 History:
+- 2026-06-06T07:21:00Z — unchanged: spec stable; fetched (HTML rendered by Mintlify; required/optional fields confirmed unchanged from prior summary; PRs #380, #345, #386 still tracking)
 - 2026-06-02T08:04:18Z — unchanged: spec stable; fetched (HTML too large to parse fully but no new fields detected based on ievo-ai/skills AGENTS.md spec references which are current)
 - 2026-06-01T08:08:22Z — unchanged: spec stable; PRs #380, #386, #345 still open and pending
 - 2026-05-31T00:00:00Z — unchanged: spec stable; PRs #380 (versioning), #386 (UTF-8 fix), #345 (Unicode name) all still open; no spec changes
@@ -218,14 +223,15 @@ History:
 ## https://github.com/agentskills/agentskills
 
 ```yaml
-last_scan: 2026-06-01T08:08:22Z
+last_scan: 2026-06-06T07:21:00Z
 status: unchanged
-run_id: 26742668563
+run_id: 27055918588
 ```
 
 **Summary:** Last commit 2026-05-20 (docs fix correcting `name` field character range to include digits). Client showcases merged (bub, Superconductor). Open PRs #380 (optional skill versioning), #386 (Windows UTF-8 fix), #345 (Unicode name clarification) still pending — no new merges since 2026-05-20.
 
 History:
+- 2026-06-06T07:21:00Z — unchanged: PRs #380, #386, #345 still open; no new merges since May 20
 - 2026-06-01T08:08:22Z — unchanged: PRs #380, #386, #345 still open; no new merges since May 20
 - 2026-05-31T00:00:00Z — unchanged: last commit still May 20; PRs #380, #386, #345 still open; no new merges or spec changes
 - 2026-05-30T07:15:49Z — unchanged: no new merges or spec changes; open PRs #380, #386, #345 still pending
@@ -243,14 +249,15 @@ History:
 ## https://www.cursor.com/changelog
 
 ```yaml
-last_scan: 2026-06-01T08:08:22Z
+last_scan: 2026-06-06T07:21:00Z
 status: changed
-run_id: 26742668563
+run_id: 27055918588
 ```
 
-**Summary:** v3.6 (2026-05-29) — "Auto-review Run Mode": agents run with reduced approval prompts; allowlisted calls execute immediately, sandboxable calls run in sandbox, borderline calls go through a **classifier subagent**. Configurable at Settings > Agents > Run Mode. This pre-classifier pattern was filed as ievo-ai/skills#164 (lightweight pre-classifier for /ievo:security-check).
+**Summary:** v3.7 (2026-06-04/05) — SDK: custom tools via `local.customTools`, nested subagents with multiple delegation levels, auto-review routing for headless runs, JSONL + custom stores for agent metadata, run correlation via `requestId`. Design Mode: multi-select, voice input for agent narration, canvas sharing. Composer 2 auto-routes to Composer 2.5. No agentskills.io spec-level changes detected.
 
 History:
+- 2026-06-06T07:21:00Z — changed: v3.7 (Jun 4-5) — nested subagents, custom tools, JSONL metadata store; no skills-repo format changes; no new iEvo findings triggered
 - 2026-06-01T08:08:22Z — changed: v3.6 (May 29) — Auto-review Run Mode with classifier subagent; triggered existing issue #164
 - 2026-05-31T00:00:00Z — changed: v3.6 (May 29); Auto-review Run Mode with classifier subagent for tool-call categorization; no skill-format changes
 - 2026-05-30T07:15:49Z — changed: v3.6 auto-review classifier sub-agent pattern (parallel to Claude Code auto mode)
@@ -268,14 +275,15 @@ History:
 ## https://news.ycombinator.com
 
 ```yaml
-last_scan: 2026-06-01T08:08:22Z
+last_scan: 2026-06-06T07:21:00Z
 status: unchanged
-run_id: 26742668563
+run_id: 27055918588
 ```
 
 **Summary:** Front page at fetch time had no posts matching `claude code`, `codex`, `agent skills`, or `MCP`. HN is point-in-time; limited signal. Consider fetching HN Algolia search API instead for topic-filtered results.
 
 History:
+- 2026-06-06T07:21:00Z — unchanged: not re-fetched; point-in-time signal insufficient; no consistent topic tracking
 - 2026-06-01T08:08:22Z — unchanged: no relevant AI agent tooling posts on front page at scan time
 - 2026-05-31T00:00:00Z — unchanged: no relevant AI agent tooling posts on front page at scan time
 - 2026-05-30T07:15:49Z — unchanged: "MCP is dead?" post notable; no actionable skills-repo signals
@@ -290,14 +298,15 @@ History:
 ## https://github.com/DenisSergeevitch/agents-best-practices
 
 ```yaml
-last_scan: 2026-06-01T08:08:22Z
-status: changed
-run_id: 26742668563
+last_scan: 2026-06-06T07:21:00Z
+status: unchanged
+run_id: 27055918588
 ```
 
-**Summary:** One new commit (2026-05-30) — added "workflow orchestration guidance" content covering orchestration patterns for multi-agent tasks. Relevant to the `/ievo:workflow` skill proposed in issue #162; the orchestration patterns may inform the skill's design. Prior: 15-file references/ confirmed; v1.2.0 with Claude Code skill support documentation.
+**Summary:** One new commit (2026-05-30) — "workflow orchestration guidance" covering multi-agent orchestration patterns. Relevant to skills#162 (/ievo:workflow). No new commits detected since May 30.
 
 History:
+- 2026-06-06T07:21:00Z — unchanged: no new commits detected since May 30; content stable; skills#162 still open
 - 2026-06-01T08:08:22Z — changed: May 30 commit adds workflow orchestration guidance; relevant evidence for skills#162
 - 2026-05-31T00:00:00Z — changed: new references/workflow-orchestration.md (+261 lines, May 30); planning-and-goals.md and architecture.md expanded; triggered F-2026-05-31-001
 - 2026-05-30T07:15:49Z — unchanged: no changes since May 15 commit
@@ -313,14 +322,15 @@ History:
 ## https://code.claude.com/docs/en/skills.md
 
 ```yaml
-last_scan: 2026-06-01T08:08:22Z
+last_scan: 2026-06-06T07:21:00Z
 status: changed
-run_id: 26742668563
+run_id: 27055918588
 ```
 
-**Summary:** v2.1.152 additions: `disallowed-tools` frontmatter (space-separated tool patterns to block while skill runs); `allowed-tools` experimental field now confirmed production. `effort:` field confirmed stable (values: low/medium/high/xhigh/max). Skills in `.claude/skills/` auto-loaded as of v2.1.157 — no marketplace install required. Body ≤500 lines recommendation unchanged.
+**Summary:** Post-2026-06-02 additions (v2.1.163+): `when_to_use` frontmatter for dedicated trigger hints (open #174); `paths` glob-pattern for context-aware auto-activation (open #175); `argument-hint` frontmatter for autocomplete (open #177); `\$` escape syntax for literal `$` before digit in command bodies (v2.1.163). Prior: `disallowed-tools`, `effort:`, `.claude/skills` auto-load all stable.
 
 History:
+- 2026-06-06T07:21:00Z — changed: when_to_use / paths / argument-hint frontmatter fields added (already captured in open issues #174 #175 #177); \$ escape syntax (v2.1.163)
 - 2026-06-01T08:08:22Z — changed: disallowed-tools frontmatter added (v2.1.152); .claude/skills auto-load (v2.1.157); effort: stable
 - 2026-05-31T00:00:00Z — unchanged: no new fields since last scan; `disallowed-tools` and `effort:` already documented; iEvo security-check and vuln-scan already use disallowed-tools
 - 2026-05-30T07:15:49Z — changed: hooks frontmatter, disallowed-tools, context:fork, dynamic !`cmd` injection, $CLAUDE_SKILL_DIR vars — major expansion; triggered F-2026-05-30-001, F-2026-05-30-003
@@ -333,14 +343,15 @@ History:
 ## https://code.claude.com/docs/en/routines.md
 
 ```yaml
-last_scan: 2026-06-01T08:08:22Z
+last_scan: 2026-06-06T07:21:00Z
 status: unchanged
-run_id: 26742668563
+run_id: 27055918588
 ```
 
 **Summary:** Claude Code Routines — scheduled sessions on Anthropic-managed infra. Created via `/schedule` CLI command, claude.ai/code/routines web UI, or Desktop app sidebar. Account-level config (Pro/Max/Team/Enterprise required). Triggers: cron, HTTP API POST, GitHub events (PR/release). Not available if ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN is set. Spec unchanged since first scan.
 
 History:
+- 2026-06-06T07:21:00Z — unchanged: not re-fetched; spec stable per prior scans
 - 2026-06-01T08:08:22Z — unchanged: spec stable; no new triggers or API changes
 - 2026-05-31T00:00:00Z — unchanged: Routines docs stable; F-2026-05-25-002 implemented (skills#84 closed COMPLETED)
 - 2026-05-30T07:15:49Z — unchanged: Routines stable; skills#84 implemented; no new doc changes
@@ -353,14 +364,15 @@ History:
 ## https://code.claude.com/docs/en/channels.md
 
 ```yaml
-last_scan: 2026-06-01T08:08:22Z
+last_scan: 2026-06-06T07:21:00Z
 status: unchanged
-run_id: 26742668563
+run_id: 27055918588
 ```
 
 **Summary:** Claude Code Channels — push events from Telegram/Discord/iMessage into Claude Code sessions. Research preview, requires Bun. Plugin-based (`/plugin install telegram@claude-plugins-official`), then `claude --channels plugin:...`. Enterprise: `channelsEnabled: true` managed setting. Still in research preview as of this scan.
 
 History:
+- 2026-06-06T07:21:00Z — unchanged: not re-fetched; still research preview per prior scans; no GA signal from CC releases
 - 2026-06-01T08:08:22Z — unchanged: still research preview; Bun required; no GA announcement
 - 2026-05-31T00:00:00Z — unchanged: still in research preview; Bun required; no GA announcement; not actionable
 - 2026-05-30T07:15:49Z — unchanged: still research preview; Bun required; no new GA timeline visible
@@ -373,14 +385,15 @@ History:
 ## https://code.claude.com/docs/en/sub-agents
 
 ```yaml
-last_scan: 2026-05-31T00:00:00Z
-status: first-scan
-run_id: 26706515829
+last_scan: 2026-06-06T07:21:00Z
+status: unchanged
+run_id: 27055918588
 ```
 
-**Summary:** Official Claude Code sub-agents documentation. Documents `effort:` as a valid agent frontmatter field (low/medium/high/xhigh/max) — overrides session effort when the agent runs. Also documents `disallowedTools`, `permissionMode`, `maxTurns`, `skills`, `mcpServers`, `hooks`, `memory`, `background`, `isolation`, `color`, `initialPrompt`. Resolution order for `CLAUDE_CODE_SUBAGENT_MODEL`: env var > per-invocation param > frontmatter > main session model. Plugin subagents ignore `hooks`, `mcpServers`, `permissionMode`. No agent nesting. Triggered F-2026-05-31-002 (effort: validation for validate_agents.mjs).
+**Summary:** Official Claude Code sub-agents documentation. Documents `effort:` as a valid agent frontmatter field (low/medium/high/xhigh/max) — overrides session effort when the agent runs. Also documents `disallowedTools`, `permissionMode`, `maxTurns`, `skills`, `mcpServers`, `hooks`, `memory`, `background`, `isolation`, `color`, `initialPrompt`. Resolution order for `CLAUDE_CODE_SUBAGENT_MODEL`: env var > per-invocation param > frontmatter > main session model. Plugin subagents ignore `hooks`, `mcpServers`, `permissionMode`. No agent nesting.
 
 History:
+- 2026-06-06T07:21:00Z — unchanged: not re-fetched; content stable per prior scans; fallbackModel bypass now relevant (triggered F-2026-06-06-001 via CC release notes, not this URL)
 - 2026-05-31T00:00:00Z — first-scan: effort: field documented for agents; 12+ frontmatter fields documented; CLAUDE_CODE_SUBAGENT_MODEL resolution order confirmed; triggered F-2026-05-31-002
 - 2026-05-29T07:38:29Z — first-scan: effort/isolation/memory/background agent fields documented; iEvo agents lack effort: → triggered F-2026-05-29-002
 - 2026-05-26T07:30:00Z — first-scan: model resolution order confirmed; forked subagents (experimental) noted; skill preloading via frontmatter noted; triggered awareness of missing vuln-scan orchestrator (F-2026-05-26-001)
@@ -405,14 +418,15 @@ History:
 ## https://code.claude.com/docs/en/sub-agents.md
 
 ```yaml
-last_scan: 2026-06-01T08:08:22Z
-status: first-scan
-run_id: 26742668563
+last_scan: 2026-06-06T07:21:00Z
+status: unchanged
+run_id: 27055918588
 ```
 
-**Summary:** Sub-agents documentation for Claude Code. Model resolution order: (1) `CLAUDE_CODE_SUBAGENT_MODEL` env var if set, (2) per-invocation parameter, (3) agent frontmatter `model:`, (4) main-conversation model. Dispatch via Task tool. `agent:` field in `settings.json` (v2.1.157) adds a fourth override path: if `agent: <name>` is set, dispatched sessions use the specified agent profile, potentially overriding skill-dispatched sub-agents. Key security implication: `security-auditor.md` model frontmatter can be silently bypassed by env var OR `agent:` in settings.json.
+**Summary:** Sub-agents documentation for Claude Code. Model resolution order: (1) `CLAUDE_CODE_SUBAGENT_MODEL` env var if set, (2) per-invocation parameter, (3) agent frontmatter `model:`, (4) main-conversation model. Dispatch via Task tool. `agent:` field in `settings.json` (v2.1.157) adds a fourth override path. Key security implication: `security-auditor.md` model frontmatter can be silently bypassed by env var OR `agent:` in settings.json. NEW: `fallbackModel` adds a fifth bypass path when primary model is overloaded (v2.1.166, triggered F-2026-06-06-001).
 
 History:
+- 2026-06-06T07:21:00Z — unchanged: not re-fetched; fallbackModel identified as new bypass vector from CC release notes (triggered F-2026-06-06-001)
 - 2026-06-01T08:08:22Z — first-scan: sub-agent model resolution order documented; agent: settings.json field identified as new bypass vector → triggered F-2026-06-01-003
 - 2026-05-30T07:15:49Z — first-scan: sub-agent model resolution order documented; context:fork frontmatter; settings.json agent field; CLAUDE_CODE_SUBAGENT_MODEL precedence confirmed
 - 2026-05-27T07:38:00Z — first-scan: confirmed CLAUDE_CODE_SUBAGENT_MODEL resolution order; disallowedTools and isolation: worktree documented; model resolution security note in AGENTS.md is accurate

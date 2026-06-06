@@ -763,3 +763,305 @@ Claude Code v2.1.152 introduced `disallowed-tools` frontmatter and iEvo implemen
 Codex v0.135.0 introduced named permission profiles via `/permissions` command (#21559) — a user can create a named profile (e.g., `ievo-security-scan`) that restricts the tool set available during a Codex session. While not frontmatter-level enforcement (the agent cannot self-impose the profile at skill activation time), a named profile is the closest Codex equivalent. A Codex user running `/ievo:security-check` can pre-activate their `ievo-security-scan` profile before the skill starts to achieve the same read-only enforcement.
 
 Concrete proposal: Add a Codex-specific section or compatibility callout to `security-check/SKILL.md` (currently 288 lines, well under the 500-line limit). The addition describes: (a) the parity gap (Claude Code gets `disallowed-tools` enforcement automatically; Codex users must set up a named permission profile manually); (b) how to create the profile in Codex via `/permissions`; (c) recommended tool restrictions (Read, Grep, Glob, WebFetch only — matches the security-auditor agent's `tools:` allowlist); (d) the instruction to activate it with `/permissions use ievo-security-scan` before running the skill. No scripts needed, no coverage obligation — pure SKILL.md documentation addition.
+
+---
+
+## F-2026-06-06-001 — Document `fallbackModel` (v2.1.166) as fourth security-model bypass vector in AGENTS.md
+
+```yaml
+id: F-2026-06-06-001
+discovered_at: 2026-06-06T07:21:00Z
+run_id: 27055918588
+target_repo: ievo-ai/skills
+title: Document Claude Code v2.1.166 fallbackModel setting as fourth security-model bypass vector in AGENTS.md
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/180
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.166 (2026-06-06) added fallbackModel setting — up to three fallback models tried in order when primary model is overloaded or unavailable; --fallback-model flag applies to interactive sessions
+```
+
+# Proposal: Document `fallbackModel` setting as fourth security-model bypass vector in AGENTS.md
+
+## Summary
+
+Claude Code v2.1.166 added a `fallbackModel` setting that tries alternative models when the primary is overloaded. AGENTS.md documents three existing bypass paths for the security-auditor's model guarantee; `fallbackModel` is a fourth, undocumented one that can silently degrade security audit quality during peak load.
+
+## Problem / Capability gap
+
+AGENTS.md § "Security model" currently documents these bypass vectors that can silently degrade the `security-auditor` sub-agent quality:
+
+1. `CLAUDE_CODE_SUBAGENT_MODEL` env var (level 1 in resolution order)
+2. `agent:` field in `settings.json` (v2.1.157, documented in open ievo-ai/skills#167)
+3. `skillOverrides` in `settings.json` (post-2026-06-02, documented in open ievo-ai/skills#176)
+
+Claude Code v2.1.166 introduces `fallbackModel` — a list of up to three alternative models Claude Code tries **automatically when the primary model is overloaded or unavailable**. The `--fallback-model` flag also applies this to interactive sessions.
+
+**Security scenario**: An operator or user has configured `fallbackModel: ["haiku"]` in `settings.json` as a cost-saving measure (Haiku is much cheaper than Sonnet when the primary overloads). When Sonnet is overloaded during a peak period, Claude Code silently falls back to Haiku for the `security-auditor` sub-agent — exactly the degradation that `security-check/SKILL.md` warns against: "Haiku is insufficient (misses indirection attacks)." The user sees a completed security scan with no indication of degraded quality.
+
+Unlike `CLAUDE_CODE_SUBAGENT_MODEL` (which requires deliberate configuration) or `skillOverrides` (which requires knowing the skill name), `fallbackModel` may be set by operators broadly for all sessions, making this a higher-probability bypass than the others.
+
+## Evidence
+
+External signal triggering this proposal (with URLs from Step 4 source scan):
+- https://github.com/anthropics/claude-code/releases: v2.1.166 (2026-06-06) — "Added `fallbackModel` setting to configure up to three fallback models tried in order when the primary model is overloaded or unavailable; `--fallback-model` now also applies to interactive sessions"
+
+## Proposed solution
+
+Add a bullet to AGENTS.md § "Security model" immediately after the existing `agent:` settings.json note (likely around line 180+), documenting the `fallbackModel` bypass:
+
+```
+- **`fallbackModel` settings.json key — operator gotcha.** Claude Code v2.1.166 added `fallbackModel:
+  ["model1", "model2", ...]` to configure fallback models when the primary is overloaded. If any
+  fallback model is Haiku-tier and the primary model (Sonnet) is overloaded during a security scan,
+  `security-auditor` silently runs at Haiku reasoning — `security-check/SKILL.md` explicitly states
+  "Haiku is insufficient (misses indirection attacks)". **Mitigation**: omit `fallbackModel` entirely,
+  or ensure all listed fallback models are at Sonnet tier or above (e.g., `["sonnet", "opus"]`).
+  Check your `~/.claude/settings.json` and `.claude/settings.json` for any `fallbackModel` entry.
+```
+
+## Files affected
+
+| File | Change | Notes |
+|------|--------|-------|
+| `AGENTS.md` | modified | Add ~6-line bullet to § Security model after existing bypass-vector notes |
+
+## API / UX surface
+
+Documentation-only. No skill body changes. No scripts. No version bump required (AGENTS.md prose-only change; the four-file version bump convention applies to functional changes, not doc additions per iEvo convention — confirm with operator).
+
+## Acceptance criteria
+
+- [ ] AGENTS.md § "Security model" has a `fallbackModel` bullet alongside the `CLAUDE_CODE_SUBAGENT_MODEL` and `agent:` notes
+- [ ] The bullet names the minimum CC version introducing the behavior (v2.1.166)
+- [ ] The mitigation is actionable: clear instruction on what to set to preserve the security guarantee
+- [ ] The existing bypass-vector count (currently three documented) is consistent with the new four-vector list
+
+## Effort estimate
+
+- Scope: single-file
+- Effort: low (~20 min)
+- Risk: low (documentation addition, no functional changes)
+
+## Open questions for the operator
+
+- Should the security-check/SKILL.md pre-flight section also gain a warning about `fallbackModel`? Or is AGENTS.md the right single home for all bypass-vector documentation?
+- Does the four-file version bump apply to pure AGENTS.md prose additions? (Precedent: #169 AGENTS.md note did NOT require a version bump per issue body — confirm consistency.)
+
+## Related
+
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/27055918588
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: F-2026-06-06-001`
+- **Companion proposals (if any):** `ievo-ai/skills#167` (agent: bypass), `ievo-ai/skills#176` (skillOverrides bypass), `ievo-ai/skills#179` (model: sonnet frontmatter resilience)
+
+---
+Filed by Eva research run 27055918588 against `ievo-ai/eva` (research repo). Triage with `accepted` / `rejected` / `needs-discussion` labels.
+
+---
+
+## F-2026-06-06-002 — Add iEvo feature version-compatibility table to AGENTS.md for enterprise requiredMinimumVersion operators
+
+```yaml
+id: F-2026-06-06-002
+discovered_at: 2026-06-06T07:21:00Z
+run_id: 27055918588
+target_repo: ievo-ai/skills
+title: Add minimum Claude Code version compatibility table to AGENTS.md for enterprise operators using requiredMinimumVersion managed setting
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/181
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.163 (2026-06-04) added requiredMinimumVersion and requiredMaximumVersion managed settings — Claude Code refuses to start if its version is outside the allowed range; makes feature-version boundaries actionable for enterprise operators
+```
+
+# Proposal: Add iEvo feature version-compatibility table to AGENTS.md
+
+## Summary
+
+Claude Code v2.1.163 added `requiredMinimumVersion` managed settings, making version pinning actionable for enterprise operators. iEvo uses a dozen version-gated features but has no documented minimum version anywhere — operators who pin Claude Code versions have no reference for ensuring full iEvo functionality.
+
+## Problem / Capability gap
+
+iEvo's SKILL.md files, agent files, and plugin manifest use features introduced in specific CC versions:
+
+| Feature | Minimum CC version |
+|---------|-------------------|
+| `effort:` frontmatter (skills) | v2.1.149 |
+| `/reload-skills` command | v2.1.152 |
+| `disallowed-tools` frontmatter | v2.1.152 |
+| `hooks` frontmatter (skills) | v2.1.152 |
+| `MessageDisplay` hook | v2.1.152 |
+| `SessionStart` reloadSkills/sessionTitle | v2.1.152 |
+| Dynamic Workflows | v2.1.154 |
+| `defaultEnabled` in plugin.json | v2.1.154 |
+| `.claude/skills/` auto-load | v2.1.157 |
+| `agent:` settings.json field | v2.1.157 |
+| `requiredMinimumVersion` managed setting | v2.1.163 |
+| `/plugin list --enabled/--disabled` | v2.1.163 |
+| `hookSpecificOutput.additionalContext` | v2.1.163 |
+| `fallbackModel` setting | v2.1.166 |
+
+None of this is documented in AGENTS.md or README. An enterprise operator using `requiredMinimumVersion: { min: "2.1.150" }` in their managed settings would silently break `disallowed-tools`, `/reload-skills`, and hook-based functionality — features that are core to iEvo's security model. There is no way for the operator to know the minimum they should pin without reading every release note.
+
+**Concrete user scenario:** A corporate IT team deploys Claude Code with a managed settings file that pins versions for stability. They set `requiredMinimumVersion: { min: "2.1.145" }`. iEvo installs, `/ievo:init` runs, but `security-check/SKILL.md`'s `disallowed-tools` frontmatter is silently ignored (requires v2.1.152+). The security audit runs without tool restrictions, defeating the read-only safety guarantee.
+
+## Evidence
+
+External signal triggering this proposal (with URLs from Step 4 source scan):
+- https://github.com/anthropics/claude-code/releases: v2.1.163 (2026-06-04) — "Added `requiredMinimumVersion` and `requiredMaximumVersion` managed settings — Claude Code refuses to start if its version is outside the allowed range and directs the user to an approved version"
+
+## Proposed solution
+
+Add a `§ Version compatibility` section to AGENTS.md. The section should contain:
+
+1. **Recommended minimum version**: state the minimum CC version for full iEvo functionality (currently ~v2.1.163 for all shipped features including `hookSpecificOutput.additionalContext`)
+
+2. **Feature-version matrix table**: the table above (feature → min CC version), so operators can identify which version they need for the specific iEvo features they use
+
+3. **Enterprise pinning note**: how to use `requiredMinimumVersion` in managed settings to enforce the minimum, e.g.:
+   ```json
+   { "requiredMinimumVersion": { "min": "2.1.163" } }
+   ```
+
+4. **Degraded-feature note**: which features gracefully degrade vs. silently fail when the min version is under-pinned (e.g., `disallowed-tools` silently ignored vs. `effort:` frontmatter silently ignored)
+
+## Files affected
+
+| File | Change | Notes |
+|------|--------|-------|
+| `AGENTS.md` | modified | New § Version compatibility section (~30 lines) |
+
+## API / UX surface
+
+Documentation-only. No skill body changes. No scripts. Version bump convention: same question as F-2026-06-06-001 — confirm whether AGENTS.md prose sections require the four-file bump.
+
+## Acceptance criteria
+
+- [ ] AGENTS.md has a `§ Version compatibility` section or equivalent heading
+- [ ] The section lists a recommended minimum CC version (e.g., v2.1.163) for full iEvo support
+- [ ] A feature-version matrix table is present with at least the 8 most important version gates
+- [ ] A note on `requiredMinimumVersion` managed setting format is included for enterprise operators
+- [ ] The section is referenced from README.md with a one-line pointer
+
+## Effort estimate
+
+- Scope: single-file
+- Effort: low (~40 min)
+- Risk: low (documentation addition; no functional changes)
+
+## Open questions for the operator
+
+- Should this section also cover Codex version requirements? Codex has parallel versioning (rust-v0.134.0+ for SubagentStart/Stop hooks, rust-v0.135.0+ for named permission profiles, etc.)
+- Where in AGENTS.md should this section live? Before or after § Development?
+- Does the feature-version matrix need to include Codex versions as a second column?
+
+## Related
+
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/27055918588
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: F-2026-06-06-002`
+- **Companion proposals (if any):** `ievo-ai/skills#171` (OTEL cost attribution — requires v2.1.161), `ievo-ai/skills#178` (hookSpecificOutput.additionalContext — requires v2.1.163)
+
+---
+Filed by Eva research run 27055918588 against `ievo-ai/eva` (research repo). Triage with `accepted` / `rejected` / `needs-discussion` labels.
+
+---
+
+## F-2026-06-06-003 — Add Codex-side post-update verification step to `update.md` using `codex plugin list --json` (v0.137.0 parity with CC's `/plugin list`)
+
+```yaml
+id: F-2026-06-06-003
+discovered_at: 2026-06-06T07:21:00Z
+run_id: 27055918588
+target_repo: ievo-ai/skills
+title: Add Codex-side post-update verification step to update.md using codex plugin list --json (Codex 0.137.0 parity with CC v2.1.163 /plugin list)
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/182
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/openai/codex/releases: v0.137.0 (2026-06-04) — "Plugin workflows gained machine-readable codex plugin list --json output and cached remote catalog suggestions"
+  - https://github.com/anthropics/claude-code/releases: v2.1.163 (2026-06-04) — added /plugin list command with --enabled/--disabled filters to list installed plugins
+```
+
+# Proposal: Add Codex-side post-update verification step to `update.md`
+
+## Summary
+
+Both Claude Code v2.1.163 and Codex v0.137.0 shipped plugin-list commands on the same day (June 4, 2026). The `update.md` command currently has no post-update verification step for either platform. Adding platform-specific verification steps (CC: `/plugin list --enabled`, Codex: `codex plugin list --json | jq '.[] | select(.name=="ievo")'`) closes a usability gap and fulfills iEvo's universal positioning promise.
+
+## Problem / Capability gap
+
+`commands/update.md` guides users through updating their iEvo installation. The current Step 6 (addressed by open ievo-ai/skills#166) is about `/reload-skills` vs `/reload-plugins`. But neither the current text nor the proposed #166 fix includes a **verification step** that confirms the updated plugin is actually loaded and active.
+
+**Concrete user scenario (CC):** A user runs `/ievo:update`. The shell commands complete. They run `/reload-skills`. But they can't confirm that the iEvo plugin updated to the expected version without manually running `/plugin list --enabled` and visually scanning the output. With CC v2.1.163's `/plugin list --enabled`, the post-update step can explicitly show "ievo v0.15.0 ✓ enabled".
+
+**Concrete user scenario (Codex):** A Codex user runs the update commands. There is currently NO guidance for Codex users on verifying the plugin loaded — `update.md` is Claude Code-centric in its reload/verification guidance, violating iEvo's universal positioning claim ("Not a Claude Code-only plugin").
+
+**Both CC and Codex shipped plugin-list commands on the same day** — this is a rare synchronized parity opportunity. Adding both to `update.md` at the same time is efficient and enforces the universal positioning principle.
+
+## Evidence
+
+External signal triggering this proposal (with URLs from Step 4 source scan):
+- https://github.com/openai/codex/releases: v0.137.0 (2026-06-04) — "Plugin workflows gained machine-readable `codex plugin list --json` output and cached remote catalog suggestions"
+- https://github.com/anthropics/claude-code/releases: v2.1.163 (2026-06-04) — "Added `/plugin list` command to list installed plugins, with `--enabled`/`--disabled` filters"
+
+## Proposed solution
+
+Add a verification step to `commands/update.md`, inserted after the reload step (Step 6, currently pending #166). The verification step should be framed as **Step 7** (or as a note under Step 6):
+
+**Claude Code** (after `/reload-skills`):
+```
+Run /plugin list --enabled and confirm "ievo" appears in the output with the expected version.
+```
+
+**Codex** (after update commands):
+```
+Run: codex plugin list --json
+Confirm the ievo plugin entry shows the updated version number.
+```
+
+The step should be platform-conditional: Claude Code users use `/plugin list --enabled`, Codex users use `codex plugin list --json`. Since `update.md` is a SKILL.md-based command body (rendered as guidance, not executed), both can coexist in the same file with clear platform labels.
+
+## Files affected
+
+| File | Change | Notes |
+|------|--------|-------|
+| `commands/update.md` | modified | Add post-update verification step (~10 lines) |
+
+## API / UX surface
+
+- Claude Code: `/plugin list --enabled` — new in v2.1.163
+- Codex: `codex plugin list --json` — new in v0.137.0
+- No scripts required. No coverage obligation (commands/ is not plugins/ievo/scripts/).
+- Version bump required (plugin manifest change per AGENTS.md convention, even for update.md changes).
+
+## Acceptance criteria
+
+- [ ] `commands/update.md` has a verification step after the reload step
+- [ ] The verification step includes both CC and Codex platform variants
+- [ ] CC variant uses `/plugin list --enabled` (requires CC v2.1.163+) with a version callout
+- [ ] Codex variant uses `codex plugin list --json` (requires Codex v0.137.0+) with a version callout
+- [ ] The step is consistent with `update.md`'s existing step numbering and formatting
+
+## Effort estimate
+
+- Scope: single-file
+- Effort: low (~25 min)
+- Risk: low (additive documentation step; no functional changes)
+
+## Open questions for the operator
+
+- Should the verification step include a "what to do if ievo doesn't appear in the list" recovery guide?
+- Does this step belong in `update.md` or should a separate `/ievo:verify-install` skill be proposed?
+- The open issue #166 should be implemented first (or in the same PR); confirm whether this finding should be bundled with #166.
+
+## Related
+
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/27055918588
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: F-2026-06-06-003`
+- **Companion proposals (if any):** `ievo-ai/skills#166` (/reload-skills in update.md — should be implemented first or alongside)
+
+---
+Filed by Eva research run 27055918588 against `ievo-ai/eva` (research repo). Triage with `accepted` / `rejected` / `needs-discussion` labels.
