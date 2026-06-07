@@ -36,14 +36,15 @@ run_id: <GitHub Actions run ID or null>
 ## https://www.anthropic.com/news
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
-status: unchanged
-run_id: 26806183547
+last_scan: 2026-06-07T07:30:00Z
+status: changed
+run_id: $GITHUB_RUN_ID
 ```
 
-**Summary:** No new developer-tool or agent-platform announcements since May 27. Tracking via Claude Code release notes directly for Claude Code changes.
+**Summary:** Three new posts since June 2: "Expanding Project Glasswing" (June 2) extended to ~150 organizations across 15+ countries; "Introducing Services Track and Partner Hub" (June 3) for Claude Partner Network; "AI-Enabled Cyber Threats Mapping" (June 3) collaborative analysis with MITRE ATT&CK — directly relevant to iEvo's vuln-scan taxonomy (triggered F-2026-06-07-002). Also: "Introducing Claude Opus 4.8" (May 28) and "$65B Series H" (May 28) noted in prior scan.
 
 History:
+- 2026-06-07T07:30:00Z — changed: Glasswing expanded to 150 orgs (June 2); Services Track/Partner Hub (June 3); AI-Enabled Cyber Threats w/ MITRE ATT&CK (June 3) → triggered F-2026-06-07-002
 - 2026-06-02T08:04:18Z — unchanged: not re-fetched (tracking Claude Code releases directly via github.com/anthropics/claude-code/releases); no Anthropic blog developer announcements observed
 - 2026-06-01T08:08:22Z — changed: Opus 4.8 released (May 28); Series H; no CC-specific or agent-format changes
 - 2026-05-31T00:00:00Z — changed: Opus 4.8 launched (May 28); `opus` alias now resolves to 4.8 — affects iEvo evolution.md agent; $65B Series H raise; no Claude Code API changes
@@ -63,14 +64,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-07T07:30:00Z
 status: changed
-run_id: 26806183547
+run_id: $GITHUB_RUN_ID
 ```
 
-**Summary:** v2.1.160 (2026-06-02) — `acceptEdits` now prompts for `.pre-commit-config.yaml` + other build-tool configs; Dynamic Workflow trigger renamed `workflow` → `ultracode`; single-file grep satisfies read-before-edit; shell startup file write prompts. v2.1.157 (2026-05-29) — plugins in `.claude/skills/` auto-loaded, `claude plugin init` scaffolds plugins, `agent:` field in settings.json honored for dispatched sessions. v2.1.154 (2026-05-28) — Claude Opus 4.8 default for xhigh effort, Dynamic Workflows feature (tens-to-hundreds of background agents via /workflows), `defaultEnabled: false` in plugin.json, `! <command>` background agent execution. v2.1.153 (2026-05-28) — subagent MCP enforcement fixed (--strict-mcp-config now applies); /model saves as default for new sessions; Status line commands get COLUMNS/LINES env vars. v2.1.152 (2026-05-27) — `disallowed-tools` frontmatter, MessageDisplay hook, SessionStart enhancements, /reload-skills.
+**Summary:** v2.1.163 (June 4) — `requiredMinimumVersion`/`requiredMaximumVersion` managed settings (covered #181); `/plugin list` with filters; hooks `additionalContext` support (covered #178); `\$` escape syntax for Skills commands (triggered F-2026-06-07-001); `CLAUDE_CODE_SESSION_ID` in stdio MCP servers; background agent auto-updating. v2.1.165 (June 5) — bug fixes. v2.1.166 (June 6) — `fallbackModel` setting (covered #180); glob pattern support in deny rule tool-name position; `MAX_THINKING_TOKENS=0` + `--thinking disabled` to disable extended thinking (triggered F-2026-06-07-003); hardened cross-session messaging. v2.1.167-168 (June 6) — bug fixes.
 
 History:
+- 2026-06-07T07:30:00Z — changed: v2.1.163-168; \$ escape for Skills (F-2026-06-07-001); MAX_THINKING_TOKENS=0 (F-2026-06-07-003); /plugin list filters; additionalContext in hooks (#178); requiredMinimumVersion (#181); fallbackModel (#180)
 - 2026-06-02T08:04:18Z — changed: v2.1.153 through v2.1.160; v2.1.160 acceptEdits for .pre-commit-config.yaml (triggered F-2026-06-02-002); v2.1.157 .claude/skills/ auto-load + claude plugin init; v2.1.154 Opus 4.8 + Dynamic Workflows + defaultEnabled; v2.1.153 MCP enforcement fix
 - 2026-06-01T08:08:22Z — changed: v2.1.152–159; disallowed-tools+/reload-skills+SessionStart reloadSkills (152); Dynamic Workflows+defaultEnabled (154); .claude/skills auto-load+agent: settings.json (157)
 - 2026-05-31T00:00:00Z — changed: v2.1.158 Auto mode Bedrock/Vertex; v2.1.157 plugin auto-load from .claude/skills/, plugin init scaffolding; v2.1.154 Dynamic Workflows + Opus 4.8; v2.1.152 disallowed-tools + SessionStart reloadSkills + MessageDisplay hook
@@ -90,14 +92,15 @@ History:
 ## https://github.com/anthropics/claude-code-action/releases
 
 ```yaml
-last_scan: 2026-06-01T08:08:22Z
-status: unchanged
-run_id: 26742668563
+last_scan: 2026-06-07T07:30:00Z
+status: changed
+run_id: $GITHUB_RUN_ID
 ```
 
-**Summary:** v1.0.133 (2026-05-23) remains the latest release. No new releases since last scan. Workload Identity Federation (OIDC) was the last addition. Prior: v1.0 GA breaking changes: `mode`/`direct_prompt`/`override_prompt` removed; `model`/`allowed_tools`/`mcp_config` deprecated. Eva's own workflows (eva#65) still need auditing for v0.x inputs.
+**Summary:** v1.0.134 (June 2) — Workload Identity Federation support expanded, Node.js 24 upgrades. v1.0.135–v1.0.140 (June 3–6) — rapid patch releases, no major breaking input changes. Eva's own workflows (eva#65) still need auditing for v0.x inputs — this run marks the 6th consecutive deferral of that audit.
 
 History:
+- 2026-06-07T07:30:00Z — changed: v1.0.134-140 (June 2-6); WIF expansion, Node.js 24 upgrades; no new breaking input changes; eva#65 still deferred (6th consecutive run)
 - 2026-06-01T08:08:22Z — unchanged: still v1.0.133; no new releases since May 23
 - 2026-05-31T00:00:00Z — unchanged: no releases since v1.0.133 (May 23); eva#65 still open
 - 2026-05-30T07:15:49Z — unchanged: still v1.0.133; no new releases; eva#65 still open
@@ -147,14 +150,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-07T07:30:00Z
 status: changed
-run_id: 26806183547
+run_id: $GITHUB_RUN_ID
 ```
 
-**Summary:** rust-v0.136.0 (2026-06-01) — hook output event schema tightened (breaking for parsers, triggered F-2026-06-02-001); runtime extra skill roots API (#24977); multi-agent assignment tool renamed (breaking); /archive slash command for session archiving; security hardening (/diff no longer runs repo Git helpers, exec-server rejects Origin-header websocket requests); memories moved to SQLite (0.136). rust-v0.135.0 (2026-05-28) — named permission profiles in /permissions (#21559, triggered F-2026-06-02-003); thread-idle lifecycle hook (#24744, covered by open #165); new ad-hoc memory note tool; Python SDK sandbox presets; codex doctor expanded diagnostics; non-interactive install support.
+**Summary:** v0.137.0 stable (June 4) — enterprise monthly credit limits display; remote-control client pairing; `codex plugin list --json` output (covered by open #182); multi-agent v2 runtime improvements; F13-F24 keybinding support; parallel standalone web searches. v0.138.0-alpha.1–alpha.6 (June 4-6) — pre-release iterations, no stable notes yet. (Prior: v0.136.0 hook schema tightening — triggered F-2026-06-02-001; v0.135.0 named permission profiles — triggered F-2026-06-02-003.)
 
 History:
+- 2026-06-07T07:30:00Z — changed: v0.137.0 stable (June 4); plugin list --json (#182); multi-agent v2 runtime; remote-control pairing; v0.138.0-alpha.1-6 in flight
 - 2026-06-02T08:04:18Z — changed: rust-v0.135.0 (named permission profiles, thread-idle hook) + rust-v0.136.0 (hook schema tightening — breaking, runtime skill roots API, /archive); triggered F-2026-06-02-001, F-2026-06-02-003
 - 2026-06-01T08:08:22Z — changed: v0.134.0 stable (subagent identity in hooks, function tools default); v0.135.0 (thread idle hook, named profiles); v0.136.0 alpha
 - 2026-05-31T00:00:00Z — changed: v0.135.0 (May 28); subagent identity in hook inputs; extensions get richer conversation context; Python SDK Sandbox presets
@@ -193,14 +197,15 @@ History:
 ## https://agentskills.io/specification
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-07T07:30:00Z
 status: unchanged
-run_id: 26806183547
+run_id: $GITHUB_RUN_ID
 ```
 
 **Summary:** Required fields: `name` + `description` (≤1024 chars). Optional: `license`, `compatibility`, `metadata`, `allowed-tools` (experimental, space-separated pre-approved tools). `name` max 64 chars, lowercase alphanumeric+hyphens, no consecutive hyphens, must match directory. Progressive disclosure: metadata ~100 tokens at startup, full body on activation, referenced files on demand. Body ≤500 lines. Spec stable. Note: `disallowed-tools` and `effort:` (both Claude Code conventions) are NOT yet in the official agentskills.io spec.
 
 History:
+- 2026-06-07T07:30:00Z — unchanged: spec confirmed stable via deep fetch; no new fields, constraints, or breaking changes since June 2; PRs #345/#380/#386 still open
 - 2026-06-02T08:04:18Z — unchanged: spec stable; fetched (HTML too large to parse fully but no new fields detected based on ievo-ai/skills AGENTS.md spec references which are current)
 - 2026-06-01T08:08:22Z — unchanged: spec stable; PRs #380, #386, #345 still open and pending
 - 2026-05-31T00:00:00Z — unchanged: spec stable; PRs #380 (versioning), #386 (UTF-8 fix), #345 (Unicode name) all still open; no spec changes
@@ -243,14 +248,15 @@ History:
 ## https://www.cursor.com/changelog
 
 ```yaml
-last_scan: 2026-06-01T08:08:22Z
+last_scan: 2026-06-07T07:30:00Z
 status: changed
-run_id: 26742668563
+run_id: $GITHUB_RUN_ID
 ```
 
-**Summary:** v3.6 (2026-05-29) — "Auto-review Run Mode": agents run with reduced approval prompts; allowlisted calls execute immediately, sandboxable calls run in sandbox, borderline calls go through a **classifier subagent**. Configurable at Settings > Agents > Run Mode. This pre-classifier pattern was filed as ievo-ai/skills#164 (lightweight pre-classifier for /ievo:security-check).
+**Summary:** v3.7 (June 4-5) — Cursor SDK additions: `local.customTools` via built-in MCP server `custom-user-tools` for exposing capabilities; `local.autoReview` for classifier-based automatic execution vs review holds (SDK version of v3.6 Auto-review); `SqliteLocalAgentStore` / `JsonlLocalAgentStore` / custom `LocalAgentStore` interface for storage flexibility; Canvas Design Mode multi-select; Voice input during agent execution. Enterprise: Organizations (June 3) for managing multiple teams with distinct security/governance/budgets. No iEvo-specific findings: classifier SDK pattern extends open issue #164 but is implementation detail.
 
 History:
+- 2026-06-07T07:30:00Z — changed: v3.7 (June 4-5); Cursor SDK custom-user-tools MCP + autoReview + agent stores + voice input; Enterprise Orgs (June 3); no new iEvo-specific findings (classifier SDK = #164 implementation detail)
 - 2026-06-01T08:08:22Z — changed: v3.6 (May 29) — Auto-review Run Mode with classifier subagent; triggered existing issue #164
 - 2026-05-31T00:00:00Z — changed: v3.6 (May 29); Auto-review Run Mode with classifier subagent for tool-call categorization; no skill-format changes
 - 2026-05-30T07:15:49Z — changed: v3.6 auto-review classifier sub-agent pattern (parallel to Claude Code auto mode)

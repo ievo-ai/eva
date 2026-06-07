@@ -763,3 +763,296 @@ Claude Code v2.1.152 introduced `disallowed-tools` frontmatter and iEvo implemen
 Codex v0.135.0 introduced named permission profiles via `/permissions` command (#21559) — a user can create a named profile (e.g., `ievo-security-scan`) that restricts the tool set available during a Codex session. While not frontmatter-level enforcement (the agent cannot self-impose the profile at skill activation time), a named profile is the closest Codex equivalent. A Codex user running `/ievo:security-check` can pre-activate their `ievo-security-scan` profile before the skill starts to achieve the same read-only enforcement.
 
 Concrete proposal: Add a Codex-specific section or compatibility callout to `security-check/SKILL.md` (currently 288 lines, well under the 500-line limit). The addition describes: (a) the parity gap (Claude Code gets `disallowed-tools` enforcement automatically; Codex users must set up a named permission profile manually); (b) how to create the profile in Codex via `/permissions`; (c) recommended tool restrictions (Read, Grep, Glob, WebFetch only — matches the security-auditor agent's `tools:` allowlist); (d) the instruction to activate it with `/permissions use ievo-security-scan` before running the skill. No scripts needed, no coverage obligation — pure SKILL.md documentation addition.
+
+---
+
+## F-2026-06-07-001 — Document `\$` escape syntax for SKILL.md literal dollar signs in AGENTS.md
+
+```yaml
+id: F-2026-06-07-001
+discovered_at: 2026-06-07T07:30:00Z
+run_id: $GITHUB_RUN_ID
+target_repo: ievo-ai/skills
+title: Document \$ escape syntax for literal dollar signs in SKILL.md body text (CC v2.1.163)
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/183
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.163 (2026-06-04) added \$ escape syntax for Skills commands — allows SKILL.md body text to include a literal $ without triggering $CLAUDE_SKILL_DIR/$CLAUDE_EFFORT/$CLAUDE_SESSION_ID variable substitution
+```
+
+# Proposal: Document `\$` escape syntax for SKILL.md body text in AGENTS.md
+
+## Summary
+
+Claude Code v2.1.163 introduced `\$` escape syntax for SKILL.md files. Contributors writing shell command examples in iEvo SKILL.md files currently have no documented way to include literal `$` characters without triggering variable substitution. This gap in AGENTS.md leaves contributors either accidentally triggering substitution or avoiding `$` entirely in examples.
+
+## Problem / Capability gap
+
+AGENTS.md § Skills format already states that `$CLAUDE_SKILL_DIR`, `$CLAUDE_EFFORT`, and `$CLAUDE_SESSION_ID` are dynamic substitution variables injected into SKILL.md body text at load time (added in v2.1.152). However, there is **no documentation of the complementary escape mechanism**: `\$` to write a literal dollar sign that is NOT substituted.
+
+This creates two failure modes for contributors:
+1. A contributor writes `echo $HOME` in a shell example → Claude Code replaces `$HOME` with the substituted value (or leaves it unresolved if `HOME` is not a recognized CC variable). The example becomes incorrect.
+2. A contributor avoids all `$` in shell examples → examples become unrealistic or use env-var-free workarounds.
+
+The missing half of the substitution story is `\$` — the escape that lets you write `echo \$HOME` to show a literal `$HOME` in an example without triggering substitution.
+
+## Evidence
+
+External signal triggering this proposal:
+- https://github.com/anthropics/claude-code/releases: v2.1.163 (2026-06-04) — `\$` escape syntax added for Skills commands. This is the official mechanism for writing literal dollar signs in SKILL.md body text.
+
+## Proposed solution
+
+Add a subsection to AGENTS.md § Skills format (after the current "Required frontmatter" line), titled "Dynamic variables and escape syntax":
+
+```markdown
+### Dynamic variables and escape syntax
+
+Claude Code injects three substitution variables into SKILL.md body text at load time:
+- `$CLAUDE_SKILL_DIR` — absolute path to the skill's directory
+- `$CLAUDE_EFFORT` — current session effort level (`low`/`medium`/`high`/`xhigh`/`max`)
+- `$CLAUDE_SESSION_ID` — unique session identifier
+
+To include a **literal `$`** in body text (e.g. in shell command examples that reference environment variables), use `\$`:
+
+```bash
+# This WILL trigger substitution (shows value of CLAUDE_EFFORT, not literal text):
+echo $CLAUDE_EFFORT
+
+# This shows a literal $HOME in the example without substitution:
+echo \$HOME
+```
+
+Available since Claude Code v2.1.152 (substitution variables) and v2.1.163 (`\$` escape).
+Note: Codex does not implement this mechanism — shell examples in skills targeting Codex should use placeholder notation (`<var>`) instead.
+```
+
+## Files affected
+
+| File | Change | Notes |
+|------|--------|-------|
+| `AGENTS.md` | modified | Add "Dynamic variables and escape syntax" subsection to § Skills format |
+
+## API / UX surface
+
+Documentation-only addition. No commands or hooks affected.
+
+## Acceptance criteria
+
+- [ ] AGENTS.md § Skills format documents `$CLAUDE_SKILL_DIR`, `$CLAUDE_EFFORT`, `$CLAUDE_SESSION_ID` as substitution variables
+- [ ] AGENTS.md documents `\$` as the escape for literal dollar signs with a concrete shell example
+- [ ] Notes minimum required CC version (v2.1.152 for substitution, v2.1.163 for `\$` escape)
+- [ ] Notes that Codex does not implement this mechanism (platform-specific)
+
+## Effort estimate
+
+- Scope: single-file
+- Effort: low (~15 min — 5-8 lines of markdown)
+- Risk: low (documentation-only)
+
+## Open questions for the operator
+
+- Should the substitution variables section also list `$CLAUDE_SESSION_ID` (added in v2.1.163 for stdio MCP servers — may or may not be injected in Skills body)?
+- Should existing iEvo SKILL.md files that have shell examples with `$` variables be updated to use `\$`?
+
+## Related
+
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/$GITHUB_RUN_ID
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: F-2026-06-07-001`
+
+---
+Filed by Eva research run $GITHUB_RUN_ID against `ievo-ai/eva` (research repo). Triage with `accepted` / `rejected` / `needs-discussion` labels.
+
+---
+
+## F-2026-06-07-002 — Add MITRE ATT&CK technique IDs to vuln-scan/SKILL.md output format alongside CWE cross-references
+
+```yaml
+id: F-2026-06-07-002
+discovered_at: 2026-06-07T07:30:00Z
+run_id: $GITHUB_RUN_ID
+target_repo: ievo-ai/skills
+title: Add MITRE ATT&CK technique ID cross-references to vuln-scan/SKILL.md output format alongside existing CWE taxonomy
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/184
+effort: medium
+scope: single-file
+evidence:
+  - https://www.anthropic.com/news: "AI-Enabled Cyber Threats Mapping" (2026-06-03) — Anthropic+MITRE ATT&CK collaboration demonstrating ATT&CK as the standard vocabulary for AI-era threat intelligence; directly adjacent to iEvo's supply-chain security scanning domain
+  - https://www.anthropic.com/research/glasswing-initial-update: Glasswing (extended to 150+ orgs June 2) uses structured vulnerability reporting with explicit attack chain validation — ATT&CK technique mapping is the natural companion to CWE-based weaknesses for attack chain reporting
+```
+
+# Proposal: Add MITRE ATT&CK technique IDs to `vuln-scan/SKILL.md` output format alongside CWE cross-references
+
+## Summary
+
+`vuln-scan/SKILL.md` currently classifies findings using CWE (Common Weakness Enumeration) IDs — software weakness taxonomy. MITRE ATT&CK (Adversarial Tactics, Techniques, and Common Knowledge) provides the complementary attack pattern taxonomy. Anthropic's June 3 collaboration with MITRE signals ATT&CK as the standard vocabulary for AI-era threat intelligence. Adding dual CWE + ATT&CK cross-references to each vuln-scan finding would make iEvo reports directly consumable by ATT&CK Navigator and security teams using ATT&CK-aligned tooling.
+
+## Problem / Capability gap
+
+`vuln-scan/SKILL.md` emits structured findings with `cwe_id` and a severity rating. This maps the *weakness* in the code (e.g., CWE-506 Embedded Malicious Code). But security operations teams often work with ATT&CK technique IDs, which map the *attacker behavior* — e.g., T1195.002 (Supply Chain Compromise: Software Supply Chain).
+
+For iEvo's specific supply-chain scanning context, the CWE → ATT&CK mapping is well-established:
+
+| Threat type | CWE | ATT&CK Technique |
+|-------------|-----|------------------|
+| Embedded malicious code in SKILL.md | CWE-506 | T1195.002 (Supply Chain Compromise: Software Supply Chain) |
+| Prompt injection via skill body | CWE-77 (Command Injection) | T1059.007 (Command and Scripting Interpreter) |
+| Credential exfiltration via hook | CWE-200 (Exposure of Sensitive Information) | T1552 (Unsecured Credentials) |
+| Hook abuse for persistence | CWE-829 (Inclusion of Functionality from Untrusted Control Sphere) | T1546 (Event Triggered Execution) |
+
+Without ATT&CK IDs in the output, a security team using ATT&CK Navigator cannot map iEvo findings to their threat model without manual translation.
+
+## Evidence
+
+External signal:
+- https://www.anthropic.com/news (June 3, 2026): "AI-Enabled Cyber Threats Mapping" — Anthropic + MITRE ATT&CK collaboration for mapping AI-enabled cyber threats. ATT&CK is confirmed as the standard vocabulary for AI-era threat classification.
+- https://www.anthropic.com/research/glasswing-initial-update: Project Glasswing uses structured vulnerability reporting with attack chain validation — the natural companion to CWE-based weaknesses for attack chain reporting is ATT&CK technique IDs.
+
+## Proposed solution
+
+Extend `vuln-scan/SKILL.md`'s finding output template to include `attack_technique` alongside `cwe_id`:
+
+```markdown
+**Finding:**
+- CWE: CWE-506 (Embedded Malicious Code)
+- ATT&CK: T1195.002 (Supply Chain Compromise: Compromise Software Supply Chain)
+- Severity: HIGH
+- Evidence: <file>:<line> — <description>
+- Exploit chain: <how an attacker would use this to compromise the user>
+```
+
+Add a mapping reference table in the skill body (or `references/attack-mapping.md`) that gives the vuln-scanner agent the CWE → ATT&CK translation for the supply-chain-specific threat types iEvo scans for. The agent selects the most appropriate technique(s) from the mapping when generating each finding.
+
+## Files affected
+
+| File | Change | Notes |
+|------|--------|-------|
+| `plugins/ievo/skills/vuln-scan/SKILL.md` | modified | Add `attack_technique` to output format template; add ATT&CK mapping reference |
+| `plugins/ievo/skills/vuln-scan/references/attack-mapping.md` | new (optional) | CWE → ATT&CK mapping table for supply-chain threat types; keeps SKILL.md body under 500 lines |
+
+## API / UX surface
+
+No new commands. The enhanced output appears in the structured finding report that vuln-scan/SKILL.md emits. Users who export findings to ATT&CK Navigator or SIEM tools get directly importable technique IDs.
+
+## Acceptance criteria
+
+- [ ] `vuln-scan/SKILL.md` output template includes `attack_technique: <T-ID> (<Technique Name>)` field for each finding
+- [ ] A mapping reference (inline table or `references/attack-mapping.md`) covers the top supply-chain threat types (T1195.002, T1059.007, T1552, T1546, T1190)
+- [ ] SKILL.md body remains ≤500 lines (use references/ for the full mapping table if needed)
+- [ ] Compatibility note mentions ATT&CK Enterprise framework version (currently v15)
+- [ ] Acceptance: at least one test run where vuln-scan produces a finding with both `cwe_id` and `attack_technique` populated
+
+## Effort estimate
+
+- Scope: single-file (or single-file + one new reference file)
+- Effort: medium (~2 hr — requires defining the CWE → ATT&CK mapping for iEvo's threat scope, updating the output template, testing with a known-malicious skill fixture)
+- Risk: low (additive change; no breaking changes to existing output consumers)
+
+## Open questions for the operator
+
+- Should the mapping cover only the top 5 supply-chain ATT&CK techniques, or should the vuln-scanner agent be instructed to select freely from the full ATT&CK Enterprise matrix?
+- Should ATT&CK Sub-technique IDs (T1195.002) be preferred over parent technique IDs (T1195) for specificity?
+- Is there an existing vuln-scan fixture that can serve as a test case for ATT&CK output?
+
+## Related
+
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/$GITHUB_RUN_ID
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: F-2026-06-07-002`
+- **Glasswing initial update:** https://www.anthropic.com/research/glasswing-initial-update — attack chain validation as part of structured vulnerability reporting
+
+---
+Filed by Eva research run $GITHUB_RUN_ID against `ievo-ai/eva` (research repo). Triage with `accepted` / `rejected` / `needs-discussion` labels.
+
+---
+
+## F-2026-06-07-003 — Document `MAX_THINKING_TOKENS=0` / `--thinking disabled` as cost-control for Opus evolution agent in AGENTS.md
+
+```yaml
+id: F-2026-06-07-003
+discovered_at: 2026-06-07T07:30:00Z
+run_id: $GITHUB_RUN_ID
+target_repo: ievo-ai/skills
+title: Document MAX_THINKING_TOKENS=0 / --thinking disabled as operator cost-control for Opus-based evolution agent in AGENTS.md
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/185
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.166 (2026-06-06) added MAX_THINKING_TOKENS=0 env var and --thinking disabled flag to disable extended thinking for Claude Opus 4.8 sessions
+  - https://github.com/anthropics/claude-code/releases: v2.1.154 (2026-05-28) introduced Opus 4.8 as the default for xhigh effort — Opus 4.8 uses extended thinking by default, which can significantly increase token consumption
+```
+
+# Proposal: Document `MAX_THINKING_TOKENS=0` / `--thinking disabled` as cost-control for Opus-based evolution agent in AGENTS.md
+
+## Summary
+
+The `evolution.md` agent uses `model: opus`. Claude Opus 4.8 (the current `opus` alias since v2.1.154) has extended thinking enabled by default, which can significantly increase token consumption for what is a mechanical task: appending a structured lesson to an overlay file. Claude Code v2.1.166 introduced `MAX_THINKING_TOKENS=0` (env var) and `--thinking disabled` (flag) to explicitly disable extended thinking. This should be documented in AGENTS.md alongside the existing `CLAUDE_CODE_SUBAGENT_MODEL` operator gotcha note, as it is a direct cost-control lever for the evolution agent.
+
+## Problem / Capability gap
+
+AGENTS.md § Security model documents the `CLAUDE_CODE_SUBAGENT_MODEL` env var as an "operator gotcha" — if set to a Haiku-tier value, it silently degrades security-auditor quality. By analogy, there is no corresponding documentation for the **opposite problem**: Opus 4.8's extended thinking may silently OVER-spend tokens on the evolution agent's mechanical task.
+
+The evolution agent's task:
+1. Classify the lesson scope (project / agent / skill)
+2. Locate or create the correct overlay file
+3. Append a structured markdown section
+
+This is a 50-100 token task that does not benefit from extended thinking. With Opus 4.8 defaulting to extended thinking, the evolution agent may spend 2,000-10,000 tokens thinking before executing.
+
+`MAX_THINKING_TOKENS=0` (set in the operator's environment or session) disables extended thinking for all Opus calls in that session. For iEvo operators who run frequent evolution captures, this is a meaningful cost control.
+
+**Relationship to issue #157 (`effort: low` frontmatter):** `effort: low` (proposed in #157, open) is the *advisory* signal — it tells Claude Code the desired reasoning depth. `MAX_THINKING_TOKENS=0` is the *hard constraint* — it prevents extended thinking regardless of the model's defaults. Both are complementary; `effort: low` is the right permanent fix in agent frontmatter; `MAX_THINKING_TOKENS=0` is the operator-side emergency brake available today.
+
+## Evidence
+
+External signal:
+- https://github.com/anthropics/claude-code/releases: v2.1.166 (2026-06-06) — `MAX_THINKING_TOKENS=0` env var and `--thinking disabled` flag disable extended thinking
+- https://github.com/anthropics/claude-code/releases: v2.1.154 (2026-05-28) — Opus 4.8 made default for xhigh effort; extended thinking is on by default for Opus 4.8
+
+## Proposed solution
+
+Add a bullet to AGENTS.md § Security model, after the existing `CLAUDE_CODE_SUBAGENT_MODEL` precedence note:
+
+```markdown
+**`MAX_THINKING_TOKENS=0` — evolution agent cost control.** The `evolution.md` agent uses `model: opus`. Claude Opus 4.8 (current `opus` alias since v2.1.154) has extended thinking enabled by default. The evolution task is mechanical (append structured text to an overlay file) and does not benefit from extended thinking. If you observe the evolution agent spending significantly more tokens than expected, set `MAX_THINKING_TOKENS=0` in your environment or use `--thinking disabled` (added in v2.1.166) to disable extended thinking for Opus calls in that session. Note: this disables thinking globally for the session, not just for the evolution agent. The permanent fix is `effort: low` in `evolution.md` frontmatter (tracked in ievo-ai/skills#157).
+```
+
+## Files affected
+
+| File | Change | Notes |
+|------|--------|-------|
+| `AGENTS.md` | modified | Add thinking-disable note in § Security model after CLAUDE_CODE_SUBAGENT_MODEL bullet |
+
+## API / UX surface
+
+Documentation-only. The actual `MAX_THINKING_TOKENS=0` mechanism is a Claude Code env var / flag, not an iEvo API change.
+
+## Acceptance criteria
+
+- [ ] AGENTS.md § Security model documents `MAX_THINKING_TOKENS=0` and `--thinking disabled` as operator cost controls
+- [ ] Note explains why the evolution agent is the target (Opus, mechanical task, extended thinking mismatch)
+- [ ] Note includes minimum version for the feature (v2.1.166)
+- [ ] Note correctly describes the scope (session-wide, not agent-specific) and the permanent fix (`effort:` in frontmatter, #157)
+
+## Effort estimate
+
+- Scope: single-file
+- Effort: low (~15 min — 4-6 lines of markdown)
+- Risk: low (documentation-only)
+
+## Open questions for the operator
+
+- Should the note also mention `--thinking disabled` CLI flag as the non-env-var alternative?
+- Should the note reference the Codex equivalent if one exists (no Codex thinking-disable mechanism known as of this run)?
+
+## Related
+
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/$GITHUB_RUN_ID
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: F-2026-06-07-003`
+- **ievo-ai/skills#157** — `effort: low` frontmatter for evolution agent (complementary permanent fix)
+
+---
+Filed by Eva research run $GITHUB_RUN_ID against `ievo-ai/eva` (research repo). Triage with `accepted` / `rejected` / `needs-discussion` labels.
