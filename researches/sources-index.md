@@ -63,14 +63,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-08T00:00:00Z
 status: changed
-run_id: 26806183547
+run_id: null
 ```
 
-**Summary:** v2.1.160 (2026-06-02) — `acceptEdits` now prompts for `.pre-commit-config.yaml` + other build-tool configs; Dynamic Workflow trigger renamed `workflow` → `ultracode`; single-file grep satisfies read-before-edit; shell startup file write prompts. v2.1.157 (2026-05-29) — plugins in `.claude/skills/` auto-loaded, `claude plugin init` scaffolds plugins, `agent:` field in settings.json honored for dispatched sessions. v2.1.154 (2026-05-28) — Claude Opus 4.8 default for xhigh effort, Dynamic Workflows feature (tens-to-hundreds of background agents via /workflows), `defaultEnabled: false` in plugin.json, `! <command>` background agent execution. v2.1.153 (2026-05-28) — subagent MCP enforcement fixed (--strict-mcp-config now applies); /model saves as default for new sessions; Status line commands get COLUMNS/LINES env vars. v2.1.152 (2026-05-27) — `disallowed-tools` frontmatter, MessageDisplay hook, SessionStart enhancements, /reload-skills.
+**Summary:** v2.1.168 (2026-06-06) — bug fixes. v2.1.167 (2026-06-06) — bug fixes. v2.1.166 (2026-06-06) — `fallbackModel` setting (already covered by open issue #180); glob patterns in deny rules; thinking controls (`MAX_THINKING_TOKENS=0`, covered by #185); cross-session security improvements. v2.1.165 (2026-06-05) — bug fixes. v2.1.163 (2026-06-04) — `/plugin list` command (covered by #182); `hookSpecificOutput.additionalContext` (covered by #178); skill `\$` escape syntax (covered by #183); `requiredMinimumVersion`/`requiredMaximumVersion` managed settings (covered by #181). v2.1.162 (2026-06-03) — `claude agents --json waitingFor` field for polling agent state; `/effort` level now **persists between sessions** (triggered F-2026-06-08-002); WebFetch permission rule fixes. v2.1.161 (2026-06-02) — `OTEL_RESOURCE_ATTRIBUTES` labels (covered by #171); `isolation: "worktree"` fixes for workflow agents; Linux clipboard tools.
 
 History:
+- 2026-06-08T00:00:00Z — changed: v2.1.161–168; /effort persistence (v2.1.162) triggered F-2026-06-08-002; v2.1.163 /plugin list + hookSpecificOutput.additionalContext + $\ escape; v2.1.166 fallbackModel+thinking-controls already in #180+#185
 - 2026-06-02T08:04:18Z — changed: v2.1.153 through v2.1.160; v2.1.160 acceptEdits for .pre-commit-config.yaml (triggered F-2026-06-02-002); v2.1.157 .claude/skills/ auto-load + claude plugin init; v2.1.154 Opus 4.8 + Dynamic Workflows + defaultEnabled; v2.1.153 MCP enforcement fix
 - 2026-06-01T08:08:22Z — changed: v2.1.152–159; disallowed-tools+/reload-skills+SessionStart reloadSkills (152); Dynamic Workflows+defaultEnabled (154); .claude/skills auto-load+agent: settings.json (157)
 - 2026-05-31T00:00:00Z — changed: v2.1.158 Auto mode Bedrock/Vertex; v2.1.157 plugin auto-load from .claude/skills/, plugin init scaffolding; v2.1.154 Dynamic Workflows + Opus 4.8; v2.1.152 disallowed-tools + SessionStart reloadSkills + MessageDisplay hook
@@ -147,14 +148,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-08T00:00:00Z
 status: changed
-run_id: 26806183547
+run_id: null
 ```
 
-**Summary:** rust-v0.136.0 (2026-06-01) — hook output event schema tightened (breaking for parsers, triggered F-2026-06-02-001); runtime extra skill roots API (#24977); multi-agent assignment tool renamed (breaking); /archive slash command for session archiving; security hardening (/diff no longer runs repo Git helpers, exec-server rejects Origin-header websocket requests); memories moved to SQLite (0.136). rust-v0.135.0 (2026-05-28) — named permission profiles in /permissions (#21559, triggered F-2026-06-02-003); thread-idle lifecycle hook (#24744, covered by open #165); new ad-hoc memory note tool; Python SDK sandbox presets; codex doctor expanded diagnostics; non-interactive install support.
+**Summary:** rust-v0.137.0 (2026-06-04) — machine-readable `codex plugin list --json` (covered by open #182); cached remote catalog suggestions; Multi-agent v2 (cleaner follow-up defaults for spawned agents); remote-control RPC; **plugin loading now treats malformed skill frontmatter fields as warnings (not errors)** — triggered F-2026-06-08-001; permission requests carry environment identity. rust-v0.136.0 (2026-06-01) — hook output event schema tightened (breaking for parsers, triggered F-2026-06-02-001); /archive slash command; security hardening. rust-v0.135.0 (2026-05-28) — named permission profiles (covered by F-2026-06-02-003); thread-idle hook (covered by open #165).
 
 History:
+- 2026-06-08T00:00:00Z — changed: rust-v0.137.0 (plugin loading warns on malformed fields → triggered F-2026-06-08-001; codex plugin list --json covered by #182; multi-agent v2; permission identity)
 - 2026-06-02T08:04:18Z — changed: rust-v0.135.0 (named permission profiles, thread-idle hook) + rust-v0.136.0 (hook schema tightening — breaking, runtime skill roots API, /archive); triggered F-2026-06-02-001, F-2026-06-02-003
 - 2026-06-01T08:08:22Z — changed: v0.134.0 stable (subagent identity in hooks, function tools default); v0.135.0 (thread idle hook, named profiles); v0.136.0 alpha
 - 2026-05-31T00:00:00Z — changed: v0.135.0 (May 28); subagent identity in hook inputs; extensions get richer conversation context; Python SDK Sandbox presets
@@ -193,14 +195,15 @@ History:
 ## https://agentskills.io/specification
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-08T00:00:00Z
 status: unchanged
-run_id: 26806183547
+run_id: null
 ```
 
-**Summary:** Required fields: `name` + `description` (≤1024 chars). Optional: `license`, `compatibility`, `metadata`, `allowed-tools` (experimental, space-separated pre-approved tools). `name` max 64 chars, lowercase alphanumeric+hyphens, no consecutive hyphens, must match directory. Progressive disclosure: metadata ~100 tokens at startup, full body on activation, referenced files on demand. Body ≤500 lines. Spec stable. Note: `disallowed-tools` and `effort:` (both Claude Code conventions) are NOT yet in the official agentskills.io spec.
+**Summary:** Required fields: `name` + `description` (≤1024 chars). Optional: `license`, `compatibility`, `metadata`, `allowed-tools` (experimental, space-separated pre-approved tools). `name` max 64 chars, lowercase alphanumeric+hyphens, no consecutive hyphens, must match directory. Progressive disclosure: metadata ~100 tokens at startup, full body on activation, referenced files on demand. Body ≤500 lines. Spec stable. Note: `disallowed-tools`, `effort:`, `when_to_use`, `argument-hint`, `paths`, `skillOverrides`, and `model:` are NOT in the official agentskills.io spec (all Claude Code/Codex extensions).
 
 History:
+- 2026-06-08T00:00:00Z — unchanged: re-fetched via research agent; no new fields; when_to_use/argument-hint/paths/skillOverrides all confirmed absent from spec; allowed-tools still marked experimental
 - 2026-06-02T08:04:18Z — unchanged: spec stable; fetched (HTML too large to parse fully but no new fields detected based on ievo-ai/skills AGENTS.md spec references which are current)
 - 2026-06-01T08:08:22Z — unchanged: spec stable; PRs #380, #386, #345 still open and pending
 - 2026-05-31T00:00:00Z — unchanged: spec stable; PRs #380 (versioning), #386 (UTF-8 fix), #345 (Unicode name) all still open; no spec changes

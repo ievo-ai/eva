@@ -763,3 +763,80 @@ Claude Code v2.1.152 introduced `disallowed-tools` frontmatter and iEvo implemen
 Codex v0.135.0 introduced named permission profiles via `/permissions` command (#21559) — a user can create a named profile (e.g., `ievo-security-scan`) that restricts the tool set available during a Codex session. While not frontmatter-level enforcement (the agent cannot self-impose the profile at skill activation time), a named profile is the closest Codex equivalent. A Codex user running `/ievo:security-check` can pre-activate their `ievo-security-scan` profile before the skill starts to achieve the same read-only enforcement.
 
 Concrete proposal: Add a Codex-specific section or compatibility callout to `security-check/SKILL.md` (currently 288 lines, well under the 500-line limit). The addition describes: (a) the parity gap (Claude Code gets `disallowed-tools` enforcement automatically; Codex users must set up a named permission profile manually); (b) how to create the profile in Codex via `/permissions`; (c) recommended tool restrictions (Read, Grep, Glob, WebFetch only — matches the security-auditor agent's `tools:` allowlist); (d) the instruction to activate it with `/permissions use ievo-security-scan` before running the skill. No scripts needed, no coverage obligation — pure SKILL.md documentation addition.
+
+---
+
+## F-2026-06-08-001 — Document Codex v0.137.0 malformed-skill-field warnings in AGENTS.md pre-commit section
+
+```yaml
+id: F-2026-06-08-001
+discovered_at: 2026-06-08T00:00:00Z
+run_id: null
+target_repo: ievo-ai/skills
+title: Document Codex v0.137.0 malformed-skill-field warning behavior in AGENTS.md — validate_skills.mjs is now the sole hard enforcement point for Codex users
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/186
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/openai/codex/releases: rust-v0.137.0 (2026-06-04) "Plugin loading preserves manifest order and treats malformed skill fields as warnings" — breaking change from prior error behavior
+```
+
+Codex rust-v0.137.0 (2026-06-04) changed skill-loading behavior: malformed SKILL.md frontmatter fields (e.g., invalid characters in `name:`, `description:` over 1024 chars, values that violate spec constraints) now produce **warnings** instead of **errors** at load time. Prior to v0.137.0, Codex would reject a skill with malformed fields; now it loads with a warning, silently degrading iEvo's quality guarantee for Codex users.
+
+This makes `validate_skills.mjs` (running in CI and pre-commit) the **sole hard enforcement gate** — the validator's exit code 1 is the only mechanism that prevents a malformed iEvo skill from reaching Codex users. The AGENTS.md pre-commit section currently says "adding a new validator: drop a `.mjs` in `.github/scripts/validators/`" but does not document why this gate is critical for Codex users specifically.
+
+Proposed change: Add one paragraph to the AGENTS.md "Pre-commit hooks + workflow gate" section (after the validator list) documenting: (a) Codex v0.137.0 behavior change (warnings, not errors, for malformed skill fields); (b) consequence: validate_skills.mjs CI gate is the last hard enforcement point before broken skills reach Codex users; (c) implication for contributors: CI failures from validate_skills.mjs on Codex skill fields must be fixed before merge — Codex will not reject the skill itself. No scripts required, no coverage obligation — pure AGENTS.md documentation addition.
+
+---
+
+## F-2026-06-08-002 — Upgrade validate_skills.mjs missing-effort: check from warning to error
+
+```yaml
+id: F-2026-06-08-002
+discovered_at: 2026-06-08T00:00:00Z
+run_id: null
+target_repo: ievo-ai/skills
+title: Upgrade validate_skills.mjs missing effort: field from warning to error — Claude Code v2.1.162 effort persistence makes inherited session effort a real risk
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/187
+effort: low
+scope: multi-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.162 (2026-06-03) "/effort persistence" — effort level set via /effort now persists across sessions, not just within a session
+  - https://code.claude.com/docs/en/skills.md: effort: documented as first-class SKILL.md frontmatter (low/medium/high/xhigh/max); overrides session effort when skill activates
+```
+
+Claude Code v2.1.162 made the `/effort` level persistent between sessions. Previously, effort set in one session reset when the session ended. Now it persists: if a user sets `effort: max` for a deep research session, that effort level carries into their next session.
+
+Currently, `validate_skills.mjs` warns (not errors) when `effort:` is absent from a SKILL.md file. This means a new skill added without `effort:` passes CI and can be installed. When installed and activated in a session where the user persisted a high effort level (e.g., `max` from a prior workflow run), that skill inherits the max effort level — causing unexpectedly high token consumption for skills intended to be lightweight (e.g., `evolution` appending a lesson).
+
+The risk is already partially mitigated: all 14 current iEvo SKILL.md files declare `effort:` (added in v0.6.24, verified by compliance ledger v0.12.0). But new skills added without it pass validation silently. Upgrading from warning to error ensures any future SKILL.md without `effort:` fails CI and cannot be merged.
+
+**Files affected:**
+
+| File | Change | Notes |
+|------|--------|-------|
+| `plugins/ievo/scripts/validate_skills.mjs` | Change `severity: "warning"` → `"error"` in `checkEffortField()` | ~1 line change |
+| `plugins/ievo/scripts/tests/validate_skills.test.mjs` | Update test assertions for absent-effort path | from `assertWarning` → `assertError` |
+| `plugins/ievo/scripts/validate_skills.mjs` line 11 comment | Update "warns on absent" → "errors on absent" | doc fix |
+
+**API / UX surface:** CI behavior change only — new SKILL.md without `effort:` now fails `pre-commit-gate.yml`. No user-facing change for existing skills (all 14 already have effort:).
+
+**Acceptance criteria:**
+- [ ] `checkEffortField()` returns `severity: "error"` when `effort:` field is absent
+- [ ] `validate_skills.test.mjs` test for absent effort: asserts error severity (not warning)
+- [ ] All 14 existing iEvo SKILL.md files continue to pass validation (no regressions)
+- [ ] AGENTS.md compliance ledger comment updated to reflect "errors on absent"
+- [ ] 100% test coverage maintained for `validate_skills.mjs`
+
+**Effort estimate:** low (~15 min). 1-3 line change in validate_skills.mjs + test assertion update + comment fix.
+
+**Open questions:**
+- Should the upgrade also add `effort:` to the agentskills.io required-fields list in the `yaml-frontmatter.mjs` validator? Currently yaml-frontmatter.mjs only validates `name:` and `description:` as required. Adding `effort:` there would be a second enforcement layer but `effort:` is not in the agentskills.io spec (CC extension only). Recommendation: no — keep agentskills.io-spec validation in yaml-frontmatter.mjs and CC-specific validation in validate_skills.mjs.
+
+**Related:**
+- **Backlog entry:** `researches/findings-backlog.md` — search for `id: F-2026-06-08-002`
+- **Prior finding that added effort: validation:** ievo-ai/skills#141 (F-2026-05-27-003, closed via v0.12.0)
+- **Prior finding that added effort: to all SKILL.md files:** ievo-ai/skills#83 (F-2026-05-25-001, closed via v0.6.24)
+- **trigger:** Claude Code v2.1.162 effort: persistence
