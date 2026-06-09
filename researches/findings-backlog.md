@@ -763,3 +763,73 @@ Claude Code v2.1.152 introduced `disallowed-tools` frontmatter and iEvo implemen
 Codex v0.135.0 introduced named permission profiles via `/permissions` command (#21559) — a user can create a named profile (e.g., `ievo-security-scan`) that restricts the tool set available during a Codex session. While not frontmatter-level enforcement (the agent cannot self-impose the profile at skill activation time), a named profile is the closest Codex equivalent. A Codex user running `/ievo:security-check` can pre-activate their `ievo-security-scan` profile before the skill starts to achieve the same read-only enforcement.
 
 Concrete proposal: Add a Codex-specific section or compatibility callout to `security-check/SKILL.md` (currently 288 lines, well under the 500-line limit). The addition describes: (a) the parity gap (Claude Code gets `disallowed-tools` enforcement automatically; Codex users must set up a named permission profile manually); (b) how to create the profile in Codex via `/permissions`; (c) recommended tool restrictions (Read, Grep, Glob, WebFetch only — matches the security-auditor agent's `tools:` allowlist); (d) the instruction to activate it with `/permissions use ievo-security-scan` before running the skill. No scripts needed, no coverage obligation — pure SKILL.md documentation addition.
+
+---
+
+## F-2026-06-09-001 — Document CC v2.1.169 `--safe-mode` / `CLAUDE_CODE_SAFE_MODE` as complete iEvo bypass vector in AGENTS.md and security-check/SKILL.md
+
+```yaml
+id: F-2026-06-09-001
+discovered_at: 2026-06-09T07:30:00Z
+run_id: null
+target_repo: ievo-ai/skills
+title: Document CC v2.1.169 --safe-mode / CLAUDE_CODE_SAFE_MODE as complete iEvo bypass vector in AGENTS.md security model and security-check/SKILL.md
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/189
+effort: low
+scope: multi-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.169 "Added --safe-mode flag (and CLAUDE_CODE_SAFE_MODE) to start Claude Code with all customizations (CLAUDE.md, plugins, skills, hooks, MCP servers) disabled for troubleshooting"
+```
+
+Claude Code v2.1.169 introduced `--safe-mode` (and the `CLAUDE_CODE_SAFE_MODE` environment variable) which disables ALL customizations when Claude Code starts — including CLAUDE.md, plugins, skills, hooks, and MCP servers. This is a new meta-level bypass that completely neutralizes iEvo. Unlike previously documented bypass vectors (`CLAUDE_CODE_SUBAGENT_MODEL` degrades model quality, `fallbackModel` routes to a weaker model, `agent:` settings.json overrides per-dispatch model, `skillOverrides` alters skill behavior) — `--safe-mode` removes iEvo from the session entirely. Every iEvo security protection drops: `disallowed-tools` frontmatter in `security-check/SKILL.md` is moot (the skill never loads), hooks configured via `hooks-setup` don't fire, the `security-auditor` sub-agent is unreachable, and all slash commands vanish.
+
+The AGENTS.md security model section currently lists `CLAUDE_CODE_SUBAGENT_MODEL` as an operator gotcha. `--safe-mode` is a MORE severe gotcha (total bypass vs quality degradation) and should be listed first. The `security-check/SKILL.md` should add a preflight compatibility note: if the user is running in safe mode, the skill's disallowed-tools and sub-agent dispatch both fail silently.
+
+Additionally, `hooks-setup/SKILL.md` should note that configured hooks (PostToolUse, Stop, SessionStart) do not fire in safe mode — users who rely on the hook-based completion notification for parallel security scans won't receive it.
+
+**Files affected:**
+
+| File | Change | Notes |
+|------|--------|-------|
+| `AGENTS.md` | Add `--safe-mode` / `CLAUDE_CODE_SAFE_MODE` bullet to security model section | Place before existing `CLAUDE_CODE_SUBAGENT_MODEL` bullet (severity-ordered) |
+| `plugins/ievo/skills/security-check/SKILL.md` | Add compatibility note in skill body | One sentence: "Note: `--safe-mode` or `CLAUDE_CODE_SAFE_MODE=1` disables this skill entirely — all `disallowed-tools` constraints and sub-agent dispatch are inactive in safe mode" |
+| `plugins/ievo/skills/hooks-setup/SKILL.md` | Add safe-mode caveat to hooks table | One sentence in the hooks-type table or a standalone note |
+
+---
+
+## F-2026-06-09-002 — Document CC v2.1.169 `disableBundledSkills` / `CLAUDE_CODE_DISABLE_BUNDLED_SKILLS` — iEvo plugin skills survive it, unlike `--safe-mode`
+
+```yaml
+id: F-2026-06-09-002
+discovered_at: 2026-06-09T07:30:00Z
+run_id: null
+target_repo: ievo-ai/skills
+title: Document CC v2.1.169 disableBundledSkills / CLAUDE_CODE_DISABLE_BUNDLED_SKILLS — clarify iEvo plugin skills survive it (unlike --safe-mode) for minimal-skills-environment operators
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/190
+effort: low
+scope: multi-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.169 "Added a disableBundledSkills setting and CLAUDE_CODE_DISABLE_BUNDLED_SKILLS environment variable to hide bundled skills, workflows, and built-in slash commands from the model"
+```
+
+Claude Code v2.1.169 introduced `disableBundledSkills` setting and `CLAUDE_CODE_DISABLE_BUNDLED_SKILLS` environment variable. When set, Claude Code hides its own bundled skills (e.g., built-in `/review`, `/help`, default workflows), built-in workflows, and built-in slash commands from the model. Crucially, plugin-installed skills — including iEvo's — are NOT bundled skills and therefore survive this setting.
+
+This creates a meaningful operator pattern: an organization that sets `disableBundledSkills=true` to reduce cognitive load / token usage from built-in skills RETAINS full iEvo coverage. Their security-check, evolution, init, and all other iEvo skills continue to work. This is the opposite of `--safe-mode` (which disables everything including plugins).
+
+Without documentation, operators who discover `disableBundledSkills` may mistakenly assume it also disables iEvo, and either: (a) not set it when they should, because they need iEvo; or (b) set it and assume iEvo is off, providing false confidence that they're running a "clean" environment.
+
+The AGENTS.md security model section (where `CLAUDE_CODE_SUBAGENT_MODEL` and the proposed `--safe-mode` note live) is the canonical place for this. A note should clarify:
+- `disableBundledSkills=true` → iEvo plugin skills **remain active** (plugin-installed, not bundled)
+- `--safe-mode` → iEvo plugin skills **are disabled** (safe mode is total)
+- This distinction is critical for operators designing minimal-environment deployments
+
+A companion note in README.md ("iEvo skills are plugin-installed, not bundled — they remain active when `disableBundledSkills` is enabled") helps users who discover the setting in the Claude Code docs and wonder about iEvo.
+
+**Files affected:**
+
+| File | Change | Notes |
+|------|--------|-------|
+| `AGENTS.md` | Add `disableBundledSkills` / `CLAUDE_CODE_DISABLE_BUNDLED_SKILLS` note to security model section | Pair with `--safe-mode` note from F-2026-06-09-001; clarify plugin vs bundled distinction |
+| `README.md` | Add one-line note under "Installation" or "Compatibility" section | "iEvo skills are plugin-installed; they survive `disableBundledSkills=true` (unlike `--safe-mode` which disables plugins too)" |
