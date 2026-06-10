@@ -763,3 +763,101 @@ Claude Code v2.1.152 introduced `disallowed-tools` frontmatter and iEvo implemen
 Codex v0.135.0 introduced named permission profiles via `/permissions` command (#21559) — a user can create a named profile (e.g., `ievo-security-scan`) that restricts the tool set available during a Codex session. While not frontmatter-level enforcement (the agent cannot self-impose the profile at skill activation time), a named profile is the closest Codex equivalent. A Codex user running `/ievo:security-check` can pre-activate their `ievo-security-scan` profile before the skill starts to achieve the same read-only enforcement.
 
 Concrete proposal: Add a Codex-specific section or compatibility callout to `security-check/SKILL.md` (currently 288 lines, well under the 500-line limit). The addition describes: (a) the parity gap (Claude Code gets `disallowed-tools` enforcement automatically; Codex users must set up a named permission profile manually); (b) how to create the profile in Codex via `/permissions`; (c) recommended tool restrictions (Read, Grep, Glob, WebFetch only — matches the security-auditor agent's `tools:` allowlist); (d) the instruction to activate it with `/permissions use ievo-security-scan` before running the skill. No scripts needed, no coverage obligation — pure SKILL.md documentation addition.
+
+---
+
+## F-2026-06-10-001 — Add `fable` vendor-neutral model alias to validate_agents.mjs and AGENTS.md
+
+```yaml
+id: F-2026-06-10-001
+discovered_at: 2026-06-10T07:44:14Z
+run_id: 27261055355
+target_repo: ievo-ai/skills
+title: Add fable vendor-neutral alias to validate_agents.mjs ALLOWED_MODELS and AGENTS.md (Claude Fable 5 / v2.1.170)
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/191
+effort: low
+scope: multi-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.170 (2026-06-09) — "Introducing Claude Fable 5" (Mythos-class model); vendor-neutral alias for Fable family not yet included in validate_agents.mjs ALLOWED_MODELS
+  - plugins/ievo/scripts/validate_agents.mjs: ALLOWED_MODELS = new Set(["sonnet", "opus", "haiku", "inherit"]) — line 23; fable absent; any agent declaring model: fable fails validation with "not in allowed aliases" error
+```
+
+Claude Code v2.1.170 (2026-06-09) introduces Claude Fable 5, a new "Mythos-class" model. The `validate_agents.mjs` script currently enforces a strict ALLOWED_MODELS allowlist: `["sonnet", "opus", "haiku", "inherit"]`. Because `fable` is not in this set, any iEvo agent that tries to declare `model: fable` (to leverage Fable 5's capabilities) will fail pre-commit validation with the error: `model: fable not in allowed aliases. Use one of: sonnet, opus, haiku, inherit.`
+
+This blocks the ecosystem from evolving to use Fable 5 until the validator is updated. Per AGENTS.md's "Universal positioning" rule, the goal of vendor-neutral aliases is to allow the host platform to resolve the alias to its appropriate model. Adding `fable` as a valid alias follows the same pattern used for `sonnet`/`opus`/`haiku` — allowing any future iEvo agent author to declare `model: fable` and have it work on any agent host that supports Fable 5 or its equivalent.
+
+Additionally, AGENTS.md "Agent `model:` frontmatter" section documents the allowed values but does not list `fable`. A contributor reading the docs would not know `fable` is (or should be) valid, and the validator would not help them discover it either.
+
+The fix spans three files:
+1. `plugins/ievo/scripts/validate_agents.mjs` — add `"fable"` to ALLOWED_MODELS set
+2. `AGENTS.md` — add `fable` to the "Allowed values" bullet list with a description ("Fable family — Mythos-class reasoning")
+3. `plugins/ievo/scripts/tests/validate_agents.test.mjs` — add test cases for (a) `model: fable` passing validation, (b) `model: fable-5` failing (version-pinned), (c) `model: claude-fable-5` failing (vendor-specific ID)
+
+A version bump in all 4 manifests + CHANGELOG entry is required per AGENTS.md conventions.
+
+---
+
+## F-2026-06-10-002 — Document Codex v0.138.0 `/app` desktop handoff command in handoff/SKILL.md
+
+```yaml
+id: F-2026-06-10-002
+discovered_at: 2026-06-10T07:44:14Z
+run_id: 27261055355
+target_repo: ievo-ai/skills
+title: Document Codex v0.138.0 /app CLI-to-Desktop handoff command in handoff/SKILL.md as Codex-native alternative
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/192
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/openai/codex/releases: rust-v0.138.0 (2026-06-08) — "Desktop handoff: /app command can hand off CLI to Codex Desktop" — transfers CLI session context to Codex Desktop GUI without manual copy-paste
+  - plugins/ievo/skills/handoff/SKILL.md: current skill produces a Markdown file for manual copy-paste into a new session; no platform-specific CLI-to-Desktop handoff mechanism documented
+```
+
+Codex rust-v0.138.0 (2026-06-08) introduced an `/app` command that directly transfers a CLI session to Codex Desktop. This is a native Codex handoff mechanism distinct from iEvo's current `handoff/SKILL.md` approach (which produces a Markdown file for manual copy-paste into a fresh session).
+
+The `handoff/SKILL.md` description states: "Compact the current conversation into a portable handoff document for a fresh agent session." The compatibility field says: "Works on any agent platform that supports the agentskills.io standard." For Codex users on v0.138.0+, the `/app` command provides a superior handoff path that:
+1. Preserves full session state (not just a Markdown summary)
+2. Requires no manual copy-paste
+3. Opens the target environment immediately
+
+The gap: `handoff/SKILL.md` doesn't document `/app` as an alternative for Codex users, so Codex users running `/ievo:handoff` go through the Markdown-file path even when a native desktop handoff is available.
+
+Concrete proposal: Add a "Platform-specific alternatives" section or compatibility callout to `handoff/SKILL.md` that:
+(a) Notes that Codex v0.138.0+ users may prefer `/app` for direct CLI-to-Desktop handoff when switching to a GUI session
+(b) Explains when iEvo's Markdown handoff is still preferred: cross-platform context transfer, asynchronous handoffs, archiving a session's context for future reference
+(c) Notes the tradeoff: `/app` preserves raw session state; iEvo handoff produces a curated brief (distilled context, not a transcript dump) — both have legitimate use cases
+
+No scripts required, no test coverage obligation. Pure documentation addition to `handoff/SKILL.md` (currently well under 500 lines). Version bump in 4 manifests + CHANGELOG entry required per AGENTS.md.
+
+---
+
+## F-2026-06-10-003 — Document CC v2.1.169 `/cd` command in init/SKILL.md for multi-directory install workflows
+
+```yaml
+id: F-2026-06-10-003
+discovered_at: 2026-06-10T07:44:14Z
+run_id: 27261055355
+target_repo: ievo-ai/skills
+title: Document Claude Code v2.1.169 /cd command in init/SKILL.md for prompt-cache-safe directory switching during install
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/193
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.169 (2026-06-08) — "Added /cd command for directory changes without breaking prompt cache" — lets users switch working directories mid-session without invalidating the accumulated context/cache
+  - plugins/ievo/skills/init/SKILL.md: multi-stage init pipeline (security-check → install → index-repos) operates across at least two directories (~/.claude/skills/<name>/ for install, project dir for indexing); current skill body has no guidance on directory switching
+```
+
+Claude Code v2.1.169 (2026-06-08) added a `/cd <path>` command that changes the working directory during a session WITHOUT breaking the prompt cache. Before this, using `Bash(cd ...)` or standard shell directory changes would invalidate the accumulated prompt cache, making long multi-directory operations expensive.
+
+The `/ievo:init` skill orchestrates a 6-stage pipeline where Stage 1 (discover/assess candidates) and Stage 3 (install to `~/.claude/skills/<name>/`) happen at the global scope, while Stage 4 (configure `.claude/settings.json`) and Stage 6 (run /ievo:security-check and /ievo:index-repos) operate in the project directory. Currently, if a user starts init from a non-project directory (e.g., `~/Desktop`) and needs to switch to their project mid-pipeline, there's no documented guidance on the best way to change directories without losing cache efficiency.
+
+With `/cd` available in v2.1.169+, the init skill can explicitly recommend using `/cd <project-dir>` before Stage 4 to ensure project-scoped operations target the correct directory, while keeping the prompt cache intact (avoiding the cost of re-establishing context after a cache break).
+
+Concrete proposal: Add a short note to `init/SKILL.md` in the Stage 4 or "Prerequisites" section:
+- "If you need to switch to your project directory mid-pipeline, use `/cd <project-path>` (Claude Code v2.1.169+) instead of `cd` in a Bash tool call — `/cd` preserves the prompt cache, keeping long-running init sessions efficient."
+- Minimum version note: v2.1.169 (June 2026); fallback for earlier versions: use `Bash(cd <path> && <command>)` pattern to minimize cache breaks.
+
+No scripts required, no test coverage obligation. Single-file documentation addition to `init/SKILL.md`. Version bump in 4 manifests + CHANGELOG entry required per AGENTS.md.
