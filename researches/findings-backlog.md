@@ -763,3 +763,78 @@ Claude Code v2.1.152 introduced `disallowed-tools` frontmatter and iEvo implemen
 Codex v0.135.0 introduced named permission profiles via `/permissions` command (#21559) — a user can create a named profile (e.g., `ievo-security-scan`) that restricts the tool set available during a Codex session. While not frontmatter-level enforcement (the agent cannot self-impose the profile at skill activation time), a named profile is the closest Codex equivalent. A Codex user running `/ievo:security-check` can pre-activate their `ievo-security-scan` profile before the skill starts to achieve the same read-only enforcement.
 
 Concrete proposal: Add a Codex-specific section or compatibility callout to `security-check/SKILL.md` (currently 288 lines, well under the 500-line limit). The addition describes: (a) the parity gap (Claude Code gets `disallowed-tools` enforcement automatically; Codex users must set up a named permission profile manually); (b) how to create the profile in Codex via `/permissions`; (c) recommended tool restrictions (Read, Grep, Glob, WebFetch only — matches the security-auditor agent's `tools:` allowlist); (d) the instruction to activate it with `/permissions use ievo-security-scan` before running the skill. No scripts needed, no coverage obligation — pure SKILL.md documentation addition.
+
+---
+
+## F-2026-06-11-001 — Document sub-agent nesting (CC v2.1.172, up to 5 levels) in AGENTS.md Pipeline section
+
+```yaml
+id: F-2026-06-11-001
+discovered_at: 2026-06-11T08:02:27Z
+run_id: 27332320368
+target_repo: ievo-ai/skills
+title: Document CC v2.1.172 sub-agent nesting support (up to 5 levels) in AGENTS.md and note design implications for vuln-scan orchestrator
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/194
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.172 (June 10, 2026) "Sub-agents can now spawn their own sub-agents (up to 5 levels deep)"
+  - https://code.claude.com/docs/en/sub-agents: prior documentation stated "No agent nesting" — now superseded by v2.1.172
+```
+
+Claude Code v2.1.172 (June 10, 2026) enables sub-agents to spawn their own sub-agents, up to 5 levels deep. This is a fundamental change to the sub-agent architecture that the iEvo AGENTS.md Pipeline section does not document. The prior official CC sub-agents documentation stated "No agent nesting" — this constraint is now lifted.
+
+iEvo currently dispatches parallel sub-agents at one level (init → security-auditor + repo-indexer in parallel). The pending vuln-scan orchestrator (issue #110) could leverage 3-level nesting: (1) orchestrator enumerates modules, (2) per-module `vuln-scanner` sub-agents run exploit-chain analysis, (3) each vuln-scanner spawns per-finding exploit-validator sub-agents for high-severity findings. This architecture would not have been possible before v2.1.172.
+
+Proposed change: Add 4-5 lines to AGENTS.md § Pipeline section documenting the nesting capability and 5-level limit, with a concrete 3-level example for the vuln-scan use case. Cross-reference open issue #110. No SKILL.md or script changes required — pure documentation. One of four required version-bump files changed.
+
+---
+
+## F-2026-06-11-002 — Document `availableModels` managed-setting enforcement for subagents (CC v2.1.172) in AGENTS.md Security model
+
+```yaml
+id: F-2026-06-11-002
+discovered_at: 2026-06-11T08:02:27Z
+run_id: 27332320368
+target_repo: ievo-ai/skills
+title: Add CC v2.1.172 availableModels subagent enforcement as fifth security-model downgrade vector in AGENTS.md
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/195
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.172 (June 10, 2026) "Fixed availableModels restrictions not applying to subagent model overrides and agent dispatch picker"
+  - plugins/ievo/AGENTS.md: Security model section documents CLAUDE_CODE_SUBAGENT_MODEL, agent:, fallbackModel, skillOverrides as bypass/downgrade vectors — availableModels is missing
+```
+
+CC v2.1.172 fixed a bug where enterprise `availableModels` managed-setting restrictions were NOT enforced for sub-agent model dispatch. Before this fix, even if an enterprise administrator restricted `availableModels` to `["haiku"]`, the `security-auditor` sub-agent dispatched by `/ievo:security-check` could still use `model: sonnet` from its frontmatter. After the fix, `availableModels` is properly enforced — meaning enterprise policy can now silently downgrade the security-auditor to Haiku reasoning even when frontmatter says `sonnet`.
+
+The AGENTS.md Security model section already documents 4 bypass/downgrade vectors for the security-auditor: `CLAUDE_CODE_SUBAGENT_MODEL` env var, `agent:` in settings.json (tracked by #167), `fallbackModel` setting (tracked by #180), and `skillOverrides` (tracked by #176). The `availableModels` managed setting is a fifth vector, newly enforced as of v2.1.172.
+
+Proposed change: Add a bullet to AGENTS.md § Security model section documenting `availableModels` enforcement: if enterprise policy restricts `availableModels` to a list that excludes `sonnet` (or higher), the security-auditor runs at the restricted model tier. Mitigation: ensure `availableModels` includes at least `sonnet`. Same format as the existing CLAUDE_CODE_SUBAGENT_MODEL note.
+
+---
+
+## F-2026-06-11-003 — Add Codex plugin marketplace as parallel discovery source in discover.mjs (`codex plugin marketplace --json`, rust-v0.138.0)
+
+```yaml
+id: F-2026-06-11-003
+discovered_at: 2026-06-11T08:02:27Z
+run_id: 27332320368
+target_repo: ievo-ai/skills
+title: Add codex plugin marketplace --json as a parallel discovery source in discover.mjs for Codex-native plugin catalog
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/196
+effort: medium
+scope: multi-file
+evidence:
+  - https://github.com/openai/codex/releases: rust-v0.138.0 (June 8, 2026) — `codex plugin add/remove/marketplace --json` output; plugin list JSON includes marketplace source metadata
+  - https://github.com/openai/codex/releases: rust-v0.139.0 (June 9, 2026) — plugin lists support caching from remote catalog with background refresh; plugin detail data exposes default prompts, remote MCP servers, unavailable app templates
+```
+
+The `discover.mjs` script currently discovers skills exclusively through the skills.sh API. On Codex, there is a separate plugin catalog accessible via `codex plugin marketplace --json` (added in rust-v0.138.0). This catalog contains Codex-native plugins that may not be listed on skills.sh — and since iEvo positions itself as a universal plugin for both Claude Code and Codex, users running iEvo on Codex have no way to discover Codex-catalog plugins through iEvo's security-scanning pipeline.
+
+Proposed enhancement: Add an optional `--codex-marketplace` flag (or auto-detect if `codex` CLI is available) to `discover.mjs` that executes `codex plugin marketplace --json`, parses the output (plugin name, description, source URL), and feeds results into the same filter + rank pipeline used for skills.sh results. Combined with iEvo's existing security-auditor sub-agent, this would let Codex users evaluate and safely install plugins from the Codex catalog — exactly the same way they currently evaluate skills.sh candidates.
+
+Requires: (1) detecting Codex CLI availability (`which codex`), (2) running `codex plugin marketplace --json` and parsing the stable JSON schema (v0.138.0+), (3) normalizing Codex plugin metadata to match iEvo's internal skill representation, (4) 100% test coverage on the new code path per AGENTS.md rules, (5) conditional logic that gracefully no-ops when Codex CLI is unavailable (preserving universal positioning — Claude Code users see no change).

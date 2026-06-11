@@ -36,14 +36,15 @@ run_id: <GitHub Actions run ID or null>
 ## https://www.anthropic.com/news
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
-status: unchanged
-run_id: 26806183547
+last_scan: 2026-06-11T08:02:27Z
+status: changed
+run_id: 27332320368
 ```
 
-**Summary:** No new developer-tool or agent-platform announcements since May 27. Tracking via Claude Code release notes directly for Claude Code changes.
+**Summary:** Claude Fable 5 / Mythos 5 announced June 9, 2026 — "Mythos-class model made safe for general use with capabilities exceeding any previously generally available model." Relevant to iEvo: `fable` vendor-neutral alias needed in validate_agents.mjs (tracked in open issue #191). Claude Code v2.1.170 ships Fable 5 as default for the `fable` model alias.
 
 History:
+- 2026-06-11T08:02:27Z — changed: Claude Fable 5 / Mythos 5 launched June 9 via CC v2.1.170; new Mythos-class model; `fable` alias now recognized by CC runtime (issue #191 in skills tracks adding alias to validate_agents.mjs)
 - 2026-06-02T08:04:18Z — unchanged: not re-fetched (tracking Claude Code releases directly via github.com/anthropics/claude-code/releases); no Anthropic blog developer announcements observed
 - 2026-06-01T08:08:22Z — changed: Opus 4.8 released (May 28); Series H; no CC-specific or agent-format changes
 - 2026-05-31T00:00:00Z — changed: Opus 4.8 launched (May 28); `opus` alias now resolves to 4.8 — affects iEvo evolution.md agent; $65B Series H raise; no Claude Code API changes
@@ -63,14 +64,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-11T08:02:27Z
 status: changed
-run_id: 26806183547
+run_id: 27332320368
 ```
 
-**Summary:** v2.1.160 (2026-06-02) — `acceptEdits` now prompts for `.pre-commit-config.yaml` + other build-tool configs; Dynamic Workflow trigger renamed `workflow` → `ultracode`; single-file grep satisfies read-before-edit; shell startup file write prompts. v2.1.157 (2026-05-29) — plugins in `.claude/skills/` auto-loaded, `claude plugin init` scaffolds plugins, `agent:` field in settings.json honored for dispatched sessions. v2.1.154 (2026-05-28) — Claude Opus 4.8 default for xhigh effort, Dynamic Workflows feature (tens-to-hundreds of background agents via /workflows), `defaultEnabled: false` in plugin.json, `! <command>` background agent execution. v2.1.153 (2026-05-28) — subagent MCP enforcement fixed (--strict-mcp-config now applies); /model saves as default for new sessions; Status line commands get COLUMNS/LINES env vars. v2.1.152 (2026-05-27) — `disallowed-tools` frontmatter, MessageDisplay hook, SessionStart enhancements, /reload-skills.
+**Summary:** v2.1.173 (June 11) — Fable 5 `[1m]` suffix normalization fix. v2.1.172 (June 10) — **sub-agents can now spawn their own sub-agents (up to 5 levels deep)**; `availableModels` restrictions now properly enforced for subagent model overrides; search bar in /plugin marketplace; WebFetch wildcard domain rules fixed; mid-pattern wildcard permission rules fixed; `model` attr on OTEL metric. v2.1.170 (June 9) — Claude Fable 5 introduced. v2.1.169 (June 8) — `--safe-mode`/`CLAUDE_CODE_SAFE_MODE`; `/cd` command; `disableBundledSkills`; `\$` escape; Stop/SubagentStop `hookSpecificOutput.additionalContext`; CLAUDE_CODE_SESSION_ID on stdio MCP resume. v2.1.166 (June 6) — `fallbackModel` setting; `MAX_THINKING_TOKENS=0`; `--thinking disabled`; SendMessage authority hardening. v2.1.163 (June 4) — `requiredMinimumVersion`/`requiredMaximumVersion` managed settings; `/plugin list --enabled/--disabled`; Stop/SubagentStop `additionalContext`. v2.1.162 (June 3) — `claude agents --json` `waitingFor` field; Read deny rules hide files from Glob/Grep; `/effort` persists.
 
 History:
+- 2026-06-11T08:02:27Z — changed: v2.1.162–173; sub-agent nesting 5 levels (v2.1.172, triggered F-2026-06-11-001); availableModels subagent enforcement (v2.1.172, triggered F-2026-06-11-002); Fable 5 (v2.1.170, covered by #191); --safe-mode/disableBundledSkills (v2.1.169, covered by #189/#190); fallbackModel (v2.1.166, covered by #180); requiredMinimumVersion (v2.1.163, covered by #181)
 - 2026-06-02T08:04:18Z — changed: v2.1.153 through v2.1.160; v2.1.160 acceptEdits for .pre-commit-config.yaml (triggered F-2026-06-02-002); v2.1.157 .claude/skills/ auto-load + claude plugin init; v2.1.154 Opus 4.8 + Dynamic Workflows + defaultEnabled; v2.1.153 MCP enforcement fix
 - 2026-06-01T08:08:22Z — changed: v2.1.152–159; disallowed-tools+/reload-skills+SessionStart reloadSkills (152); Dynamic Workflows+defaultEnabled (154); .claude/skills auto-load+agent: settings.json (157)
 - 2026-05-31T00:00:00Z — changed: v2.1.158 Auto mode Bedrock/Vertex; v2.1.157 plugin auto-load from .claude/skills/, plugin init scaffolding; v2.1.154 Dynamic Workflows + Opus 4.8; v2.1.152 disallowed-tools + SessionStart reloadSkills + MessageDisplay hook
@@ -147,14 +149,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-11T08:02:27Z
 status: changed
-run_id: 26806183547
+run_id: 27332320368
 ```
 
-**Summary:** rust-v0.136.0 (2026-06-01) — hook output event schema tightened (breaking for parsers, triggered F-2026-06-02-001); runtime extra skill roots API (#24977); multi-agent assignment tool renamed (breaking); /archive slash command for session archiving; security hardening (/diff no longer runs repo Git helpers, exec-server rejects Origin-header websocket requests); memories moved to SQLite (0.136). rust-v0.135.0 (2026-05-28) — named permission profiles in /permissions (#21559, triggered F-2026-06-02-003); thread-idle lifecycle hook (#24744, covered by open #165); new ad-hoc memory note tool; Python SDK sandbox presets; codex doctor expanded diagnostics; non-interactive install support.
+**Summary:** rust-v0.139.0 (June 9) — plugin marketplace list JSON output includes each marketplace source; plugin lists support caching with background refresh; plugin detail exposes default prompts + remote MCP servers + unavailable app templates; large schemas maintain shallower structure for better MCP tool compatibility. rust-v0.138.0 (June 8) — `codex plugin add/remove/marketplace --json` output; plugin list JSON includes marketplace source metadata; TUI startup optimized (reuses plugin discovery results); large MCP streams faster. v0.140.0-alpha.4/7/8 (June 10-11) — pre-releases, no stable notes. rust-v0.136.0 (2026-06-01) — hook schema tightening (breaking); /archive; SQLite memories. rust-v0.135.0 (2026-05-28) — named permission profiles; thread-idle hook.
 
 History:
+- 2026-06-11T08:02:27Z — changed: rust-v0.138.0 + rust-v0.139.0; `codex plugin marketplace --json` machine-readable output (triggered F-2026-06-11-003); TUI plugin discovery caching; v0.140.0 alpha in progress
 - 2026-06-02T08:04:18Z — changed: rust-v0.135.0 (named permission profiles, thread-idle hook) + rust-v0.136.0 (hook schema tightening — breaking, runtime skill roots API, /archive); triggered F-2026-06-02-001, F-2026-06-02-003
 - 2026-06-01T08:08:22Z — changed: v0.134.0 stable (subagent identity in hooks, function tools default); v0.135.0 (thread idle hook, named profiles); v0.136.0 alpha
 - 2026-05-31T00:00:00Z — changed: v0.135.0 (May 28); subagent identity in hook inputs; extensions get richer conversation context; Python SDK Sandbox presets
@@ -193,14 +196,15 @@ History:
 ## https://agentskills.io/specification
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-11T08:02:27Z
 status: unchanged
-run_id: 26806183547
+run_id: 27332320368
 ```
 
 **Summary:** Required fields: `name` + `description` (≤1024 chars). Optional: `license`, `compatibility`, `metadata`, `allowed-tools` (experimental, space-separated pre-approved tools). `name` max 64 chars, lowercase alphanumeric+hyphens, no consecutive hyphens, must match directory. Progressive disclosure: metadata ~100 tokens at startup, full body on activation, referenced files on demand. Body ≤500 lines. Spec stable. Note: `disallowed-tools` and `effort:` (both Claude Code conventions) are NOT yet in the official agentskills.io spec.
 
 History:
+- 2026-06-11T08:02:27Z — unchanged: spec stable; no new fields or constraints detected since June 2
 - 2026-06-02T08:04:18Z — unchanged: spec stable; fetched (HTML too large to parse fully but no new fields detected based on ievo-ai/skills AGENTS.md spec references which are current)
 - 2026-06-01T08:08:22Z — unchanged: spec stable; PRs #380, #386, #345 still open and pending
 - 2026-05-31T00:00:00Z — unchanged: spec stable; PRs #380 (versioning), #386 (UTF-8 fix), #345 (Unicode name) all still open; no spec changes
