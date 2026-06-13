@@ -741,6 +741,54 @@ Files affected: `AGENTS.md` (§ Pre-commit hooks + workflow gate, ~line 232). Si
 
 ---
 
+## F-2026-06-13-001 — Add file sensitivity pre-classification step to vuln-scan/SKILL.md to prevent secret exposure in scan reports
+
+```yaml
+id: F-2026-06-13-001
+discovered_at: 2026-06-13T07:29:02Z
+run_id: 27460362177
+target_repo: ievo-ai/skills
+title: Add file sensitivity pre-classification step to vuln-scan/SKILL.md to prevent secret exposure in scanner output
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/200
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/DenisSergeevitch/agents-best-practices/blob/main/references/coding-agents.md: documents classify_file_sensitivity(path) as a baseline safety tool — classifies each file before the agent reads it, flagging sensitive paths (.env, *.pem, *.key, secrets.*) to prevent raw credential content appearing in agent output
+```
+
+`vuln-scan/SKILL.md` dispatches parallel scanner subagents (Phase 2) to read ALL files in target modules without first classifying which files contain real secrets. If a scanner sub-agent reads a `.env.test` or `fixtures/private.key` file, raw credential values could appear in the exploit-chain report or structured findings output. The `DenisSergeevitch/agents-best-practices/references/coding-agents.md` (added 2026-06-06) explicitly lists `classify_file_sensitivity(path)` as a baseline safety tool alongside `scan_diff_for_secrets(diff_ref)`.
+
+Proposed addition: a **Phase 0.5** (pre-dispatch sensitivity classification) immediately before the current Phase 2 (parallel scanner dispatch). The orchestrator reads the threat model output from Phase 1, then performs a fast Glob pass to identify files matching known sensitive patterns (`.env*`, `*.pem`, `*.key`, `**/secrets.*`, `**/.aws/credentials`, etc.). Sensitive files are flagged in the scanner dispatch prompt: "read these files only to detect code that handles them — do not include raw content in findings output." This prevents accidental secret extraction in scan reports without blocking scanners from detecting mishandling of those secrets.
+
+Implementation: pure SKILL.md body addition to vuln-scan/SKILL.md Phase 1→2 transition (~15 lines). No new scripts, no agents, no test coverage obligation. Aligns with the `disallowed-tools` safety pattern already applied to the skill (Write/Edit/Bash blocked) — this extends defensive posture to the output layer.
+
+---
+
+## F-2026-06-13-002 — Document CC v2.1.176 hook `if` condition support for Read/Edit/Write path patterns in hooks-setup/SKILL.md
+
+```yaml
+id: F-2026-06-13-002
+discovered_at: 2026-06-13T07:29:02Z
+run_id: 27460362177
+target_repo: ievo-ai/skills
+title: Document CC v2.1.176 hook if-condition support for Read/Edit/Write path patterns in hooks-setup/SKILL.md and add version gate
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/201
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.176 (2026-06-12) "Fixed hook if conditions for Read/Edit/Write tool paths (patterns like Edit(src/**), Read(~/.ssh/**))" — these if: conditions were BROKEN before v2.1.176 and are now available
+```
+
+`hooks-setup/SKILL.md` teaches users how to configure Claude Code lifecycle hooks. Its current compatibility field lists v2.1.139+ (exec-form), v2.1.141+ (terminalSequence), and v2.1.145+ (Stop hook background_tasks). It does NOT mention that `if:` conditions using Read/Edit/Write tool path patterns were broken until v2.1.176.
+
+The gap: users who follow the hooks-setup skill and try to write advanced hooks using `if: "Write(.ievo/evolution/**)"` or `if: "Edit(src/**)"` to add extra filtering on top of PostToolUse matchers would find those conditions silently ignored on Claude Code < v2.1.176. This is a category of hook configuration that the skill doesn't document at all — `if:` conditions are a valid advanced feature but currently invisible to the user through the skill's documentation.
+
+Proposed addition: (a) add `v2.1.176+` to the `compatibility` field as the minimum for `if:` conditions on Read/Edit/Write tool paths; (b) add a brief "Advanced: conditional filtering" section in the hooks-setup skill body documenting the `if:` condition syntax for file-tool path patterns, with a concrete iEvo use case (e.g., "fire notification only when evolution overlay files are written: `if: \"Write(.ievo/evolution/**)\"`"); (c) note the version boundary prominently so users on older versions know why their `if:` conditions don't fire. Single SKILL.md file update, no scripts. Compatible with open issues #140/#155/#165/#168 which also target hooks-setup (different subsections).
+
+---
+
 ## F-2026-06-02-003 — Document Codex rust-v0.135.0 named permission profiles for iEvo security scan in security-check/SKILL.md
 
 ```yaml
