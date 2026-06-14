@@ -763,3 +763,233 @@ Claude Code v2.1.152 introduced `disallowed-tools` frontmatter and iEvo implemen
 Codex v0.135.0 introduced named permission profiles via `/permissions` command (#21559) — a user can create a named profile (e.g., `ievo-security-scan`) that restricts the tool set available during a Codex session. While not frontmatter-level enforcement (the agent cannot self-impose the profile at skill activation time), a named profile is the closest Codex equivalent. A Codex user running `/ievo:security-check` can pre-activate their `ievo-security-scan` profile before the skill starts to achieve the same read-only enforcement.
 
 Concrete proposal: Add a Codex-specific section or compatibility callout to `security-check/SKILL.md` (currently 288 lines, well under the 500-line limit). The addition describes: (a) the parity gap (Claude Code gets `disallowed-tools` enforcement automatically; Codex users must set up a named permission profile manually); (b) how to create the profile in Codex via `/permissions`; (c) recommended tool restrictions (Read, Grep, Glob, WebFetch only — matches the security-auditor agent's `tools:` allowlist); (d) the instruction to activate it with `/permissions use ievo-security-scan` before running the skill. No scripts needed, no coverage obligation — pure SKILL.md documentation addition.
+
+---
+
+## F-2026-06-14-001 — Add risk-ranked output and evidence-gated blocking/non-blocking distinction to deep-reviewer.md
+
+```yaml
+id: F-2026-06-14-001
+discovered_at: 2026-06-14T07:56:32Z
+run_id: 27492319610
+target_repo: ievo-ai/skills
+title: Update deep-reviewer.md agent to produce risk-ranked findings with evidence-gated blocking/non-blocking distinction per coding-agents.md code-review profile
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/202
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/DenisSergeevitch/agents-best-practices: coding-agents.md (Jun 7, 2026) — "Code-review agent" task profile specifies: produce risk-ranked findings with file and line evidence; avoid blocking comments without concrete evidence; suggest patches only when confidence is high; separate correctness, security, maintainability, and test gaps
+```
+
+The `deep-reviewer.md` sub-agent currently produces a 10-point categorical checklist (completeness gaps, test/impl drift, dead code, naming mismatch, doc drift, cross-file consistency, error-path coverage, API contract fidelity, security surface, concurrency/state). While thorough, the output format lacks two structural improvements mandated by the coding-agents.md "Code-review agent" task profile published June 7, 2026:
+
+1. **Risk ranking per finding** — findings should be ranked by severity (e.g. BLOCKING / NON-BLOCKING / SUGGESTION) with the ranking justified by reachable impact, not by category.
+2. **Evidence-gated blocking/non-blocking distinction** — "avoid blocking comments without concrete evidence; suggest patches only when confidence is high." Currently, the deep-reviewer doesn't distinguish between a confident finding (concrete evidence of a bug) and a speculative observation (possible smell with no concrete evidence). All 10 points produce findings at the same weight.
+
+This gap matters because deep-review is used as a pre-commit gate. A reviewer seeing 6 findings with no severity ranking treats them as equally urgent, causing either: (a) over-blocking on speculative items, or (b) under-attention to actual blockers buried among suggestions.
+
+The coding-agents.md profile also separates findings by 4 orthogonal dimensions: correctness, security, maintainability, and test gaps — which maps better to reviewer mental models than the current 10-category approach (which conflates correctness items with style items in category order).
+
+### Proposed change
+
+Update `plugins/ievo/agents/deep-reviewer.md` to produce a structured output with:
+- Each finding tagged with a severity level: `BLOCKING` (concrete evidence, must fix before commit), `NON-BLOCKING` (confirmed observation, recommended but not required), or `SUGGESTION` (speculative, label as question or note)
+- The 10-point checklist restructured by dimension: (1) Correctness, (2) Security, (3) Maintainability, (4) Test Coverage — with original 10 points re-mapped into these 4 buckets
+- Final verdict line: `N BLOCKING / M NON-BLOCKING / K SUGGESTIONS`
+
+No script changes needed. No version-bump ceremony required for agent .md files alone — but per AGENTS.md, any PR must bump the 4 version files.
+
+### Files affected
+
+| File | Change | Notes |
+|------|--------|-------|
+| `plugins/ievo/agents/deep-reviewer.md` | modified | restructure output format to risk-ranked, evidence-gated findings |
+
+### API / UX surface
+
+Output changes from: unranked list of 10 categorical checks → risk-ranked findings grouped by dimension (correctness/security/maintainability/test) with BLOCKING/NON-BLOCKING/SUGGESTION tags.
+
+### Acceptance criteria
+
+- [ ] deep-reviewer.md output includes BLOCKING / NON-BLOCKING / SUGGESTION tags per finding
+- [ ] Findings grouped under correctness / security / maintainability / test dimensions
+- [ ] Final verdict line present (N BLOCKING / M NON-BLOCKING / K SUGGESTIONS)
+- [ ] Blocking findings require concrete evidence; speculative items labeled SUGGESTION
+- [ ] validate_agents.mjs passes (model: sonnet unchanged)
+- [ ] 4-file version bump in same PR
+
+### Effort estimate
+
+- Scope: single-file
+- Effort: low (~30 min)
+- Risk: low (documentation change to agent instructions only)
+
+### Open questions
+
+- Should the 4-dimension grouping be strict (only 4 sections) or additive (original 10 points still appear, now tagged and ranked)?
+- Should SUGGESTION findings suppress non-blocking text or just label it?
+
+### Related
+
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/27492319610
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: F-2026-06-14-001`
+- **Evidence source:** https://github.com/DenisSergeevitch/agents-best-practices/blob/main/references/coding-agents.md — "Code-review agent" task profile
+- **Companion finding F-2026-06-14-002**: deep-review/SKILL.md Cursor compatibility note (same skill, different file)
+- **ievo-ai/skills#198** (open): adds diff-secrets-scan to deep-review/SKILL.md using same evidence source (coding-agents.md point 19); this finding is about the agent output format, not the skill orchestration
+
+---
+Filed by Eva research run 27492319610 against `ievo-ai/eva` (research repo). Triage with `accepted` / `rejected` / `needs-discussion` labels.
+
+---
+
+## F-2026-06-14-002 — Add Cursor v3.7 native `/review` compatibility note to deep-review/SKILL.md
+
+```yaml
+id: F-2026-06-14-002
+discovered_at: 2026-06-14T07:56:32Z
+run_id: 27492319610
+target_repo: ievo-ai/skills
+title: Add Cursor v3.7 native /review command as platform-specific alternative note in deep-review/SKILL.md compatibility field
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/203
+effort: low
+scope: single-file
+evidence:
+  - https://www.cursor.com/changelog: v3.7 (Jun 10, 2026) — new `/review` slash command powered by Bugbot; ~90s execution time, +10% bug detection rate vs v3.6, duplicate PR detection across multiple projects; zero-config — works out of the box on Cursor
+```
+
+The `deep-review/SKILL.md` compatibility field currently states: "Subagent dispatch (Task tool) available on Claude Code and Codex with the iEvo plugin — other agentskills.io-compatible platforms execute the deep-reviewer steps inline."
+
+Cursor v3.7 (Jun 10, 2026) shipped a native `/review` command — a platform-optimized code review command with:
+- ~90 second execution time (significantly faster than a fresh deep-reviewer sub-agent invocation)
+- +10% bug detection rate improvement over v3.6
+- Duplicate PR detection across multiple Cursor projects
+- Zero-config — no skill installation required
+
+The current compatibility note is accurate (Cursor would run deep-reviewer steps inline), but it misses an important piece of information for Cursor users: they have a purpose-built native alternative that may better serve their needs for routine pre-commit checks.
+
+Cursor users benefit from knowing:
+1. `/ievo:deep-review` works on Cursor (inline execution, without Task tool sub-agent)
+2. For Cursor users, the native `/review` command offers platform-optimized performance (~90s vs full deep-reviewer pass)
+3. When to prefer each: `/review` for fast routine checks; `/ievo:deep-review` for the 10-point structured checklist across all platforms, or when portability across sessions/platforms matters
+
+This aligns with iEvo's universal positioning — acknowledging platform-native alternatives (rather than pretending they don't exist) builds trust and helps users make the right tool choice.
+
+### Proposed change
+
+Update the `compatibility:` frontmatter field of `deep-review/SKILL.md` to add a Cursor-specific note. Current compatibility ends with: "Designed for Sonnet-tier reasoning via the deep-reviewer agent frontmatter." Proposed addition: "Cursor v3.7+ users: the native /review command (Bugbot-powered, ~90s) provides a platform-optimized alternative; use /ievo:deep-review for the structured 10-point checklist or cross-platform sessions."
+
+Note: the compatibility field must stay ≤500 chars per agentskills.io spec. The current field is already around 340 chars — there's room for a concise addition.
+
+### Files affected
+
+| File | Change | Notes |
+|------|--------|-------|
+| `plugins/ievo/skills/deep-review/SKILL.md` | modified | expand compatibility field with Cursor v3.7 note |
+
+### API / UX surface
+
+Compatibility field visible in Claude Code's `/ievo:deep-review` description and in agentskills.io-compatible brokers. Cursor users reading the skill description see the Cursor-specific note.
+
+### Acceptance criteria
+
+- [ ] deep-review/SKILL.md compatibility field mentions Cursor v3.7+ native /review alternative
+- [ ] compatibility field stays ≤500 chars (validate_skills.mjs passes)
+- [ ] validate_skills.mjs passes (no regressions)
+- [ ] 4-file version bump in same PR
+
+### Effort estimate
+
+- Scope: single-file
+- Effort: low (~15 min)
+- Risk: low (frontmatter documentation change only)
+
+### Open questions
+
+- Should the note link to the Cursor changelog? (adds chars but improves discoverability)
+- Should the note recommend `/review` first and `/ievo:deep-review` second, or frame iEvo as the primary and Cursor as an optional supplement?
+
+### Related
+
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/27492319610
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: F-2026-06-14-002`
+- **Evidence source:** https://www.cursor.com/changelog v3.7 (Jun 10, 2026)
+- **Companion finding F-2026-06-14-001**: deep-reviewer.md output format improvement (same skill, different file)
+
+---
+Filed by Eva research run 27492319610 against `ievo-ai/eva` (research repo). Triage with `accepted` / `rejected` / `needs-discussion` labels.
+
+---
+
+## F-2026-06-14-003 — Add platform-specific plugin state snapshot to handoff/SKILL.md context capsule
+
+```yaml
+id: F-2026-06-14-003
+discovered_at: 2026-06-14T07:56:32Z
+run_id: 27492319610
+target_repo: ievo-ai/skills
+title: Add platform-specific plugin state snapshot (codex plugin list --json / claude plugin list) to handoff/SKILL.md context capsule for plugin continuity across sessions
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/204
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/openai/codex/releases: rust-v0.137.0 (Jun 4, 2026) — `codex plugin list --json` machine-readable output available; rust-v0.138.0 (Jun 8) — plugin add/remove commands also support `--json`; structured plugin state now queryable from scripts/skills
+  - https://github.com/openai/codex/releases: rust-v0.138.0 "Plugin automation got richer structured output: add/remove and marketplace commands support --json, plugin list JSON includes marketplace source"
+```
+
+The `handoff/SKILL.md` creates a portable context transfer document (the "handoff capsule") when branching work to a new session or transferring context across context-window boundaries. The current handoff capsule captures: purpose, context excerpts, suggested iEvo skills, artifact pointers (file paths, PR/issue links), and redacted secrets.
+
+It does NOT capture the current plugin state — which plugins are installed, at what versions, from what sources. This creates a silent continuity gap: if the receiving session (on Codex or Claude Code) doesn't have the same plugins installed, iEvo commands (and other plugins referenced in the handoff) will fail to resolve — but the receiving agent has no way to know this until it tries.
+
+With Codex rust-v0.137.0 (Jun 4, 2026), `codex plugin list --json` became available for machine-readable plugin state. With rust-v0.138.0 (Jun 8), `codex plugin add/remove --json` complete the automation story. Claude Code has had `claude plugin list` for some time.
+
+### Proposed change
+
+Add a new step to `handoff/SKILL.md` that captures the current plugin state into the context capsule:
+
+- **On Codex:** run `codex plugin list --json` and include the structured JSON (plugin names, versions, marketplace source) in the handoff document under a "## Plugin state" section
+- **On Claude Code:** run `claude plugin list` and include the output under the same section
+- The receiving agent reads the Plugin state section and, if any listed plugin is not currently installed, either (a) prompts the user to install it before proceeding or (b) notes the discrepancy as a risk in its opening context
+
+This is a non-breaking addition: if `codex plugin list` or `claude plugin list` aren't available (older versions), the step is skipped gracefully. The handoff document remains valid without the plugin state section.
+
+### Files affected
+
+| File | Change | Notes |
+|------|--------|-------|
+| `plugins/ievo/skills/handoff/SKILL.md` | modified | add plugin-state capture step and receiving-session verification guidance |
+
+### API / UX surface
+
+Handoff document gains a `## Plugin state` section. Receiving agents reading the handoff see what plugins were active in the source session. No new commands — uses existing `claude plugin list` / `codex plugin list --json`.
+
+### Acceptance criteria
+
+- [ ] handoff/SKILL.md includes a step to capture plugin state via platform-appropriate command
+- [ ] Receiving-session guidance notes plugin discrepancies as risks
+- [ ] Graceful skip when platform doesn't support the plugin list command
+- [ ] validate_skills.mjs passes (no regressions)
+- [ ] 4-file version bump in same PR
+
+### Effort estimate
+
+- Scope: single-file
+- Effort: low (~30 min)
+- Risk: low (additive documentation to SKILL.md only; no script changes)
+
+### Open questions
+
+- Should the plugin state section in the handoff doc be optional (only included if the command succeeds) or mandatory (always present, empty if unavailable)?
+- Should the receiving-session guide include a one-liner to install missing plugins from the handoff list?
+
+### Related
+
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/27492319610
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: F-2026-06-14-003`
+- **ievo-ai/skills#182** (open): adds Codex-side post-update verification to update.md using codex plugin list --json — this finding extends the concept to handoff/SKILL.md for session continuity
+- **ievo-ai/skills#192** (open): Codex /app CLI→Desktop handoff — this finding covers the programmatic handoff capsule, not the Desktop handoff UI
+
+---
+Filed by Eva research run 27492319610 against `ievo-ai/eva` (research repo). Triage with `accepted` / `rejected` / `needs-discussion` labels.
