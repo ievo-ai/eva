@@ -763,3 +763,80 @@ Claude Code v2.1.152 introduced `disallowed-tools` frontmatter and iEvo implemen
 Codex v0.135.0 introduced named permission profiles via `/permissions` command (#21559) — a user can create a named profile (e.g., `ievo-security-scan`) that restricts the tool set available during a Codex session. While not frontmatter-level enforcement (the agent cannot self-impose the profile at skill activation time), a named profile is the closest Codex equivalent. A Codex user running `/ievo:security-check` can pre-activate their `ievo-security-scan` profile before the skill starts to achieve the same read-only enforcement.
 
 Concrete proposal: Add a Codex-specific section or compatibility callout to `security-check/SKILL.md` (currently 288 lines, well under the 500-line limit). The addition describes: (a) the parity gap (Claude Code gets `disallowed-tools` enforcement automatically; Codex users must set up a named permission profile manually); (b) how to create the profile in Codex via `/permissions`; (c) recommended tool restrictions (Read, Grep, Glob, WebFetch only — matches the security-auditor agent's `tools:` allowlist); (d) the instruction to activate it with `/permissions use ievo-security-scan` before running the skill. No scripts needed, no coverage obligation — pure SKILL.md documentation addition.
+
+---
+
+## F-2026-06-15-001 — Document ANTHROPIC_DEFAULT_*_MODEL env vars as security-auditor model-downgrade bypass vector in AGENTS.md
+
+```yaml
+id: F-2026-06-15-001
+discovered_at: 2026-06-15T08:30:50Z
+run_id: 27533137273
+target_repo: ievo-ai/skills
+title: Document ANTHROPIC_DEFAULT_*_MODEL env vars as sixth security-auditor model-downgrade bypass vector in AGENTS.md
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/207
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.176 (Jun 12) — "ANTHROPIC_DEFAULT_*_MODEL environment variables now properly enforced against redirects" — env vars that map alias families (e.g. ANTHROPIC_DEFAULT_SONNET_MODEL) to specific model IDs are now reliably honored, making them a new security-auditor model-downgrade bypass path
+```
+
+Claude Code v2.1.176 made `ANTHROPIC_DEFAULT_*_MODEL` environment variables "properly enforced against redirects" — meaning if an operator sets `ANTHROPIC_DEFAULT_SONNET_MODEL=claude-haiku-4-5-20251001`, all "sonnet" alias resolutions now reliably use haiku, even for sub-agents with `model: sonnet` frontmatter. Before v2.1.176, this env var redirect was sometimes ignored; now it is always honored.
+
+This creates a sixth bypass vector for the security-auditor's model guarantee (joining CLAUDE_CODE_SUBAGENT_MODEL, agent: in settings.json, skillOverrides, fallbackModel, availableModels). The AGENTS.md security model section currently documents only `CLAUDE_CODE_SUBAGENT_MODEL`. Five additional bypass vectors from issues #176, #180, #195, #197 are documented in open issues but not yet implemented in AGENTS.md.
+
+Proposed addition to AGENTS.md security model section: a bullet documenting `ANTHROPIC_DEFAULT_SONNET_MODEL` (and the `ANTHROPIC_DEFAULT_*_MODEL` env var pattern). The mitigation: leave it unset, or explicitly set `ANTHROPIC_DEFAULT_SONNET_MODEL=claude-sonnet-4-6` to pin to a specific validated Sonnet version. Also note the dual nature: the env var can be a positive control (version-locked security guarantee) or a bypass vector (if set to a weaker model tier).
+
+---
+
+## F-2026-06-15-002 — Move trigger-intent framing to the front of all iEvo SKILL.md descriptions
+
+```yaml
+id: F-2026-06-15-002
+discovered_at: 2026-06-15T08:30:50Z
+run_id: 27533137273
+target_repo: ievo-ai/skills
+title: Reorder all 14 iEvo SKILL.md descriptions to start with trigger-intent ("Use this skill when...") framing per agentskills.io skill-creation guidance
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/205
+effort: medium
+scope: multi-file
+evidence:
+  - https://agentskills.io/skill-creation/optimizing-descriptions: "Use imperative phrasing ('Use this skill when...' not 'This skill does...'). Agents often load only name and description at startup."
+  - https://github.com/DenisSergeevitch/agents-best-practices/blob/main/references/skills-and-connectors.md: "Start with 'Use this skill when...' / Describe user intent, not implementation internals."
+```
+
+All 14 iEvo SKILL.md descriptions start with implementation-oriented language rather than trigger-intent framing. Examples:
+- `security-check`: "Vulnerability assessment by a senior application security engineer..." → should start with "Use this skill before installing any third-party skill, agent, or plugin..."
+- `deep-review`: "Structured 10-point gap-detection review of a diff before commit..." → should start with "Use this skill when you want an independent gap-detection review of a diff..."
+- `vuln-scan`: "CWE-aware deep source code vulnerability scan..." — has NO "Use when" clause at all
+- `index-repos`, `handoff`, `init`: all start with imperative verbs describing actions, not trigger conditions
+
+Most descriptions have a "Use when..." phrase at the END after implementation details. The agentskills.io guidance says this ordering is backwards: the trigger condition must come FIRST because agents loading skills at startup see only the opening tokens of a description. Note: DIFFERENT from issue #174 (separate `when_to_use:` frontmatter field) — this proposes reordering the existing `description:` field content, which is spec-compliant and works universally across all agentskills.io platforms.
+
+---
+
+## F-2026-06-15-003 — Add active-plan and iEvo-overlay-summary sections to /ievo:handoff output capsule
+
+```yaml
+id: F-2026-06-15-003
+discovered_at: 2026-06-15T08:30:50Z
+run_id: 27533137273
+target_repo: ievo-ai/skills
+title: Add active-plan-state and iEvo-overlay-reference sections to /ievo:handoff context capsule based on context-tier model
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/206
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/DenisSergeevitch/agents-best-practices/blob/main/references/context-memory-compaction.md: 12-tier context model — Tier 5 (active plan/workflow state) and Tier 6 (scoped instructions — project conventions, overlays) are explicitly called out as critical context that must be preserved across session handoffs
+```
+
+The `handoff/SKILL.md` context capsule captures: purpose, context excerpts, suggested iEvo skills, artifact pointers, redacted secrets. Two tiers from the DenisSergeevitch context-tier model are absent:
+
+**Missing Tier 5 — Active plan state**: The current session's plan (what step are we on, what's decided, what's next) is not captured. Without it, the receiving session must re-derive the work stage from conversation context. A one-paragraph "Active plan state" section in the handoff output closes this gap.
+
+**Missing Tier 6 — iEvo overlays (scoped instructions)**: iEvo's `.ievo/evolution/` overlay files are project-level scoped instructions (Tier 6). The handoff doesn't mention them. A receiving session may not know overlays exist and will re-discover conventions by trial and error. Adding a one-line reference to `/ievo:overlay-status` in the handoff output closes this gap.
+
+Proposed change: update `handoff/SKILL.md` output template to include two new fields: `## Active plan state` (one paragraph on where the work is) and `## iEvo overlays` (one line: "Run `/ievo:overlay-status` to load project evolution lessons before starting"). Pure SKILL.md body change — no scripts, no coverage obligation.

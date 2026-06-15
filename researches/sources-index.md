@@ -36,14 +36,15 @@ run_id: <GitHub Actions run ID or null>
 ## https://www.anthropic.com/news
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-15T08:30:50Z
 status: unchanged
-run_id: 26806183547
+run_id: 27533137273
 ```
 
-**Summary:** No new developer-tool or agent-platform announcements since May 27. Tracking via Claude Code release notes directly for Claude Code changes.
+**Summary:** No new developer-tool or agent-platform announcements since June 14. Claude Fable 5 + Mythos 5 launched June 9. Export controls suspended Fable 5/Mythos 5 access June 12. Claude Corps fellowship + TCS/DXC partnerships.
 
 History:
+- 2026-06-15T08:30:50Z — unchanged: no new developer-tool/agent-platform announcements since June 14
 - 2026-06-02T08:04:18Z — unchanged: not re-fetched (tracking Claude Code releases directly via github.com/anthropics/claude-code/releases); no Anthropic blog developer announcements observed
 - 2026-06-01T08:08:22Z — changed: Opus 4.8 released (May 28); Series H; no CC-specific or agent-format changes
 - 2026-05-31T00:00:00Z — changed: Opus 4.8 launched (May 28); `opus` alias now resolves to 4.8 — affects iEvo evolution.md agent; $65B Series H raise; no Claude Code API changes
@@ -63,14 +64,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
-status: changed
-run_id: 26806183547
+last_scan: 2026-06-15T08:30:50Z
+status: unchanged
+run_id: 27533137273
 ```
 
-**Summary:** v2.1.160 (2026-06-02) — `acceptEdits` now prompts for `.pre-commit-config.yaml` + other build-tool configs; Dynamic Workflow trigger renamed `workflow` → `ultracode`; single-file grep satisfies read-before-edit; shell startup file write prompts. v2.1.157 (2026-05-29) — plugins in `.claude/skills/` auto-loaded, `claude plugin init` scaffolds plugins, `agent:` field in settings.json honored for dispatched sessions. v2.1.154 (2026-05-28) — Claude Opus 4.8 default for xhigh effort, Dynamic Workflows feature (tens-to-hundreds of background agents via /workflows), `defaultEnabled: false` in plugin.json, `! <command>` background agent execution. v2.1.153 (2026-05-28) — subagent MCP enforcement fixed (--strict-mcp-config now applies); /model saves as default for new sessions; Status line commands get COLUMNS/LINES env vars. v2.1.152 (2026-05-27) — `disallowed-tools` frontmatter, MessageDisplay hook, SessionStart enhancements, /reload-skills.
+**Summary:** v2.1.177 (Jun 13) remains the latest release. No new releases since June 13. Key recent range v2.1.169–v2.1.177: v2.1.176 hook if-conditions fixed + `ANTHROPIC_DEFAULT_*_MODEL` env vars properly enforced against redirects (new bypass vector, triggered F-2026-06-15-001); v2.1.175 enforceAvailableModels; v2.1.172 sub-agent nesting up to 5 levels; v2.1.170 Claude Fable 5; v2.1.169 --safe-mode + /cd + disableBundledSkills.
 
 History:
+- 2026-06-15T08:30:50Z — unchanged: v2.1.177 still latest (Jun 13); ANTHROPIC_DEFAULT_*_MODEL bypass gap triggered F-2026-06-15-001
 - 2026-06-02T08:04:18Z — changed: v2.1.153 through v2.1.160; v2.1.160 acceptEdits for .pre-commit-config.yaml (triggered F-2026-06-02-002); v2.1.157 .claude/skills/ auto-load + claude plugin init; v2.1.154 Opus 4.8 + Dynamic Workflows + defaultEnabled; v2.1.153 MCP enforcement fix
 - 2026-06-01T08:08:22Z — changed: v2.1.152–159; disallowed-tools+/reload-skills+SessionStart reloadSkills (152); Dynamic Workflows+defaultEnabled (154); .claude/skills auto-load+agent: settings.json (157)
 - 2026-05-31T00:00:00Z — changed: v2.1.158 Auto mode Bedrock/Vertex; v2.1.157 plugin auto-load from .claude/skills/, plugin init scaffolding; v2.1.154 Dynamic Workflows + Opus 4.8; v2.1.152 disallowed-tools + SessionStart reloadSkills + MessageDisplay hook
@@ -90,14 +92,15 @@ History:
 ## https://github.com/anthropics/claude-code-action/releases
 
 ```yaml
-last_scan: 2026-06-01T08:08:22Z
+last_scan: 2026-06-15T08:30:50Z
 status: unchanged
-run_id: 26742668563
+run_id: 27533137273
 ```
 
-**Summary:** v1.0.133 (2026-05-23) remains the latest release. No new releases since last scan. Workload Identity Federation (OIDC) was the last addition. Prior: v1.0 GA breaking changes: `mode`/`direct_prompt`/`override_prompt` removed; `model`/`allowed_tools`/`mcp_config` deprecated. Eva's own workflows (eva#65) still need auditing for v0.x inputs.
+**Summary:** v1.0.148 (Jun 13) remains the latest release. No new releases since June 13. Prior range v1.0.134–v1.0.148: v1.0.147 pr-stamp-sweep workflow; v1.0.146 auth fallback + SDK iterator hang fix. No breaking input changes. v1.0 GA breaking changes: mode/direct_prompt/override_prompt removed; model/allowed_tools/mcp_config deprecated → prompt + claude_args. Eva's own workflows (eva#65) still need auditing for v0.x inputs (7+ deferrals).
 
 History:
+- 2026-06-15T08:30:50Z — unchanged: v1.0.148 still latest (Jun 13); no new releases
 - 2026-06-01T08:08:22Z — unchanged: still v1.0.133; no new releases since May 23
 - 2026-05-31T00:00:00Z — unchanged: no releases since v1.0.133 (May 23); eva#65 still open
 - 2026-05-30T07:15:49Z — unchanged: still v1.0.133; no new releases; eva#65 still open
@@ -147,14 +150,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
-status: changed
-run_id: 26806183547
+last_scan: 2026-06-15T08:30:50Z
+status: unchanged
+run_id: 27533137273
 ```
 
-**Summary:** rust-v0.136.0 (2026-06-01) — hook output event schema tightened (breaking for parsers, triggered F-2026-06-02-001); runtime extra skill roots API (#24977); multi-agent assignment tool renamed (breaking); /archive slash command for session archiving; security hardening (/diff no longer runs repo Git helpers, exec-server rejects Origin-header websocket requests); memories moved to SQLite (0.136). rust-v0.135.0 (2026-05-28) — named permission profiles in /permissions (#21559, triggered F-2026-06-02-003); thread-idle lifecycle hook (#24744, covered by open #165); new ad-hoc memory note tool; Python SDK sandbox presets; codex doctor expanded diagnostics; non-interactive install support.
+**Summary:** rust-v0.139.0 (Jun 9) remains the latest stable. v0.140.0-alpha.2 through alpha.19 active as of June 14 — no public changelogs on alphas. v0.139.0 code-mode web search (open #199); v0.138.0 /app CLI→Desktop (open #192), plugin add/remove/list --json (open #196 covers v0.137.0 variant); v0.137.0 codex plugin list --json (open #196), malformed skills warning (open #186). Breaking: multi-agent v2 renamed close_agent→interrupt_agent (#26994) in alpha, not yet stable.
 
 History:
+- 2026-06-15T08:30:50Z — unchanged: v0.139.0 stable still latest; v0.140.0-alpha.2–19 with no changelogs; no actionable new stable changes
 - 2026-06-02T08:04:18Z — changed: rust-v0.135.0 (named permission profiles, thread-idle hook) + rust-v0.136.0 (hook schema tightening — breaking, runtime skill roots API, /archive); triggered F-2026-06-02-001, F-2026-06-02-003
 - 2026-06-01T08:08:22Z — changed: v0.134.0 stable (subagent identity in hooks, function tools default); v0.135.0 (thread idle hook, named profiles); v0.136.0 alpha
 - 2026-05-31T00:00:00Z — changed: v0.135.0 (May 28); subagent identity in hook inputs; extensions get richer conversation context; Python SDK Sandbox presets
@@ -193,14 +197,15 @@ History:
 ## https://agentskills.io/specification
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-15T08:30:50Z
 status: unchanged
-run_id: 26806183547
+run_id: 27533137273
 ```
 
-**Summary:** Required fields: `name` + `description` (≤1024 chars). Optional: `license`, `compatibility`, `metadata`, `allowed-tools` (experimental, space-separated pre-approved tools). `name` max 64 chars, lowercase alphanumeric+hyphens, no consecutive hyphens, must match directory. Progressive disclosure: metadata ~100 tokens at startup, full body on activation, referenced files on demand. Body ≤500 lines. Spec stable. Note: `disallowed-tools` and `effort:` (both Claude Code conventions) are NOT yet in the official agentskills.io spec.
+**Summary:** Required fields: `name` + `description` (≤1024 chars). Optional: `license`, `compatibility`, `metadata`, `allowed-tools` (experimental, space-separated pre-approved tools). `name` max 64 chars, lowercase alphanumeric+hyphens, no consecutive hyphens, must match directory. Progressive disclosure: metadata ~100 tokens at startup, full body on activation, referenced files on demand. Body ≤500 lines. Spec stable. Note: `disallowed-tools` and `effort:` (both Claude Code conventions) are NOT yet in the official agentskills.io spec. The `skill-creation/` sub-pages now document description optimization and best practices (new sources added to index this run).
 
 History:
+- 2026-06-15T08:30:50Z — unchanged: spec stable; skill-creation sub-pages found and added to index as new sources
 - 2026-06-02T08:04:18Z — unchanged: spec stable; fetched (HTML too large to parse fully but no new fields detected based on ievo-ai/skills AGENTS.md spec references which are current)
 - 2026-06-01T08:08:22Z — unchanged: spec stable; PRs #380, #386, #345 still open and pending
 - 2026-05-31T00:00:00Z — unchanged: spec stable; PRs #380 (versioning), #386 (UTF-8 fix), #345 (Unicode name) all still open; no spec changes
@@ -243,14 +248,15 @@ History:
 ## https://www.cursor.com/changelog
 
 ```yaml
-last_scan: 2026-06-01T08:08:22Z
-status: changed
-run_id: 26742668563
+last_scan: 2026-06-15T08:30:50Z
+status: unchanged
+run_id: 27533137273
 ```
 
-**Summary:** v3.6 (2026-05-29) — "Auto-review Run Mode": agents run with reduced approval prompts; allowlisted calls execute immediately, sandboxable calls run in sandbox, borderline calls go through a **classifier subagent**. Configurable at Settings > Agents > Run Mode. This pre-classifier pattern was filed as ievo-ai/skills#164 (lightweight pre-classifier for /ievo:security-check).
+**Summary:** v3.7 (Jun 3-10) — Bugbot `/review` slash command: ~90s execution, +10% bug detection. SDK: custom tools, nested subagents. Enterprise Orgs GA. Triggered open #203 (deep-review/SKILL.md Cursor v3.7 compatibility note). No new entries since June 10.
 
 History:
+- 2026-06-15T08:30:50Z — unchanged: v3.7 still latest (Jun 10); no new entries since June 10
 - 2026-06-01T08:08:22Z — changed: v3.6 (May 29) — Auto-review Run Mode with classifier subagent; triggered existing issue #164
 - 2026-05-31T00:00:00Z — changed: v3.6 (May 29); Auto-review Run Mode with classifier subagent for tool-call categorization; no skill-format changes
 - 2026-05-30T07:15:49Z — changed: v3.6 auto-review classifier sub-agent pattern (parallel to Claude Code auto mode)
@@ -290,14 +296,15 @@ History:
 ## https://github.com/DenisSergeevitch/agents-best-practices
 
 ```yaml
-last_scan: 2026-06-01T08:08:22Z
+last_scan: 2026-06-15T08:30:50Z
 status: changed
-run_id: 26742668563
+run_id: 27533137273
 ```
 
-**Summary:** One new commit (2026-05-30) — added "workflow orchestration guidance" content covering orchestration patterns for multi-agent tasks. Relevant to the `/ievo:workflow` skill proposed in issue #162; the orchestration patterns may inform the skill's design. Prior: 15-file references/ confirmed; v1.2.0 with Claude Code skill support documentation.
+**Summary:** 2 new commits June 14 (after last audit): "Refine workflow orchestration guidance" (Jun 14 16:00 UTC) + "Add workflow orchestration schema" (Jun 14 17:24 UTC, adds `assets/02-workflow-orchestration-schema.svg`). Repo now has 17 files in references/ (up from 15 confirmed). First read of `references/skills-and-connectors.md` reveals agentskills.io spec-aligned guidance: "Start descriptions with 'Use this skill when...'" — iEvo descriptions don't follow this (triggered F-2026-06-15-002). Also found new source links to agentskills.io/skill-creation/optimizing-descriptions and /best-practices.
 
 History:
+- 2026-06-15T08:30:50Z — changed: 2 new commits Jun 14 (workflow schema SVG + guidance refinement); first read of skills-and-connectors.md triggered F-2026-06-15-002; found new agentskills.io skill-creation sub-pages
 - 2026-06-01T08:08:22Z — changed: May 30 commit adds workflow orchestration guidance; relevant evidence for skills#162
 - 2026-05-31T00:00:00Z — changed: new references/workflow-orchestration.md (+261 lines, May 30); planning-and-goals.md and architecture.md expanded; triggered F-2026-05-31-001
 - 2026-05-30T07:15:49Z — unchanged: no changes since May 15 commit
@@ -416,3 +423,33 @@ History:
 - 2026-06-01T08:08:22Z — first-scan: sub-agent model resolution order documented; agent: settings.json field identified as new bypass vector → triggered F-2026-06-01-003
 - 2026-05-30T07:15:49Z — first-scan: sub-agent model resolution order documented; context:fork frontmatter; settings.json agent field; CLAUDE_CODE_SUBAGENT_MODEL precedence confirmed
 - 2026-05-27T07:38:00Z — first-scan: confirmed CLAUDE_CODE_SUBAGENT_MODEL resolution order; disallowedTools and isolation: worktree documented; model resolution security note in AGENTS.md is accurate
+
+---
+
+## https://agentskills.io/skill-creation/optimizing-descriptions
+
+```yaml
+last_scan: 2026-06-15T08:30:50Z
+status: first-scan
+run_id: 27533137273
+```
+
+**Summary:** Official agentskills.io guidance on optimizing skill descriptions for reliable triggering. Key rules: (1) use imperative phrasing starting with "Use this skill when..." — NOT "This skill does..."; (2) describe user intent, not implementation internals; (3) mention adjacent trigger terms; (4) include scope boundaries to avoid over-triggering. Recommends systematic eval with ~20 queries (10 should-trigger, 10 should-not), train/validation splits to avoid overfitting. iEvo SKILL.md descriptions currently start with implementation language ("Structured 10-point review...", "Vulnerability assessment...") rather than trigger-intent framing — triggered F-2026-06-15-002.
+
+History:
+- 2026-06-15T08:30:50Z — first-scan: discovered via DenisSergeevitch/references/skills-and-connectors.md; "Use this skill when..." guidance confirms iEvo description gap; triggered F-2026-06-15-002
+
+---
+
+## https://agentskills.io/skill-creation/best-practices
+
+```yaml
+last_scan: 2026-06-15T08:30:50Z
+status: first-scan
+run_id: 27533137273
+```
+
+**Summary:** Official agentskills.io skill creator best practices. Key: (1) extract from real expertise, not LLM knowledge; (2) refine with real execution; (3) spend context wisely — add what the agent lacks, omit what it knows; (4) aim for ≤500 lines, ≤5000 tokens; (5) use progressive disclosure (references/ for detail); (6) gotchas sections are most valuable; (7) output format templates; (8) plan-validate-execute pattern for batch/destructive operations; (9) bundle reusable scripts. iEvo already follows many of these (scan_repo.mjs bundled script, progressive disclosure in init, output templates). DEFER-01 (init/SKILL.md 951 lines) is the main compliance gap. Context tiers model in context-memory-compaction.md triggered F-2026-06-15-003.
+
+History:
+- 2026-06-15T08:30:50Z — first-scan: discovered via DenisSergeevitch/references/skills-and-connectors.md; iEvo mostly compliant; init 951 lines remains main gap (DEFER-01)
