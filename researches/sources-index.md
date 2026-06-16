@@ -63,14 +63,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-16T00:00:00Z
 status: changed
-run_id: 26806183547
+run_id: null
 ```
 
-**Summary:** v2.1.160 (2026-06-02) — `acceptEdits` now prompts for `.pre-commit-config.yaml` + other build-tool configs; Dynamic Workflow trigger renamed `workflow` → `ultracode`; single-file grep satisfies read-before-edit; shell startup file write prompts. v2.1.157 (2026-05-29) — plugins in `.claude/skills/` auto-loaded, `claude plugin init` scaffolds plugins, `agent:` field in settings.json honored for dispatched sessions. v2.1.154 (2026-05-28) — Claude Opus 4.8 default for xhigh effort, Dynamic Workflows feature (tens-to-hundreds of background agents via /workflows), `defaultEnabled: false` in plugin.json, `! <command>` background agent execution. v2.1.153 (2026-05-28) — subagent MCP enforcement fixed (--strict-mcp-config now applies); /model saves as default for new sessions; Status line commands get COLUMNS/LINES env vars. v2.1.152 (2026-05-27) — `disallowed-tools` frontmatter, MessageDisplay hook, SessionStart enhancements, /reload-skills.
+**Summary:** v2.1.178 (2026-06-15) — `Tool(param:value)` permission syntax for matching tool input parameters (e.g. `Agent(model:opus)`); nested `.claude/skills` directories auto-load with `<dir>:<name>` qualified names on clash; fixed permission prompts blocking nested-dir skills in non-interactive runs. v2.1.176 (2026-06-12) — fixed hook `if` conditions for Read/Edit/Write path patterns. v2.1.175 (2026-06-12) — `enforceAvailableModels` managed setting. v2.1.174 (2026-06-12) — skill hot-reload now only re-announces changed skills; `availableModels` fixes. v2.1.173 (2026-06-11) — Fable 5 model names with `[1m]` suffix normalized. v2.1.172 (2026-06-10) — sub-agents can spawn sub-agents (up to 5 levels); `availableModels` fixes. v2.1.170 (2026-06-09) — Claude Fable 5 (Mythos-class model). v2.1.169 (2026-06-08) — `--safe-mode`/`CLAUDE_CODE_SAFE_MODE`, `/cd` command, `disableBundledSkills`.
 
 History:
+- 2026-06-16T00:00:00Z — changed: v2.1.161 through v2.1.178; v2.1.178 Tool(param:value) permission syntax + nested .claude/skills <dir>:<name> loading (triggered F-2026-06-16-001, F-2026-06-16-002); v2.1.170 Fable 5 (open issue #191); v2.1.169 --safe-mode + /cd + disableBundledSkills (open issues #189/#190/#193); v2.1.172 5-level sub-agent nesting (open #194)
 - 2026-06-02T08:04:18Z — changed: v2.1.153 through v2.1.160; v2.1.160 acceptEdits for .pre-commit-config.yaml (triggered F-2026-06-02-002); v2.1.157 .claude/skills/ auto-load + claude plugin init; v2.1.154 Opus 4.8 + Dynamic Workflows + defaultEnabled; v2.1.153 MCP enforcement fix
 - 2026-06-01T08:08:22Z — changed: v2.1.152–159; disallowed-tools+/reload-skills+SessionStart reloadSkills (152); Dynamic Workflows+defaultEnabled (154); .claude/skills auto-load+agent: settings.json (157)
 - 2026-05-31T00:00:00Z — changed: v2.1.158 Auto mode Bedrock/Vertex; v2.1.157 plugin auto-load from .claude/skills/, plugin init scaffolding; v2.1.154 Dynamic Workflows + Opus 4.8; v2.1.152 disallowed-tools + SessionStart reloadSkills + MessageDisplay hook
@@ -147,14 +148,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-16T00:00:00Z
 status: changed
-run_id: 26806183547
+run_id: null
 ```
 
-**Summary:** rust-v0.136.0 (2026-06-01) — hook output event schema tightened (breaking for parsers, triggered F-2026-06-02-001); runtime extra skill roots API (#24977); multi-agent assignment tool renamed (breaking); /archive slash command for session archiving; security hardening (/diff no longer runs repo Git helpers, exec-server rejects Origin-header websocket requests); memories moved to SQLite (0.136). rust-v0.135.0 (2026-05-28) — named permission profiles in /permissions (#21559, triggered F-2026-06-02-003); thread-idle lifecycle hook (#24744, covered by open #165); new ad-hoc memory note tool; Python SDK sandbox presets; codex doctor expanded diagnostics; non-interactive install support.
+**Summary:** v0.140.0 (2026-06-15) — skills decoupled from core; backend plugin skills now invocable without executor (CI/batch mode supported); MCP Amazon Bedrock managed auth with encrypted local storage; unified `@` menu for files, plugins, and skills. v0.141.0-alpha (2026-06-13-16) — stabilization/plugin infrastructure improvements. (Prior: v0.136.0 hook output schema tightening, v0.135.0 named permission profiles.)
 
 History:
+- 2026-06-16T00:00:00Z — changed: v0.137.0 through v0.140.0; v0.140.0 skills decoupled from core (triggered F-2026-06-16-003); earlier releases covered by open issues #186 (v0.137.0), #192/#196/#199/#204 (v0.138.0-v0.139.0)
 - 2026-06-02T08:04:18Z — changed: rust-v0.135.0 (named permission profiles, thread-idle hook) + rust-v0.136.0 (hook schema tightening — breaking, runtime skill roots API, /archive); triggered F-2026-06-02-001, F-2026-06-02-003
 - 2026-06-01T08:08:22Z — changed: v0.134.0 stable (subagent identity in hooks, function tools default); v0.135.0 (thread idle hook, named profiles); v0.136.0 alpha
 - 2026-05-31T00:00:00Z — changed: v0.135.0 (May 28); subagent identity in hook inputs; extensions get richer conversation context; Python SDK Sandbox presets
@@ -193,14 +195,15 @@ History:
 ## https://agentskills.io/specification
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-16T00:00:00Z
 status: unchanged
-run_id: 26806183547
+run_id: null
 ```
 
 **Summary:** Required fields: `name` + `description` (≤1024 chars). Optional: `license`, `compatibility`, `metadata`, `allowed-tools` (experimental, space-separated pre-approved tools). `name` max 64 chars, lowercase alphanumeric+hyphens, no consecutive hyphens, must match directory. Progressive disclosure: metadata ~100 tokens at startup, full body on activation, referenced files on demand. Body ≤500 lines. Spec stable. Note: `disallowed-tools` and `effort:` (both Claude Code conventions) are NOT yet in the official agentskills.io spec.
 
 History:
+- 2026-06-16T00:00:00Z — unchanged: spec stable; no new fields or breaking changes detected
 - 2026-06-02T08:04:18Z — unchanged: spec stable; fetched (HTML too large to parse fully but no new fields detected based on ievo-ai/skills AGENTS.md spec references which are current)
 - 2026-06-01T08:08:22Z — unchanged: spec stable; PRs #380, #386, #345 still open and pending
 - 2026-05-31T00:00:00Z — unchanged: spec stable; PRs #380 (versioning), #386 (UTF-8 fix), #345 (Unicode name) all still open; no spec changes
@@ -243,14 +246,15 @@ History:
 ## https://www.cursor.com/changelog
 
 ```yaml
-last_scan: 2026-06-01T08:08:22Z
+last_scan: 2026-06-16T00:00:00Z
 status: changed
-run_id: 26742668563
+run_id: null
 ```
 
-**Summary:** v3.6 (2026-05-29) — "Auto-review Run Mode": agents run with reduced approval prompts; allowlisted calls execute immediately, sandboxable calls run in sandbox, borderline calls go through a **classifier subagent**. Configurable at Settings > Agents > Run Mode. This pre-classifier pattern was filed as ievo-ai/skills#164 (lightweight pre-classifier for /ievo:security-check).
+**Summary:** June 10 — Bugbot `/review` command improvements (10% better bug detection, 90s average, 22% cost reduction, Composer 2.5); June 5 — Design Mode (multiple UI elements + voice input); June 4 SDK — classifier-based tool execution via `permissions.json`, nested subagents with independent prompts/models, custom tools via `local.customTools`, JSONL agent storage. Cursor v3.7 (June 7 approx) — native `/review` command integrated (referenced by open issue #203).
 
 History:
+- 2026-06-16T00:00:00Z — changed: June 4 SDK classifier-based tool execution + nested subagents + custom tools; June 10 Bugbot /review improvements; June 5 Design Mode; v3.7 /review native (open #203)
 - 2026-06-01T08:08:22Z — changed: v3.6 (May 29) — Auto-review Run Mode with classifier subagent; triggered existing issue #164
 - 2026-05-31T00:00:00Z — changed: v3.6 (May 29); Auto-review Run Mode with classifier subagent for tool-call categorization; no skill-format changes
 - 2026-05-30T07:15:49Z — changed: v3.6 auto-review classifier sub-agent pattern (parallel to Claude Code auto mode)

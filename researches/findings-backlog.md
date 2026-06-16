@@ -741,6 +741,84 @@ Files affected: `AGENTS.md` (§ Pre-commit hooks + workflow gate, ~line 232). Si
 
 ---
 
+## F-2026-06-16-001 — Document `Tool(param:value)` permission syntax as positive security-auditor model enforcement mechanism in AGENTS.md
+
+```yaml
+id: F-2026-06-16-001
+discovered_at: 2026-06-16T00:00:00Z
+run_id: null
+target_repo: ievo-ai/skills
+title: Document CC v2.1.178 Tool(param:value) permission syntax as positive mitigation for security-auditor model downgrade in AGENTS.md
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/208
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.178 (2026-06-15) added Tool(param:value) permission syntax for matching tool input parameters — e.g. Agent(model:opus) can now appear in allow/ask/deny permission rules
+```
+
+AGENTS.md "Security model" section already documents 6+ bypass vectors for the security-auditor model requirement (CLAUDE_CODE_SUBAGENT_MODEL env var, agent: settings.json, skillOverrides, fallbackModel, availableModels, ANTHROPIC_DEFAULT_*_MODEL). Claude Code v2.1.178 introduced `Tool(param:value)` syntax that enables a **positive enforcement** approach: operators can add `"ask": ["Agent(model:haiku)"]` to project or user `settings.json` to get a confirmation prompt if any sub-agent tries to run at Haiku-tier reasoning. This gives an explicit UX signal when the security-auditor model would be downgraded, rather than silent degradation. The AGENTS.md security section should document this as the recommended proactive countermeasure alongside (or instead of) the defensive "leave env var unset" guidance. Concrete example: `{ "permissions": { "ask": ["Agent(model:haiku)"] } }` in `.claude/settings.json` would prompt the user before allowing any Haiku-class sub-agent dispatch — catching the downgrade before the security scan runs with inadequate reasoning.
+
+---
+
+## F-2026-06-16-002 — Document CC v2.1.178 nested `.claude/skills` directory loading with `<dir>:<name>` qualified names in AGENTS.md and README.md
+
+```yaml
+id: F-2026-06-16-002
+discovered_at: 2026-06-16T00:00:00Z
+run_id: null
+target_repo: ievo-ai/skills
+title: Document CC v2.1.178 nested .claude/skills directory loading (dir-qualified skill names) for monorepo iEvo installations
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/209
+effort: low
+scope: multi-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.178 (2026-06-15) — skills in nested .claude/skills directories now load when working on files there; nested skills appear as <dir>:<name> on name clash; fixed permission prompts blocking nested-dir skills in non-interactive runs
+```
+
+Claude Code v2.1.178 added nested `.claude/skills` directory loading: when working in a subdirectory that has its own `.claude/skills/`, skills from that directory load automatically and appear as `<dir>:<name>` when they clash with parent-scope skills. This is a new behavior that affects monorepo iEvo users:
+
+**Impact on iEvo installations:**
+- Global install (`~/.claude/skills/ievo`): skills appear as `/ievo:init`, `/ievo:evolution`, etc. — unchanged.
+- Project-root install (`.claude/skills/ievo/`): same, skill names unqualified if no clash.
+- Monorepo with per-subdirectory skills: if `packages/frontend/.claude/skills/` contains a skill named `init`, it becomes `frontend:init` when working in that subdirectory; the global `ievo:init` remains available as `ievo:init`.
+
+**What needs documenting:** README.md "Installation" section should note that in monorepos, users working in subdirectories with their own `.claude/skills/` will see qualified skill names (e.g., `ievo:init` vs the expected `/ievo:init`). AGENTS.md "What this repo ships" section should note the qualified-name behavior for contributors who clone ievo-ai/skills itself into a nested `.claude/skills/` directory for development.
+
+Also: the permission-prompt fix for nested-dir skills in non-interactive runs (the same v2.1.178 release) means CI workflows using nested `.claude/skills/` no longer need explicit permission flags for those skills. This affects the schedule/SKILL.md Routines note about CI usage.
+
+---
+
+## F-2026-06-16-003 — Document Codex v0.140.0 "skills decoupled from core" for iEvo CI/batch invocability in AGENTS.md and compatibility fields
+
+```yaml
+id: F-2026-06-16-003
+discovered_at: 2026-06-16T00:00:00Z
+run_id: null
+target_repo: ievo-ai/skills
+title: Document Codex v0.140.0 backend plugin skills invocable without executor — update AGENTS.md and key SKILL.md compatibility fields
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/210
+effort: low
+scope: multi-file
+evidence:
+  - https://github.com/openai/codex/releases: v0.140.0 (2026-06-15) — "Skills decoupled from core; backend plugin skills now invocable without executor"
+```
+
+Codex v0.140.0 (2026-06-15) decoupled skills from the core executor: **backend plugin skills can now be invoked without a full Codex executor running** (i.e., in CI batch mode, headless automation, or server-side processing). Previously, iEvo skills on Codex required an interactive session with the full executor.
+
+**What this enables for iEvo:** Codex users can now invoke `/ievo:security-check`, `/ievo:index-repos`, and `/ievo:evolution` in CI workflows without an interactive session. This is the Codex equivalent of what Claude Code Routines provide (scheduled non-interactive execution). The `schedule/SKILL.md` currently only mentions Claude Code Routines as the path to non-interactive periodic execution — it should now also document the Codex batch path enabled by v0.140.0.
+
+**Files to update:**
+- `AGENTS.md` "What this repo ships" or "Development" section: note that as of Codex v0.140.0, iEvo plugin skills are invocable in Codex batch/CI mode without executor.
+- `plugins/ievo/skills/schedule/SKILL.md` `compatibility` field: add a Codex batch/CI note alongside the Claude Code Routines documentation.
+- `plugins/ievo/skills/security-check/SKILL.md` `compatibility` field: note that Codex batch mode (v0.140.0+) is now a supported execution environment.
+
+This is a purely additive documentation change — no scripts, no coverage obligation, no version bump trigger beyond the standard per-PR bump.
+
+---
+
 ## F-2026-06-02-003 — Document Codex rust-v0.135.0 named permission profiles for iEvo security scan in security-check/SKILL.md
 
 ```yaml
