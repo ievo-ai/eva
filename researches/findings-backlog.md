@@ -763,3 +763,184 @@ Claude Code v2.1.152 introduced `disallowed-tools` frontmatter and iEvo implemen
 Codex v0.135.0 introduced named permission profiles via `/permissions` command (#21559) — a user can create a named profile (e.g., `ievo-security-scan`) that restricts the tool set available during a Codex session. While not frontmatter-level enforcement (the agent cannot self-impose the profile at skill activation time), a named profile is the closest Codex equivalent. A Codex user running `/ievo:security-check` can pre-activate their `ievo-security-scan` profile before the skill starts to achieve the same read-only enforcement.
 
 Concrete proposal: Add a Codex-specific section or compatibility callout to `security-check/SKILL.md` (currently 288 lines, well under the 500-line limit). The addition describes: (a) the parity gap (Claude Code gets `disallowed-tools` enforcement automatically; Codex users must set up a named permission profile manually); (b) how to create the profile in Codex via `/permissions`; (c) recommended tool restrictions (Read, Grep, Glob, WebFetch only — matches the security-auditor agent's `tools:` allowlist); (d) the instruction to activate it with `/permissions use ievo-security-scan` before running the skill. No scripts needed, no coverage obligation — pure SKILL.md documentation addition.
+
+---
+
+## F-2026-06-17-001 — Domain-restricted WebFetch in security-auditor to block exfiltration via prompt injection
+
+```yaml
+id: F-2026-06-17-001
+discovered_at: 2026-06-17T08:17:38Z
+run_id: null
+target_repo: ievo-ai/skills
+title: Add domain-restricted WebFetch(domain:*) permission to security-auditor.md and security-check/SKILL.md (CC v2.1.178)
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/212
+effort: low
+scope: multi-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.178 (2026-06-15) — WebFetch(domain:*.example.com) wildcard domain rules now match subdomains; domain restriction is now a first-class permission syntax applicable in allowed-tools, disallowed-tools, and agent tools: lists
+  - /tmp/skills/plugins/ievo/agents/security-auditor.md: tools: list includes bare WebFetch without domain restriction — the agent fetches candidate content from skills.sh and GitHub API but can also fetch arbitrary attacker-controlled URLs if directed by prompt injection in the candidate being assessed
+  - /tmp/skills/plugins/ievo/skills/security-check/SKILL.md: disallowed-tools blocks Bash(curl*)/wget* but does not restrict WebFetch to specific domains — closes one exfiltration vector but leaves WebFetch unrestricted
+```
+
+**Problem:** The security-auditor sub-agent and security-check skill are designed to assess potentially malicious third-party content. A malicious skill under review could contain prompt injection that instructs the security-auditor to issue a `WebFetch` call to an attacker-controlled domain, exfiltrating:
+- The full content of the candidate being assessed (including SKILL.md body and secrets embedded in references/)
+- The audit verdict itself
+- Portions of the main session context injected via the dispatch prompt
+
+Claude Code v2.1.178 introduced `WebFetch(domain:*.example.com)` wildcard domain rules that are now functional in tool permission lists. This enables scoping the security-auditor's WebFetch to only the legitimate domains it needs:
+- `api.github.com` — GitHub API for fetching candidate repo content via `gh api`
+- `raw.githubusercontent.com` — GitHub raw content
+- `skills.sh` — skills registry API (used by discover.mjs to pull audit signals)
+- `agentskills.io` — spec page referenced in security assessments
+
+**Proposed solution:**
+
+1. In `plugins/ievo/agents/security-auditor.md`: replace bare `WebFetch` in the `tools:` list with domain-restricted variants:
+   ```yaml
+   tools:
+     - Bash
+     - Read
+     - Write
+     - WebFetch(domain:api.github.com)
+     - WebFetch(domain:raw.githubusercontent.com)
+     - WebFetch(domain:skills.sh)
+     - WebFetch(domain:agentskills.io)
+     - Glob
+     - Grep
+   ```
+
+2. In `plugins/ievo/skills/security-check/SKILL.md`: add a compatibility note documenting the domain restriction and its rationale. The `disallowed-tools` block (which blocks curl/wget) is already there; add a note that the `security-auditor` agent's WebFetch is domain-restricted as defense-in-depth against prompt-injection exfiltration.
+
+3. In `AGENTS.md` Security model section: add a bullet noting the WebFetch domain restriction alongside the existing CLAUDE_CODE_SUBAGENT_MODEL and agent: settings.json bypass notes.
+
+**Files affected:**
+
+| File | Change | Notes |
+|------|--------|-------|
+| `plugins/ievo/agents/security-auditor.md` | modified | Replace bare `WebFetch` with 4 domain-restricted entries |
+| `plugins/ievo/skills/security-check/SKILL.md` | modified | Add compatibility note documenting WebFetch domain restriction |
+| `AGENTS.md` | modified | Add WebFetch domain restriction to Security model section |
+
+**API / UX surface:** No user-facing change. The domain restriction is transparent at runtime — `WebFetch` calls to allowed domains work normally; calls to other domains are silently rejected by Claude Code.
+
+**Acceptance criteria:**
+- [ ] `security-auditor.md` `tools:` list contains only domain-restricted `WebFetch(domain:*)` entries, no bare `WebFetch`
+- [ ] `security-check/SKILL.md` documents the domain restriction and its rationale
+- [ ] `AGENTS.md` Security model section references WebFetch domain restriction alongside other model-bypass mitigations
+- [ ] `validate_agents.mjs` still passes (domain-restricted WebFetch is not a model: field — validator not affected)
+- [ ] Version bumped in all four required files + CHANGELOG entry added
+
+**Effort estimate:**
+- Scope: multi-file (3 files — 2 agent/skill content files + AGENTS.md)
+- Effort: low (~30 min — all changes are documentation/frontmatter only, no script or test changes)
+- Risk: low — domain restriction is additive; only breaks if the auditor legitimately needs to fetch from a domain not in the allowlist (e.g., a skills registry at a new URL). Mitigation: allowlist is conservative but covers all current legitimate use cases.
+
+**Open questions for the operator:**
+- Should `vuln-scanner.md` also get domain-restricted WebFetch? (vuln-scanner currently has no WebFetch in its tools: list — lower priority, but consistent with the security model)
+- Is `agentskills.io` the right domain, or should it be `www.agentskills.io`? Wildcard `agentskills.io` should match both.
+- Does CC v2.1.178 support `WebFetch(domain:*.github.com)` as a single wildcard for both api.github.com and raw.githubusercontent.com, or do they need to be listed separately?
+
+**Related:**
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/null
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: F-2026-06-17-001`
+- **Companion proposals:** `ievo-ai/skills#139` (disallowed-tools in security-check — implemented v0.12.0); `ievo-ai/skills#170` (Codex permission profile for security-check)
+
+---
+
+## F-2026-06-17-002 — Add Cursor auto-review `permissions.json` to iEvo plugin for universal tool permission modeling
+
+```yaml
+id: F-2026-06-17-002
+discovered_at: 2026-06-17T08:17:38Z
+run_id: null
+target_repo: ievo-ai/skills
+title: Add Cursor v3.7 auto-review permissions.json to iEvo plugin for universal tool permission enforcement
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/213
+effort: medium
+scope: new-skill
+evidence:
+  - https://www.cursor.com/changelog: v3.7 (2026-06-04) — auto-review Run Mode introduces permissions.json with allow_instructions and block_instructions fields; tool calls matching allow_instructions execute immediately in auto-review mode; matching block_instructions require explicit approval; borderline calls go through classifier subagent
+  - https://github.com/anthropics/claude-code/releases: CC uses SKILL.md disallowed-tools and allowed-tools frontmatter for the same goal — restricting which tools a skill can invoke. iEvo already declares these for security-check and vuln-scan. Cursor uses permissions.json instead of frontmatter.
+  - /tmp/skills/plugins/ievo/.claude-plugin/plugin.json: iEvo has plugin.json for CC and .codex-plugin/marketplace.json for Codex — no Cursor-specific permissions.json exists despite iEvo claiming universal agentskills.io positioning
+```
+
+**Problem:** iEvo claims universal positioning — it works on Claude Code, Codex, Cursor, Copilot, Gemini CLI, and 30+ other agent platforms via the agentskills.io standard. However, iEvo's tool permission model is currently only declared for:
+- **Claude Code**: via `disallowed-tools:` and `allowed-tools:` in SKILL.md frontmatter (v2.1.152+)
+- **Codex**: via named permission profiles at `/permissions` (requires manual user setup, documented in skills#170)
+
+Cursor v3.7 (2026-06-04) introduced `auto-review Run Mode` with a `permissions.json` file format. When a plugin provides `permissions.json`, Cursor's auto-review mode reads it to categorize tool calls as:
+- **Allowlisted** (`allow_instructions`): execute immediately without prompting
+- **Blocked** (`block_instructions`): require explicit user approval
+- **Borderline**: evaluated by classifier subagent
+
+Without a `permissions.json`, Cursor's classifier makes ad-hoc decisions about every iEvo tool call — including the high-volume parallel dispatches in `/ievo:init` (one repo-indexer + one security-auditor per candidate). This generates many classifier prompts in auto-review mode, breaking the no-pause flow that init/SKILL.md requires.
+
+**Proposed solution:**
+
+Add `plugins/ievo/.cursor-plugin/permissions.json` (or equivalent location Cursor recognizes) with:
+
+```json
+{
+  "version": "1.0",
+  "permissions": [
+    {
+      "skill": "init",
+      "allow_instructions": ["Bash(node *)", "Bash(gh api *)", "Bash(git clone *)"],
+      "block_instructions": ["Bash(rm -rf *)", "Write(*/etc/*)", "Write(*/.ssh/*)"]
+    },
+    {
+      "skill": "security-check",
+      "allow_instructions": ["Read(*)", "Glob(*)", "Grep(*)"],
+      "block_instructions": ["Write(*)", "Edit(*)", "Bash(curl *)", "Bash(wget *)", "Bash(rm *)"]
+    },
+    {
+      "skill": "vuln-scan",
+      "allow_instructions": ["Read(*)", "Glob(*)", "Grep(*)"],
+      "block_instructions": ["Write(*)", "Edit(*)", "Bash(rm *)", "Bash(curl *)"]
+    },
+    {
+      "skill": "evolution",
+      "allow_instructions": ["Read(.ievo/*)", "Write(.ievo/evolution/*)", "Edit(.ievo/evolution/*)"],
+      "block_instructions": ["Bash(rm *)", "Write(*/.env)", "Write(*/secrets.*)"]
+    }
+  ]
+}
+```
+
+This aligns Cursor's auto-review classification with what Claude Code enforces via frontmatter, completing the universal permission model.
+
+**Files affected:**
+
+| File | Change | Notes |
+|------|--------|-------|
+| `plugins/ievo/.cursor-plugin/permissions.json` | new | Cursor auto-review permission declarations per skill |
+| `AGENTS.md` | modified | Document Cursor permissions.json in "Security model" section alongside CC disallowed-tools and Codex named profiles |
+| `README.md` | modified | Add Cursor auto-review setup instructions (one line: copy .cursor-plugin/ to .cursorrules adjacent dir or wherever Cursor loads it) |
+
+**API / UX surface:** Cursor users running iEvo in auto-review mode see fewer permission prompts for expected tool uses (init, security-check, evolution). Blocked operations still prompt — defense-in-depth maintained.
+
+**Acceptance criteria:**
+- [ ] `plugins/ievo/.cursor-plugin/permissions.json` exists with per-skill allow/block entries for init, security-check, vuln-scan, evolution
+- [ ] `AGENTS.md` Security model section documents all three permission mechanisms (CC frontmatter, Codex profiles, Cursor permissions.json) in one place
+- [ ] `README.md` mentions Cursor auto-review compatibility
+- [ ] No coverage obligation — `.cursor-plugin/` is a config directory, not `plugins/ievo/scripts/`
+- [ ] Version bumped in all four required files + CHANGELOG entry added
+
+**Effort estimate:**
+- Scope: new-skill (new configuration file + documentation updates)
+- Effort: medium (~2 hr — need to research exact Cursor permissions.json format and test tool call matching syntax)
+- Risk: medium — the permissions.json format details are inferred from v3.7 changelog description; exact schema needs verification against Cursor documentation before implementation. If the format is wrong, it silently fails to take effect. Mitigation: start with a minimal version and test in a Cursor project before shipping.
+
+**Open questions for the operator:**
+- What is the exact Cursor `permissions.json` schema (field names, nesting, version field)? The v3.7 changelog description is brief.
+- Where does Cursor look for `permissions.json`? Is it adjacent to the plugin directory, inside the `.cursor-plugin/` dir, or a project-level file?
+- Should `allow_instructions` and `block_instructions` use the same glob syntax as CC `allowed-tools` (e.g., `Bash(node *)`) or a different format?
+- Is there a Cursor SDK or docs page for the v3.7 auto-review permissions format?
+
+**Related:**
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/null
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: F-2026-06-17-002`
+- **Companion proposals:** `ievo-ai/skills#139` (CC disallowed-tools — implemented v0.12.0); `ievo-ai/skills#170` (Codex permission profile for security-check); `ievo-ai/skills#203` (Cursor v3.7 /review compatibility in deep-review/SKILL.md)
