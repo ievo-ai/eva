@@ -763,3 +763,84 @@ Claude Code v2.1.152 introduced `disallowed-tools` frontmatter and iEvo implemen
 Codex v0.135.0 introduced named permission profiles via `/permissions` command (#21559) — a user can create a named profile (e.g., `ievo-security-scan`) that restricts the tool set available during a Codex session. While not frontmatter-level enforcement (the agent cannot self-impose the profile at skill activation time), a named profile is the closest Codex equivalent. A Codex user running `/ievo:security-check` can pre-activate their `ievo-security-scan` profile before the skill starts to achieve the same read-only enforcement.
 
 Concrete proposal: Add a Codex-specific section or compatibility callout to `security-check/SKILL.md` (currently 288 lines, well under the 500-line limit). The addition describes: (a) the parity gap (Claude Code gets `disallowed-tools` enforcement automatically; Codex users must set up a named permission profile manually); (b) how to create the profile in Codex via `/permissions`; (c) recommended tool restrictions (Read, Grep, Glob, WebFetch only — matches the security-auditor agent's `tools:` allowlist); (d) the instruction to activate it with `/permissions use ievo-security-scan` before running the skill. No scripts needed, no coverage obligation — pure SKILL.md documentation addition.
+
+---
+
+## F-2026-06-18-001 — Codex v0.141.0 orchestrator skills hidden with local executor — init/SKILL.md compatibility gap
+
+```yaml
+id: F-2026-06-18-001
+discovered_at: 2026-06-18T00:00:00Z
+run_id: 26888000000
+target_repo: ievo-ai/skills
+title: Document Codex v0.141.0 orchestrator-skill hiding with local executors in init/SKILL.md compatibility field
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/216
+effort: low
+scope: multi-file
+evidence:
+  - https://github.com/openai/codex/releases: v0.141.0 (June 18, 2026) PR #28336 — skills caching, auth-aware loading, orchestrator skills hidden when using a local executor
+```
+
+Codex v0.141.0 (June 18, 2026) introduced orchestrator-skill hiding for local executor contexts (PR #28336). When a Codex session runs with a local executor rather than a cloud executor, orchestrator skills — skills that dispatch sub-agents or coordinate multi-step pipelines — are hidden from the skill list.
+
+iEvo's `init/SKILL.md` IS an orchestrator skill: it dispatches `security-auditor` + `repo-indexer` sub-agents in parallel (Step 8), runs multi-phase logic, and coordinates the full install pipeline. Under the v0.141.0 semantics, Codex users running with a local executor will not see `/ievo:init` in their skill list unless they explicitly switch to a cloud executor.
+
+The gap: `init/SKILL.md` has a detailed `compatibility:` field covering gh CLI, Node, git, and network requirements — but it does not mention the Codex executor-mode constraint. A Codex user who installs iEvo and can't find the primary entry-point skill will have no guidance on why it's hidden or how to resolve it.
+
+**Proposed solution:** Add a one-sentence note to `init/SKILL.md`'s `compatibility:` field: "On Codex: requires a cloud executor — orchestrator skills are hidden in local-executor mode (v0.141.0+); switch via `/executor cloud` or configure a remote executor in Codex settings." Also add a corresponding note to AGENTS.md § Platform notes.
+
+---
+
+## F-2026-06-18-002 — CC v2.1.181 foreground subagent depth limit enforcement — AGENTS.md agent-chain budget documentation
+
+```yaml
+id: F-2026-06-18-002
+discovered_at: 2026-06-18T00:00:00Z
+run_id: 26888000000
+target_repo: ievo-ai/skills
+title: Document CC v2.1.181 foreground subagent 5-level depth limit in AGENTS.md with iEvo agent-chain budget accounting
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/217
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.181 (June 17, 2026) — "Fixed foreground subagents spawning unbounded nested chains; they now respect the same 5-level depth limit as background subagents"
+```
+
+Claude Code v2.1.181 (June 17, 2026) fixed a behavior gap: foreground subagents previously could spawn nested chains without a depth limit, while background subagents were capped at 5 levels. After v2.1.181, both foreground AND background subagents share the same 5-level depth limit.
+
+iEvo's agent chain is:
+1. User session (level 0)
+2. `init/SKILL.md` dispatches `security-auditor` + `repo-indexer` in parallel (level 1)
+3. `security-auditor` and `repo-indexer` complete their analysis (level 2)
+
+The existing AGENTS.md has an open issue (#194) about documenting "CC v2.1.172 sub-agent nesting up to 5 levels". The v2.1.181 fix adds a behavioral change: code that relied on foreground agents having *unlimited* nesting will silently break after the CC update. iEvo stays within the 5-level budget today (max depth ~2-3), but the AGENTS.md documentation should explicitly state the constraint and the available budget so contributors don't inadvertently exceed it when adding new orchestration steps.
+
+**Proposed solution:** Add a "Subagent depth budget" note to AGENTS.md § Pipeline section alongside issue #194's eventual 5-level documentation: "Both foreground and background subagents share a 5-level depth limit (CC v2.1.181+). iEvo's current max depth: init(0) → security-auditor|repo-indexer(1) → [any sub-dispatch](2) = 3 levels used, 2 remaining. New orchestration steps must stay within this budget."
+
+---
+
+## F-2026-06-18-003 — CC v2.1.181 `/config key=value` in-prompt setting — document as alternative in debug-on/debug-off SKILL.md files
+
+```yaml
+id: F-2026-06-18-003
+discovered_at: 2026-06-18T00:00:00Z
+run_id: 26888000000
+target_repo: ievo-ai/skills
+title: Add CC v2.1.181 /config key=value as inline alternative to /ievo:debug-on and /ievo:debug-off in both SKILL.md files
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/218
+effort: low
+scope: multi-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.181 (June 17, 2026) — "Added /config key=value syntax to set any setting from the prompt (e.g. /config thinking=false) — works in interactive, -p, and Remote Control"
+```
+
+Claude Code v2.1.181 (June 17, 2026) added `/config key=value` — a prompt-level command that sets any CC setting without opening `settings.json`. It works in interactive sessions, `-p` (non-interactive), and Remote Control mode.
+
+iEvo ships `debug-on/SKILL.md` and `debug-off/SKILL.md` which toggle verbose session logging. With v2.1.181's `/config` syntax, users running CC ≥v2.1.181 have a zero-install, in-prompt alternative that doesn't require the iEvo plugin to be loaded. The two skills are still useful (they work on all versions and platforms, provide a discoverability surface, and can wrap multi-step debug configuration), but they should acknowledge the newer lighter alternative.
+
+**Open question for operator:** What is the exact CC setting key name for the verbose/debug toggle? The release notes use `thinking=false` as an example but don't enumerate all setting keys. The implementation should look up the key before writing the note — candidates include `verbose`, `debug`, `verboseOutput`, etc.
+
+**Proposed solution:** Add a one-line "Requires CC < v2.1.181" or "Alternative (CC v2.1.181+):" note to the `description:` or `compatibility:` fields of `debug-on/SKILL.md` and `debug-off/SKILL.md`. Update `hooks-setup/SKILL.md` to mention `/config hooks.<type>=...` as a zero-install hook configuration approach. Effort: low once the correct setting key is identified.
