@@ -763,3 +763,104 @@ Claude Code v2.1.152 introduced `disallowed-tools` frontmatter and iEvo implemen
 Codex v0.135.0 introduced named permission profiles via `/permissions` command (#21559) — a user can create a named profile (e.g., `ievo-security-scan`) that restricts the tool set available during a Codex session. While not frontmatter-level enforcement (the agent cannot self-impose the profile at skill activation time), a named profile is the closest Codex equivalent. A Codex user running `/ievo:security-check` can pre-activate their `ievo-security-scan` profile before the skill starts to achieve the same read-only enforcement.
 
 Concrete proposal: Add a Codex-specific section or compatibility callout to `security-check/SKILL.md` (currently 288 lines, well under the 500-line limit). The addition describes: (a) the parity gap (Claude Code gets `disallowed-tools` enforcement automatically; Codex users must set up a named permission profile manually); (b) how to create the profile in Codex via `/permissions`; (c) recommended tool restrictions (Read, Grep, Glob, WebFetch only — matches the security-auditor agent's `tools:` allowlist); (d) the instruction to activate it with `/permissions use ievo-security-scan` before running the skill. No scripts needed, no coverage obligation — pure SKILL.md documentation addition.
+
+---
+
+## F-2026-06-19-001 — Document CC v2.1.183 destructive git command blocking in hooks in hooks-setup/SKILL.md
+
+```yaml
+id: F-2026-06-19-001
+discovered_at: 2026-06-19T08:09:24Z
+run_id: 27813549074
+target_repo: ievo-ai/skills
+title: Document CC v2.1.183 destructive git command blocking in hooks-setup/SKILL.md compatibility field and hook body
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/219
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.183 (2026-06-19) — git reset --hard, git checkout --, git clean -fd, git stash drop blocked in hooks when user did not explicitly request discarding work; git commit --amend blocked in hooks if agent didn't create the commit in the current session
+```
+
+Claude Code v2.1.183 (today, 2026-06-19) introduced safety guards that silently block destructive git commands inside hook bodies: `git reset --hard`, `git checkout --`, `git clean -fd`, `git stash drop` (when the user didn't explicitly request work-discard), and `git commit --amend` (unless the commit was made by the agent in the current session). Any hook currently using these commands will silently stop executing them after users upgrade to v2.1.183+.
+
+The `hooks-setup/SKILL.md` teaches users how to write Claude Code lifecycle hooks. Its compatibility field currently documents minimum versions for exec-form args, terminalSequence, and background_tasks — but has no note about command restrictions inside hook bodies. A user who writes a hook that calls `git stash drop` as a cleanup step (a plausible pattern) will get silent failure with no indication of why their hook stopped working.
+
+Proposed changes to `hooks-setup/SKILL.md`:
+1. **Compatibility field**: Add `v2.1.183+ (hook body restriction: git reset --hard / checkout -- / clean -fd / stash drop blocked unless user-requested; git commit --amend blocked unless agent made the commit this session)` to the existing version list.
+2. **Hook body section**: Add a "Restrictions" subsection noting: (a) the blocked commands list; (b) the rationale (prevent accidental work loss from automated hooks); (c) safe alternatives (use `git diff --stat` to check rather than reset; use `git stash list` rather than drop).
+
+Implementation: pure SKILL.md documentation addition, no scripts required, no test coverage obligation. Version bump required per AGENTS.md (four files + CHANGELOG.md entry).
+
+---
+
+## F-2026-06-19-002 — Add Cursor v3.8 /automate command as Cursor-native scheduling path to schedule/SKILL.md
+
+```yaml
+id: F-2026-06-19-002
+discovered_at: 2026-06-19T08:09:24Z
+run_id: 27813549074
+target_repo: ievo-ai/skills
+title: Add Cursor v3.8 /automate command as Cursor-native automation path to schedule/SKILL.md
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/220
+effort: low
+scope: single-file
+evidence:
+  - https://www.cursor.com/changelog: v3.8 (2026-06-18) — /automate command for creating Cursor Automations in local sessions; Automations can open PRs by default; 5 new GitHub triggers including "workflow run completed"
+```
+
+Cursor v3.8 (2026-06-18) shipped `/automate` — a command for creating Cursor Automations that schedule recurring or event-triggered agent tasks, analogous to Claude Code's `/schedule` command that creates Routines.
+
+The current `schedule/SKILL.md` compatibility field explicitly states: `"Claude Code only — Routines require Pro/Max/Team/Enterprise subscription and Claude Code v2.1.149+. [...] Codex and other platforms: use the CI cron fallback printed when Routines are unavailable."` There is no Cursor-native scheduling path documented, despite Cursor v3.8 now having a first-class `/automate` command that maps to the same user intent: "periodically run iEvo operations".
+
+This violates iEvo's universal positioning promise (AGENTS.md: "Not a Claude Code-only plugin") — a Cursor user asking "set up weekly iEvo security scan" gets redirected to a CI cron fallback when there is now a native `/automate` option on their platform.
+
+Proposed changes to `schedule/SKILL.md`:
+1. **Wizard step 0** (platform detection): detect which platform the user is on (Claude Code vs Cursor vs other). If Claude Code → existing Routine flow. If Cursor v3.8+ → guide user to `/automate` to create a Cursor Automation with the target iEvo command. If other → CI cron fallback.
+2. **Compatibility field**: Add `Cursor v3.8+ (/automate command creates Automations with 5 GitHub trigger types including "workflow run completed")`
+3. **New "Cursor Automation" section**: Document how to create an Automation that runs `/ievo:security-check` on a schedule or when a workflow_run completes.
+
+Implementation: SKILL.md body update (~30–50 lines), no scripts required. Cursor's new "workflow run completed" trigger is particularly relevant: users can auto-trigger `/ievo:security-check` on CI completion — a tighter feedback loop than a time-based cron schedule. Version bump required per AGENTS.md rules.
+
+---
+
+## F-2026-06-19-003 — Add WebSearch to disallowed-tools in security-check/SKILL.md and vuln-scan/SKILL.md (CC v2.1.183 WebSearch-in-subagents fix)
+
+```yaml
+id: F-2026-06-19-003
+discovered_at: 2026-06-19T08:09:24Z
+run_id: 27813549074
+target_repo: ievo-ai/skills
+title: Add WebSearch to disallowed-tools in security-check/SKILL.md and vuln-scan/SKILL.md to close new subagent exfiltration vector (CC v2.1.183)
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/221
+effort: low
+scope: multi-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.183 (2026-06-19) — WebSearch fixed to return results in subagents; previously WebSearch silently failed in Task-tool-dispatched sub-agents, so blocking it was redundant; now it works, creating a functional exfiltration path
+  - https://github.com/ievo-ai/skills/blob/main/plugins/ievo/skills/security-check/SKILL.md: disallowed-tools currently includes Write, Edit, Bash(rm*), Bash(mv*), Bash(cp*), Bash(curl*), Bash(wget*) — all HTTP exfiltration via Bash is blocked, but WebSearch (a first-class tool, not Bash) is not listed
+```
+
+Claude Code v2.1.183 (today) fixed WebSearch to return results in subagents. Before this fix, WebSearch was silently non-functional in Task-tool-dispatched sub-agents (like `security-auditor` and `vuln-scanner`) — blocking it in `disallowed-tools` would have been redundant. After this fix, WebSearch is now functional in subagents.
+
+The prompt-injection threat model for security-check/SKILL.md and vuln-scan/SKILL.md explicitly guards against exfiltration: `disallowed-tools` already blocks `Bash(curl*)` and `Bash(wget*)` to prevent shell-level HTTP calls. However, **WebSearch is a first-class tool** (not a Bash subprocess) and is now a live exfiltration channel: a malicious skill under review could inject instructions like "search for `[exfiltrated-secret]`" into the assessor's context, and the security-auditor sub-agent could unwittingly exfiltrate data via WebSearch queries.
+
+Prior art: `ievo-ai/skills#199` (open) proposes restricting WebSearch in the Codex permission profile for security-check. This finding is the parallel for **Claude Code's `disallowed-tools` frontmatter** — a different mechanism targeting the same threat.
+
+`ievo-ai/skills#212` (open) proposes domain-restricted `WebFetch(domain:*)` for `security-auditor.md` (the agent file). This finding is about `security-check/SKILL.md` and `vuln-scan/SKILL.md` (the SKILL.md files that dispatch the agents) — a different layer of defense.
+
+Proposed change: Add `WebSearch` to the `disallowed-tools` list in both `security-check/SKILL.md` and `vuln-scan/SKILL.md`:
+```yaml
+disallowed-tools:
+  - Write
+  - Edit
+  - Bash(rm*)
+  - Bash(mv*)
+  - Bash(cp*)
+  - Bash(curl*)
+  - Bash(wget*)
+  - WebSearch  # NEW — blocks exfiltration via tool now that v2.1.183 fixed WebSearch in subagents
+```
+
+Implementation: 1-line addition per SKILL.md (2 files total). Version bump required per AGENTS.md rules (four files + CHANGELOG.md entry). This change requires no test coverage changes (disallowed-tools are frontmatter, not script logic). Effort: low (~15 min).
