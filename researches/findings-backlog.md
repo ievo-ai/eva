@@ -115,6 +115,7 @@ Filed by Eva research run <$GITHUB_RUN_ID> against `ievo-ai/eva` (research repo)
 
 This issue template is intentionally **detailed** — operator preference 2026-05-22. The goal is for the operator (or a future Issue Triage helper from godfather task #42) to have enough specification to either accept-and-implement or reject-with-reason without a back-and-forth round. Detailed issue > shallow PR, especially when implementation cost is non-trivial.
 
+
 ## Constraints
 
 - Hard cap: 3 findings per run. Quality over quantity; remaining gaps go in Deferred findings of the audit report.
@@ -763,3 +764,61 @@ Claude Code v2.1.152 introduced `disallowed-tools` frontmatter and iEvo implemen
 Codex v0.135.0 introduced named permission profiles via `/permissions` command (#21559) — a user can create a named profile (e.g., `ievo-security-scan`) that restricts the tool set available during a Codex session. While not frontmatter-level enforcement (the agent cannot self-impose the profile at skill activation time), a named profile is the closest Codex equivalent. A Codex user running `/ievo:security-check` can pre-activate their `ievo-security-scan` profile before the skill starts to achieve the same read-only enforcement.
 
 Concrete proposal: Add a Codex-specific section or compatibility callout to `security-check/SKILL.md` (currently 288 lines, well under the 500-line limit). The addition describes: (a) the parity gap (Claude Code gets `disallowed-tools` enforcement automatically; Codex users must set up a named permission profile manually); (b) how to create the profile in Codex via `/permissions`; (c) recommended tool restrictions (Read, Grep, Glob, WebFetch only — matches the security-auditor agent's `tools:` allowlist); (d) the instruction to activate it with `/permissions use ievo-security-scan` before running the skill. No scripts needed, no coverage obligation — pure SKILL.md documentation addition.
+
+---
+
+## F-2026-06-20-001 — Document Codex v0.141.0 per-thread MCP activation for iEvo parallel agent dispatch
+
+```yaml
+id: F-2026-06-20-001
+discovered_at: 2026-06-20T07:37:47Z
+run_id: 27864303770
+target_repo: ievo-ai/skills
+title: Document Codex v0.141.0 per-thread MCP activation for iEvo parallel security-auditor/repo-indexer dispatch
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/222
+effort: low
+scope: multi-file
+evidence:
+  - https://github.com/openai/codex/releases: rust-v0.141.0 (2026-06-18) — "Executor plugins can activate stdio MCP servers per thread" — new capability for per-agent MCP isolation in multi-thread Codex sessions
+```
+
+Codex v0.141.0 (June 18, 2026) introduced the ability for executor plugins to activate stdio MCP servers on a per-thread basis — meaning each dispatched sub-agent thread can have a different MCP server configuration. iEvo's `/ievo:init` and `/ievo:security-check` skills dispatch parallel sub-agents (security-auditor, repo-indexer) via the Task tool, creating multiple concurrent threads. Currently, no iEvo documentation guides Codex users on leveraging per-thread MCP for these dispatched agents.
+
+There are two concrete benefits for iEvo:
+
+1. **Security isolation**: The security-auditor thread could activate a read-only filesystem MCP while blocking network MCPs, providing an MCP-level complement to the `disallowed-tools` enforcement already in `security-check/SKILL.md`. This is a deeper isolation than tool-list blocking — it prevents the thread from even having a network MCP registered.
+
+2. **Efficiency for repo-indexer**: The repo-indexer thread could activate a filesystem MCP with large-file streaming support, allowing `scan_repo.mjs` to hand off large binary reads to the MCP instead of using shell fallbacks. Relevant for repos with large assets or deeply nested directory trees.
+
+The gap: `AGENTS.md` § "Pipeline" describes the parallel dispatch but says nothing about per-thread MCP configuration for Codex users. `security-check/SKILL.md` documents the Claude Code `disallowed-tools` approach but has no Codex per-thread MCP equivalent section. `security-auditor.md` and `repo-indexer.md` don't mention the per-thread MCP capability.
+
+---
+
+## F-2026-06-20-002 — Document Cursor v3.7 `/in-cloud` command as true VM-level sandboxing for /ievo:security-check
+
+```yaml
+id: F-2026-06-20-002
+discovered_at: 2026-06-20T07:37:47Z
+run_id: 27864303770
+target_repo: ievo-ai/skills
+title: Add Cursor v3.7 /in-cloud isolated VM guidance to security-check/SKILL.md as stronger sandboxing than disallowed-tools
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/223
+effort: low
+scope: single-file
+evidence:
+  - https://www.cursor.com/changelog: Cursor v3.7 (2026-06-17) — "/in-cloud command for running cloud subagents in isolated VMs" and "background cloud agent execution" — true process-level isolation, not just tool-list restriction
+```
+
+Cursor v3.7 (June 17, 2026) shipped `/in-cloud`, a command that dispatches a cloud subagent running in a fully isolated VM — separate process, separate filesystem, separate network namespace. This is categorically stronger sandboxing than the `disallowed-tools: [Write, Edit, Bash(rm*) ...]` frontmatter approach already in `security-check/SKILL.md`.
+
+The current `security-check/SKILL.md` `disallowed-tools` approach (shipped in v0.12.0) restricts the tool LIST available to the security-auditor agent. But it's still running in the same process/session as the user's Cursor workspace. An adversarially-crafted SKILL.md under review could potentially:
+- Inject into the Claude Code session via prompt injection
+- Influence the parent session's context even if Write/Edit/Bash are blocked
+
+Running `/ievo:security-check` via `/in-cloud` on Cursor gives VM-level isolation: even a successful prompt injection can't reach the user's local filesystem or session state because the scanner runs in a separate Cursor cloud VM.
+
+The gap: `security-check/SKILL.md` is positioned as a multi-platform skill with a `compatibility` field and `disallowed-tools` for Claude Code, and a Codex named-profile workaround (from F-2026-06-02-003 / open issue #170). But there is no Cursor-specific section documenting the `/in-cloud` option as the strongest available sandboxing on Cursor.
+
+Concrete proposal: Add a Cursor-specific subsection to `security-check/SKILL.md` (under the existing Codex compatibility note) that: (a) recommends prefixing the security scan with `/in-cloud` on Cursor v3.7+ for VM-level isolation; (b) clarifies that `disallowed-tools` restrictions are not applied inside `/in-cloud` subagents (Cursor handles tool policy at the VM level instead); (c) notes the trade-off — `/in-cloud` requires a Cursor Pro/Business account and ~30s VM startup latency vs the instant in-process security-auditor dispatch. Pure documentation addition, no scripts, no test coverage obligation, single SKILL.md file. Version bump required per AGENTS.md.
