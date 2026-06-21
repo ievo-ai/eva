@@ -763,3 +763,109 @@ Claude Code v2.1.152 introduced `disallowed-tools` frontmatter and iEvo implemen
 Codex v0.135.0 introduced named permission profiles via `/permissions` command (#21559) — a user can create a named profile (e.g., `ievo-security-scan`) that restricts the tool set available during a Codex session. While not frontmatter-level enforcement (the agent cannot self-impose the profile at skill activation time), a named profile is the closest Codex equivalent. A Codex user running `/ievo:security-check` can pre-activate their `ievo-security-scan` profile before the skill starts to achieve the same read-only enforcement.
 
 Concrete proposal: Add a Codex-specific section or compatibility callout to `security-check/SKILL.md` (currently 288 lines, well under the 500-line limit). The addition describes: (a) the parity gap (Claude Code gets `disallowed-tools` enforcement automatically; Codex users must set up a named permission profile manually); (b) how to create the profile in Codex via `/permissions`; (c) recommended tool restrictions (Read, Grep, Glob, WebFetch only — matches the security-auditor agent's `tools:` allowlist); (d) the instruction to activate it with `/permissions use ievo-security-scan` before running the skill. No scripts needed, no coverage obligation — pure SKILL.md documentation addition.
+
+---
+
+## F-2026-06-21-001 — Document Codex v0.141.0 PostToolUse code-mode rejection in hooks-setup/SKILL.md
+
+```yaml
+id: F-2026-06-21-001
+discovered_at: 2026-06-21T07:56:57Z
+run_id: 27897749125
+target_repo: ievo-ai/skills
+title: Add Codex v0.141.0 PostToolUse code-mode rejection compatibility note to hooks-setup/SKILL.md
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/224
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/openai/codex/releases: rust-v0.141.0 (June 18, 2026) — "PostToolUse hooks properly reject code-mode tool calls" — prior to v0.141.0 these hooks silently passed code-mode tool calls; now they are explicitly rejected, breaking any hook that expected to fire after code-mode tool execution
+```
+
+Codex rust-v0.141.0 (June 18, 2026) changed how PostToolUse hooks interact with "code-mode" tool calls. Before this release, PostToolUse hooks silently accepted (i.e., did not fire rejections for) code-mode tool calls — meaning iEvo users who configured PostToolUse hooks via `/ievo:hooks-setup` would see the hook run for code-mode tool execution. After v0.141.0, those same hooks receive proper rejections for code-mode tool calls, which may cause unexpected hook failures or silent no-ops.
+
+iEvo's `hooks-setup/SKILL.md` currently documents Codex PostToolUse hooks as equivalent to Claude Code's PostToolUse hooks. The Codex section (currently in open issue #155 and referenced in future open issue #165) does not yet distinguish code-mode vs non-code-mode hook behavior.
+
+**What breaks**: Any iEvo PostToolUse hook (e.g., the iEvo evolution-capture hook that fires after `Write` tool calls during an evolution overlay write) configured via `/ievo:hooks-setup` on Codex may now receive rejections for code-mode tool execution. If the hook is implemented as a blocking hook (non-zero exit code = block), this could inadvertently block legitimate Codex code-mode operations.
+
+**Proposed fix**: Add a versioned compatibility note to `hooks-setup/SKILL.md` Codex section:
+1. Note that on Codex v0.141.0+, PostToolUse hooks return rejection codes for code-mode tool calls — hooks must explicitly handle this or return exit 0 for code-mode contexts
+2. Add a code snippet showing how to detect code-mode context in the hook shell script and exit 0 (non-blocking) for those calls
+3. Update the minimum version requirement callout for the Codex hooks section from "v0.134.0+" to "v0.141.0+ (schema behavior changed)"
+
+No new scripts, no coverage obligation — pure documentation update to SKILL.md body. The change requires a version bump per AGENTS.md rules.
+
+---
+
+## F-2026-06-21-002 — Document Cursor v3.7 `.cursor/environment.json` for persisting iEvo plugin state in cloud sessions
+
+```yaml
+id: F-2026-06-21-002
+discovered_at: 2026-06-21T07:56:57Z
+run_id: 27897749125
+target_repo: ievo-ai/skills
+title: Document Cursor v3.7 .cursor/environment.json as iEvo cloud-session state persistence mechanism in init/SKILL.md and handoff/SKILL.md
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/225
+effort: low
+scope: multi-file
+evidence:
+  - https://www.cursor.com/changelog: Cursor v3.7 (June 17, 2026) — "Cloud environment setup with reusable snapshots captured in `.cursor/environment.json`" — captures installed tools, plugins, and configurations into a reusable snapshot for cloud VM sessions spawned via `/in-cloud`
+  - https://www.cursor.com/changelog: Cursor v3.7 (June 5, 2026) — `/in-cloud` command spawns isolated cloud subagents in separate VMs (already tracked in open skills#223) — the environment.json mechanism is a SEPARATE feature enabling persistent iEvo state across those cloud sessions
+```
+
+Cursor v3.7 introduced two related but distinct cloud features:
+1. `/in-cloud` — spawns isolated cloud VM subagents (being tracked in open issue #223)
+2. `.cursor/environment.json` — captures the current environment state (installed plugins, tools, configurations) as a reusable snapshot for cloud sessions
+
+The gap: when a user runs `/ievo:init` in a Cursor project and installs iEvo skills, that installation lives in their local `.claude/skills/` or `~/.claude/` directories. When they later spawn a cloud session via `/in-cloud`, the cloud VM starts fresh — no iEvo plugin, no evolution overlays, no installed skills. The `.cursor/environment.json` mechanism bridges this gap: after a successful `/ievo:init`, the user can create a `.cursor/environment.json` snapshot that captures the iEvo-ready state for cloud session reuse.
+
+**Files affected**:
+- `plugins/ievo/skills/init/SKILL.md`: Add a "Cursor Cloud Sessions" subsection at the end documenting how to capture post-init environment state with `.cursor/environment.json` for persistent cloud-VM reuse. One or two paragraphs + the `cursor env snapshot` command (or equivalent as documented in Cursor v3.7 changelog).
+- `plugins/ievo/skills/handoff/SKILL.md`: Add a note that for Cursor users, `.cursor/environment.json` is a complementary mechanism to `/ievo:handoff` for cloud-session continuity — handoff captures the agent's cognitive state, environment.json captures the installed-plugin state.
+
+**Scope**: Multi-file but both additions are purely additive (new subsections in existing SKILL.md files). No scripts, no coverage obligation. Version bump required per AGENTS.md rules.
+
+**Why not covered by issue #223**: Issue #223 is specifically about adding `/in-cloud` VM sandboxing guidance to `security-check/SKILL.md` — using cloud VMs as an isolation mechanism for security scanning. This finding is about capturing iEvo's plugin installation state for cloud-session reuse in `init/SKILL.md` and `handoff/SKILL.md`. Different files, different skill context, different user story.
+
+---
+
+## F-2026-06-21-003 — Add `disallowedTools` frontmatter to security-auditor.md for self-enforcing sub-agent read-only mode
+
+```yaml
+id: F-2026-06-21-003
+discovered_at: 2026-06-21T07:56:57Z
+run_id: 27897749125
+target_repo: ievo-ai/skills
+title: Add disallowedTools frontmatter to security-auditor.md so the agent self-enforces read-only mode independent of parent skill's disallowed-tools context
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/226
+effort: low
+scope: single-file
+evidence:
+  - https://code.claude.com/docs/en/sub-agents.md: `disallowedTools` is a valid Claude Code sub-agent frontmatter field (camelCase per agent convention); not in the "Plugin subagents ignore" list (which only excludes `hooks`, `mcpServers`, `permissionMode`) — so `disallowedTools` should be honored for plugin-dispatched sub-agents
+  - https://github.com/anthropics/claude-code/releases: v2.1.183 (June 19) fixed WebSearch in subagents — WebSearch now works in sub-agent contexts, increasing the importance of tool restrictions at the agent level to prevent exfiltration via now-working web search during an adversarial scan
+  - /tmp/skills/plugins/ievo/skills/security-check/SKILL.md: has `disallowed-tools: [Write, Edit, Bash(rm*), ...]` (added v0.12.0) — but this applies to the main session while the security-check SKILL runs, NOT to sub-agents spawned via Task tool
+```
+
+`security-check/SKILL.md` and `vuln-scan/SKILL.md` both declare `disallowed-tools: [Write, Edit, Bash(rm*), Bash(mv*), Bash(cp*), Bash(curl*), Bash(wget*)]` to enforce read-only mode. This is correct and was shipped in v0.12.0.
+
+However, `disallowed-tools` in a SKILL.md frontmatter applies to the SKILL'S activation context — the main session while the skill instructions are running. When `security-check/SKILL.md` dispatches `security-auditor` via the Task tool, the sub-agent runs in its OWN isolated context with its own tool permissions. The parent skill's `disallowed-tools` does NOT propagate to the spawned sub-agent.
+
+This means: while the security-check skill body cannot use Write/Edit/Bash(rm*) etc., the security-auditor sub-agent it dispatches CAN use those tools (unless restricted at the agent level). With CC v2.1.183 now fixing WebSearch in sub-agents, there is an additional vector: security-auditor can now use WebSearch during its scan.
+
+**The fix**: Add `disallowedTools: [Write, Edit, Bash(rm*), Bash(mv*), Bash(cp*), Bash(curl*), Bash(wget*)]` to `security-auditor.md` agent frontmatter (camelCase, per sub-agents documentation convention for agent .md files). This makes the security-auditor agent self-enforcing regardless of how it is dispatched or what the parent skill's `disallowed-tools` says.
+
+**Why distinct from existing issues**:
+- Issue #212: "domain-restricted WebFetch(domain:*) to security-auditor.md" — adds a specific CAPABILITY with domain restriction; this finding is about BLOCKING the full destructive-write/delete/curl tool set
+- Issue #221: "add WebSearch to disallowed-tools in security-check and vuln-scan SKILL.md" — disabling WebSearch in the SKILL context; this finding addresses the SUB-AGENT context and the full write/execute tool set
+
+**Files affected**:
+- `plugins/ievo/agents/security-auditor.md`: Add `disallowedTools:` frontmatter field listing Write, Edit, Bash(rm*), Bash(mv*), Bash(cp*), Bash(curl*), Bash(wget*), WebSearch — mirrors the parent skill's disallowed-tools set plus WebSearch (now that WebSearch works in sub-agents per v2.1.183 fix). Single-file change, no script, no coverage obligation. Version bump required.
+
+**Acceptance criteria**:
+- [ ] `disallowedTools` frontmatter added to security-auditor.md with the full destructive-tool set
+- [ ] Values verified against current Claude Code sub-agents documentation convention (camelCase, list format)
+- [ ] AGENTS.md security-model section updated with a note about agent-level vs skill-level tool restrictions
+- [ ] Version bumped in all 4 required files + CHANGELOG.md entry
+- [ ] validate_agents.mjs runs clean on the modified agent file

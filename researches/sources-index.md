@@ -36,14 +36,15 @@ run_id: <GitHub Actions run ID or null>
 ## https://www.anthropic.com/news
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-21T07:56:57Z
 status: unchanged
-run_id: 26806183547
+run_id: 27897749125
 ```
 
-**Summary:** No new developer-tool or agent-platform announcements since May 27. Tracking via Claude Code release notes directly for Claude Code changes.
+**Summary:** No new developer-tool or agent-platform API/format announcements. June 2026 items: Fable 5 + Mythos 5 released (June 9) then access restricted by US export control directive (June 12); Claude Corps fellowship (June 11); Seoul office (June 17); Partner Network expansion (June 3); Glasswing extended to 150+ orgs (June 2). No skill-format or Claude Code API changes in Anthropic blog. Tracking Claude Code via github.com/anthropics/claude-code/releases directly.
 
 History:
+- 2026-06-21T07:56:57Z — unchanged: Fable 5/Mythos 5 released + restricted June 9-12; Claude Corps June 11; Seoul June 17; no API/skill-format changes in blog
 - 2026-06-02T08:04:18Z — unchanged: not re-fetched (tracking Claude Code releases directly via github.com/anthropics/claude-code/releases); no Anthropic blog developer announcements observed
 - 2026-06-01T08:08:22Z — changed: Opus 4.8 released (May 28); Series H; no CC-specific or agent-format changes
 - 2026-05-31T00:00:00Z — changed: Opus 4.8 launched (May 28); `opus` alias now resolves to 4.8 — affects iEvo evolution.md agent; $65B Series H raise; no Claude Code API changes
@@ -63,14 +64,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-21T07:56:57Z
 status: changed
-run_id: 26806183547
+run_id: 27897749125
 ```
 
-**Summary:** v2.1.160 (2026-06-02) — `acceptEdits` now prompts for `.pre-commit-config.yaml` + other build-tool configs; Dynamic Workflow trigger renamed `workflow` → `ultracode`; single-file grep satisfies read-before-edit; shell startup file write prompts. v2.1.157 (2026-05-29) — plugins in `.claude/skills/` auto-loaded, `claude plugin init` scaffolds plugins, `agent:` field in settings.json honored for dispatched sessions. v2.1.154 (2026-05-28) — Claude Opus 4.8 default for xhigh effort, Dynamic Workflows feature (tens-to-hundreds of background agents via /workflows), `defaultEnabled: false` in plugin.json, `! <command>` background agent execution. v2.1.153 (2026-05-28) — subagent MCP enforcement fixed (--strict-mcp-config now applies); /model saves as default for new sessions; Status line commands get COLUMNS/LINES env vars. v2.1.152 (2026-05-27) — `disallowed-tools` frontmatter, MessageDisplay hook, SessionStart enhancements, /reload-skills.
+**Summary:** v2.1.185 (June 20) — stream-stall hint delay increased to 20s. v2.1.183 (June 19) — destructive git commands blocked (`git reset --hard`, `git checkout -- .`, `git clean -fd`, `git stash drop`; Terraform/Pulumi/CDK destroy); WebSearch fixed in subagents; `attribution.sessionUrl` setting; `/config --help`. v2.1.181 (June 17) — `/config key=value` inline config syntax; `sandbox.allowAppleEvents`; `CLAUDE_CLIENT_PRESENCE_FILE`. v2.1.178 (June 15) — `Tool(param:value)` permission rule syntax; nested `.claude/skills` directories load with `<dir>:<name>` names. v2.1.176 (June 12) — `language` setting; hook `if` conditions fixed for Read/Edit/Write paths. v2.1.175 (June 12) — `enforceAvailableModels` managed setting. v2.1.173 (June 11) — Fable 5 `[1m]` suffix auto-stripped.
 
 History:
+- 2026-06-21T07:56:57Z — changed: v2.1.161–v2.1.185; destructive git block + WebSearch-in-subagents fix (v2.1.183, triggered F-2026-06-21-003 disallowedTools idea); Tool(param:value) permission syntax (v2.1.178); hook if conditions fixed (v2.1.176); enforceAvailableModels (v2.1.175); Fable 5 [1m] suffix fix (v2.1.173)
 - 2026-06-02T08:04:18Z — changed: v2.1.153 through v2.1.160; v2.1.160 acceptEdits for .pre-commit-config.yaml (triggered F-2026-06-02-002); v2.1.157 .claude/skills/ auto-load + claude plugin init; v2.1.154 Opus 4.8 + Dynamic Workflows + defaultEnabled; v2.1.153 MCP enforcement fix
 - 2026-06-01T08:08:22Z — changed: v2.1.152–159; disallowed-tools+/reload-skills+SessionStart reloadSkills (152); Dynamic Workflows+defaultEnabled (154); .claude/skills auto-load+agent: settings.json (157)
 - 2026-05-31T00:00:00Z — changed: v2.1.158 Auto mode Bedrock/Vertex; v2.1.157 plugin auto-load from .claude/skills/, plugin init scaffolding; v2.1.154 Dynamic Workflows + Opus 4.8; v2.1.152 disallowed-tools + SessionStart reloadSkills + MessageDisplay hook
@@ -90,14 +92,15 @@ History:
 ## https://github.com/anthropics/claude-code-action/releases
 
 ```yaml
-last_scan: 2026-06-01T08:08:22Z
-status: unchanged
-run_id: 26742668563
+last_scan: 2026-06-21T07:56:57Z
+status: changed
+run_id: 27897749125
 ```
 
-**Summary:** v1.0.133 (2026-05-23) remains the latest release. No new releases since last scan. Workload Identity Federation (OIDC) was the last addition. Prior: v1.0 GA breaking changes: `mode`/`direct_prompt`/`override_prompt` removed; `model`/`allowed_tools`/`mcp_config` deprecated. Eva's own workflows (eva#65) still need auditing for v0.x inputs.
+**Summary:** v1.0.151 (June 17) is latest stable. v1.0.146 (June 12) — image type detection from magic bytes; SDK iterator hang fix in pull_request runs; stale claude-prompts directory clearing; labels in formatContext(). v1.0.149 (June 15) — shell-quote collapsing Bash rules fixed; MCP allowed-tools parser alignment. v1.0.151 (June 17) — workflow validation token exchange failures fixed. Eva's own workflows (eva#65) still need auditing for v0.x inputs.
 
 History:
+- 2026-06-21T07:56:57Z — changed: v1.0.134–v1.0.151; v1.0.146 image type detection + SDK iterator hang fix + labels in formatContext; v1.0.149 shell-quote fix + MCP allowed-tools parser; v1.0.151 workflow validation token fix
 - 2026-06-01T08:08:22Z — unchanged: still v1.0.133; no new releases since May 23
 - 2026-05-31T00:00:00Z — unchanged: no releases since v1.0.133 (May 23); eva#65 still open
 - 2026-05-30T07:15:49Z — unchanged: still v1.0.133; no new releases; eva#65 still open
@@ -147,14 +150,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-21T07:56:57Z
 status: changed
-run_id: 26806183547
+run_id: 27897749125
 ```
 
-**Summary:** rust-v0.136.0 (2026-06-01) — hook output event schema tightened (breaking for parsers, triggered F-2026-06-02-001); runtime extra skill roots API (#24977); multi-agent assignment tool renamed (breaking); /archive slash command for session archiving; security hardening (/diff no longer runs repo Git helpers, exec-server rejects Origin-header websocket requests); memories moved to SQLite (0.136). rust-v0.135.0 (2026-05-28) — named permission profiles in /permissions (#21559, triggered F-2026-06-02-003); thread-idle lifecycle hook (#24744, covered by open #165); new ad-hoc memory note tool; Python SDK sandbox presets; codex doctor expanded diagnostics; non-interactive install support.
+**Summary:** rust-v0.141.0 (June 18) — per-thread MCP server activation for executor plugins (triggered F-2026-06-21-001 hooks note); PostToolUse hooks now properly reject code-mode tool calls (breaking for hooks relying on prior behavior); list immediate child threads; cross-platform working directory preservation. v0.142.0-alpha.1 through alpha.9 (June 18-21) — incremental pre-release; no stable changelog. rust-v0.136.0 (2026-06-01) — hook output event schema tightened; runtime extra skill roots API; /archive; security hardening; memories to SQLite. rust-v0.135.0 — named permission profiles; thread-idle lifecycle hook; expanded diagnostics.
 
 History:
+- 2026-06-21T07:56:57Z — changed: v0.137.0-v0.141.0; v0.141.0 PostToolUse hook now rejects code-mode tool calls (triggered F-2026-06-21-001); per-thread MCP for executor plugins; v0.142.0-alpha.1-9 released but no changelog
 - 2026-06-02T08:04:18Z — changed: rust-v0.135.0 (named permission profiles, thread-idle hook) + rust-v0.136.0 (hook schema tightening — breaking, runtime skill roots API, /archive); triggered F-2026-06-02-001, F-2026-06-02-003
 - 2026-06-01T08:08:22Z — changed: v0.134.0 stable (subagent identity in hooks, function tools default); v0.135.0 (thread idle hook, named profiles); v0.136.0 alpha
 - 2026-05-31T00:00:00Z — changed: v0.135.0 (May 28); subagent identity in hook inputs; extensions get richer conversation context; Python SDK Sandbox presets
@@ -193,14 +197,15 @@ History:
 ## https://agentskills.io/specification
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-21T07:56:57Z
 status: unchanged
-run_id: 26806183547
+run_id: 27897749125
 ```
 
-**Summary:** Required fields: `name` + `description` (≤1024 chars). Optional: `license`, `compatibility`, `metadata`, `allowed-tools` (experimental, space-separated pre-approved tools). `name` max 64 chars, lowercase alphanumeric+hyphens, no consecutive hyphens, must match directory. Progressive disclosure: metadata ~100 tokens at startup, full body on activation, referenced files on demand. Body ≤500 lines. Spec stable. Note: `disallowed-tools` and `effort:` (both Claude Code conventions) are NOT yet in the official agentskills.io spec.
+**Summary:** Required fields: `name` + `description` (≤1024 chars). Optional: `license`, `compatibility`, `metadata`, `allowed-tools` (experimental, space-separated pre-approved tools). `name` max 64 chars, lowercase alphanumeric+hyphens, no consecutive hyphens, must match directory. Progressive disclosure: metadata ~100 tokens at startup, full body on activation, referenced files on demand. Body ≤500 lines. Spec stable at 6 fields. Note: `disallowed-tools` and `effort:` (both Claude Code conventions) are NOT yet in the official agentskills.io spec.
 
 History:
+- 2026-06-21T07:56:57Z — unchanged: spec stable, 6 fields confirmed (name, description, license, compatibility, metadata, allowed-tools); no new additions; `hooks`, `disallowed-tools`, `effort:` remain platform-specific extensions
 - 2026-06-02T08:04:18Z — unchanged: spec stable; fetched (HTML too large to parse fully but no new fields detected based on ievo-ai/skills AGENTS.md spec references which are current)
 - 2026-06-01T08:08:22Z — unchanged: spec stable; PRs #380, #386, #345 still open and pending
 - 2026-05-31T00:00:00Z — unchanged: spec stable; PRs #380 (versioning), #386 (UTF-8 fix), #345 (Unicode name) all still open; no spec changes
@@ -243,14 +248,15 @@ History:
 ## https://www.cursor.com/changelog
 
 ```yaml
-last_scan: 2026-06-01T08:08:22Z
+last_scan: 2026-06-21T07:56:57Z
 status: changed
-run_id: 26742668563
+run_id: 27897749125
 ```
 
-**Summary:** v3.6 (2026-05-29) — "Auto-review Run Mode": agents run with reduced approval prompts; allowlisted calls execute immediately, sandboxable calls run in sandbox, borderline calls go through a **classifier subagent**. Configurable at Settings > Agents > Run Mode. This pre-classifier pattern was filed as ievo-ai/skills#164 (lightweight pre-classifier for /ievo:security-check).
+**Summary:** v3.8 (June 18) — `/automate` command creates automations from plain language (GitHub triggers: issue comments, PR review comments/submissions, workflow completions; Slack emoji reactions; computer use in cloud automations). v3.7 (June 17) — `/in-cloud` spawns isolated cloud VMs; `.cursor/environment.json` captures reusable environment snapshots for cloud sessions (triggered F-2026-06-21-002); `/babysit` for PR prep without local interruption. SDK (June 4) — `local.customTools`, `permissions.json` classifier steering, nested subagents, `requestId`. Bugbot (June 10) — review time -90s, 0.62 bugs/review, cost -22%.
 
 History:
+- 2026-06-21T07:56:57Z — changed: v3.7 (.cursor/environment.json cloud snapshots → triggered F-2026-06-21-002; /in-cloud); v3.8 (/automate + GitHub triggers); SDK customTools + nested subagents
 - 2026-06-01T08:08:22Z — changed: v3.6 (May 29) — Auto-review Run Mode with classifier subagent; triggered existing issue #164
 - 2026-05-31T00:00:00Z — changed: v3.6 (May 29); Auto-review Run Mode with classifier subagent for tool-call categorization; no skill-format changes
 - 2026-05-30T07:15:49Z — changed: v3.6 auto-review classifier sub-agent pattern (parallel to Claude Code auto mode)
@@ -290,14 +296,15 @@ History:
 ## https://github.com/DenisSergeevitch/agents-best-practices
 
 ```yaml
-last_scan: 2026-06-01T08:08:22Z
-status: changed
-run_id: 26742668563
+last_scan: 2026-06-21T07:56:57Z
+status: error
+run_id: 27897749125
 ```
 
-**Summary:** One new commit (2026-05-30) — added "workflow orchestration guidance" content covering orchestration patterns for multi-agent tasks. Relevant to the `/ievo:workflow` skill proposed in issue #162; the orchestration patterns may inform the skill's design. Prior: 15-file references/ confirmed; v1.2.0 with Claude Code skill support documentation.
+**Summary:** Fetched static HTML but no commit timestamps visible for determining changes since June 1. Prior: May 30 commit added workflow orchestration guidance (relevant to skills#162). Re-scan via `gh api` for accurate commit date comparison on next run.
 
 History:
+- 2026-06-21T07:56:57Z — error: static HTML lacks per-file modification timestamps; cannot determine post-June-1 changes; re-scan via gh api repo/commits recommended next run
 - 2026-06-01T08:08:22Z — changed: May 30 commit adds workflow orchestration guidance; relevant evidence for skills#162
 - 2026-05-31T00:00:00Z — changed: new references/workflow-orchestration.md (+261 lines, May 30); planning-and-goals.md and architecture.md expanded; triggered F-2026-05-31-001
 - 2026-05-30T07:15:49Z — unchanged: no changes since May 15 commit
