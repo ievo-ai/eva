@@ -63,14 +63,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-22T08:22:56Z
 status: changed
-run_id: 26806183547
+run_id: 27939067190
 ```
 
-**Summary:** v2.1.160 (2026-06-02) — `acceptEdits` now prompts for `.pre-commit-config.yaml` + other build-tool configs; Dynamic Workflow trigger renamed `workflow` → `ultracode`; single-file grep satisfies read-before-edit; shell startup file write prompts. v2.1.157 (2026-05-29) — plugins in `.claude/skills/` auto-loaded, `claude plugin init` scaffolds plugins, `agent:` field in settings.json honored for dispatched sessions. v2.1.154 (2026-05-28) — Claude Opus 4.8 default for xhigh effort, Dynamic Workflows feature (tens-to-hundreds of background agents via /workflows), `defaultEnabled: false` in plugin.json, `! <command>` background agent execution. v2.1.153 (2026-05-28) — subagent MCP enforcement fixed (--strict-mcp-config now applies); /model saves as default for new sessions; Status line commands get COLUMNS/LINES env vars. v2.1.152 (2026-05-27) — `disallowed-tools` frontmatter, MessageDisplay hook, SessionStart enhancements, /reload-skills.
+**Summary:** v2.1.185 (2026-06-22 area) — latest release. v2.1.183 — auto mode blocks destructive git commands (git reset --hard, git checkout -- ., git clean -fd, git stash drop, git commit --amend) and Terraform/Pulumi destroy unless explicitly requested; WebSearch fixed in subagents; `attribution.sessionUrl` setting to omit claude.ai links from commits/PRs. v2.1.181 — foreground subagents 5-level depth limit; `/config key=value` inline config; `sandbox.allowAppleEvents` opt-in. v2.1.178 — `Tool(param:value)` permission syntax with wildcard support; hook `if` conditions for file path patterns (Edit(src/**), Read(.env)); nested `.claude/skills` directories with `<dir>:<name>` qualified names; improved auto mode classifier. v2.1.174 — fixed skill hot-reload to only re-announce changed skills; per-agent attribution headers in workflow agent() calls.
 
 History:
+- 2026-06-22T08:22:56Z — changed: v2.1.174 through v2.1.185; v2.1.183 attribution.sessionUrl (triggered F-2026-06-22-002) + WebSearch in subagents (#221) + destructive-git-blocking (#219); v2.1.181 5-level subagent depth (#217) + /config key=value (#218); v2.1.178 Tool(param:value) (#208) + nested .claude/skills (#209) + hook if-conditions (#201)
 - 2026-06-02T08:04:18Z — changed: v2.1.153 through v2.1.160; v2.1.160 acceptEdits for .pre-commit-config.yaml (triggered F-2026-06-02-002); v2.1.157 .claude/skills/ auto-load + claude plugin init; v2.1.154 Opus 4.8 + Dynamic Workflows + defaultEnabled; v2.1.153 MCP enforcement fix
 - 2026-06-01T08:08:22Z — changed: v2.1.152–159; disallowed-tools+/reload-skills+SessionStart reloadSkills (152); Dynamic Workflows+defaultEnabled (154); .claude/skills auto-load+agent: settings.json (157)
 - 2026-05-31T00:00:00Z — changed: v2.1.158 Auto mode Bedrock/Vertex; v2.1.157 plugin auto-load from .claude/skills/, plugin init scaffolding; v2.1.154 Dynamic Workflows + Opus 4.8; v2.1.152 disallowed-tools + SessionStart reloadSkills + MessageDisplay hook
@@ -147,14 +148,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-22T08:22:56Z
 status: changed
-run_id: 26806183547
+run_id: 27939067190
 ```
 
-**Summary:** rust-v0.136.0 (2026-06-01) — hook output event schema tightened (breaking for parsers, triggered F-2026-06-02-001); runtime extra skill roots API (#24977); multi-agent assignment tool renamed (breaking); /archive slash command for session archiving; security hardening (/diff no longer runs repo Git helpers, exec-server rejects Origin-header websocket requests); memories moved to SQLite (0.136). rust-v0.135.0 (2026-05-28) — named permission profiles in /permissions (#21559, triggered F-2026-06-02-003); thread-idle lifecycle hook (#24744, covered by open #165); new ad-hoc memory note tool; Python SDK sandbox presets; codex doctor expanded diagnostics; non-interactive install support.
+**Summary:** rust-v0.141.0 (2026-06-18) — per-thread MCP activation for executor plugins (#222); PostToolUse blocks code-mode calls (#224); hook trust bypass persists across codex exec; MCP tool timeout increased 60s→300s (triggered F-2026-06-22-001); deduplication of App/MCP declarations; PathUri for filesystem permission paths; Noise relay E2E encryption for remote executors. v0.140.0 — skills extension decoupled from core (#210); hosted plugin runtime via plugin-service MCP; encrypted Bedrock API-key auth; SQLite auto-recovery. v0.139.0 — MCP oneOf/allOf schema preservation; tool search caching; standalone WebSearch in code-mode (#199). v0.138.0 — PostToolUse hooks reject code-mode calls (#224); hook trust bypass via codex exec; orchestrator-skill hiding with local executor (#216); plugin JSON output for add/remove/marketplace. v0.137.0 — machine-readable `codex plugin list --json` (#196, #204); multi-agent v2 runtime metadata; skills extension scaffold; cloud-managed config bundle; per-thread MCP stdio activation (#222).
 
 History:
+- 2026-06-22T08:22:56Z — changed: v0.137.0 through v0.141.0; v0.141.0 MCP timeout 60s→300s (triggered F-2026-06-22-001) + per-thread MCP (#222) + PostToolUse code-mode rejection (#224); v0.140.0 skills decoupled (#210); v0.138.0 orchestrator hiding (#216); v0.137.0 plugin --json (#196)
 - 2026-06-02T08:04:18Z — changed: rust-v0.135.0 (named permission profiles, thread-idle hook) + rust-v0.136.0 (hook schema tightening — breaking, runtime skill roots API, /archive); triggered F-2026-06-02-001, F-2026-06-02-003
 - 2026-06-01T08:08:22Z — changed: v0.134.0 stable (subagent identity in hooks, function tools default); v0.135.0 (thread idle hook, named profiles); v0.136.0 alpha
 - 2026-05-31T00:00:00Z — changed: v0.135.0 (May 28); subagent identity in hook inputs; extensions get richer conversation context; Python SDK Sandbox presets
@@ -243,14 +245,15 @@ History:
 ## https://www.cursor.com/changelog
 
 ```yaml
-last_scan: 2026-06-01T08:08:22Z
+last_scan: 2026-06-22T08:22:56Z
 status: changed
-run_id: 26742668563
+run_id: 27939067190
 ```
 
-**Summary:** v3.6 (2026-05-29) — "Auto-review Run Mode": agents run with reduced approval prompts; allowlisted calls execute immediately, sandboxable calls run in sandbox, borderline calls go through a **classifier subagent**. Configurable at Settings > Agents > Run Mode. This pre-classifier pattern was filed as ievo-ai/skills#164 (lightweight pre-classifier for /ievo:security-check).
+**Summary:** v3.8 (2026-06-18) — `/automate` skill for plain-language automation config (#220); 5 new GitHub triggers (issue comments, PR reviews, workflow completions); Slack emoji reaction triggers; **computer use tool enabled by default for cloud agents** (triggered F-2026-06-22-003). v3.7 (June 17) — `/in-cloud` deploys isolated subagents on separate VMs (#223); `/babysit` for background PR iteration; local-to-cloud session handoff. v3.7 (June 5, June 4 area) — `permissions.json` with natural-language auto-review routing (#213); custom tools via `local.customTools`; nested subagents; `.cursor/environment.json` for persisting plugin state in cloud snapshots (#225).
 
 History:
+- 2026-06-22T08:22:56Z — changed: v3.7 (June 5+17) + v3.8 (June 18); v3.8 computer use default in cloud (triggered F-2026-06-22-003) + /automate (#220); v3.7 /in-cloud (#223) + permissions.json (#213) + environment.json (#225)
 - 2026-06-01T08:08:22Z — changed: v3.6 (May 29) — Auto-review Run Mode with classifier subagent; triggered existing issue #164
 - 2026-05-31T00:00:00Z — changed: v3.6 (May 29); Auto-review Run Mode with classifier subagent for tool-call categorization; no skill-format changes
 - 2026-05-30T07:15:49Z — changed: v3.6 auto-review classifier sub-agent pattern (parallel to Claude Code auto mode)
