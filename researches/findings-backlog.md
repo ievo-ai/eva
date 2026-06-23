@@ -763,3 +763,89 @@ Claude Code v2.1.152 introduced `disallowed-tools` frontmatter and iEvo implemen
 Codex v0.135.0 introduced named permission profiles via `/permissions` command (#21559) — a user can create a named profile (e.g., `ievo-security-scan`) that restricts the tool set available during a Codex session. While not frontmatter-level enforcement (the agent cannot self-impose the profile at skill activation time), a named profile is the closest Codex equivalent. A Codex user running `/ievo:security-check` can pre-activate their `ievo-security-scan` profile before the skill starts to achieve the same read-only enforcement.
 
 Concrete proposal: Add a Codex-specific section or compatibility callout to `security-check/SKILL.md` (currently 288 lines, well under the 500-line limit). The addition describes: (a) the parity gap (Claude Code gets `disallowed-tools` enforcement automatically; Codex users must set up a named permission profile manually); (b) how to create the profile in Codex via `/permissions`; (c) recommended tool restrictions (Read, Grep, Glob, WebFetch only — matches the security-auditor agent's `tools:` allowlist); (d) the instruction to activate it with `/permissions use ievo-security-scan` before running the skill. No scripts needed, no coverage obligation — pure SKILL.md documentation addition.
+
+---
+
+## F-2026-06-23-001 — Document Codex v0.142.0 multi-agent delegation mode as operator prerequisite for iEvo parallel dispatch
+
+```yaml
+id: F-2026-06-23-001
+discovered_at: 2026-06-23T07:33:00Z
+run_id: null
+target_repo: ievo-ai/skills
+title: Document Codex v0.142.0 multi-agent delegation mode in AGENTS.md as prerequisite for iEvo parallel dispatch
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/230
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/openai/codex/releases: rust-v0.142.0 (2026-06-22) introduced configurable multi-agent delegation at thread/turn level — three modes: disabled, explicit-request-only, proactive (default)
+```
+
+Codex rust-v0.142.0 (2026-06-22) made multi-agent delegation configurable at the thread/turn level with three modes: **disabled** (no sub-agents), **explicit-request-only** (user must approve each sub-agent spawn), **proactive** (default, sub-agents spawn freely). iEvo's `/ievo:init` pipeline dispatches multiple parallel sub-agents (security-auditor + repo-indexer) as a core design. This delegation mode setting is now the Codex equivalent of the already-documented `CLAUDE_CODE_SUBAGENT_MODEL` gotcha on Claude Code — an operator-level setting that can silently degrade iEvo's parallel dispatch.
+
+**Impact**: If a Codex user has delegation set to `disabled`, all `Task` tool calls fail silently → `/ievo:init` parallel scan phase won't execute. If set to `explicit-request-only`, each sub-agent spawn triggers an approval prompt, breaking the unattended parallel scan flow. Neither mode produces a clear error message pointing to the delegation setting as the cause.
+
+**Proposed solution**: Add a bullet to `AGENTS.md` § Pipeline (or § Security model alongside the `CLAUDE_CODE_SUBAGENT_MODEL` note) documenting:
+- Codex multi-agent delegation must be `proactive` (default) for iEvo's parallel dispatch to function
+- How to check current mode: `/settings` → multi-agent delegation
+- How to change: `/settings set multi-agent-delegation proactive`
+- That `explicit-request-only` works but requires user approval per sub-agent (interactive sessions only)
+- That `disabled` blocks all parallel dispatch → `/ievo:init` will stall at the indexing phase
+
+Optionally, add a pre-flight check in `init/SKILL.md` body to warn users before dispatching sub-agents if the delegation mode may be restricted.
+
+No scripts required, no test coverage obligation (AGENTS.md + optional SKILL.md body change). Single-file scope if restricted to AGENTS.md.
+
+---
+
+## F-2026-06-23-002 — Enforce kebab-case SKILL.md frontmatter keys in AGENTS.md contributor guide (CC v2.1.181 case-insensitivity)
+
+```yaml
+id: F-2026-06-23-002
+discovered_at: 2026-06-23T07:33:00Z
+run_id: null
+target_repo: ievo-ai/skills
+title: Add explicit kebab-case enforcement note to AGENTS.md § Skills format after CC v2.1.181 introduced frontmatter case-insensitivity
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/231
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.181 — frontmatter now accepts kebab-case, snake_case, and camelCase for keys like disallowed-tools, default-enabled, fallback — CC is lenient but agentskills.io spec still requires kebab-case
+  - https://agentskills.io/specification: spec defines frontmatter field names in kebab-case only; no case-variant support documented; cross-platform clients (Cursor, Gemini CLI, Goose) may not implement CC's leniency
+```
+
+Claude Code v2.1.181 introduced case-insensitivity for SKILL.md frontmatter keys — `disallowed-tools`, `disallowed_tools`, and `disallowedTools` are now all accepted by Claude Code at read time. This is a quality-of-life improvement for CC users, but it creates a cross-platform consistency risk for iEvo:
+
+1. **agentskills.io spec** still defines all fields in kebab-case (`disallowed-tools`, `allowed-tools`, `display-name`). Clients other than CC (Cursor, Gemini CLI, Goose, Junie, Copilot) likely implement strict kebab-case per the spec — they will not accept `disallowedTools`.
+2. **iEvo's validate_skills.mjs** currently parses frontmatter keys looking for the kebab-case form. A contributor who writes `disallowed_tools` (snake_case) will pass the CC validator but fail the iEvo validator — confusing message.
+3. **iEvo's AGENTS.md** § Skills format says to conform to agentskills.io spec but does not explicitly say "always use kebab-case keys" — a contributor reading CC's leniency might assume any case variant is acceptable.
+
+**Proposed solution**: Add one sentence to `AGENTS.md` § Skills format: "Always use kebab-case for all SKILL.md frontmatter keys (e.g. `disallowed-tools`, not `disallowedTools` or `disallowed_tools`). Claude Code v2.1.181+ accepts case variants, but the agentskills.io spec and other platforms require kebab-case." No validator change needed — validate_skills.mjs already enforces by implication (it checks the kebab-case key; a snake/camel key would be treated as an unknown field and may trigger warnings). The AGENTS.md note closes the contributor confusion gap.
+
+---
+
+## F-2026-06-23-003 — Document Codex v0.142.0 exec-server disconnect recovery as minimum version note for reliable parallel MCP dispatch
+
+```yaml
+id: F-2026-06-23-003
+discovered_at: 2026-06-23T07:33:00Z
+run_id: null
+target_repo: ievo-ai/skills
+title: Add Codex v0.142.0 minimum version note to init/SKILL.md compatibility field for reliable parallel MCP dispatch (exec-server disconnect recovery)
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/232
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/openai/codex/releases: rust-v0.142.0 (2026-06-22) — "Exec-server processes and stdio MCP sessions now survive transient disconnects with signed-URL refresh" — before this fix, any transient disconnect during a long-running parallel scan would drop the MCP session without recovery
+```
+
+Codex rust-v0.142.0 (2026-06-22) fixed exec-server processes and stdio MCP sessions to survive transient disconnects with signed-URL refresh. Before this fix, any transient network interruption during iEvo's parallel security-auditor + repo-indexer dispatch on Codex could silently drop an MCP session, causing one or more sub-agents to stall without a clear error.
+
+iEvo's `/ievo:init` pipeline runs 2–8 parallel sub-agents per install run. For installs scanning multiple candidates, the total wall-clock time for the parallel phase can exceed 5–10 minutes — well within the window for a transient disconnect. On pre-v0.142.0 Codex, a dropped session mid-scan would produce a partial result (some repos scanned, others silently abandoned) with no user-visible error.
+
+The pattern for minimum version documentation is established: issue #227 (open) proposes adding a Codex v0.141.0 minimum version note for MCP tool timeout. This is the complementary disconnect-recovery note.
+
+**Proposed solution**: Add a versioned compatibility note to `init/SKILL.md` compatibility field (currently 443 chars, well under the 500-char limit): "For reliable parallel dispatch on Codex: v0.142.0+ required (exec-server and MCP session disconnect recovery; earlier versions may silently drop sub-agent sessions mid-scan)." If the existing minimum-version note from issue #227 (v0.141.0 for MCP timeout) is already present when this is implemented, combine both into a single "Codex v0.142.0+" note. No scripts required; single SKILL.md frontmatter addition + version bump.

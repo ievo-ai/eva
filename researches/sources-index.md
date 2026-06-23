@@ -63,14 +63,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-23T07:33:00Z
 status: changed
-run_id: 26806183547
+run_id: null
 ```
 
-**Summary:** v2.1.160 (2026-06-02) — `acceptEdits` now prompts for `.pre-commit-config.yaml` + other build-tool configs; Dynamic Workflow trigger renamed `workflow` → `ultracode`; single-file grep satisfies read-before-edit; shell startup file write prompts. v2.1.157 (2026-05-29) — plugins in `.claude/skills/` auto-loaded, `claude plugin init` scaffolds plugins, `agent:` field in settings.json honored for dispatched sessions. v2.1.154 (2026-05-28) — Claude Opus 4.8 default for xhigh effort, Dynamic Workflows feature (tens-to-hundreds of background agents via /workflows), `defaultEnabled: false` in plugin.json, `! <command>` background agent execution. v2.1.153 (2026-05-28) — subagent MCP enforcement fixed (--strict-mcp-config now applies); /model saves as default for new sessions; Status line commands get COLUMNS/LINES env vars. v2.1.152 (2026-05-27) — `disallowed-tools` frontmatter, MessageDisplay hook, SessionStart enhancements, /reload-skills.
+**Summary:** v2.1.183 (latest as of 2026-06-23) — destructive git command blocking (reset --hard, checkout --, clean -fd, stash drop, commit --amend auto-blocked unless user requested); WebSearch tool now works in subagents; background spawns evaluated by classifier before launch; `attribution.sessionUrl` in settings.json. v2.1.181 — `/config key=value` runtime settings; foreground subagents 5-level depth limit; frontmatter now accepts kebab-case, snake_case, and camelCase variants (CC-specific leniency, agentskills.io still requires kebab-case); `enforceAvailableModels` managed setting; `language` / `footerLinksRegexes` settings. v2.1.178 — `Tool(param:value)` permission syntax (e.g. `Agent(model:opus)`); nested `.claude/skills/` with `<dir>:<name>` qualified collision resolution; domain-restricted WebFetch in subagents. v2.1.176 — hook `if` condition path pattern fixes for Read/Edit/Write. v2.1.175 — `enforceAvailableModels` managed setting (earlier landing). v2.1.160 (2026-06-02) — `acceptEdits` prompts for `.pre-commit-config.yaml`; Dynamic Workflow trigger renamed `workflow` → `ultracode`.
 
 History:
+- 2026-06-23T07:33:00Z — changed: v2.1.161–183; v2.1.181 frontmatter case-insensitivity (kebab/snake/camel), /config key=value, 5-level depth limit (triggered F-2026-06-23-002); v2.1.183 destructive-git-blocking, WebSearch in subagents, subagent spawn classifier; v2.1.178 Tool(param:value), nested skills <dir>:<name>; multiple findings already tracked in issues #196-229
 - 2026-06-02T08:04:18Z — changed: v2.1.153 through v2.1.160; v2.1.160 acceptEdits for .pre-commit-config.yaml (triggered F-2026-06-02-002); v2.1.157 .claude/skills/ auto-load + claude plugin init; v2.1.154 Opus 4.8 + Dynamic Workflows + defaultEnabled; v2.1.153 MCP enforcement fix
 - 2026-06-01T08:08:22Z — changed: v2.1.152–159; disallowed-tools+/reload-skills+SessionStart reloadSkills (152); Dynamic Workflows+defaultEnabled (154); .claude/skills auto-load+agent: settings.json (157)
 - 2026-05-31T00:00:00Z — changed: v2.1.158 Auto mode Bedrock/Vertex; v2.1.157 plugin auto-load from .claude/skills/, plugin init scaffolding; v2.1.154 Dynamic Workflows + Opus 4.8; v2.1.152 disallowed-tools + SessionStart reloadSkills + MessageDisplay hook
@@ -147,14 +148,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-23T07:33:00Z
 status: changed
-run_id: 26806183547
+run_id: null
 ```
 
-**Summary:** rust-v0.136.0 (2026-06-01) — hook output event schema tightened (breaking for parsers, triggered F-2026-06-02-001); runtime extra skill roots API (#24977); multi-agent assignment tool renamed (breaking); /archive slash command for session archiving; security hardening (/diff no longer runs repo Git helpers, exec-server rejects Origin-header websocket requests); memories moved to SQLite (0.136). rust-v0.135.0 (2026-05-28) — named permission profiles in /permissions (#21559, triggered F-2026-06-02-003); thread-idle lifecycle hook (#24744, covered by open #165); new ad-hoc memory note tool; Python SDK sandbox presets; codex doctor expanded diagnostics; non-interactive install support.
+**Summary:** rust-v0.142.0 (2026-06-22, just released) — multi-agent delegation configurable at thread/turn level (disabled/explicit-request-only/proactive); turn-scoped context contributions for inter-agent communication; environment-scoped command approvals; exec-server processes and stdio MCP sessions survive transient disconnects with signed-URL refresh; remote plugin organization into Curated/Workspace/Shared sections; AGENTS.md cross-environment loading with native path handling; object-valued plugin MCP manifests supported. rust-v0.141.0 — MCP tool timeout increase 60s→300s for long parallel scans; per-thread MCP activation; PostToolUse code-mode rejection. rust-v0.140.0 — skills decoupled from core. rust-v0.139.0 — web search in code mode. rust-v0.138.0 — codex plugin marketplace --json. rust-v0.136.0 (2026-06-01) — hook output event schema tightened (breaking).
 
 History:
+- 2026-06-23T07:33:00Z — changed: v0.137.0–v0.142.0; v0.142.0 multi-agent delegation mode (triggered F-2026-06-23-001), exec-server disconnect recovery (triggered F-2026-06-23-003), AGENTS.md cross-env loading; v0.141.0 MCP timeout/per-thread covered by issues #222/#227; v0.138.0-#196; v0.137.0-#210
 - 2026-06-02T08:04:18Z — changed: rust-v0.135.0 (named permission profiles, thread-idle hook) + rust-v0.136.0 (hook schema tightening — breaking, runtime skill roots API, /archive); triggered F-2026-06-02-001, F-2026-06-02-003
 - 2026-06-01T08:08:22Z — changed: v0.134.0 stable (subagent identity in hooks, function tools default); v0.135.0 (thread idle hook, named profiles); v0.136.0 alpha
 - 2026-05-31T00:00:00Z — changed: v0.135.0 (May 28); subagent identity in hook inputs; extensions get richer conversation context; Python SDK Sandbox presets
@@ -193,14 +195,15 @@ History:
 ## https://agentskills.io/specification
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-23T07:33:00Z
 status: unchanged
-run_id: 26806183547
+run_id: null
 ```
 
-**Summary:** Required fields: `name` + `description` (≤1024 chars). Optional: `license`, `compatibility`, `metadata`, `allowed-tools` (experimental, space-separated pre-approved tools). `name` max 64 chars, lowercase alphanumeric+hyphens, no consecutive hyphens, must match directory. Progressive disclosure: metadata ~100 tokens at startup, full body on activation, referenced files on demand. Body ≤500 lines. Spec stable. Note: `disallowed-tools` and `effort:` (both Claude Code conventions) are NOT yet in the official agentskills.io spec.
+**Summary:** Required fields: `name` + `description` (≤1024 chars). Optional: `license`, `compatibility`, `metadata`, `allowed-tools` (experimental, space-separated pre-approved tools). `name` max 64 chars, lowercase alphanumeric+hyphens, no consecutive hyphens, must match directory. Progressive disclosure: metadata ~100 tokens at startup, full body on activation, referenced files on demand. Body ≤500 lines. Spec stable. Note: `disallowed-tools` and `effort:` (both Claude Code conventions) are NOT yet in the official agentskills.io spec. PRs #345 (Unicode names), #380 (optional versioning), #386 (Windows UTF-8) all still open, no merges.
 
 History:
+- 2026-06-23T07:33:00Z — unchanged: spec stable; PRs #345/#380/#386 still open and unmerged; no new fields; kebab-case still required (relevant note: CC v2.1.181 accepts case variants but spec still requires kebab-case)
 - 2026-06-02T08:04:18Z — unchanged: spec stable; fetched (HTML too large to parse fully but no new fields detected based on ievo-ai/skills AGENTS.md spec references which are current)
 - 2026-06-01T08:08:22Z — unchanged: spec stable; PRs #380, #386, #345 still open and pending
 - 2026-05-31T00:00:00Z — unchanged: spec stable; PRs #380 (versioning), #386 (UTF-8 fix), #345 (Unicode name) all still open; no spec changes
@@ -290,14 +293,15 @@ History:
 ## https://github.com/DenisSergeevitch/agents-best-practices
 
 ```yaml
-last_scan: 2026-06-01T08:08:22Z
+last_scan: 2026-06-23T07:33:00Z
 status: changed
-run_id: 26742668563
+run_id: null
 ```
 
-**Summary:** One new commit (2026-05-30) — added "workflow orchestration guidance" content covering orchestration patterns for multi-agent tasks. Relevant to the `/ievo:workflow` skill proposed in issue #162; the orchestration patterns may inform the skill's design. Prior: 15-file references/ confirmed; v1.2.0 with Claude Code skill support documentation.
+**Summary:** Most recent commit 2026-06-14. New files: coding-agents.md (June 7) — coding-agent harness reference, core loop (task classification → file search → validation → repair → final evidence production), task profiles for bug-fix/code-review/migration/test-generation agents; 02-workflow-orchestration-schema.svg (June 14) — visual workflow schema diagram; workflow-orchestration.md updated (June 14) with structured execution details (metadata, schemas, prompt builders, scheduling, gates, verification). The coding-agents.md code-review profile was cited in skills open issues #198 and #202. The workflow-orchestration.md was cited for F-2026-05-31-001 (skills#162).
 
 History:
+- 2026-06-23T07:33:00Z — changed: coding-agents.md (June 7) code-review profile cited in issues #198/#202; workflow-orchestration.md updated June 14 with schema visualization; no new uncovered gaps identified this run
 - 2026-06-01T08:08:22Z — changed: May 30 commit adds workflow orchestration guidance; relevant evidence for skills#162
 - 2026-05-31T00:00:00Z — changed: new references/workflow-orchestration.md (+261 lines, May 30); planning-and-goals.md and architecture.md expanded; triggered F-2026-05-31-001
 - 2026-05-30T07:15:49Z — unchanged: no changes since May 15 commit
