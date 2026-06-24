@@ -763,3 +763,218 @@ Claude Code v2.1.152 introduced `disallowed-tools` frontmatter and iEvo implemen
 Codex v0.135.0 introduced named permission profiles via `/permissions` command (#21559) — a user can create a named profile (e.g., `ievo-security-scan`) that restricts the tool set available during a Codex session. While not frontmatter-level enforcement (the agent cannot self-impose the profile at skill activation time), a named profile is the closest Codex equivalent. A Codex user running `/ievo:security-check` can pre-activate their `ievo-security-scan` profile before the skill starts to achieve the same read-only enforcement.
 
 Concrete proposal: Add a Codex-specific section or compatibility callout to `security-check/SKILL.md` (currently 288 lines, well under the 500-line limit). The addition describes: (a) the parity gap (Claude Code gets `disallowed-tools` enforcement automatically; Codex users must set up a named permission profile manually); (b) how to create the profile in Codex via `/permissions`; (c) recommended tool restrictions (Read, Grep, Glob, WebFetch only — matches the security-auditor agent's `tools:` allowlist); (d) the instruction to activate it with `/permissions use ievo-security-scan` before running the skill. No scripts needed, no coverage obligation — pure SKILL.md documentation addition.
+
+---
+
+## F-2026-06-24-001 — Document CC v2.1.186 new SKILL.md frontmatter keys (display-name, default-enabled, fallback) in AGENTS.md
+
+```yaml
+id: F-2026-06-24-001
+discovered_at: 2026-06-24T07:24:20Z
+run_id: 28082200911
+target_repo: ievo-ai/skills
+title: Document CC v2.1.186 new SKILL.md frontmatter keys (display-name, default-enabled, fallback) in AGENTS.md skills format section
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/233
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.186 (2026-06-22) — "Improved skill frontmatter: display-name, default-enabled, fallback, and metadata.* keys now accept kebab-case, snake_case, and camelCase" — three new CC-specific SKILL.md frontmatter keys; not in agentskills.io spec
+```
+
+Claude Code v2.1.186 (2026-06-22) introduced three new SKILL.md frontmatter keys that iEvo's AGENTS.md § Skills format does not document and validate_skills.mjs does not validate:
+
+- **`display-name`** — a human-readable label for the skill distinct from the `name` field (which must be lowercase kebab). Allows iEvo skills to surface as e.g. "Initialize iEvo" in the `/plugin` Skills tab instead of raw "init".
+- **`default-enabled`** — skill-level activation control (presumably boolean). Analogous to `defaultEnabled` in plugin.json but scoped to individual skills. Lets operators ship disabled-by-default skills that users explicitly activate.
+- **`fallback`** — purpose not yet documented; inferred from CC v2.1.186 changelog. May be a fallback skill to invoke when this one is unavailable.
+
+All three keys now accept kebab-case, snake_case, and camelCase (v2.1.186 also extended the same flexibility to `metadata.*` keys).
+
+**Current gap**: AGENTS.md § Skills format only documents the agentskills.io required fields (`name`, `description`) and the CC extensions already adopted (`effort:`, `disallowed-tools`, `allowed-tools`). The three new v2.1.186 keys are undocumented. Contributors adding these to SKILL.md files will see no guidance on intended usage. validate_skills.mjs does not warn on unknown frontmatter keys, so typos or wrong values pass silently.
+
+**Proposed solution**: Add a subsection to AGENTS.md § Skills format listing CC-specific frontmatter extensions beyond the agentskills.io spec: existing `effort:`/`disallowed-tools` plus the new v2.1.186 additions. Describe each key's purpose and expected value type. Note that these keys are CC-only — Codex/Cursor/other platforms ignore them gracefully. Optionally: add a warning-level check to validate_skills.mjs for `display-name` (must be ≤64 chars if set) and `default-enabled` (must be boolean if set). No 100% coverage obligation on validate_skills.mjs additions — must maintain existing gate.
+
+**Files affected:**
+
+| File | Change | Notes |
+|------|--------|-------|
+| `AGENTS.md` | modified | Add CC frontmatter extensions subsection (~20 lines) |
+| `plugins/ievo/scripts/validate_skills.mjs` | optional: modified | Add warn-on-invalid for display-name/default-enabled |
+| `plugins/ievo/scripts/tests/validate_skills.test.mjs` | optional: modified | Tests for new validation logic |
+
+**API / UX surface**: No user-facing change. Operators contributing new SKILL.md files get correct documentation and optional validation.
+
+**Acceptance criteria:**
+- [ ] AGENTS.md § Skills format lists `display-name`, `default-enabled`, `fallback` under "CC-specific extensions (not in agentskills.io spec)"
+- [ ] Each key has a one-line description and expected value type
+- [ ] Note states these keys are ignored by Codex/Cursor/other platforms
+- [ ] (Optional) validate_skills.mjs warns when `default-enabled` is not a boolean string value
+- [ ] (Optional) validate_skills.mjs warns when `display-name` exceeds 64 chars
+- [ ] Version bump in all four required files
+
+**Effort estimate:**
+- Scope: single-file (AGENTS.md only) or multi-file (if validate_skills.mjs is extended)
+- Effort: low (~20 min for docs-only; ~45 min if validator extended)
+- Risk: low — documentation addition; no behavioral change
+
+**Open questions for the operator:**
+- Should `display-name` and `default-enabled` be added to any iEvo SKILL.md files immediately, or document-only first?
+- Is `fallback` documented anywhere in CC internals? The release note mentions it but gives no description.
+
+**Related:**
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/28082200911
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: F-2026-06-24-001`
+- **Evidence:** https://github.com/anthropics/claude-code/releases v2.1.186
+
+---
+Filed by Eva research run 28082200911 against `ievo-ai/eva` (research repo). Triage with `accepted` / `rejected` / `needs-discussion` labels.
+
+---
+
+## F-2026-06-24-002 — Document CC v2.1.187 sandbox.credentials setting as credential-read defense-in-depth for security-check and vuln-scan
+
+```yaml
+id: F-2026-06-24-002
+discovered_at: 2026-06-24T07:24:20Z
+run_id: 28082200911
+target_repo: ievo-ai/skills
+title: Document CC v2.1.187 sandbox.credentials setting as defense-in-depth against credential read access during security-check and vuln-scan
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/234
+effort: low
+scope: multi-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.187 (2026-06-23) — "Added sandbox.credentials setting to block sandboxed commands from reading credential files and secret environment variables"
+```
+
+Claude Code v2.1.187 (2026-06-23) added a new `sandbox.credentials` setting that blocks sandboxed Bash commands from reading credential files (e.g., `~/.aws/credentials`, `~/.ssh/id_rsa`, `~/.netrc`, `.env`) and secret environment variables.
+
+**Current gap**: Both `security-check/SKILL.md` and `vuln-scan/SKILL.md` already use `disallowed-tools` to prevent *write* actions during security assessment:
+
+```yaml
+disallowed-tools:
+  - Write
+  - Edit
+  - Bash(rm*)
+  - Bash(mv*)
+  - Bash(cp*)
+  - Bash(curl*)
+  - Bash(wget*)
+```
+
+However, `disallowed-tools` does not block *read* operations on credential files. A malicious skill under evaluation could attempt to exfiltrate secrets via Bash read operations (e.g., `cat ~/.aws/credentials`, `env | grep TOKEN`) — these are `Bash` calls that are not blocked by the current `disallowed-tools` list because they don't use the blocked patterns.
+
+The new `sandbox.credentials` setting provides exactly this defense. Adding it to `security-check/SKILL.md` and `vuln-scan/SKILL.md` as a recommended setting would:
+1. Block credential file reads at the platform sandbox level (deeper than `disallowed-tools`)
+2. Prevent secret env var leakage via `env`, `printenv`, or `$SECRET_NAME` bash expansions
+3. Add defense-in-depth against prompt injection → credential exfiltration chains
+
+The AGENTS.md security model section should also be updated to mention `sandbox.credentials` alongside `CLAUDE_CODE_SUBAGENT_MODEL` and `agent:` as operator-configurable security settings affecting iEvo operations.
+
+**Proposed solution**: Add a `## Sandbox settings (CC v2.1.187+)` note to both SKILL.md files (after the `disallowed-tools` block) recommending `sandbox.credentials: false` in `.claude/settings.json` when running iEvo security scans. Add a bullet to AGENTS.md § Security model documenting the setting.
+
+**Files affected:**
+
+| File | Change | Notes |
+|------|--------|-------|
+| `plugins/ievo/skills/security-check/SKILL.md` | modified | Add sandbox.credentials recommendation note |
+| `plugins/ievo/skills/vuln-scan/SKILL.md` | modified | Add sandbox.credentials recommendation note |
+| `AGENTS.md` | modified | Add sandbox.credentials to security model section |
+
+**API / UX surface**: User sets `"sandbox.credentials": false` in `.claude/settings.json` (or project `.claude/settings.json`) before running `/ievo:security-check`. No skill behavior change — purely a security hardening documentation addition with user-actionable recommendation.
+
+**Acceptance criteria:**
+- [ ] `security-check/SKILL.md` contains a note about `sandbox.credentials: false` as a recommended defense-in-depth setting
+- [ ] `vuln-scan/SKILL.md` contains the same note
+- [ ] AGENTS.md § Security model lists `sandbox.credentials` alongside `CLAUDE_CODE_SUBAGENT_MODEL` and `agent:` settings.json bypass
+- [ ] Note includes minimum CC version requirement (v2.1.187+)
+- [ ] Version bump in all four required files
+
+**Effort estimate:**
+- Scope: multi-file (3 files: 2 SKILL.md + AGENTS.md)
+- Effort: low (~30 min)
+- Risk: low — documentation + recommendation only; no behavioral change
+
+**Open questions for the operator:**
+- Should `sandbox.credentials: false` be listed in `security-check/SKILL.md` as a WARNING (users may not have it set) or a REQUIREMENT (skill refuses to run without it)?
+- Does `sandbox.credentials` apply to sandboxed Bash specifically, or all tool calls that can read files (e.g., Read tool)?
+
+**Related:**
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/28082200911
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: F-2026-06-24-002`
+- **Companion proposal:** ievo-ai/skills#139 (disallowed-tools — implemented) + ievo-ai/skills#170 (Codex named permission profiles)
+- **Evidence:** https://github.com/anthropics/claude-code/releases v2.1.187
+
+---
+Filed by Eva research run 28082200911 against `ievo-ai/eva` (research repo). Triage with `accepted` / `rejected` / `needs-discussion` labels.
+
+---
+
+## F-2026-06-24-003 — Document Cursor v3.9 unified customization interface as the iEvo install path for Cursor users
+
+```yaml
+id: F-2026-06-24-003
+discovered_at: 2026-06-24T07:24:20Z
+run_id: 28082200911
+target_repo: ievo-ai/skills
+title: Document Cursor v3.9 unified customization interface as the install path for iEvo skills on Cursor
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/235
+effort: low
+scope: multi-file
+evidence:
+  - https://www.cursor.com/changelog: v3.9 (2026-06-22) — "Unified customization interface for plugins, skills, MCPs, subagents, rules, commands, and hooks at user/team/workspace levels; custom MCP support enabled; marketplace leaderboard showing popular extensions"
+```
+
+Cursor v3.9 (2026-06-22) introduced a unified customization interface that consolidates plugins, skills, MCPs, subagents, rules, commands, and hooks in a single UI available at user, team, and workspace levels. This is the primary way Cursor v3.9 users discover and install skills.
+
+**Current gap**: iEvo's `README.md` documents two install paths:
+1. Claude Code marketplace (`/plugin marketplace add ievo-ai/skills`)
+2. Codex marketplace (`.codex-plugin/marketplace.json`)
+
+It also mentions `skills.sh` registry (planned for v1.0). The README includes this line: "Cross-platform skills inside the plugin are portable via the agentskills.io specification — adopted by Claude Code, Cursor, Codex..." — but there is NO documentation of HOW to install iEvo on Cursor.
+
+`AGENTS.md` says "Not a Claude Code-only plugin" and positions Cursor as a supported platform, but also gives no install path for Cursor.
+
+Cursor v3.9's unified interface is the natural discovery and install surface for iEvo skills on Cursor. Users opening the unified interface will look for iEvo there; without documentation, they have no path to install.
+
+**Proposed solution**: 
+1. Add a `### Cursor` subsection to `README.md` Quick Start, parallel to the existing Claude Code and Codex sections. Describe: open Cursor v3.9 unified customization interface → Skills tab → search for "ievo" or add from URL. If iEvo is not yet listed in Cursor's marketplace leaderboard, document the manual fallback (copy skill files to `.cursor/skills/` or equivalent directory).
+2. Update `AGENTS.md` to note that Cursor v3.9 unified interface is the primary Cursor install surface, and add a note that positioning copy should mention it.
+3. Consider adding a `.cursor-plugin/marketplace.json` analogous to `.codex-plugin/marketplace.json` to make iEvo discoverable via Cursor's marketplace (separate implementation effort, but the design decision should be made now).
+
+**Files affected:**
+
+| File | Change | Notes |
+|------|--------|-------|
+| `README.md` | modified | Add Cursor v3.9 install section under Quick Start |
+| `AGENTS.md` | modified | Add Cursor v3.9 as install surface to positioning notes |
+| `.cursor-plugin/marketplace.json` | new (optional) | Cursor marketplace manifest, analogous to .codex-plugin/ |
+
+**API / UX surface**: README and AGENTS.md documentation additions. Optional: Cursor marketplace manifest enables in-interface discovery.
+
+**Acceptance criteria:**
+- [ ] `README.md` has a `### Cursor` subsection under Quick Start with install instructions for Cursor v3.9+
+- [ ] The Cursor subsection notes minimum version requirement (v3.9+ for unified interface)
+- [ ] `AGENTS.md` mentions Cursor v3.9 unified customization interface in the positioning/install surface notes
+- [ ] (Optional) `.cursor-plugin/marketplace.json` created with valid structure for Cursor marketplace
+- [ ] Version bump in all four required files
+
+**Effort estimate:**
+- Scope: multi-file (2-3 files)
+- Effort: low (~25 min for docs; medium if .cursor-plugin/ manifest is implemented)
+- Risk: low — documentation addition; optional new manifest file
+
+**Open questions for the operator:**
+- What is the Cursor v3.9 install path for skills? Is it `.cursor/skills/` directory (analogous to `.claude/skills/`)? Or does Cursor use a different path?
+- Should iEvo prioritize creating a Cursor marketplace manifest now, given Cursor v3.9's team/workspace install support?
+- Does Cursor v3.9's "team marketplace" feature apply to iEvo as a public plugin?
+
+**Related:**
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/28082200911
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: F-2026-06-24-003`
+- **Companion proposals:** ievo-ai/skills#225 (Cursor v3.7 environment.json), ievo-ai/skills#220 (Cursor v3.8 /automate)
+- **Evidence:** https://www.cursor.com/changelog v3.9
+
+---
+Filed by Eva research run 28082200911 against `ievo-ai/eva` (research repo). Triage with `accepted` / `rejected` / `needs-discussion` labels.
