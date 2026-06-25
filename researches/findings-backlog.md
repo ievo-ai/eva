@@ -763,3 +763,74 @@ Claude Code v2.1.152 introduced `disallowed-tools` frontmatter and iEvo implemen
 Codex v0.135.0 introduced named permission profiles via `/permissions` command (#21559) — a user can create a named profile (e.g., `ievo-security-scan`) that restricts the tool set available during a Codex session. While not frontmatter-level enforcement (the agent cannot self-impose the profile at skill activation time), a named profile is the closest Codex equivalent. A Codex user running `/ievo:security-check` can pre-activate their `ievo-security-scan` profile before the skill starts to achieve the same read-only enforcement.
 
 Concrete proposal: Add a Codex-specific section or compatibility callout to `security-check/SKILL.md` (currently 288 lines, well under the 500-line limit). The addition describes: (a) the parity gap (Claude Code gets `disallowed-tools` enforcement automatically; Codex users must set up a named permission profile manually); (b) how to create the profile in Codex via `/permissions`; (c) recommended tool restrictions (Read, Grep, Glob, WebFetch only — matches the security-auditor agent's `tools:` allowlist); (d) the instruction to activate it with `/permissions use ievo-security-scan` before running the skill. No scripts needed, no coverage obligation — pure SKILL.md documentation addition.
+
+---
+
+## F-2026-06-25-001 — Add `display-name:` frontmatter to all 14 iEvo SKILL.md files for improved /plugin UX
+
+```yaml
+id: F-2026-06-25-001
+discovered_at: 2026-06-25T07:29:46Z
+run_id: 28153856770
+target_repo: ievo-ai/skills
+title: Add display-name: frontmatter to all 14 iEvo SKILL.md files for improved Claude Code /plugin Installed tab UX
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/236
+effort: low
+scope: multi-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.186 (2026-06-22) introduced display-name, default-enabled, and fallback as first-class SKILL.md frontmatter fields; /plugin Installed tab and Skills section now shows display-name prominently
+  - /tmp/skills/plugins/ievo/skills/*/SKILL.md: grep confirmed none of the 14 iEvo SKILL.md files declare display-name: frontmatter
+```
+
+Claude Code v2.1.186 (June 22, 2026) introduced `display-name:` as a first-class SKILL.md frontmatter field. The `/plugin` Installed tab and Skills section now shows this field prominently. Without `display-name:`, skills show their kebab-case `name:` field (e.g., `init`, `security-check`, `deep-review`, `overlay-status`) — which is functional but not user-friendly. Adding human-readable display names like `"iEvo: Initialize"`, `"iEvo: Security Audit"`, `"iEvo: Evolution Capture"` etc. improves discoverability in the /plugin UI. Issue #233 covers documenting `display-name` in AGENTS.md for contributors — this finding covers adding the actual field to the 14 SKILL.md files.
+
+---
+
+## F-2026-06-25-002 — Document `--safe-mode` and `disableBundledSkills` operational limits in AGENTS.md and hooks-setup/SKILL.md
+
+```yaml
+id: F-2026-06-25-002
+discovered_at: 2026-06-25T07:29:46Z
+run_id: 28153856770
+target_repo: ievo-ai/skills
+title: Document Claude Code v2.1.169 --safe-mode and disableBundledSkills as operational bypass vectors that silently disable all iEvo functionality
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/237
+effort: low
+scope: multi-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.169 (2026-06-08) — --safe-mode disables ALL customizations including plugins, skills, hooks, and MCP servers; disableBundledSkills setting + CLAUDE_CODE_DISABLE_BUNDLED_SKILLS env var hides bundled skills/workflows/slash commands
+```
+
+Claude Code v2.1.169 (June 8, 2026) introduced two mechanisms that silently disable all iEvo functionality: (1) `--safe-mode` CLI flag: disables ALL customizations including plugins, skills, hooks, and MCP servers — when an operator troubleshoots with this flag, hooks stop firing, skills stop loading, and security checks don't run; (2) `disableBundledSkills` settings.json field (and `CLAUDE_CODE_DISABLE_BUNDLED_SKILLS` env var): hides bundled skills, workflows, and slash commands — disables iEvo skills even with the plugin installed. Neither is documented in AGENTS.md or any SKILL.md. Operators using `--safe-mode` for troubleshooting will be confused when iEvo lifecycle notifications (hooks-setup) and skills stop working — the silence looks like a bug. This finding requests: (a) a note in `AGENTS.md` § "Security model" or a new § "Operational notes" documenting both mechanisms, (b) a compatibility note in `hooks-setup/SKILL.md` (hooks won't fire in `--safe-mode`), (c) optionally a compatibility note in `schedule/SKILL.md` (Routines use bundled skills).
+
+---
+
+## F-2026-06-25-003 — Update AGENTS.md security model with new model-bypass vectors: fallbackModel, enforceAvailableModels, and org model restrictions
+
+```yaml
+id: F-2026-06-25-003
+discovered_at: 2026-06-25T07:29:46Z
+run_id: 28153856770
+target_repo: ievo-ai/skills
+title: Update AGENTS.md security model section with three new model-bypass vectors that can silently degrade security-auditor reasoning quality
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/238
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.166 (2026-06-06) — fallbackModel setting configures up to 3 fallback models tried in order when primary fails
+  - https://github.com/anthropics/claude-code/releases: v2.1.175 (2026-06-12) — enforceAvailableModels managed setting constrains default model and prevents user/project settings from widening the allowlist; v2.1.172 fixed availableModels not applied to subagent model overrides
+  - https://github.com/anthropics/claude-code/releases: v2.1.187 (2026-06-23) — org-configured model restrictions now affect agent frontmatter model: specifications
+```
+
+AGENTS.md § "Security model" already documents `CLAUDE_CODE_SUBAGENT_MODEL` as a bypass vector for `security-auditor.md`'s `model: sonnet` frontmatter. Three new bypass vectors shipped since the last audit that are not yet documented:
+
+1. **`fallbackModel` setting (v2.1.166)**: configures up to 3 fallback models tried in order when the primary fails. If an operator sets `fallbackModel: haiku` (for cost reasons), and the primary Sonnet model is unavailable (rate-limited, org-restricted), the security-auditor silently falls back to Haiku — degrading the security guarantee without any visible warning.
+
+2. **`enforceAvailableModels` + `availableModels` (v2.1.172/v2.1.175)**: `enforceAvailableModels` constrains the model allowlist and prevents user/project settings from widening it. Fixed in v2.1.172 to also apply to subagent model overrides. If an enterprise admin's `availableModels` list excludes `sonnet` and includes only `haiku`, the security-auditor agent runs at Haiku tier despite `model: sonnet` frontmatter.
+
+3. **Org model restrictions affecting agent frontmatter (v2.1.187)**: org-configured model restrictions now explicitly affect agent frontmatter `model:` specifications. An org that restricts to only haiku-class models for cost management will override `security-auditor.md`'s `model: sonnet` declaration.
+
+Proposal: extend AGENTS.md § "Security model" with a "Model bypass vectors" table that consolidates all known override paths (CLAUDE_CODE_SUBAGENT_MODEL, fallbackModel, enforceAvailableModels, org model restrictions, agent: in settings.json) with their mitigation. This is a pure documentation addition, single file, low effort.
