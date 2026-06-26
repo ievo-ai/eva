@@ -741,6 +741,85 @@ Files affected: `AGENTS.md` (§ Pre-commit hooks + workflow gate, ~line 232). Si
 
 ---
 
+## F-2026-06-26-001 — Document CC v2.1.163 Stop/SubagentStop hookSpecificOutput.additionalContext in hooks-setup/SKILL.md
+
+```yaml
+id: F-2026-06-26-001
+discovered_at: 2026-06-26T07:29:00Z
+run_id: $GITHUB_RUN_ID
+target_repo: ievo-ai/skills
+title: Document CC v2.1.163 hookSpecificOutput.additionalContext return value in hooks-setup/SKILL.md
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/239
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.163 (2026-06-04) — Stop/SubagentStop hooks can now return hookSpecificOutput.additionalContext to feed structured feedback back into the conversation after the hook runs
+```
+
+`hooks-setup/SKILL.md` teaches users how to write PostToolUse and Stop lifecycle hooks, but does not document the `hookSpecificOutput.additionalContext` return value introduced in Claude Code v2.1.163 (June 4, 2026). This field allows a Stop hook to inject structured context back into the model's conversation after the hook runs — enabling iEvo's background-agent-complete Stop hook to report a summary (e.g. "3 security auditors completed: 1 RED in repo-A, 2 GREEN") directly in the session, rather than only firing a notification and going silent.
+
+**Concrete iEvo use case:** The Stop hook already installed by `hooks-setup` detects when `background_tasks` is empty and fires a desktop notification. With `additionalContext`, the same hook can also return `{ hookSpecificOutput: { additionalContext: "Scan complete: 2 YELLOW, 1 RED in <repo>" } }` — giving the model live context to act on (e.g., automatically invoking overlay capture for the RED result) without requiring the user to re-read the transcript.
+
+**Proposed change:** Add a subsection "Returning feedback to the model" to the Stop hook section of `hooks-setup/SKILL.md`. Document the `hookSpecificOutput.additionalContext` return-value shape (string or object), the minimum CC version required (v2.1.163+), and an iEvo-specific example that augments the existing background-complete hook to return a scan-result summary. Pure documentation addition, no scripts required.
+
+---
+
+## F-2026-06-26-002 — Document Codex v0.142.2 remote plugin catalog as iEvo discovery + featured-ranking path
+
+```yaml
+id: F-2026-06-26-002
+discovered_at: 2026-06-26T07:29:00Z
+run_id: $GITHUB_RUN_ID
+target_repo: ievo-ai/skills
+title: Document Codex v0.142.2 remote plugin catalog as iEvo discovery and featured-ranking path in README and .codex-plugin/marketplace.json
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/240
+effort: low
+scope: multi-file
+evidence:
+  - https://github.com/openai/codex/releases: rust-v0.142.2 (2026-06-25) added remote plugin catalogs providing curated featured-plugin rankings — Codex can now pull plugin discovery from a remote catalog with operator-curated featured-plugin rankings
+```
+
+Codex rust-v0.142.2 (June 25, 2026) introduced remote plugin catalogs that provide curated featured-plugin rankings. iEvo already ships a `.codex-plugin/marketplace.json` manifest, but neither the README nor the `init/SKILL.md` compatibility section documents the remote catalog as a discovery or adoption path. Operators who submit iEvo for inclusion in a Codex remote catalog (or who set one up internally for their org) could significantly increase iEvo adoption among Codex users without requiring them to know the GitHub URL.
+
+**Current state:** iEvo's README documents install via `gh api` + copy, and via `.claude/skills/` auto-load (CC) — but has no equivalent Codex discovery section. The `.codex-plugin/marketplace.json` manifest exists but may lack metadata fields (e.g., `featured`, `category`, catalog-enrichment keys) required to participate in remote catalog rankings.
+
+**Proposed changes:**
+1. **README.md** — Add a "Codex install (v0.142.2+)" section mentioning that iEvo can be discovered via Codex remote plugin catalogs; link to the `.codex-plugin/marketplace.json` manifest; show the direct install command.
+2. **`.codex-plugin/marketplace.json`** — Audit for missing catalog-enrichment metadata (dark-mode logo path, `featured: false/true`, `category` field) that v0.142.2 introduced for local manifests and remote catalog entries. Add missing fields.
+3. **`init/SKILL.md` compatibility section** — Add a note: "Codex v0.142.2+: discoverable via remote plugin catalogs in addition to manual install."
+
+Pure documentation + manifest enrichment. No scripts, no test coverage obligation. Effort: low (~45 min).
+
+---
+
+## F-2026-06-26-003 — Add `/plugin list --enabled` verification step to init/SKILL.md post-install check (CC v2.1.163)
+
+```yaml
+id: F-2026-06-26-003
+discovered_at: 2026-06-26T07:29:00Z
+run_id: $GITHUB_RUN_ID
+target_repo: ievo-ai/skills
+title: Add /plugin list --enabled as mechanical post-install verification step in init/SKILL.md (CC v2.1.163)
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/241
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.163 (2026-06-04) added /plugin list command with --enabled/--disabled filters for mechanical verification of plugin activation state
+```
+
+Claude Code v2.1.163 (June 4, 2026) added `/plugin list --enabled` and `/plugin list --disabled` — CLI commands for mechanically listing which plugins are currently active. `init/SKILL.md` currently ends with a post-install summary step that asks the user to confirm whether skills loaded, but provides no mechanical verification command. Users relying on text feedback alone may not catch cases where the iEvo plugin installed but failed to activate (e.g., `defaultEnabled: false` inadvertently set, version conflict, or auto-load path not picked up).
+
+**Proposed change:** Add a final verification micro-step in `init/SKILL.md` after the install confirmation prompt:
+
+> After installation, run `/plugin list --enabled` to confirm iEvo appears in the active plugin list. If it does not appear, run `/plugin list --disabled` to check if it installed but is not enabled, and use `/plugin enable ievo` to activate it. Requires Claude Code v2.1.163+.
+
+This is a single-paragraph addition to the init skill body — no scripts, no frontmatter changes. The `disableBundledSkills` case (issue #237) is a separate concern — `/plugin list` complements it by giving users a concrete verification step rather than relying on text summaries.
+
+---
+
 ## F-2026-06-02-003 — Document Codex rust-v0.135.0 named permission profiles for iEvo security scan in security-check/SKILL.md
 
 ```yaml
