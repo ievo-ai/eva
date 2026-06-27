@@ -52,17 +52,21 @@ permissions:
 
 jobs:
   publish:
-    # Three-part gate:
+    # Four-part gate:
     #   1. workflow_dispatch — always allowed (emergency override)
     #   2. pull_request — only if merged==true (closed-without-merge is silent)
     #   3. for PR events, skip noise bots — dependabot, github-actions
+    #   4. skip PRs carrying the `silent` label — routine bookkeeping that
+    #      should land without a Telegram ping (e.g. the daily eva-research
+    #      audit-report PR; the finding-issues are the signal, not the report).
     # Anything else (e.g. unmerged close) returns false → no-op.
     if: >
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' &&
        github.event.pull_request.merged == true &&
        github.event.pull_request.user.login != 'dependabot[bot]' &&
-       github.event.pull_request.user.login != 'github-actions[bot]')
+       github.event.pull_request.user.login != 'github-actions[bot]' &&
+       !contains(github.event.pull_request.labels.*.name, 'silent'))
 
     runs-on: ubuntu-latest
 
