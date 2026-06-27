@@ -763,3 +763,118 @@ Claude Code v2.1.152 introduced `disallowed-tools` frontmatter and iEvo implemen
 Codex v0.135.0 introduced named permission profiles via `/permissions` command (#21559) — a user can create a named profile (e.g., `ievo-security-scan`) that restricts the tool set available during a Codex session. While not frontmatter-level enforcement (the agent cannot self-impose the profile at skill activation time), a named profile is the closest Codex equivalent. A Codex user running `/ievo:security-check` can pre-activate their `ievo-security-scan` profile before the skill starts to achieve the same read-only enforcement.
 
 Concrete proposal: Add a Codex-specific section or compatibility callout to `security-check/SKILL.md` (currently 288 lines, well under the 500-line limit). The addition describes: (a) the parity gap (Claude Code gets `disallowed-tools` enforcement automatically; Codex users must set up a named permission profile manually); (b) how to create the profile in Codex via `/permissions`; (c) recommended tool restrictions (Read, Grep, Glob, WebFetch only — matches the security-auditor agent's `tools:` allowlist); (d) the instruction to activate it with `/permissions use ievo-security-scan` before running the skill. No scripts needed, no coverage obligation — pure SKILL.md documentation addition.
+
+---
+
+## F-2026-06-27-001 — Document CC v2.1.195 hook matcher exact-match behavior for hyphenated MCP server names in hooks-setup/SKILL.md
+
+```yaml
+id: F-2026-06-27-001
+discovered_at: 2026-06-27T07:21:43Z
+run_id: 28282216625
+target_repo: ievo-ai/skills
+title: Document CC v2.1.195 hook matcher exact-match breaking change for hyphenated MCP server names in hooks-setup/SKILL.md
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/242
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.195 (2026-06-26) — hook matchers with hyphenated identifiers now exact-match instead of substring-match; users must use regex patterns like `mcp__brave-search__.*` to match all tools from a hyphenated MCP server
+```
+
+Claude Code v2.1.195 (2026-06-26) changed how PostToolUse hook matchers handle tool names that contain hyphens. Previously, a matcher string like `mcp__brave-search` would substring-match any tool whose name contained that string — including `mcp__brave-search__web_search`. After v2.1.195, the same matcher matches ONLY the exact string `mcp__brave-search` with no substring fallback.
+
+The `hooks-setup/SKILL.md` is the authoritative iEvo guide for configuring lifecycle hooks. It teaches users how to write PostToolUse matchers, including examples involving MCP server tool names. If any example uses a bare MCP server prefix (e.g. `mcp__brave-search`) where the intent is to catch all tools from that server, it is now broken for users on v2.1.195+. More critically, users who have set up hooks following prior `hooks-setup` guidance and upgrade Claude Code to v2.1.195 will see their hooks silently stop firing — the hook is still registered but its matcher no longer matches the tool call events.
+
+The fix is a targeted documentation update in `hooks-setup/SKILL.md`:
+
+1. Add a **compatibility note** identifying v2.1.195 as the version where exact-match semantics took effect.
+2. Update any PostToolUse matcher examples that use bare hyphenated MCP server names to use regex patterns instead: `mcp__brave-search__.*` (regex, catches all tools from `brave-search` MCP server).
+3. Add a migration note for users upgrading to v2.1.195: "if your PostToolUse hook stopped firing after upgrading to v2.1.195, check whether your matcher uses a hyphenated identifier — prefix it with `mcp__<server>__` regex or wrap in `.*` anchors."
+4. Note that non-hyphenated names and exact tool names are unaffected.
+
+No scripts needed, no coverage obligation. Single SKILL.md documentation change. The `hooks-setup/SKILL.md` compatibility field may also need updating to `Claude Code ≥ v2.1.152 (PostToolUse hook); note: v2.1.195 changed hyphenated matcher semantics — use regex for MCP server prefixes`.
+
+---
+
+## F-2026-06-27-002 — Add MVP boundary scope-limiter to deep-review/SKILL.md based on coding-agents.md patterns
+
+```yaml
+id: F-2026-06-27-002
+discovered_at: 2026-06-27T07:21:43Z
+run_id: 28282216625
+target_repo: ievo-ai/skills
+title: Add explicit MVP boundary (out-of-scope list) to deep-review/SKILL.md based on DenisSergeevitch/agents-best-practices coding-agents.md patterns
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/243
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/DenisSergeevitch/agents-best-practices/blob/main/references/coding-agents.md: new 436-line file (2026-06-07) — "MVP boundary definition: draft + verify + explain, not merge + deploy + own production"; explicit out-of-scope items prevent reviewer scope creep; evidence collection requirement before recommendations
+  - https://github.com/ievo-ai/skills/blob/main/plugins/ievo/skills/deep-review/SKILL.md: current skill body defines a 10-point checklist of what to look for but has no explicit "out of scope" section; the deep-reviewer agent could drift into suggesting deployment decisions or merge timing
+```
+
+`DenisSergeevitch/agents-best-practices` added `references/coding-agents.md` (436 lines, June 7, 2026) with a pattern called "MVP boundary" — the explicit boundary of what a coding agent should and should not do. The core principle: agents should **draft + verify + explain**, NOT **merge + deploy + own production**. The reference file provides a template structure for each agent type that includes both in-scope tasks AND an explicit out-of-scope list.
+
+The `/ievo:deep-review` skill's current `SKILL.md` body (via `deep-reviewer.md` sub-agent) defines the 10-point checklist of what to look for (completeness, test/impl drift, dead code, etc.) but has **no explicit out-of-scope section**. This creates a gap: the skill's intent is to provide gap-detection analysis for pre-commit review, but nothing prevents the deep-reviewer from:
+- Suggesting merge strategies or merge timing
+- Recommending deployment decisions ("this should go to production after...")
+- Suggesting major architecture refactors beyond the diff scope
+- Making calls about sprint/backlog priority
+
+These are all out-of-scope for a pre-commit code reviewer but could surface as hallucinated advice in edge cases.
+
+Proposed addition to `deep-review/SKILL.md` body (under the existing "Input" section, ~15 lines):
+
+```markdown
+## Scope boundary (MVP boundary)
+
+**In scope:** draft findings, cite evidence, explain impact. One-sentence actionable per finding.
+
+**Out of scope — never return:**
+- Merge or deployment timing recommendations
+- Architecture refactors beyond the diff under review
+- Sprint/backlog priority suggestions
+- Lint or type errors (tooling already caught those)
+- "Looks good to me" with no findings — always return structured verdict
+```
+
+This is a pure SKILL.md body addition (~15 lines). No new agent file, no scripts, no coverage obligation. The addition aligns deep-review with the coding-agents.md MVP boundary pattern while keeping the skill body under the 500-line recommendation.
+
+---
+
+## F-2026-06-27-003 — Document Codex v0.142.0 /import-from-Claude-Code as iEvo onboarding path for platform migrants
+
+```yaml
+id: F-2026-06-27-003
+discovered_at: 2026-06-27T07:21:43Z
+run_id: 28282216625
+target_repo: ievo-ai/skills
+title: Document Codex v0.140.0 /import (import from Claude Code) as iEvo onboarding path for users migrating from Claude Code to Codex
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/244
+effort: low
+scope: multi-file
+evidence:
+  - https://github.com/openai/codex/releases: rust-v0.140.0 (2026-06-15) — `/import` command for selectively importing setup, project configuration, and recent chats from Claude Code (#27070, #27071, #27703); enables zero-reconfiguration migration between platforms
+  - https://github.com/ievo-ai/skills/blob/main/README.md: current README documents "Install from marketplace (Claude Code)" and "Install from marketplace (Codex)" but has no cross-platform migration guidance for users who have iEvo on Claude Code and are switching to Codex
+```
+
+Codex rust-v0.140.0 (2026-06-15) shipped `/import` — a command for selectively importing setup, project configuration, and recent chats from Claude Code. This enables users to migrate their Claude Code environment to Codex, including plugin and skill configuration.
+
+iEvo is a universal plugin that users may install on Claude Code first and later want to run on Codex as well. Currently the README provides separate install instructions for each platform but no guidance for the cross-platform migration scenario. A user who has:
+1. Installed iEvo on Claude Code
+2. Captured evolution overlays in `.ievo/evolution/`
+3. Indexed repos via `/ievo:index-repos`
+...and now wants to continue this work in Codex has no documented migration path.
+
+The `/import` command in Codex v0.140.0 handles the Claude Code config side. On the iEvo side:
+- The `.ievo/` directory (overlays, evolution state) is already platform-agnostic (plain markdown files)
+- The plugin itself already ships a `.codex-plugin/marketplace.json`
+- `/ievo:init` on Codex would re-run the full setup (including security audit + repo indexing) which is redundant if Claude Code state already exists
+
+Proposed documentation additions (multi-file but small):
+1. **README.md** — add a "Migration: Claude Code → Codex" section (3-4 lines) explaining that `/import` handles the config side and `.ievo/` overlays transfer automatically (same filesystem)
+2. **`plugins/ievo/skills/init/SKILL.md`** — add a Phase 0 check: "If migrating from Claude Code, run `codex /import` first to import Claude Code project configuration before running `/ievo:init`. Skip the full init if `.ievo/evolution/` already has existing overlays from prior Claude Code sessions."
+
+No scripts, no coverage obligation. Pure documentation changes in SKILL.md body and README.
