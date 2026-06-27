@@ -53,6 +53,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # --- Auth: prefer the GitHub App installation token so issues + PRs are
+      #     attributed to the ievo-eva App, not the operator's PAT account.
+      #     Mirrors eva-scan.yml / eva-review-pr.yml. `owner: ievo-ai` mints a
+      #     token spanning the org repos the App is installed on (eva + skills),
+      #     so the cross-repo `gh issue create` / `gh pr create` into skills
+      #     work. PAT fallback retained for when USE_GITHUB_APP is unset. This
+      #     is a cron/dispatch workflow (no `pull_request` event), so it is NOT
+      #     subject to the workflow-modifying-PR App-token scope downgrade that
+      #     forces PAT in eva-review-pr.yml.
+      - name: Generate App token
+        if: vars.USE_GITHUB_APP == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ievo-ai
+
+      - name: Set auth token
+        id: auth
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          PAT_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+        run: |
+          if [ -n "$APP_TOKEN" ]; then
+            echo "token=$APP_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "Using App token — issues/PRs attributed to the ievo-eva App"
+          else
+            echo "token=$PAT_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "Using PAT fallback (USE_GITHUB_APP not 'true' or App token unavailable)"
+          fi
+
       # Direct skills-repo audit + PR opening.
       #
       # Tool surface (via `claude_args --allowedTools`):
@@ -66,8 +98,11 @@ jobs:
       #     (agentskills.io spec updates, Anthropic docs, trending repos)
       #
       # Tokens (via `settings.env`):
-      #   GH_TOKEN / EVA_PAT_GITHUB_TOKEN — `gh` auth, both repos. ievo-eva
-      #     is an admin collaborator on ievo-ai/skills as of 2026-05-20.
+      #   GH_TOKEN — `gh` auth, both repos (eva + skills). Now the GitHub App
+      #     installation token from the auth step above (PAT fallback), so
+      #     issues + PRs (and the audit-report PR push, via `gh auth setup-git`)
+      #     are created BY the ievo-eva App, not the operator's PAT account.
+      #     ievo-eva is also an admin collaborator on ievo-ai/skills (2026-05-20).
       #   `claude_env` is NOT a valid input on this action — confirmed via
       #     run 26176453911 warning. `settings.env` is the documented path.
       #
@@ -103,7 +138,7 @@ jobs:
           settings: |
             {
               "env": {
-                "GH_TOKEN": "${{ secrets.EVA_PAT_GITHUB_TOKEN }}",
+                "GH_TOKEN": "${{ steps.auth.outputs.token }}",
                 "EVA_PAT_GITHUB_TOKEN": "${{ secrets.EVA_PAT_GITHUB_TOKEN }}"
               }
             }
@@ -562,8 +597,9 @@ jobs:
             git config user.email "noreply@ievo.ai"
             git config user.name "ievo-eva"
 
-            # Set up gh-aware git auth so push uses EVA_PAT_GITHUB_TOKEN
-            # (the GH_TOKEN env var we received via settings.env)
+            # Set up gh-aware git auth so push uses GH_TOKEN (the GitHub App
+            # installation token from settings.env) — push is attributed to
+            # the ievo-eva App; commit author stays ievo-eva (git config above)
             gh auth setup-git
 
             STAMP=$(date -u +%Y-%m-%d-%H%M)
