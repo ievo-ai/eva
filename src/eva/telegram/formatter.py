@@ -18,7 +18,17 @@ def format_telegram_message(entry: EvolutionEntry) -> str:
         lines.append(f"Target: <code>{entry.target}</code>")
     if entry.description:
         lines.append(entry.description[:200])
-    confidence_pct = f"{entry.confidence:.0%}" if entry.confidence else "\u2014"
-    pr_link = f' | <a href="{entry.pr_url}">PR</a>' if entry.pr_url else ""
-    lines.append(f"Confidence: {confidence_pct}{pr_link}")
+    # Confidence is a proposal-quality signal from Eva's pattern detector
+    # (it produces 0.3\u20130.9). A shipped/published evolution (a merged PR) has
+    # no meaningful confidence \u2014 it already landed \u2014 and the publish path
+    # hard-codes 1.0, which rendered a meaningless "Confidence: 100%" on every
+    # announcement. Surface the score ONLY when it's a genuine sub-certain
+    # proposal score (0 < c < 1); for shipped evolutions show just the PR link.
+    footer = []
+    if 0 < entry.confidence < 1:
+        footer.append(f"Confidence: {entry.confidence:.0%}")
+    if entry.pr_url:
+        footer.append(f'<a href="{entry.pr_url}">PR</a>')
+    if footer:
+        lines.append(" | ".join(footer))
     return "\n".join(lines)

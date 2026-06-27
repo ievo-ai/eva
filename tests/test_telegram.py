@@ -307,9 +307,26 @@ class TestFormatTelegramMessage:
         msg = format_telegram_message(_make_entry(pr_url=""))
         assert "PR" not in msg
 
-    def test_zero_confidence(self):
+    def test_zero_confidence_omits_confidence_line(self):
+        # Unset/zero confidence is not a meaningful proposal score \u2192 omit it,
+        # but still show the PR link.
         msg = format_telegram_message(_make_entry(confidence=0.0))
-        assert "\u2014" in msg  # em dash
+        assert "Confidence:" not in msg
+        assert "PR" in msg
+
+    def test_shipped_full_confidence_omitted(self):
+        # A merged/shipped evolution hard-codes confidence=1.0; that is NOT a
+        # meaningful score and must not render "Confidence: 100%".
+        msg = format_telegram_message(_make_entry(confidence=1.0))
+        assert "Confidence" not in msg
+        assert "100%" not in msg
+        assert "PR" in msg
+
+    def test_no_footer_line_when_no_confidence_and_no_pr(self):
+        # confidence=1.0 (omitted) + no PR \u2192 no trailing footer line at all.
+        msg = format_telegram_message(_make_entry(confidence=1.0, pr_url=""))
+        assert "Confidence" not in msg
+        assert "PR" not in msg
 
     def test_eva_same_format(self):
         msg = format_telegram_message(_make_entry(agent="eva"))
