@@ -23,6 +23,15 @@ on:
   pull_request:
     types: [closed]
     branches: [main]
+  # Cross-repo child-release announce: a child repo (e.g. ievo-ai/skills) fires
+  # repository_dispatch(event_type=child-release) from its OWN merge workflow,
+  # which carries the merged==true guard at the dispatch source. This is the
+  # canonical cross-repo path (see header) — the Telegram token stays here in
+  # eva; children never hold it. Only a token with write access to this repo
+  # (the iEvo App) can dispatch, so client_payload is not arbitrary public input
+  # — but it is still routed through env: vars below, never the shell directly.
+  repository_dispatch:
+    types: [child-release]
   workflow_dispatch:
     inputs:
       title:
@@ -52,16 +61,19 @@ permissions:
 
 jobs:
   publish:
-    # Four-part gate:
+    # Five-part gate:
     #   1. workflow_dispatch — always allowed (emergency override)
-    #   2. pull_request — only if merged==true (closed-without-merge is silent)
-    #   3. for PR events, skip noise bots — dependabot, github-actions
-    #   4. skip PRs carrying the `silent` label — routine bookkeeping that
+    #   2. repository_dispatch(child-release) — cross-repo announce from a child
+    #      repo's merge workflow (merged-guard is at the dispatch source)
+    #   3. pull_request — only if merged==true (closed-without-merge is silent)
+    #   4. for PR events, skip noise bots — dependabot, github-actions
+    #   5. skip PRs carrying the `silent` label — routine bookkeeping that
     #      should land without a Telegram ping (e.g. the daily eva-research
     #      audit-report PR; the finding-issues are the signal, not the report).
     # Anything else (e.g. unmerged close) returns false → no-op.
     if: >
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'repository_dispatch' ||
       (github.event_name == 'pull_request' &&
        github.event.pull_request.merged == true &&
        github.event.pull_request.user.login != 'dependabot[bot]' &&
@@ -99,6 +111,13 @@ jobs:
           IN_DESC: ${{ inputs.description }}
           IN_CONFIDENCE: ${{ inputs.confidence }}
           IN_PR: ${{ inputs.pr_url }}
+          CP_TITLE: ${{ github.event.client_payload.title }}
+          CP_TYPE: ${{ github.event.client_payload.type }}
+          CP_AGENT: ${{ github.event.client_payload.agent }}
+          CP_TARGET: ${{ github.event.client_payload.target }}
+          CP_DESC: ${{ github.event.client_payload.description }}
+          CP_CONFIDENCE: ${{ github.event.client_payload.confidence }}
+          CP_PR: ${{ github.event.client_payload.pr_url }}
         run: |
           if [ "$EVENT_NAME" = "pull_request" ]; then
             # Auto path: derive from the merge event. Description is generated
@@ -113,6 +132,25 @@ jobs:
               echo "confidence=1.0"
               echo "pr_url=$PR_URL"
               echo "needs_description=true"
+            } >> "$GITHUB_OUTPUT"
+          elif [ "$EVENT_NAME" = "repository_dispatch" ]; then
+            # Cross-repo child release: a child repo (e.g. ievo-ai/skills) sent
+            # an already-formed announcement via client_payload. Use verbatim,
+            # with defaults for any field the child omitted; no Claude
+            # description generation (the child supplies its own).
+            {
+              echo "title<<EOF"
+              echo "$CP_TITLE"
+              echo "EOF"
+              echo "type=${CP_TYPE:-milestone}"
+              echo "agent=${CP_AGENT:-eva}"
+              echo "target=${CP_TARGET:-ievo-ai/skills}"
+              echo "description<<EOFDESC"
+              echo "$CP_DESC"
+              echo "EOFDESC"
+              echo "confidence=${CP_CONFIDENCE:-1.0}"
+              echo "pr_url=$CP_PR"
+              echo "needs_description=false"
             } >> "$GITHUB_OUTPUT"
           else
             # Emergency manual path: use inputs verbatim.
