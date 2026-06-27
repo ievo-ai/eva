@@ -250,6 +250,29 @@ jobs:
                 --label eva-proposal --json number,title`
               - Merge with `discovered_already` from backlog.
 
+            SUBJECT-KEY dedup — MANDATORY, stronger than title matching.
+            Title matching alone has FAILED: the same upstream subject was
+            filed 2-3x under different framings (e.g. `--safe-mode` across
+            three issues; `availableModels` across three; `display-name`
+            across two). For EACH candidate finding AND each open proposal
+            above, derive a SUBJECT KEY = the specific upstream identifier it
+            concerns:
+              - the exact setting / env var / CLI flag (e.g. `fallbackModel`,
+                `--safe-mode`, `CLAUDE_CODE_SUBAGENT_MODEL`), OR
+              - the frontmatter key (e.g. `display-name`, `effort`), OR
+              - the command / feature (e.g. `/import`, multi-agent delegation),
+              paired with the platform (Claude Code / Codex / Cursor).
+            DELIBERATELY EXCLUDE the version number from the key — "document X
+            (v2.1.166)" and "document X (v2.1.187)" are the SAME subject. Also
+            collapse the verb: "document X", "add X", "validate X", "update
+            security model with X" are the SAME subject when X matches.
+            If a candidate's subject key matches ANY open proposal's subject
+            key, DO NOT file — record `covered by #N` in the backlog instead.
+            When UNSURE whether two subjects are the same, treat them as the
+            SAME and SKIP. Under-filing is cheap; a duplicate the operator
+            must triage and close is not. Cap: at most ONE issue per distinct
+            subject key per run.
+
             Sources index — for diff-based scanning later (Step 4):
               - Read `researches/sources-index.md` (entire file)
               - Build a "last seen" map: per URL note last_scan
@@ -612,7 +635,8 @@ jobs:
             gh pr create \
               --repo ievo-ai/eva \
               --title "research: audit ${STAMP}" \
-              --body "Automated research audit report. See file in this PR for details. Reviewed and auto-merged by Eva — Telegram fires via publish-evolution.yml on merge into main."
+              --label silent \
+              --body "Automated research audit report. See file in this PR for details. Reviewed and auto-merged by Eva. Routine report — carries the \`silent\` label so publish-evolution.yml does NOT fire Telegram on merge (the finding-issues are the signal, not the daily report)."
             ```
 
             If push fails with auth error: STOP and report the error in
