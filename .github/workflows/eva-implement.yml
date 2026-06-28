@@ -3,8 +3,8 @@
 # When the Issue Router (eva-on-issue.yml) applies the `approved` label to an
 # issue (verdict = implement: requirements clear AND low risk), Eva autonomously
 # builds the change and opens a PR. Review + merge are handled SEPARATELY by
-# eva-review-pr.yml (sensitive-path gated) — this workflow's job ends at
-# `gh pr ready`.
+# eva-review-pr.yml (sensitive-path gated) — this workflow's job ends when it
+# opens the ready PR.
 #
 # Trigger paths:
 #   - issues:[labeled] (label == approved)  — eva-local issues

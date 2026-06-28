@@ -162,9 +162,10 @@ so the PR you open is mergeable:
       --body "Main kept moving after 3 rebase attempts. Branch $(git branch --show-current) pushed but no PR opened — operator can open/rebase once the burst settles."
     exit 1
   fi
-  # Re-run the gate after rebase, then push.
+  # Re-run the full gate after rebase (incl. ruff format), then push.
   uv run ruff check src/ tests/
   uv run pytest tests/ --cov --cov-report=term-missing
+  uv run ruff format src/ tests/
   uv run mypy src/eva
   git push --force-with-lease origin HEAD
 
