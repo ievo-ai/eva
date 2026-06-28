@@ -64,14 +64,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-06-27T07:21:43Z
-status: changed
-run_id: 28282216625
+last_scan: 2026-06-28T07:30:00Z
+status: unchanged
+run_id: 28336000000
 ```
 
-**Summary:** v2.1.195 (2026-06-26) — hook matchers with hyphenated identifiers (e.g. `mcp__brave-search`) now **exact-match** instead of substring-match; use regex patterns like `mcp__brave-search__.*` for all tools from a hyphenated MCP server. `/plugin` Enable/Disable fixed when plugin.json `name` differs from marketplace entry. v2.1.193 (2026-06-25) — `autoMode.classifyAllShell` setting (all shell commands require classification in auto-mode); `claude_code.assistant_response` OpenTelemetry event; auto-mode denial reasons visible in `/permissions`. v2.1.187 (2026-06-23) — `sandbox.credentials` blocks sandboxed commands from reading credential files; org-configured model restrictions added to model picker and agent frontmatter. v2.1.186 (2026-06-22) — `display-name:`, `default-enabled:`, `fallback:` frontmatter for SKILL.md; kebab-case/snake_case/camelCase all accepted; malformed SKILL.md YAML loads with empty metadata instead of failing. v2.1.183 (2026-06-19) — destructive git command blocks in auto-mode; WebSearch fixes in subagents. v2.1.181 (2026-06-17) — `/config key=value` syntax; `sandbox.allowAppleEvents` opt-in; `CLAUDE_CLIENT_PRESENCE_FILE` env var.
+**Summary:** v2.1.195 (2026-06-26) — still latest. No new releases since June 27 scan. Previous window (v2.1.161–v2.1.195) highlights: v2.1.195 hook matcher exact-match for hyphenated MCP server names; v2.1.193 `autoMode.classifyAllShell` (triggered F-2026-06-28-001); v2.1.187 `sandbox.credentials`; v2.1.186 `display-name:`, `default-enabled:`, `fallback:` frontmatter + `respondToBashCommands` setting; v2.1.183 destructive-git blocks + WebSearch in subagents; v2.1.181 `/config key=value`.
 
 History:
+- 2026-06-28T07:30:00Z — unchanged: still v2.1.195 (June 26); no new releases in 24h; autoMode.classifyAllShell (v2.1.193) filed as F-2026-06-28-001
 - 2026-06-27T07:21:43Z — changed: v2.1.161–v2.1.195; v2.1.195 hook matcher exact-match for hyphenated names (triggered F-2026-06-27-001); v2.1.193 autoMode.classifyAllShell + OTel event; v2.1.187 sandbox.credentials; v2.1.186 display-name/default-enabled/fallback frontmatter; v2.1.183 destructive-git blocks + WebSearch subagents; v2.1.181 /config key=value
 - 2026-06-02T08:04:18Z — changed: v2.1.153 through v2.1.160; v2.1.160 acceptEdits for .pre-commit-config.yaml (triggered F-2026-06-02-002); v2.1.157 .claude/skills/ auto-load + claude plugin init; v2.1.154 Opus 4.8 + Dynamic Workflows + defaultEnabled; v2.1.153 MCP enforcement fix
 - 2026-06-01T08:08:22Z — changed: v2.1.152–159; disallowed-tools+/reload-skills+SessionStart reloadSkills (152); Dynamic Workflows+defaultEnabled (154); .claude/skills auto-load+agent: settings.json (157)
@@ -149,14 +150,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-06-27T07:21:43Z
-status: changed
-run_id: 28282216625
+last_scan: 2026-06-28T07:30:00Z
+status: unchanged
+run_id: 28336000000
 ```
 
-**Summary:** rust-v0.142.3 (2026-06-26) — maintenance patch, no user-facing changes. rust-v0.142.2 (2026-06-25) — MCP tools use tool search by default; remote plugin catalogs return curated featured-plugin rankings (#29485, triggered F-2026-06-27-003); dark-mode logos in local/remote manifests; PowerShell executable AST regions require approval. rust-v0.142.0 (2026-06-22) — `/plugins` organizes into OpenAI Curated/Workspace/Shared sections; rollout token budgets; multi-agent delegation configuration (disabled/explicit-only/proactive); indexed web-search mode (restricted page access); `/import` for importing from Claude Code (#27070). rust-v0.141.0 (2026-06-18) — per-thread MCP activation; exec-server Noise relay channels; PostToolUse blocking hooks correctly reject code-mode tool calls. rust-v0.140.0 (2026-06-15) — `/import` for importing from Claude Code (setup/project config/recent chats); `@` opens unified mentions menu; `/usage` daily/weekly/cumulative view; `/delete` permanent session deletion.
+**Summary:** rust-v0.142.3 (2026-06-26) — still latest stable; `0.143.0-alpha` builds in progress (pre-release, not actionable). No new stable releases since June 27 scan. Prior highlights: v0.142.2 MCP tools default to tool search; remote plugin curated rankings; dark-mode logos. v0.142.0 multi-agent delegation + /import from CC. v0.141.0 per-thread MCP + PostToolUse code-mode fix.
 
 History:
+- 2026-06-28T07:30:00Z — unchanged: still rust-v0.142.3 (June 26); 0.143.0-alpha in progress but pre-release; no new stable releases in 24h
 - 2026-06-27T07:21:43Z — changed: rust-v0.137.0 through rust-v0.142.3; v0.142.2 remote plugin catalog curated rankings (triggered F-2026-06-27-003); v0.142.0 multi-agent delegation + /import from CC; v0.141.0 per-thread MCP + PostToolUse code-mode fix; v0.140.0 /import from Claude Code
 - 2026-06-02T08:04:18Z — changed: rust-v0.135.0 (named permission profiles, thread-idle hook) + rust-v0.136.0 (hook schema tightening — breaking, runtime skill roots API, /archive); triggered F-2026-06-02-001, F-2026-06-02-003
 - 2026-06-01T08:08:22Z — changed: v0.134.0 stable (subagent identity in hooks, function tools default); v0.135.0 (thread idle hook, named profiles); v0.136.0 alpha
@@ -196,14 +198,15 @@ History:
 ## https://agentskills.io/specification
 
 ```yaml
-last_scan: 2026-06-02T08:04:18Z
+last_scan: 2026-06-28T07:30:00Z
 status: unchanged
-run_id: 26806183547
+run_id: 28336000000
 ```
 
-**Summary:** Required fields: `name` + `description` (≤1024 chars). Optional: `license`, `compatibility`, `metadata`, `allowed-tools` (experimental, space-separated pre-approved tools). `name` max 64 chars, lowercase alphanumeric+hyphens, no consecutive hyphens, must match directory. Progressive disclosure: metadata ~100 tokens at startup, full body on activation, referenced files on demand. Body ≤500 lines. Spec stable. Note: `disallowed-tools` and `effort:` (both Claude Code conventions) are NOT yet in the official agentskills.io spec.
+**Summary:** Required fields: `name` + `description` (≤1024 chars). Optional: `license`, `compatibility`, `metadata`, `allowed-tools` (experimental). `name` max 64 chars, lowercase alphanumeric+hyphens, must match directory. Body ≤500 lines. Spec stable — `disallowed-tools`, `effort:`, `display-name:`, `default-enabled:`, `fallback:`, `model:` (all Claude Code/Codex extensions) are NOT in the official agentskills.io spec. Open PRs #380/#386/#345 still pending.
 
 History:
+- 2026-06-28T07:30:00Z — unchanged: spec stable; no new fields confirmed; extensions catalogue compared against AGENTS.md § Allowed values (fable noted as CC extension, not agentskills.io spec)
 - 2026-06-02T08:04:18Z — unchanged: spec stable; fetched (HTML too large to parse fully but no new fields detected based on ievo-ai/skills AGENTS.md spec references which are current)
 - 2026-06-01T08:08:22Z — unchanged: spec stable; PRs #380, #386, #345 still open and pending
 - 2026-05-31T00:00:00Z — unchanged: spec stable; PRs #380 (versioning), #386 (UTF-8 fix), #345 (Unicode name) all still open; no spec changes
@@ -293,14 +296,15 @@ History:
 ## https://github.com/DenisSergeevitch/agents-best-practices
 
 ```yaml
-last_scan: 2026-06-27T07:21:43Z
-status: changed
-run_id: 28282216625
+last_scan: 2026-06-28T07:30:00Z
+status: unchanged
+run_id: 28336000000
 ```
 
-**Summary:** Three new commits since June 1. Most significant: new `references/coding-agents.md` (436 lines, June 7) — domain-specific harness overlay for code-touching agents: MVP boundary ("draft + verify + explain, not merge + deploy + own production"), task classification, evidence collection, risk assessment before edits, 6 task profiles (bug-fix, code-review, migration, dependency-upgrade, test-generation, docs-sync). New asset `01-use-cases.jpg`. `references/workflow-orchestration.md` expanded (June 14) with workflow artifact spec schema, packet design, budget gates, durable state. Relevant: coding-agents.md MVP boundary principle applies to deep-review/SKILL.md (triggered F-2026-06-27-002).
+**Summary:** Last commit still 2026-06-14 (workflow-orchestration schema). No new commits since June 27 scan. Repo stable. Prior highlights: `references/coding-agents.md` (June 7, 436 lines) — MVP boundary pattern applied to deep-review (F-2026-06-27-002); `references/workflow-orchestration.md` (June 14) — workflow artifact spec schema.
 
 History:
+- 2026-06-28T07:30:00Z — unchanged: last commit still June 14 (via gh api); no new files or commits since June 27 scan
 - 2026-06-27T07:21:43Z — changed: new references/coding-agents.md (June 7, 436 lines) + workflow-orchestration.md expansion (June 14) + SVG diagram; coding-agents MVP boundary triggered F-2026-06-27-002
 - 2026-06-01T08:08:22Z — changed: May 30 commit adds workflow orchestration guidance; relevant evidence for skills#162
 - 2026-05-31T00:00:00Z — changed: new references/workflow-orchestration.md (+261 lines, May 30); planning-and-goals.md and architecture.md expanded; triggered F-2026-05-31-001

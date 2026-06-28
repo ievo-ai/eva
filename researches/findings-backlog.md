@@ -843,6 +843,65 @@ This is a pure SKILL.md body addition (~15 lines). No new agent file, no scripts
 
 ---
 
+## F-2026-06-28-001 — Document CC v2.1.193 autoMode.classifyAllShell impact on iEvo init compatibility
+
+```yaml
+id: F-2026-06-28-001
+discovered_at: 2026-06-28T07:30:00Z
+run_id: 28336000000
+target_repo: ievo-ai/skills
+title: Document CC v2.1.193 autoMode.classifyAllShell setting as a compatibility note in init/SKILL.md — setting causes every bash command in the init pipeline to require classification approval
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/257
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.193 (2026-06-25) — autoMode.classifyAllShell setting: when true, ALL Bash/PowerShell commands are routed through the auto-mode classifier before execution, requiring user approval for each; relevant to iEvo init which runs 20+ bash commands (node, git, gh, etc.)
+```
+
+Claude Code v2.1.193 introduced `autoMode.classifyAllShell` — a setting that, when enabled, routes every Bash and PowerShell command through the auto-mode classifier before execution, requiring explicit user approval. The `/ievo:init` skill is the most bash-heavy iEvo operation: it runs `node` (for discover.mjs), `git clone` (shallow checkout per candidate), `gh api` (repo metadata), and multiple `bash` sub-commands for structural scanning. In a session with `autoMode.classifyAllShell: true`, each of these would pause for classification — turning a fully automated init run into a multi-prompt approval loop.
+
+The `/ievo:init` SKILL.md compatibility field currently documents minimum Claude Code versions for exec-form hooks, MCP dispatch, and plugin availability. It does not mention `autoMode.classifyAllShell` or advise users on what to expect if this setting is active. Users who enable `autoMode.classifyAllShell` (e.g. for security-sensitive sessions) and then run `/ievo:init` would encounter an unexpectedly interactive approval sequence for what they expected to be an automated operation.
+
+**Proposed addition**: append a one-sentence note to the `compatibility:` frontmatter field of `init/SKILL.md` noting that `autoMode.classifyAllShell: true` (CC v2.1.193+) will cause each of init's bash commands to require classification approval — and advising users to either set it to `false` for the duration of the init run, or expect interactive prompts. Also add a Phase 0 or preamble note in the skill body so the agent can warn the user if the setting is detected via `claude config get autoMode.classifyAllShell`.
+
+No new scripts required. No coverage obligation. Single SKILL.md change.
+
+---
+
+## F-2026-06-28-002 — validate_skills.mjs ALLOWED_MODELS missing fable (parity gap with validate_agents.mjs v0.21.0)
+
+```yaml
+id: F-2026-06-28-002
+discovered_at: 2026-06-28T07:30:00Z
+run_id: 28336000000
+target_repo: ievo-ai/skills
+title: Add fable to validate_skills.mjs ALLOWED_MODELS to achieve parity with validate_agents.mjs (which gained fable in v0.21.0)
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/258
+effort: low
+scope: multi-file
+evidence:
+  - https://github.com/ievo-ai/skills/blob/main/CHANGELOG.md: v0.21.0 "Add fable as a vendor-neutral model alias to validate_agents.mjs. Claude Fable 5 (Claude Code v2.1.170, June 2026). Agent files using model: fable would fail the vendor-neutrality validator before this change — now fable is recognized as a first-class family alias alongside sonnet, opus, haiku, and inherit."
+  - https://github.com/ievo-ai/skills/blob/main/plugins/ievo/scripts/validate_agents.mjs: ALLOWED_MODELS = new Set(["sonnet", "opus", "haiku", "fable", "inherit"]) — includes fable
+  - https://github.com/ievo-ai/skills/blob/main/plugins/ievo/scripts/validate_skills.mjs: ALLOWED_MODELS = new Set(["sonnet", "opus", "haiku", "inherit"]) — fable MISSING
+```
+
+`validate_agents.mjs` was updated in v0.21.0 to recognize `fable` as a valid vendor-neutral model alias. The same PR updated `AGENTS.md § Allowed values` to list fable alongside sonnet/opus/haiku/inherit. However, `validate_skills.mjs` was NOT updated — its `ALLOWED_MODELS` set still contains only `["sonnet", "opus", "haiku", "inherit"]`.
+
+Claude Code v2.1.186 and AGENTS.md § Allowed values both confirm `fable` is a first-class alias. Three SKILL.md files in the repo already declare `model: sonnet` for turn-level pinning (deep-review, security-check, vuln-scan — added in v0.32.0). If any skill ever needs a Fable-tier turn-level pin (e.g. a new skill requiring Mythos-class reasoning), `validate_skills.mjs` would reject `model: fable` with an error, even though fable is a valid documented alias and `validate_agents.mjs` accepts it. The inconsistency between the two validators creates a hidden bug waiting for a trigger.
+
+Additionally, the error message for non-allowed models in `validate_skills.mjs` says "Skills should not declare model preferences" — this was accurate before v0.32.0 but is now outdated: v0.32.0 deliberately added `model: sonnet` to three skills for turn-level security pinning and verified the approach against official docs. The error message should be updated to "skills should use vendor-neutral aliases only" or similar — accurately describing WHAT is forbidden (vendor lock-in), not discouraging model declarations entirely.
+
+**Proposed fix:**
+1. `plugins/ievo/scripts/validate_skills.mjs` — add `"fable"` to `ALLOWED_MODELS` Set (line 34)
+2. Update the `model-not-allowed` error message to remove the misleading "skills should not declare model preferences" clause
+3. `plugins/ievo/scripts/tests/validate_skills.test.mjs` — add test cases: `model: fable` → passes; `model: fable5` → errors (vendor-pinned); update the model-related test assertions for the new error message
+
+The 100% coverage rule applies (validate_skills.mjs is in `plugins/ievo/scripts/`). Expected diff: ~5 lines in validate_skills.mjs + ~6 new test cases.
+
+---
+
 ## F-2026-06-27-003 — Document Codex v0.142.0 /import-from-Claude-Code as iEvo onboarding path for platform migrants
 
 ```yaml
