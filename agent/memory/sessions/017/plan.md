@@ -39,9 +39,15 @@ sensitive-path gate (full opt-out). The real gaps: (1) `new-issue` forwarding is
     + auto-merge (App can't self-approve its own authored PR).
   - `.github/prompts/eva-implement.md` — build+PR-only handler (adapted from
     skills `issue-handler.md`, **without** the review/fix loop — eva-review-pr
-    owns review+merge). Draft PR → build → tests/pre-commit → `gh pr ready` →
-    hands off. eva scope-lock + ROLE.md safety; comment trust gate; no version
-    bump (eva isn't plugin-versioned like skills).
+    owns review+merge). **Build-on-branch → open READY PR at the end** (NOT
+    draft→ready): eva-review-pr only approves via the App identity on the
+    `workflow_run` path (fired by `pull_request: opened`); the
+    `ready_for_review` path runs the reviewer as the same PAT user that authored
+    the PR → self-approval block → no auto-merge. Opening ready directly fires
+    opened → Tests → workflow_run → App APPROVE → auto-merge. Gate run via
+    `uv run ruff/pytest/mypy` (pre-commit's system-mypy hook needs venv on PATH;
+    `uv run` is reliable). eva scope-lock + ROLE.md safety; comment trust gate
+    (marker AND MEMBER/OWNER author); no version bump (eva isn't plugin-versioned).
 - **Phase 2:** wire `new-issue` forwarders from public repos (skills last, replacing v1).
 - **Phase 3:** remove skills v1.
 
