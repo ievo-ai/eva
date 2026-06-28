@@ -20,9 +20,14 @@ name: Publish Evolution
 # path goes through the same job after the `if:` filter.
 
 on:
-  pull_request:
-    types: [closed]
-    branches: [main]
+  # NOTE: eva's OWN merged PRs do NOT auto-publish to the public Telegram.
+  # eva is a PRIVATE repo and the Telegram community channel is PUBLIC — auto-
+  # announcing eva's internal PRs (orchestration workflows, prompts, the brain
+  # we deliberately keep private per D-004) would leak private internals to the
+  # public feed. The previous `pull_request: [closed]` trigger was removed for
+  # this reason. eva's own evolutions are announced ONLY via the curated manual
+  # `workflow_dispatch` path (operator-intentional milestones). PUBLIC-repo
+  # evolutions still flow through `repository_dispatch: child-release`.
   # Cross-repo child-release announce: a child repo (e.g. ievo-ai/skills) fires
   # repository_dispatch(event_type=child-release) from its OWN merge workflow,
   # which carries the merged==true guard at the dispatch source. This is the
@@ -71,14 +76,12 @@ jobs:
     #      should land without a Telegram ping (e.g. the daily eva-research
     #      audit-report PR; the finding-issues are the signal, not the report).
     # Anything else (e.g. unmerged close) returns false → no-op.
+    # Only the curated manual path (workflow_dispatch) and PUBLIC-repo
+    # child-release dispatches publish. eva's own merged PRs no longer
+    # auto-publish (private repo → public channel = leak; trigger removed above).
     if: >
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'repository_dispatch' ||
-      (github.event_name == 'pull_request' &&
-       github.event.pull_request.merged == true &&
-       github.event.pull_request.user.login != 'dependabot[bot]' &&
-       github.event.pull_request.user.login != 'github-actions[bot]' &&
-       !contains(github.event.pull_request.labels.*.name, 'silent'))
+      github.event_name == 'repository_dispatch'
 
     runs-on: ubuntu-latest
 
