@@ -96,7 +96,7 @@ jobs:
           show_full_output: true
           claude_args: |
             --model sonnet
-            --allowedTools "Bash,Read,Glob,Grep"
+            --allowedTools "Bash,Read,Glob,Grep,WebFetch,WebSearch"
           settings: |
             {
               "env": {
@@ -138,8 +138,8 @@ jobs:
               - Read ALL relevant source files in $TARGET_REPO, not just those
                 named. Trace code paths end-to-end. grep for related patterns.
               - If the issue claims a tool/library/version behaves a certain way,
-                VERIFY against current official docs (Context7 / WebFetch the
-                release notes) before agreeing — many proposals cite specific CC /
+                VERIFY against current official docs (WebFetch the release notes /
+                WebSearch) before agreeing — many proposals cite specific CC /
                 Codex versions; an unverified or hallucinated citation is a hold.
               - Assess RISK: is the change scoped to safe paths (skills/agents/
                 scripts/docs), or does it touch `.github/workflows`, CI scripts,
