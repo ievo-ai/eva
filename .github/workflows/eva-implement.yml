@@ -61,20 +61,31 @@ jobs:
     timeout-minutes: 60
 
     # DORMANT until the operator sets repo variable EVA_IMPLEMENT_ENABLED=true.
-    # Then: a real (non-bot) `approved` label on a non-PR issue, OR a cross-repo
-    # implement-issue dispatch from a non-bot trigger.
+    # Then build ONLY for trusted authors:
+    #   - issues: the `approved` label on a non-PR issue whose AUTHOR is a
+    #     MEMBER or OWNER. This author gate is a hard security boundary, NOT
+    #     redundant with the router: eva-on-issue.yml gates the `approved`
+    #     verdict on clarity + low-risk ONLY, not author association — so a
+    #     non-member's issue CAN get `approved`. Without this gate, that
+    #     non-member's issue body would become trusted requirements for an
+    #     autonomous agent holding EVA_PAT_GITHUB_TOKEN + Bash/Write/WebFetch
+    #     (a prompt-injection → token path). MEMBER/OWNER also inherently
+    #     excludes bots (bots are never MEMBER/OWNER).
+    #   - repository_dispatch: the trusted forwarder MUST supply
+    #     client_payload.author_association (the upstream issue author's
+    #     association); we build only for MEMBER/OWNER (Phase 2 contract).
     if: >
       vars.EVA_IMPLEMENT_ENABLED == 'true' &&
       (
         (github.event_name == 'issues' &&
          github.event.label.name == 'approved' &&
          !github.event.issue.pull_request &&
-         github.event.issue.user.login != 'ievo-eva' &&
-         github.event.issue.user.login != 'github-actions[bot]')
+         (github.event.issue.author_association == 'MEMBER' ||
+          github.event.issue.author_association == 'OWNER'))
         ||
         (github.event_name == 'repository_dispatch' &&
-         github.event.client_payload.triggered_by != 'ievo-eva' &&
-         github.event.client_payload.triggered_by != 'github-actions[bot]')
+         (github.event.client_payload.author_association == 'MEMBER' ||
+          github.event.client_payload.author_association == 'OWNER'))
       )
 
     steps:

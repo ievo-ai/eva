@@ -34,7 +34,12 @@ sensitive-path gate (full opt-out). The real gaps: (1) `new-issue` forwarding is
     `EVA_IMPLEMENT_ENABLED == 'true'` (operator flips after smoke test — this is
     the most autonomous workflow: Eva writes code that auto-merges). Claim swaps
     `approved` → `eva-implementing` (distinct from router's operator-only
-    `in-progress`); best-effort rate-limit MAX_INFLIGHT=3. Checkout + PR via
+    `in-progress`); best-effort rate-limit MAX_INFLIGHT=3. **Security: job gates
+    on issue `author_association` MEMBER/OWNER** — the router gates `approved` on
+    clarity+risk only (NOT author), so a non-member's issue can get `approved`;
+    without the author gate their body would be trusted requirements for an agent
+    holding EVA_PAT + Bash/Write (prompt-injection→token path). Caught by
+    eva-review CHANGES_REQUESTED on #110. Checkout + PR via
     `EVA_PAT_GITHUB_TOKEN` (real-user identity) so eva-review-pr (App) can approve
     + auto-merge (App can't self-approve its own authored PR).
   - `.github/prompts/eva-implement.md` — build+PR-only handler (adapted from
