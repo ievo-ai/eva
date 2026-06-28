@@ -1,19 +1,22 @@
-# Eva — Issue Triage helper
+# Eva — Issue Router (Phase 1 of the issue-pipeline migration, eva#106)
 #
 # When a new issue opens in ievo-ai/eva (or any iEvo repo via
-# repository_dispatch), Claude (acting as Eva) posts ONE triage comment
-# with suggested labels + cross-references + duplicate detection +
-# "covered by audit report X" notes. Optionally auto-applies a small
-# set of low-risk labels (bug / enhancement / question / dup:#N).
+# repository_dispatch: new-issue), Claude (acting as Eva) does router-grade
+# deep analysis and posts ONE structured comment (Understanding / Approach /
+# Questions / Conflicts / Risks) carrying a routing verdict marker
+# (<!-- ievo-verdict: implement|hold -->), then applies classification +
+# lifecycle-state labels (triage / needs-discussion / approved).
 #
-# Replaces the previous eva-on-issue.yml (deprecated in PR #41,
-# 2026-05-22). That version ran a dry-run Docker scan that produced
-# only runner logs nobody read.
+# verdict = implement ONLY when requirements are clear AND the change is
+# low-risk; otherwise hold (default). The `approved` label is the signal the
+# implement step consumes in a later phase (eva#106 Phase 1b).
 #
-# Scope:
-#   - POSTS a comment, applies low-risk labels
-#   - Does NOT auto-resolve / auto-close / open linked PRs
-#   - Does NOT propose mutations (eva-research.yml's job)
+# Upgraded from the prior triage-only version (was "Eva: Issue Triage",
+# godfather task #42). Replaces the skills v1 issue-pipeline router.
+#
+# Scope (THIS workflow — router only):
+#   - POSTS a comment, applies classification + lifecycle labels
+#   - Does NOT auto-resolve / auto-close / open PRs / modify files / implement
 #
 # Security note: untrusted issue title/body never reach `run:` blocks
 # directly. The Claude action receives them via the issue API call
@@ -22,7 +25,7 @@
 #
 # Tracked as godfather task #42.
 
-name: "Eva: Issue Triage"
+name: "Eva: Issue Router"
 
 on:
   issues:
@@ -42,7 +45,7 @@ concurrency:
 
 jobs:
   triage:
-    name: "Eva: Issue Triage"
+    name: "Eva: Issue Router"
     runs-on: ubuntu-latest
     timeout-minutes: 8
 
@@ -104,9 +107,11 @@ jobs:
               }
             }
           prompt: |
-            You are Eva acting as Issue Triage helper. A new issue opened
-            in $TARGET_REPO #$TARGET_ISSUE. Post ONE triage comment +
-            apply low-risk labels.
+            You are Eva acting as Issue Router (deep analysis + routing verdict). A new issue opened
+            in $TARGET_REPO #$TARGET_ISSUE. Post ONE structured analysis
+            comment (carrying a routing verdict) + apply classification and
+            lifecycle-state labels. Do NOT implement anything — the verdict
+            decides whether a later gated step builds.
 
             ## Step 1 — Load context (terse — stop when you have enough)
 
@@ -124,25 +129,22 @@ jobs:
                 covered by recent Eva work?
 
             Don't read memory/CONTEXT.md or memory/HISTORY.md — those
-            are for full Eva sessions, overkill for triage.
+            are for full Eva sessions, overkill for routing.
 
-            ## Step 2 — Classify (one primary category)
+            ## Step 2 — Deep research (router-grade, not shallow triage)
 
-              - `bug` — clear bug report (broken, error trace, "X doesn't work")
-              - `enhancement` — feature request / capability proposal
-              - `question` — user asking how, no implied code change
-              - `documentation` — docs/typo/clarity
-              - `discussion` — open-ended design topic, no specific ask
-              - `meta-evolution` — proposal to change Eva's own rules
-                (like ievo-ai/eva#43 was)
-              - `out-of-scope` — outside iEvo's mission
-
-            Secondary signals (additional labels):
-              - `duplicate-of-#N` — found matching open issue or PR.
-                Say "likely duplicate" if low confidence; "duplicate"
-                only after cross-referencing bodies.
-              - `covered-by-audit-#N` — already addressed by Eva's
-                research/findings.
+            Investigate the issue properly — this analysis decides whether it
+            advances to implementation:
+              - Read ALL relevant source files in $TARGET_REPO, not just those
+                named. Trace code paths end-to-end. grep for related patterns.
+              - If the issue claims a tool/library/version behaves a certain way,
+                VERIFY against current official docs (Context7 / WebFetch the
+                release notes) before agreeing — many proposals cite specific CC /
+                Codex versions; an unverified or hallucinated citation is a hold.
+              - Assess RISK: is the change scoped to safe paths (skills/agents/
+                scripts/docs), or does it touch `.github/workflows`, CI scripts,
+                the security model, or break a public schema? Larger / sweeping /
+                multi-subsystem = higher risk.
 
             ## Step 3 — Cross-reference
 
@@ -151,53 +153,75 @@ jobs:
               gh issue list --repo "$TARGET_REPO" --state open \
                 --json number,title --limit 30
 
-            Look for: same component, similar wording, evidence-URL
-            overlap. Don't be exhaustive — if the issue strongly
-            implies a known research area, mention it.
+            Look for: same component, similar wording, evidence-URL overlap,
+            sibling proposals that should bundle/sequence with this one.
 
-            ## Step 4 — Post ONE triage comment
+            ## Step 4 — Decide the routing verdict (before writing the comment)
 
-            Sections (omit empty ones). Write to /tmp/triage-comment.md,
-            then post:
+            Emit `implement` ONLY when BOTH hold:
+              1. Requirements are CLEAR — zero genuine open questions (the
+                 ### Questions section will be exactly "None — requirements are clear.").
+              2. LOW RISK — scoped to safe paths, no workflow/CI/security/schema-
+                 breaking change, small-to-moderate surface, no unresolved
+                 conflicts, and any external claim is VERIFIED.
+            Otherwise the verdict is `hold`. DEFAULT TO `hold` when unsure — a wrong
+            hold costs one operator click; a wrong implement spends a full build.
 
-              ```markdown
-              👋 Triage by Eva
+            ## Step 5 — Post ONE structured analysis comment (carries the verdict)
 
-              **Classification:** <one category from Step 2>
+            Write to /tmp/analysis.md then post. The comment MUST begin with these
+            two marker lines, each on its own line, before anything else (downstream
+            machine-parses BOTH):
 
-              **Cross-references:**
-              - <link to related open PR/issue with one-line why>
-              - <link to audit report or finding ID>
+              <!-- ievo-issue-analysis -->
+              <!-- ievo-verdict: implement -->   ← or `hold` per Step 4
 
-              **Notes:**
-              - <context operator might miss — e.g. "matches the codex-doctor pattern from F-2026-05-22-001">
-              - <open question that determines accept/reject>
+            Then the structured body (exact headings; write "None identified" for
+            an empty section). Include the marker line <!-- ievo-open-questions -->
+            on its own line IMMEDIATELY BEFORE `### Questions` ONLY when there ARE
+            real open questions:
 
-              **Suggested next steps:**
-              - <one or two concrete operator actions>
+              ### Understanding
+              <restate the ask in your words; call out ambiguity / assumptions>
 
-              ---
-              Auto-applied labels: <list> (operator can override)
-              Filed by Eva via Issue Triage workflow run <$GITHUB_RUN_ID>.
-              ```
+              ### Approach
+              <how you'd implement — specific files, change shape, order>
 
+              ### Questions
+              <open questions blocking implementation, or exactly
+               "None — requirements are clear.">
+
+              ### Conflicts
+              <conflicts with code / conventions / version-bump rules / siblings>
+
+              ### Risks
+              <edge cases, backwards-compat, CI implications, security, unverified claims>
+
+            Post:
               gh issue comment "$TARGET_ISSUE" --repo "$TARGET_REPO" \
-                --body-file /tmp/triage-comment.md
+                --body-file /tmp/analysis.md
 
-            ## Step 5 — Auto-apply low-risk labels ONLY
+            ## Step 6 — Apply labels (classification + lifecycle state)
 
-            Safe-list (auto-apply):
+            Classification (safe-list, auto-apply — one primary):
               `bug`, `enhancement`, `question`, `documentation`,
               `discussion`, `meta-evolution`
+            Plus secondary signals when found: `duplicate-of-#N`,
+            `covered-by-audit-#N`.
 
-            Operator-only (DO NOT auto-apply):
-              `critical`, `priority/*`, `accepted`, `rejected`,
-              `needs-discussion`, `wontfix`, `duplicate` (without #N),
-              `good-first-issue`
+            Lifecycle state (auto-apply EXACTLY one, per the verdict):
+              - verdict `implement` → add `approved` (clear + low-risk; the
+                implement step consumes this in a later phase)
+              - verdict `hold` with open questions → add `needs-discussion`
+              - verdict `hold`, no open questions but not low-risk → add `triage`
+
+            Still operator-only (NEVER auto-apply): `critical`, `priority/*`,
+            `accepted`, `rejected`, `wontfix`, `duplicate` (without #N),
+            `good-first-issue`, `in-progress`.
 
             Ensure label exists then apply (both idempotent):
               gh label create "<label>" --repo "$TARGET_REPO" \
-                --description "Eva triage classification" \
+                --description "Eva lifecycle/classification" \
                 --color "<color>" 2>/dev/null || true
               gh issue edit "$TARGET_ISSUE" --repo "$TARGET_REPO" \
                 --add-label "<label>"
@@ -205,10 +229,11 @@ jobs:
             Colors:
               bug: d73a4a, enhancement: a2eeef, question: d876e3,
               documentation: 0075ca, discussion: cfd3d7,
-              meta-evolution: 5319e7, out-of-scope: e4e669
+              meta-evolution: 5319e7, out-of-scope: e4e669,
+              approved: 0e8a16, needs-discussion: fbca04, triage: ededed
 
             ## Safety reminders (non-negotiable)
-              - NEVER close the issue. Triage ≠ resolution.
+              - NEVER close the issue, open PRs, or modify files. The router only analyzes + labels; implementation is a separate gated step (consumes the `approved` label).
               - NEVER apply `accepted` / `rejected` / `priority/*`
                 labels. Operator-only decisions.
               - NEVER open linked PRs. Surface in comment; eva-research
