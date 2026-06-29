@@ -247,6 +247,9 @@ Consequences for any "Eva builds → Eva approves → auto-merge" flow:
 - `TELEGRAM_BOT_TOKEN` — Telegram Bot API token (@ievo_ai_bot)
 - `TELEGRAM_COMMUNITY_CHAT` — Telegram community chat ID (publishing + interaction)
 - `CLAUDE_CODE_OAUTH_TOKEN` — Claude Code CLI auth (subscription, for Eva's community responses)
+- `EVA_PAT_GITHUB_TOKEN` — PAT of the `ievo-eva` machine account; Eva authors PRs/issues/comments/labels as herself
+- `APP_ID` — GitHub App id (`ievo-eva` App); paired with `APP_PRIVATE_KEY` to mint App tokens for PR review/approval
+- `APP_PRIVATE_KEY` — GitHub App private key (`ievo-eva` App); paired with `APP_ID`
 
 ## Four evolution layers
 
