@@ -94,18 +94,24 @@ the operator. Otherwise proceed to Phase 4.
 
 CRITICAL handoff rule: build and validate everything on the feature branch, and
 open the PR only at the very end (Phase 5), as a READY (non-draft) PR. Do NOT
-open a draft and promote it. Reason: eva-review-pr reviews via the App identity
-ONLY on the `workflow_run` path (triggered by `pull_request: opened`). The
-draft→`ready_for_review` path runs the reviewer under the same user identity that
-authored this PR, so its APPROVE is blocked as a self-approval and the PR never
-auto-merges. Opening ready directly fires `opened` → Tests → `workflow_run` →
-App review → auto-merge. While you build, the branch has no PR, so no CI runs and
-nothing reviews half-built code.
+open a draft and promote it. Reason (see CLAUDE.md "Identity model"): this PR is
+authored by the `ievo-eva` machine account (PAT). eva-review-pr reviews via the
+`ievo-eva` **App** (a different principal that CAN approve the machine account's
+PR) ONLY on the `workflow_run` path (triggered by `pull_request: opened`). The
+draft→`ready_for_review` path instead runs the reviewer under the `ievo-eva` PAT
+— the SAME account that authored the PR — so its APPROVE is blocked as a
+self-approval and the PR never auto-merges. Opening ready directly fires
+`opened` → Tests → `workflow_run` → App review → auto-merge. While you build, the
+branch has no PR, so no CI runs and nothing reviews half-built code.
 
 ### 4a. Create the feature branch
 
-Per CLAUDE.md branch naming, off `main`:
-  git checkout -b feat/<short-desc>     # or fix/<short-desc>
+Use the `eva-impl/` prefix — this is REQUIRED, not cosmetic: eva-review-pr's
+loop-prevention filter skips `workflow_run` events triggered by `ievo-eva`
+(which is who triggers Tests on this PAT-authored PR), EXCEPT for branches
+matching `eva-impl/*`, which it carves out so this PR actually gets reviewed.
+A different prefix → no review → no auto-merge. Off `main`:
+  git checkout -b eva-impl/<short-desc>
 
 ### 4b. Implement the change
 

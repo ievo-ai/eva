@@ -17,12 +17,16 @@
 # This is the single most autonomous workflow in the org (Eva writes code AND
 # it auto-merges on a clean non-sensitive review) — the flag is the safety valve.
 #
-# Merge-path design (eva#106): the PR is created by `gh`/`git` authenticated as
-# the Eva automation identity (a real user, via EVA_PAT_GITHUB_TOKEN) — NOT the
-# Eva App. That is deliberate: eva-review-pr (the App) cannot approve its own
-# authored PR (GitHub self-approval block), but it CAN approve a PR authored by
-# the PAT user. So PAT-authored PR → App approves → existing auto-merge path
-# fires (sensitive-path gate still routes risky changes to the operator).
+# Merge-path design (eva#106; see CLAUDE.md "Identity model"): the PR is created
+# by `gh`/`git` authenticated as the `ievo-eva` MACHINE ACCOUNT (a real user, via
+# EVA_PAT_GITHUB_TOKEN) — NOT the `ievo-eva` App. The App and the machine account
+# are DIFFERENT principals, so the App CAN approve the machine account's PR (no
+# self-approval block). eva-review-pr reviews via the App on the `workflow_run`
+# path → APPROVE → auto-merge (sensitive-path gate still routes risky changes to
+# the operator). REQUIREMENT: the build uses the `eva-impl/` branch prefix so
+# eva-review-pr can carve it out of its loop-prevention filter (which otherwise
+# skips `workflow_run` triggered by `ievo-eva` — exactly who triggers Tests on
+# this PAT-authored PR). Without that carve-out, no review fires, no auto-merge.
 #
 # Claim + rate-limit: an atomic-ish label swap (`approved` → `eva-implementing`)
 # claims the issue so a duplicate `labeled` event is a no-op; a best-effort cap

@@ -201,6 +201,45 @@ eva benchmark history spec-writer                       # Show historical scores
 - **DO auto-deploy**: `deploy-do.yml` workflow — push to main triggers SSH → rebuild → restart
 - All workflows use Docker for reproducible environment
 
+## Identity model (who acts as whom on GitHub)
+
+Three distinct GitHub identities operate in this org. Getting them right is
+load-bearing for the PR review + auto-merge chain — mixing them up silently
+breaks auto-merge (self-approval) or review triggering (loop filters).
+
+| Identity | What it is | Secret | Used for |
+|----------|-----------|--------|----------|
+| **`ievo-eva` (machine account)** | A real GitHub **user account** that IS Eva | `EVA_PAT_GITHUB_TOKEN` (a PAT owned by this account) | Eva **creates** PRs / issues / comments / labels "as herself" (`gh`/`git` with this PAT → author = `ievo-eva`). |
+| **`ievo-eva` (GitHub App)** | A GitHub **App** installed on the org | `APP_ID` + `APP_PRIVATE_KEY` (→ `actions/create-github-app-token`) | Eva **reviews/approves** PRs and does App-token writes. Appears as `ievo-eva[bot]` / `app/ievo-eva`. |
+| **`rotnov`** | The human **operator** (Denis) | personal session | Operator actions: merges sensitive PRs, opens operator PRs, sets operator-only labels. |
+
+Who approves: `eva-review-pr.yml` posts reviews via the **App** (`ievo-eva[bot]`)
+when `vars.USE_GITHUB_APP == 'true'` (it is). Empirically observed:
+- App **CAN** approve a PR authored by a DIFFERENT principal — PR #110 (authored
+  by `rotnov`) received a valid App `APPROVED`.
+- App **CANNOT** approve an **App-authored** PR — PR #105 (`app/ievo-eva`) fell
+  back to `COMMENTED` (GitHub self-approval block). So a PR authored by the App
+  can never be App-auto-merged.
+
+Consequences for any "Eva builds → Eva approves → auto-merge" flow:
+- The build's PR must be authored by a principal the App can approve AND that
+  passes eva-review-pr's loop filter (`triggering_actor != 'ievo-eva'` and
+  `!= 'github-actions[bot]'`):
+  - author = `app/ievo-eva` → ✗ App self-approval block (proven, #105).
+  - author = `ievo-eva` machine USER (`EVA_PAT_GITHUB_TOKEN`) → distinct from the
+    App bot, so App approval SHOULD be valid, BUT `triggering_actor == 'ievo-eva'`
+    is blocked by the loop filter → needs a narrow carve-out (un-spoofable marker,
+    e.g. head-branch prefix `eva-impl/`). Whether the App treats a USER-authored
+    `ievo-eva` PR as self-approval is **unverified** — confirm in the dormant
+    smoke test before relying on it.
+  - author = `rotnov` (operator) → ✓ proven (#110), but attributes Eva's
+    autonomous code to the operator's personal account (the #101 migration moved
+    automation OFF that).
+- `EVA_PAT_GITHUB_TOKEN` is the **machine-account PAT** (`ievo-eva`), NOT the
+  operator's personal PAT (docker-compose.yml header confirms "from ievo-eva
+  account"). Historically some automation ran on a PAT that authored PRs as
+  `rotnov`; #101 migrated those onto the App.
+
 ## Env vars
 
 - `EVA_GITHUB_TOKEN` — GitHub API access (issues, PRs, reviews, evolutions)

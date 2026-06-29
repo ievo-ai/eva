@@ -68,6 +68,18 @@ jobs:
     #   workflow_run / pull_request — require head repository to be in
     #     ievo-ai org (rejects all fork-based PRs at the gate)
     #   repository_dispatch — unchanged; cross-repo trusted callers
+    #
+    # eva-implement carve-out (eva#106 Phase 1b): eva-implement.yml authors its
+    # PRs as the `ievo-eva` machine USER (EVA_PAT) so the App can approve them
+    # (App `ievo-eva[bot]` ≠ user `ievo-eva` = different principals). But that
+    # means Tests on those PRs are triggered by `ievo-eva`, which the loop filter
+    # below would otherwise reject. Carve out ONLY branches matching `eva-impl/*`
+    # (the prefix eva-implement uses) so Eva can review her own implement PRs.
+    # Safe: (1) head_repository.owner.login == 'ievo-ai' still rejects forks;
+    # (2) only org members can push an `eva-impl/*` branch to ievo-ai/eva;
+    # (3) no loop — eva-review only reviews + merges these PRs, it never pushes
+    # to them, so there is nothing to re-trigger; (4) the sensitive-path gate +
+    # the runtime Tests-green/draft checks below still apply unchanged.
     if: >
       (github.event_name == 'repository_dispatch' &&
        github.event.client_payload.triggered_by != 'ievo-eva' &&
@@ -76,8 +88,12 @@ jobs:
        github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event == 'pull_request' &&
        github.event.workflow_run.head_repository.owner.login == 'ievo-ai' &&
-       github.event.workflow_run.triggering_actor.login != 'ievo-eva' &&
-       github.event.workflow_run.triggering_actor.login != 'github-actions[bot]') ||
+       (
+         (github.event.workflow_run.triggering_actor.login != 'ievo-eva' &&
+          github.event.workflow_run.triggering_actor.login != 'github-actions[bot]')
+         ||
+         startsWith(github.event.workflow_run.head_branch, 'eva-impl/')
+       )) ||
       (github.event_name == 'pull_request' &&
        github.event.action == 'ready_for_review' &&
        github.event.pull_request.head.repo.owner.login == 'ievo-ai' &&
