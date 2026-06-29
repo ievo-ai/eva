@@ -56,7 +56,8 @@ concurrency:
 permissions:
   contents: read
   issues: write
-  id-token: write
+  id-token: write   # required by anthropics/claude-code-action@v1's OIDC startup
+                    # (same as eva-on-issue.yml; the action fails to boot without it)
 
 jobs:
   implement:
@@ -234,3 +235,20 @@ jobs:
               }
             }
           prompt: ${{ env.IMPLEMENT_PROMPT }}
+
+      # Release the claim if the build crashed/failed AFTER claiming. Without
+      # this, a failed run strands the issue in `eva-implementing` forever, and
+      # MAX_INFLIGHT such stuck claims permanently block all future builds. Move
+      # to `triage` (NOT back to `approved` — that would re-fire `labeled` and
+      # loop) and flag the operator. Only runs when we actually claimed.
+      - name: Release claim on failure
+        if: failure() && steps.claim.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+          REPO: ${{ steps.ctx.outputs.repo }}
+          ISSUE_NUM: ${{ steps.ctx.outputs.issue_number }}
+        run: |
+          gh issue edit "$ISSUE_NUM" --repo "$REPO" \
+            --remove-label eva-implementing --add-label triage 2>/dev/null || true
+          gh issue comment "$ISSUE_NUM" --repo "$REPO" --body \
+            "Eva's implement run failed or was interrupted after claiming this issue. Released the \`eva-implementing\` claim (freed a build slot) and moved to \`triage\` for operator review. Re-apply \`approved\` to retry." || true
