@@ -27,8 +27,32 @@ sensitive-path gate (full opt-out). The real gaps: (1) `new-issue` forwarding is
   - `@ievo-eva` comment trigger (re-analysis / discussion) in addition to
     `issues:opened` + `new-issue` dispatch.
   - STILL comment+label only — NO autonomous code-writing/merging yet (that is 1b).
-- **1b (next PR):** Implement path — `approved` + low-risk → Eva builds → PR →
-  eva-review-pr auto-merges (sensitive-path gated). Rate-limit.
+- **1b (this PR):** Implement path — `approved` + low-risk → Eva builds → PR →
+  eva-review-pr auto-merges (sensitive-path gated). Rate-limit. Built:
+  - `.github/workflows/eva-implement.yml` — triggers `issues:[labeled]`(approved)
+    + `repository_dispatch:[implement-issue]`. **Dormant** behind repo var
+    `EVA_IMPLEMENT_ENABLED == 'true'` (operator flips after smoke test — this is
+    the most autonomous workflow: Eva writes code that auto-merges). Claim swaps
+    `approved` → `eva-implementing` (distinct from router's operator-only
+    `in-progress`); best-effort rate-limit MAX_INFLIGHT=3. **Security: job gates
+    on issue `author_association` MEMBER/OWNER** — the router gates `approved` on
+    clarity+risk only (NOT author), so a non-member's issue can get `approved`;
+    without the author gate their body would be trusted requirements for an agent
+    holding EVA_PAT + Bash/Write (prompt-injection→token path). Caught by
+    eva-review CHANGES_REQUESTED on #110. Checkout + PR via
+    `EVA_PAT_GITHUB_TOKEN` (real-user identity) so eva-review-pr (App) can approve
+    + auto-merge (App can't self-approve its own authored PR).
+  - `.github/prompts/eva-implement.md` — build+PR-only handler (adapted from
+    skills `issue-handler.md`, **without** the review/fix loop — eva-review-pr
+    owns review+merge). **Build-on-branch → open READY PR at the end** (NOT
+    draft→ready): eva-review-pr only approves via the App identity on the
+    `workflow_run` path (fired by `pull_request: opened`); the
+    `ready_for_review` path runs the reviewer as the same PAT user that authored
+    the PR → self-approval block → no auto-merge. Opening ready directly fires
+    opened → Tests → workflow_run → App APPROVE → auto-merge. Gate run via
+    `uv run ruff/pytest/mypy` (pre-commit's system-mypy hook needs venv on PATH;
+    `uv run` is reliable). eva scope-lock + ROLE.md safety; comment trust gate
+    (marker AND MEMBER/OWNER author); no version bump (eva isn't plugin-versioned).
 - **Phase 2:** wire `new-issue` forwarders from public repos (skills last, replacing v1).
 - **Phase 3:** remove skills v1.
 

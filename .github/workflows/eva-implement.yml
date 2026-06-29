@@ -1,0 +1,254 @@
+# Eva — Issue Implementer (Phase 1b of the issue-pipeline migration, eva#106)
+#
+# When the Issue Router (eva-on-issue.yml) applies the `approved` label to an
+# issue (verdict = implement: requirements clear AND low risk), Eva autonomously
+# builds the change and opens a PR. Review + merge are handled SEPARATELY by
+# eva-review-pr.yml (sensitive-path gated) — this workflow's job ends when it
+# opens the ready PR.
+#
+# Trigger paths:
+#   - issues:[labeled] (label == approved)  — eva-local issues
+#   - repository_dispatch:[implement-issue]  — cross-repo (Phase 2 seam; the
+#     toolchain setup below is eva-specific Python/uv for now)
+#
+# DORMANT BY DEFAULT: the job runs ONLY when repo variable
+# `EVA_IMPLEMENT_ENABLED == 'true'`. This lets the workflow merge as inert
+# infrastructure; the operator flips the flag after a deliberate smoke test.
+# This is the single most autonomous workflow in the org (Eva writes code AND
+# it auto-merges on a clean non-sensitive review) — the flag is the safety valve.
+#
+# Merge-path design (eva#106; see CLAUDE.md "Identity model"): the PR is created
+# by `gh`/`git` authenticated as the `ievo-eva` MACHINE ACCOUNT (a real user, via
+# EVA_PAT_GITHUB_TOKEN) — NOT the `ievo-eva` App. The App and the machine account
+# are DIFFERENT principals, so the App CAN approve the machine account's PR (no
+# self-approval block). eva-review-pr reviews via the App on the `workflow_run`
+# path → APPROVE → auto-merge (sensitive-path gate still routes risky changes to
+# the operator). REQUIREMENT: the build uses the `eva-impl/` branch prefix so
+# eva-review-pr can carve it out of its loop-prevention filter (which otherwise
+# skips `workflow_run` triggered by `ievo-eva` — exactly who triggers Tests on
+# this PAT-authored PR). Without that carve-out, no review fires, no auto-merge.
+#
+# Claim + rate-limit: an atomic-ish label swap (`approved` → `eva-implementing`)
+# claims the issue so a duplicate `labeled` event is a no-op; a best-effort cap
+# of MAX_INFLIGHT concurrent builds bounds the blast radius. `eva-implementing`
+# is a distinct claim label (NOT `in-progress`, which the router reserves as
+# operator-only).
+#
+# Security: untrusted issue title/body never reach `run:` blocks via ${{ }}
+# interpolation — the Claude action receives them via `gh issue view` inside the
+# agent's Bash subprocess. Same shell-injection defense as eva-on-issue.yml.
+#
+# Tracked as godfather task #42 / eva#106.
+
+name: "Eva: Implement"
+
+on:
+  issues:
+    types: [labeled]
+  repository_dispatch:
+    types: [implement-issue]
+
+# One in-flight build per issue; never cancel a build mid-flight.
+concurrency:
+  group: eva-implement-${{ github.event.client_payload.repo || github.repository }}-${{ github.event.client_payload.issue_number || github.event.issue.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+  id-token: write   # required by anthropics/claude-code-action@v1's OIDC startup
+                    # (same as eva-on-issue.yml; the action fails to boot without it)
+
+jobs:
+  implement:
+    name: "Eva: Implement"
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    # DORMANT until the operator sets repo variable EVA_IMPLEMENT_ENABLED=true.
+    # Then build ONLY for trusted authors:
+    #   - issues: the `approved` label on a non-PR issue whose AUTHOR is a
+    #     MEMBER or OWNER. This author gate is a hard security boundary, NOT
+    #     redundant with the router: eva-on-issue.yml gates the `approved`
+    #     verdict on clarity + low-risk ONLY, not author association — so a
+    #     non-member's issue CAN get `approved`. Without this gate, that
+    #     non-member's issue body would become trusted requirements for an
+    #     autonomous agent holding EVA_PAT_GITHUB_TOKEN + Bash/Write/WebFetch
+    #     (a prompt-injection → token path). MEMBER/OWNER also inherently
+    #     excludes bots (bots are never MEMBER/OWNER).
+    #   - repository_dispatch: the trusted forwarder MUST supply
+    #     client_payload.author_association (the upstream issue author's
+    #     association); we build only for MEMBER/OWNER (Phase 2 contract).
+    if: >
+      vars.EVA_IMPLEMENT_ENABLED == 'true' &&
+      (
+        (github.event_name == 'issues' &&
+         github.event.label.name == 'approved' &&
+         !github.event.issue.pull_request &&
+         (github.event.issue.author_association == 'MEMBER' ||
+          github.event.issue.author_association == 'OWNER'))
+        ||
+        (github.event_name == 'repository_dispatch' &&
+         (github.event.client_payload.author_association == 'MEMBER' ||
+          github.event.client_payload.author_association == 'OWNER'))
+      )
+
+    steps:
+      - name: Resolve issue context
+        id: ctx
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_REPO: ${{ github.event.client_payload.repo }}
+          DISPATCH_ISSUE: ${{ github.event.client_payload.issue_number }}
+          ISSUE_NUMBER_FROM_EVENT: ${{ github.event.issue.number }}
+        run: |
+          if [ "$EVENT_NAME" = "repository_dispatch" ]; then
+            REPO="$DISPATCH_REPO"
+            ISSUE_NUM="$DISPATCH_ISSUE"
+          else
+            REPO="${{ github.repository }}"
+            ISSUE_NUM="$ISSUE_NUMBER_FROM_EVENT"
+          fi
+          if [ -z "$REPO" ] || [ -z "$ISSUE_NUM" ]; then
+            echo "Missing repo or issue number, skipping"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          {
+            echo "repo=$REPO"
+            echo "issue_number=$ISSUE_NUM"
+            echo "skip=false"
+          } >> "$GITHUB_OUTPUT"
+
+      # Claim the issue (approved -> eva-implementing) and enforce a best-effort
+      # concurrency cap. All gh calls authenticate as the Eva automation identity
+      # (PAT) so label edits and the later PR are attributed to that user.
+      - name: Claim issue + rate-limit
+        id: claim
+        if: steps.ctx.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+          REPO: ${{ steps.ctx.outputs.repo }}
+          ISSUE_NUM: ${{ steps.ctx.outputs.issue_number }}
+          MAX_INFLIGHT: "3"
+        run: |
+          LABELS=$(gh issue view "$ISSUE_NUM" --repo "$REPO" --json labels \
+            --jq '[.labels[].name] | join(" ")')
+
+          # Already claimed by a prior (possibly duplicate) event → no-op.
+          case " $LABELS " in
+            *" eva-implementing "*)
+              echo "Issue already claimed (eva-implementing present), skipping"
+              echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0 ;;
+          esac
+
+          # No `approved` label → router didn't clear it, or it was already
+          # handled/removed. Fail safe: do nothing.
+          case " $LABELS " in
+            *" approved "*) : ;;
+            *)
+              echo "No 'approved' label present, skipping"
+              echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0 ;;
+          esac
+
+          # Best-effort rate-limit: cap concurrent in-flight builds. This issue
+          # still carries `approved` (not yet swapped), so it is not self-counted.
+          INFLIGHT=$(gh issue list --repo "$REPO" --label eva-implementing \
+            --state open --json number --jq 'length')
+          if [ "$INFLIGHT" -ge "$MAX_INFLIGHT" ]; then
+            gh issue comment "$ISSUE_NUM" --repo "$REPO" --body \
+              "Eva implement is rate-limited ($INFLIGHT builds in flight, max $MAX_INFLIGHT). Deferred — remove and re-add the \`approved\` label to retry once a slot frees (GitHub won't re-fire on an already-present label)."
+            echo "Rate-limited ($INFLIGHT >= $MAX_INFLIGHT), skipping"
+            echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+
+          # Claim: swap approved -> eva-implementing.
+          gh label create eva-implementing --repo "$REPO" \
+            --description "Eva is building this issue" --color "1d76db" 2>/dev/null || true
+          gh issue edit "$ISSUE_NUM" --repo "$REPO" \
+            --remove-label approved --add-label eva-implementing
+          echo "Claimed #$ISSUE_NUM"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout target repo
+        if: steps.claim.outputs.skip != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.ctx.outputs.repo }}
+          token: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Configure git identity
+        if: steps.claim.outputs.skip != 'true'
+        run: |
+          git config --global user.name "iEVO Eva"
+          git config --global user.email "noreply@ievo.ai"
+
+      - name: Set up Python 3.13
+        if: steps.claim.outputs.skip != 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        if: steps.claim.outputs.skip != 'true'
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        if: steps.claim.outputs.skip != 'true'
+        run: uv sync --group dev
+
+      # CONSTRAINT: eva-implement.md must never contain the literal string
+      # "EVA_IMPLEMENT_PROMPT_EOF" on a line by itself (heredoc delimiter).
+      - name: Load implement prompt
+        if: steps.claim.outputs.skip != 'true'
+        run: |
+          if [ ! -f .github/prompts/eva-implement.md ]; then
+            echo "::error::eva-implement.md not found"; exit 1
+          fi
+          if grep -qxF 'EVA_IMPLEMENT_PROMPT_EOF' .github/prompts/eva-implement.md; then
+            echo "::error::eva-implement.md contains the heredoc delimiter"; exit 1
+          fi
+          {
+            echo "IMPLEMENT_PROMPT<<EVA_IMPLEMENT_PROMPT_EOF"
+            cat .github/prompts/eva-implement.md
+            echo ""
+            echo "EVA_IMPLEMENT_PROMPT_EOF"
+          } >> "$GITHUB_ENV"
+
+      - name: Run Implement agent
+        if: steps.claim.outputs.skip != 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          show_full_output: true
+          claude_args: |
+            --model opus
+            --allowedTools "Bash,Edit,Read,Write,Glob,Grep,WebFetch,WebSearch"
+          settings: |
+            {
+              "env": {
+                "GH_TOKEN": "${{ secrets.EVA_PAT_GITHUB_TOKEN }}",
+                "EVA_PAT_GITHUB_TOKEN": "${{ secrets.EVA_PAT_GITHUB_TOKEN }}",
+                "TARGET_REPO": "${{ steps.ctx.outputs.repo }}",
+                "TARGET_ISSUE": "${{ steps.ctx.outputs.issue_number }}"
+              }
+            }
+          prompt: ${{ env.IMPLEMENT_PROMPT }}
+
+      # Release the claim if the build crashed/failed AFTER claiming. Without
+      # this, a failed run strands the issue in `eva-implementing` forever, and
+      # MAX_INFLIGHT such stuck claims permanently block all future builds. Move
+      # to `triage` (NOT back to `approved` — that would re-fire `labeled` and
+      # loop) and flag the operator. Only runs when we actually claimed.
+      - name: Release claim on failure
+        if: failure() && steps.claim.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+          REPO: ${{ steps.ctx.outputs.repo }}
+          ISSUE_NUM: ${{ steps.ctx.outputs.issue_number }}
+        run: |
+          gh issue edit "$ISSUE_NUM" --repo "$REPO" \
+            --remove-label eva-implementing --add-label triage 2>/dev/null || true
+          gh issue comment "$ISSUE_NUM" --repo "$REPO" --body \
+            "Eva's implement run failed or was interrupted after claiming this issue. Released the \`eva-implementing\` claim (freed a build slot) and moved to \`triage\` for operator review. Re-apply \`approved\` to retry." || true
