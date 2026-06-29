@@ -9,9 +9,11 @@ by a sensitive-path check. Build clean; the review is someone else's job.
 IMPORTANT: Use Opus-level depth and thoroughness. Eva's safety rules in
 `agent/ROLE.md` are non-negotiable. Read them first.
 
-Auth: `gh` and `git` are authenticated as the Eva automation identity (a real
-user, via PAT) so the PR you open can be reviewed and approved by the Eva App.
-Do NOT attempt to change tokens or git remotes.
+Auth: `gh` and `git` are authenticated as the `ievo-eva` App, so the PR you open
+is authored by `ievo-eva[bot]`. eva-review-pr reviews it on the `workflow_run`
+path; because the App can't approve its own PR, it posts the APPROVE via the PAT
+(a different principal) so required-review is satisfied, then auto-merges. Do NOT
+attempt to change tokens or git remotes.
 
 ## Phase 0 — Acknowledge
 
@@ -95,20 +97,19 @@ the operator. Otherwise proceed to Phase 4.
 CRITICAL handoff rule: build and validate everything on the feature branch, and
 open the PR only at the very end (Phase 5), as a READY (non-draft) PR. Do NOT
 open a draft and promote it. Reason (see CLAUDE.md "Identity model"): this PR is
-authored by the `ievo-eva` machine account (PAT). eva-review-pr reviews via the
-`ievo-eva` **App** (a different principal that CAN approve the machine account's
-PR) ONLY on the `workflow_run` path (triggered by `pull_request: opened`). The
-draft→`ready_for_review` path instead runs the reviewer under the `ievo-eva` PAT
-— the SAME account that authored the PR — so its APPROVE is blocked as a
-self-approval and the PR never auto-merges. Opening ready directly fires
-`opened` → Tests → `workflow_run` → App review → auto-merge. While you build, the
-branch has no PR, so no CI runs and nothing reviews half-built code.
+authored by the `ievo-eva` **App** (`ievo-eva[bot]`). The auto-merge path is
+wired for `pull_request: opened` → Tests → `workflow_run` → eva-review-pr → which
+posts the APPROVE via the PAT (the App can't approve its own PR, so a different
+principal must) → direct `gh pr merge`. Opening READY directly fires that exact
+chain. A draft→`ready_for_review` promotion runs eva-review-pr on a different
+(`pull_request`) token path and is not the wired auto-merge route. While you
+build, the branch has no PR, so no CI runs and nothing reviews half-built code.
 
 ### 4a. Create the feature branch
 
 Use the `eva-impl/` prefix — this is REQUIRED, not cosmetic: eva-review-pr's
 loop-prevention filter skips `workflow_run` events triggered by `ievo-eva`
-(which is who triggers Tests on this PAT-authored PR), EXCEPT for branches
+(which is who triggers Tests on this App-authored PR), EXCEPT for branches
 matching `eva-impl/*`, which it carves out so this PR actually gets reviewed.
 A different prefix → no review → no auto-merge. Off `main`:
   git checkout -b eva-impl/<short-desc>
@@ -180,9 +181,10 @@ so the PR you open is mergeable:
 ## Phase 5 — Open the READY PR and hand off
 
 Open the PR as READY (non-draft). This fires `pull_request: opened` → Tests →
-eva-review-pr reviews on the `workflow_run` path (App identity, which CAN approve
-this PAT-authored PR) → auto-merges if no sensitive path is touched, else routes
-the merge to the operator. Both outcomes are correct; your job ends here.
+eva-review-pr reviews on the `workflow_run` path; it posts the APPROVE via the
+PAT (cross-principal, since the App can't approve its own PR) → auto-merges if no
+sensitive path is touched, else routes the merge to the operator. Both outcomes
+are correct; your job ends here.
 
   # Idempotency: reuse an existing PR for this branch (handler retry after crash).
   EXISTING_PR=$(gh pr view --repo "$TARGET_REPO" --json number --jq .number 2>/dev/null || true)
@@ -240,8 +242,8 @@ DONEEOF
 - NEVER merge the PR. eva-review-pr reviews and merges. Your job ends when you
   open the ready PR in Phase 5.
 - NEVER open the PR as a draft, and never promote a draft via `gh pr ready` —
-  open it READY directly (Phase 5). The draft→ready path breaks auto-merge
-  (self-approval block on the reviewer's token).
+  open it READY directly (Phase 5). The draft→ready path runs eva-review-pr on a
+  different token route than the wired `workflow_run` auto-merge chain.
 - NEVER modify files outside the scope the issue requires. If the change must
   touch a sensitive path (`.github/workflows/`, `agent/ROLE.md`, `agent/memory/`,
   `CLAUDE.md`, `src/eva/{sources,pipeline,analysis,mutations}`), that is allowed

@@ -203,42 +203,60 @@ eva benchmark history spec-writer                       # Show historical scores
 
 ## Identity model (who acts as whom on GitHub)
 
-Three distinct GitHub identities operate in this org. Getting them right is
-load-bearing for the PR review + auto-merge chain — mixing them up silently
-breaks auto-merge (self-approval) or review triggering (loop filters).
+GitHub identities in this org. Getting them right is load-bearing for the PR
+review + auto-merge chain — mixing them up silently breaks auto-merge
+(self-approval / required-review) or review triggering (loop filters).
 
 | Identity | What it is | Secret | Used for |
 |----------|-----------|--------|----------|
-| **`ievo-eva` (machine account)** | A real GitHub **user account** that IS Eva | `EVA_PAT_GITHUB_TOKEN` (a PAT owned by this account) | Eva **creates** PRs / issues / comments / labels "as herself" (`gh`/`git` with this PAT → author = `ievo-eva`). |
-| **`ievo-eva` (GitHub App)** | A GitHub **App** installed on the org | `APP_ID` + `APP_PRIVATE_KEY` (→ `actions/create-github-app-token`) | Eva **reviews/approves** PRs and does App-token writes. Appears as `ievo-eva[bot]` / `app/ievo-eva`. |
-| **`rotnov`** | The human **operator** (Denis) | personal session | Operator actions: merges sensitive PRs, opens operator PRs, sets operator-only labels. |
+| **`ievo-eva` (GitHub App)** | A GitHub **App** installed on the org | `APP_ID` + `APP_PRIVATE_KEY` (→ `actions/create-github-app-token`) | Eva **reviews** PRs, **authors** eva-implement PRs (`gh`/`git` with the App token → author = `ievo-eva[bot]`), and runs the **`gh pr merge`** (after the PAT posts the cross-principal APPROVE — the App can't approve its own PR, and branch-protection bypass does NOT work for an App via REST). Appears as `ievo-eva[bot]` / `app/ievo-eva`. |
+| **`rotnov`** | The human **operator** (Denis) | personal session; ALSO what `EVA_PAT_GITHUB_TOKEN` authenticates as (see below) | Operator actions: merges sensitive PRs, opens operator PRs, sets operator-only labels. |
+| **`ievo-eva` (machine USER)** | A real GitHub **user account** intended to be Eva's machine identity | — (would hold a rotated `EVA_PAT_GITHUB_TOKEN`) | NOT IN USE — the account is **blocked by GitHub's new-account spam flag** (`GET /users/ievo-eva` → 404; appeal pending). Until unblocked, the App is the autonomous-author identity. |
 
-Who approves: `eva-review-pr.yml` posts reviews via the **App** (`ievo-eva[bot]`)
+**`EVA_PAT_GITHUB_TOKEN` is empirically the OPERATOR's PAT (`rotnov`), not a
+machine account.** Proven by the #113 smoke test (2026-06-29): eva-implement
+authored its PR as `rotnov` while using this secret. It is now only a **fallback**
+in eva-implement (used when `USE_GITHUB_APP != 'true'`); the App path is preferred
+precisely to keep Eva's autonomous code OFF the operator's personal account.
+
+Who reviews: `eva-review-pr.yml` posts reviews via the **App** (`ievo-eva[bot]`)
 when `vars.USE_GITHUB_APP == 'true'` (it is). Empirically observed:
 - App **CAN** approve a PR authored by a DIFFERENT principal — PR #110 (authored
   by `rotnov`) received a valid App `APPROVED`.
-- App **CANNOT** approve an **App-authored** PR — PR #105 (`app/ievo-eva`) fell
-  back to `COMMENTED` (GitHub self-approval block). So a PR authored by the App
-  can never be App-auto-merged.
+- App **CANNOT** approve an **App-authored** PR — PRs #105 / #111 (`app/ievo-eva`)
+  fell back to `COMMENTED` (GitHub self-approval block).
 
-Consequences for any "Eva builds → Eva approves → auto-merge" flow:
-- The build's PR must be authored by a principal the App can approve AND that
-  passes eva-review-pr's loop filter (`triggering_actor != 'ievo-eva'` and
-  `!= 'github-actions[bot]'`):
-  - author = `app/ievo-eva` → ✗ App self-approval block (proven, #105).
-  - author = `ievo-eva` machine USER (`EVA_PAT_GITHUB_TOKEN`) → distinct from the
-    App bot, so App approval SHOULD be valid, BUT `triggering_actor == 'ievo-eva'`
-    is blocked by the loop filter → needs a narrow carve-out (un-spoofable marker,
-    e.g. head-branch prefix `eva-impl/`). Whether the App treats a USER-authored
-    `ievo-eva` PR as self-approval is **unverified** — confirm in the dormant
-    smoke test before relying on it.
-  - author = `rotnov` (operator) → ✓ proven (#110), but attributes Eva's
-    autonomous code to the operator's personal account (the #101 migration moved
-    automation OFF that).
-- `EVA_PAT_GITHUB_TOKEN` is the **machine-account PAT** (`ievo-eva`), NOT the
-  operator's personal PAT (docker-compose.yml header confirms "from ievo-eva
-  account"). Historically some automation ran on a PAT that authored PRs as
-  `rotnov`; #101 migrated those onto the App.
+**How "Eva builds → auto-merge" works now (App-authored + cross-principal APPROVE):**
+- eva-implement authors the PR as the **App** (`ievo-eva[bot]`) — clean
+  attribution, off the operator. The App CANNOT approve it (self-approval →
+  an App-token review posts `COMMENTED`).
+- `main`'s branch protection requires 1 approving review. eva-review-pr therefore
+  posts the APPROVE for App-authored PRs via the **PAT** (a DIFFERENT principal —
+  currently the operator), a valid cross-principal review that satisfies the
+  required-review rule (the inverse of #110, where the App approved a `rotnov`
+  PR). The Auto-merge step then runs a normal direct `gh pr merge` (App token).
+  Gated on Claude's parsed decision == APPROVE AND the sensitive-path check
+  (risky paths still route to the operator). Lint & Test (strict status check)
+  must pass and the branch must be current with main (built fresh).
+- **`bypass_pull_request_allowances` does NOT work for this** — classic branch
+  protection does not waive required-review for an App merging via the REST API
+  (proven #114, 2026-06-29: "base branch policy prohibits the merge"). That lever
+  only works in the newer Repository Rulesets. The cross-principal APPROVE avoids
+  weakening branch protection at all.
+- The `eva-impl/` branch prefix carve-out in eva-review-pr's loop filter is kept
+  so review fires regardless of triggering actor. The PR's `approved-by` shows the
+  PAT identity; the code AUTHOR stays `ievo-eva[bot]` (approval ≠ authorship).
+
+Author-choice rationale (for future changes):
+- author = `app/ievo-eva` (App) → ✓ **current design** — App can't self-approve,
+  so eva-review-pr cross-principal-APPROVEs via the PAT. Clean code attribution.
+  App token expires after 1h (fine for short builds).
+- author = `ievo-eva` machine USER → would get a real App APPROVE (distinct
+  principal), needs the `eva-impl/` carve-out for the loop filter — **blocked
+  account**, revisit if unblocked.
+- author = `rotnov` (operator, current `EVA_PAT`) → ✓ proven (#110/#113), but
+  attributes Eva's autonomous code to the operator (the #101 migration moved
+  automation OFF that). Fallback only.
 
 ## Env vars
 
