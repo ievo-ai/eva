@@ -88,6 +88,20 @@ jobs:
             echo "skip=false"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Acknowledge (👀 reaction)
+        if: steps.ctx.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+          REPO: ${{ steps.ctx.outputs.repo }}
+          ISSUE: ${{ steps.ctx.outputs.issue_number }}
+        run: |
+          # Immediate "Eva sees it" signal — a 👀 reaction lands within seconds
+          # of the forward, before the (slower, ~1-2 min) LLM analysis posts its
+          # comment. Best-effort: never fail the run on a reaction hiccup, and
+          # the reactions endpoint dedupes so a retried run won't stack 👀s.
+          gh api -X POST "repos/$REPO/issues/$ISSUE/reactions" \
+            -f content=eyes >/dev/null 2>&1 || true
+
       - name: Run Triage agent
         if: steps.ctx.outputs.skip != 'true'
         uses: anthropics/claude-code-action@v1
