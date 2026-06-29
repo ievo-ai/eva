@@ -209,7 +209,7 @@ review + auto-merge chain — mixing them up silently breaks auto-merge
 
 | Identity | What it is | Secret | Used for |
 |----------|-----------|--------|----------|
-| **`ievo-eva` (GitHub App)** | A GitHub **App** installed on the org | `APP_ID` + `APP_PRIVATE_KEY` (→ `actions/create-github-app-token`) | Eva **reviews** PRs AND **authors** eva-implement PRs (`gh`/`git` with the App token → author = `ievo-eva[bot]`) AND **merges** via branch-protection bypass. Appears as `ievo-eva[bot]` / `app/ievo-eva`. |
+| **`ievo-eva` (GitHub App)** | A GitHub **App** installed on the org | `APP_ID` + `APP_PRIVATE_KEY` (→ `actions/create-github-app-token`) | Eva **reviews** PRs, **authors** eva-implement PRs (`gh`/`git` with the App token → author = `ievo-eva[bot]`), and runs the **`gh pr merge`** (after the PAT posts the cross-principal APPROVE — the App can't approve its own PR, and branch-protection bypass does NOT work for an App via REST). Appears as `ievo-eva[bot]` / `app/ievo-eva`. |
 | **`rotnov`** | The human **operator** (Denis) | personal session; ALSO what `EVA_PAT_GITHUB_TOKEN` authenticates as (see below) | Operator actions: merges sensitive PRs, opens operator PRs, sets operator-only labels. |
 | **`ievo-eva` (machine USER)** | A real GitHub **user account** intended to be Eva's machine identity | — (would hold a rotated `EVA_PAT_GITHUB_TOKEN`) | NOT IN USE — the account is **blocked by GitHub's new-account spam flag** (`GET /users/ievo-eva` → 404; appeal pending). Until unblocked, the App is the autonomous-author identity. |
 
