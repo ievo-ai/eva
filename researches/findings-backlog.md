@@ -878,3 +878,63 @@ Proposed documentation additions (multi-file but small):
 2. **`plugins/ievo/skills/init/SKILL.md`** — add a Phase 0 check: "If migrating from Claude Code, run `codex /import` first to import Claude Code project configuration before running `/ievo:init`. Skip the full init if `.ievo/evolution/` already has existing overlays from prior Claude Code sessions."
 
 No scripts, no coverage obligation. Pure documentation changes in SKILL.md body and README.
+
+---
+
+## F-2026-06-29-001 — Document CC v2.1.195 external plugin install consent fix as minimum version in AGENTS.md security model
+
+```yaml
+id: F-2026-06-29-001
+discovered_at: 2026-06-29T08:02:53Z
+run_id: 28357225427
+target_repo: ievo-ai/skills
+title: Document CC v2.1.195 external plugin install consent fix as minimum version in AGENTS.md security model
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/264
+effort: low
+scope: multi-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.195 (2026-06-26) — "Fixed external plugins not requiring explicit install consent" — before this fix, external plugins could be installed without explicit user consent, bypassing the final user-approval gate in iEvo's install pipeline
+```
+
+Claude Code v2.1.195 (2026-06-26) fixed a security regression: "Fixed external plugins not requiring explicit install consent." Before this fix, external plugins could be added to a session without the platform prompting the user for explicit approval. iEvo's security pipeline terminates with an `AskUserQuestion` step where the user reviews the security verdict and opts in to install — but the CC platform consent dialog is a separate, independent gate. Pre-v2.1.195, that platform gate was absent for external plugins, meaning: (1) a skill with broad `Bash(claude*)` allowlist could silently add plugins without the user seeing the CC consent prompt; (2) users might not realize that even their own "yes" in iEvo's interview was the only gate, without a platform-level confirmation.
+
+Proposed additions:
+1. **`AGENTS.md` § "Security model" bypass-vectors table** — add a row for the v2.1.195 consent gate fix, alongside the existing `CLAUDE_CODE_SUBAGENT_MODEL`, `availableModels`, `enforceAvailableModels`, and `fallbackModel` rows. The new row: mechanism = "External plugin install consent gate (CC platform)", introduced = "v2.1.195", effect = "Fixed: before v2.1.195, external plugins could be installed without CC prompting for explicit user consent — iEvo's AskUserQuestion was the only gate", mitigation = "Use Claude Code v2.1.195+ for full dual-gate consent (iEvo AskUserQuestion + CC platform consent dialog)".
+2. **`plugins/ievo/skills/init/SKILL.md` compatibility field** — add "v2.1.195+ for platform-level external plugin install consent (earlier versions rely on iEvo's AskUserQuestion gate alone)".
+
+No scripts, no coverage obligation. Pure documentation additions. Effort: ~30 min.
+
+---
+
+## F-2026-06-29-002 — Add /rewind (CC v2.1.191) as lightweight same-session context-recovery alternative in handoff/SKILL.md
+
+```yaml
+id: F-2026-06-29-002
+discovered_at: 2026-06-29T08:02:53Z
+run_id: 28357225427
+target_repo: ievo-ai/skills
+title: Add /rewind (CC v2.1.191) as same-session context-recovery note in handoff/SKILL.md to differentiate from cross-session handoff
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/265
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.191 (2026-06-24) — added /rewind command to resume a conversation from before /clear was run; complementary to /compact and /ievo:handoff but solves a different problem (same-session clear-undo vs cross-session context transfer)
+```
+
+Claude Code v2.1.191 (2026-06-24) added `/rewind` — a command that resumes a conversation from the state it was in before `/clear` was run. This addresses a common user pain point: accidentally clearing context mid-task.
+
+The `handoff/SKILL.md` currently positions itself as the solution for context continuity, mentioning that it "solves the context-window degradation problem" and comparing itself to `/compact` (lossy summarization). The "When to use" section lists four scenarios. None of them address the `/clear` accident case — a gap where users currently have no recovery path documented in iEvo.
+
+With `/rewind` now available (v2.1.191+), the handoff skill should differentiate between:
+- **`/rewind`** — same-session clear undo; restores conversation state from before the last `/clear`; use when context was cleared accidentally or prematurely and the session is still active
+- **`/ievo:handoff`** — cross-session context transfer; compresses and packages context for a NEW session; use when context window is degraded, work is out of scope, or you want to parallelize
+
+Without this differentiation, users who see `/ievo:handoff` in the skill list might use it to try to "undo" a `/clear`, expecting to get back to the same session — but handoff creates a NEW session capsule. The correct tool for that use case is `/rewind`.
+
+Proposed addition to `handoff/SKILL.md`:
+- In the "When to use" section, add a "When NOT to use" or "Alternatives" note (3-4 lines): "If you accidentally ran `/clear` in the current session — use `/rewind` (Claude Code v2.1.191+) to restore the conversation to its pre-clear state instead. `/rewind` is a same-session undo; `/ievo:handoff` branches a NEW session."
+- The `compatibility` field could also gain: "Note: for same-session clear-undo, use `/rewind` (Claude Code v2.1.191+) instead of `/ievo:handoff`."
+
+No scripts, no coverage obligation. Single-file SKILL.md body addition (~4 lines). Effort: ~15 min.
