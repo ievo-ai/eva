@@ -878,3 +878,52 @@ Proposed documentation additions (multi-file but small):
 2. **`plugins/ievo/skills/init/SKILL.md`** — add a Phase 0 check: "If migrating from Claude Code, run `codex /import` first to import Claude Code project configuration before running `/ievo:init`. Skip the full init if `.ievo/evolution/` already has existing overlays from prior Claude Code sessions."
 
 No scripts, no coverage obligation. Pure documentation changes in SKILL.md body and README.
+
+---
+
+## F-2026-06-29-001 — Add `disallowedTools:` to `deep-reviewer.md` agent for read-only enforcement
+
+```yaml
+id: F-2026-06-29-001
+discovered_at: 2026-06-29T14:15:20Z
+run_id: 28377959834
+target_repo: ievo-ai/skills
+title: Add disallowedTools: to deep-reviewer.md agent for defense-in-depth consistency with security-auditor pattern
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/266
+effort: low
+scope: single-file
+evidence:
+  - /tmp/skills/plugins/ievo/agents/security-auditor.md: already declares disallowedTools: covering Edit, destructive Bash, and WebSearch — established pattern in this repo
+  - /tmp/skills/plugins/ievo/agents/deep-reviewer.md: only tools: [Read, Grep], no disallowedTools: — gap vs security-auditor pattern
+  - ievo-ai/skills AGENTS.md § Security model: "sub-agent tool isolation — A skill's disallowed-tools (kebab-case) does NOT propagate to a Task-tool-dispatched sub-agent" — explicitly names this gap class
+```
+
+`deep-reviewer.md` is a read-only gap-detection agent dispatched by `/ievo:deep-review`. It only declares `tools: [Read, Grep]` but has NO `disallowedTools:` field. AGENTS.md § Security model explicitly states that a skill's `disallowed-tools` does NOT propagate to Task-dispatched sub-agents — so the `disallowed-tools` in `deep-review/SKILL.md` does not protect the dispatched agent's execution context. `security-auditor.md` self-enforces via its own `disallowedTools:` (blocking Edit, destructive Bash, WebSearch) for this exact reason. `deep-reviewer` lacks this defense layer.
+
+Adding `disallowedTools: [Edit, Write, Bash(rm*), Bash(mv*), Bash(cp*), Bash(chmod*), Bash(sudo*), WebSearch]` to `deep-reviewer.md` closes the gap. `WebSearch` denial is especially important: a diff under review could carry adversarial prompt injection that uses WebSearch as an exfiltration channel (same rationale as security-auditor). This is a pure frontmatter addition (~8 lines), no body changes, no script changes, no test obligation. Version bump required per AGENTS.md rules.
+
+---
+
+## F-2026-06-29-002 — Add activation eval fixtures for iEvo SKILL.md files
+
+```yaml
+id: F-2026-06-29-002
+discovered_at: 2026-06-29T14:15:20Z
+run_id: 28377959834
+target_repo: ievo-ai/skills
+title: Add activation eval fixtures (positive/negative prompt examples) for all 14 iEvo SKILL.md files
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/267
+effort: high
+scope: architecture-change
+evidence:
+  - https://github.com/DenisSergeevitch/agents-best-practices/blob/main/references/checklists.md: "Activation evals + output quality evals must exist" — skill quality checklist requirement; iEvo has no activation eval fixtures
+  - https://agentskills.io/specification: "Skills are activated by description match (semantic)" — descriptions are the routing mechanism, making them load-bearing and untestable without evals
+```
+
+iEvo's 14 SKILL.md files have no activation eval fixtures. The agents-best-practices `checklists.md` requires "Activation evals + output quality evals must exist." Since iEvo skills activate via description match (agentskills.io spec), ambiguous descriptions cause mis-routing with no way to catch this before shipping. Concrete risk: `security-check` vs `vuln-scan` share "security scan" language; `hooks-setup` vs `init` both configure iEvo; `inspect` vs `overlay-status` both answer "what does this X have".
+
+Proposal (Phase 1): add `plugins/ievo/skills/<name>/evals/activation.yaml` per skill with ≥3 positive prompts (SHOULD activate this skill) and ≥2 negative prompts (should NOT, with `routes_to:` field). No eval runner in Phase 1 — fixtures serve as regression documentation and seed data for a future Phase 2 runner. Phase 2 (separate proposal): `eval_activations.mjs` script with 100% test coverage gate.
+
+Priority order for ambiguity-critical pairs first: security-check vs vuln-scan → hooks-setup vs init → inspect vs overlay-status → remaining 11 skills.
