@@ -13,6 +13,7 @@ Eva is the mother repo — she hosts global documentation and the platform-level
 | **marketplace** | Agent registry — spec-writer, architect, coder | Phase 1 |
 | **sdk** | Agent development kit (scaffold, test, publish) | Phase 1 |
 | **curator** | Cross-agent pattern curator | Phase 1 |
+| **skills** | iEvo plugin (Claude Code + Codex) — install/evolution/update commands, skills, agents | Phase 1 |
 | **ievo.ai** | Landing page | Phase 1 |
 
 ## Quick Start
