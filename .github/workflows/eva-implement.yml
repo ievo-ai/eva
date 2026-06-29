@@ -18,15 +18,26 @@
 # it auto-merges on a clean non-sensitive review) — the flag is the safety valve.
 #
 # Merge-path design (eva#106; see CLAUDE.md "Identity model"): the PR is created
-# by `gh`/`git` authenticated as the `ievo-eva` MACHINE ACCOUNT (a real user, via
-# EVA_PAT_GITHUB_TOKEN) — NOT the `ievo-eva` App. The App and the machine account
-# are DIFFERENT principals, so the App CAN approve the machine account's PR (no
-# self-approval block). eva-review-pr reviews via the App on the `workflow_run`
-# path → APPROVE → auto-merge (sensitive-path gate still routes risky changes to
-# the operator). REQUIREMENT: the build uses the `eva-impl/` branch prefix so
-# eva-review-pr can carve it out of its loop-prevention filter (which otherwise
-# skips `workflow_run` triggered by `ievo-eva` — exactly who triggers Tests on
-# this PAT-authored PR). Without that carve-out, no review fires, no auto-merge.
+# by `gh`/`git` authenticated as the `ievo-eva` **App** (an installation token via
+# actions/create-github-app-token), so the PR is authored by `ievo-eva[bot]` — NOT
+# the operator's personal account. (The intended `ievo-eva` machine USER account
+# is blocked by GitHub's new-account spam flag; EVA_PAT_GITHUB_TOKEN currently
+# authenticates as the operator, which would mis-attribute Eva's autonomous code.)
+#
+# Because the PR author IS the App, eva-review-pr's App review CANNOT approve it
+# (GitHub self-approval block → an App-token review posts as COMMENTED). So
+# eva-review-pr posts the APPROVE for App-authored PRs via the PAT instead (a
+# DIFFERENT principal — currently the operator) — a valid cross-principal review
+# that satisfies `main`'s required-review (=1). Classic-branch-protection
+# `bypass_pull_request_allowances` does NOT help here: it does not waive
+# required-review for an App merging via the REST API (proven on #114,
+# 2026-06-29 — "base branch policy prohibits the merge"). With the cross-principal
+# APPROVE present, eva-review-pr's Auto-merge step (direct `gh pr merge`) merges
+# normally, gated on Claude's parsed decision == APPROVE AND the sensitive-path
+# check (risky changes still route to the operator). The `eva-impl/` branch
+# prefix is kept so eva-review-pr's loop-prevention carve-out fires regardless of
+# triggering actor. Lint & Test must still pass (strict status check), and the
+# branch must be up to date with main (it is: built fresh off main).
 #
 # Claim + rate-limit: an atomic-ish label swap (`approved` → `eva-implementing`)
 # claims the issue so a duplicate `labeled` event is a no-op; a best-effort cap
@@ -63,7 +74,13 @@ jobs:
   implement:
     name: "Eva: Implement"
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # Capped at 50 (NOT 60) on purpose: the ievo-eva App installation token minted
+    # in `Generate App token` is valid for 1 hour from job start. Keeping the job
+    # under 50 min guarantees that single token never expires mid-build — the agent's
+    # late `git push` / `gh pr create` always run on a still-valid token. A build
+    # that needs >50 min on a "clear, low-risk" router-approved task is itself a
+    # red flag; let it time out → claim cleanup → triage for the operator.
+    timeout-minutes: 50
 
     # DORMANT until the operator sets repo variable EVA_IMPLEMENT_ENABLED=true.
     # Then build ONLY for trusted authors:
@@ -73,9 +90,9 @@ jobs:
     #     verdict on clarity + low-risk ONLY, not author association — so a
     #     non-member's issue CAN get `approved`. Without this gate, that
     #     non-member's issue body would become trusted requirements for an
-    #     autonomous agent holding EVA_PAT_GITHUB_TOKEN + Bash/Write/WebFetch
-    #     (a prompt-injection → token path). MEMBER/OWNER also inherently
-    #     excludes bots (bots are never MEMBER/OWNER).
+    #     autonomous agent holding the ievo-eva App token (org-wide write) +
+    #     Bash/Write/WebFetch (a prompt-injection → token path). MEMBER/OWNER
+    #     also inherently excludes bots (bots are never MEMBER/OWNER).
     #   - repository_dispatch: the trusted forwarder MUST supply
     #     client_payload.author_association (the upstream issue author's
     #     association); we build only for MEMBER/OWNER (Phase 2 contract).
@@ -94,6 +111,35 @@ jobs:
       )
 
     steps:
+      # --- Auth: author the PR as the ievo-eva App (ievo-eva[bot]), not the
+      # operator. EVA_PAT_GITHUB_TOKEN is only a fallback if the App is disabled;
+      # it currently authenticates as the operator, so the App path is preferred. ---
+      - name: Generate App token
+        if: vars.USE_GITHUB_APP == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547  # v1.12.0 — SHA-pinned: this step mints an org-wide App token
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ievo-ai
+
+      - name: Set auth token
+        id: auth
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          PAT_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+        run: |
+          # No `pull_request` event here (issues / repository_dispatch only), so
+          # the App token is NOT subject to the workflow-boundary scope downgrade
+          # that forces eva-review-pr onto a PAT — use the App token directly.
+          if [ -n "$APP_TOKEN" ]; then
+            echo "token=$APP_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "Using App token — PR will be authored by ievo-eva[bot]"
+          else
+            echo "token=$PAT_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "Using PAT fallback (USE_GITHUB_APP != true) — PR authored by the PAT owner"
+          fi
+
       - name: Resolve issue context
         id: ctx
         env:
@@ -121,13 +167,13 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       # Claim the issue (approved -> eva-implementing) and enforce a best-effort
-      # concurrency cap. All gh calls authenticate as the Eva automation identity
-      # (PAT) so label edits and the later PR are attributed to that user.
+      # concurrency cap. All gh calls authenticate as the Eva App (ievo-eva[bot])
+      # so label edits and the later PR are attributed to the App, not the operator.
       - name: Claim issue + rate-limit
         id: claim
         if: steps.ctx.outputs.skip != 'true'
         env:
-          GH_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
           REPO: ${{ steps.ctx.outputs.repo }}
           ISSUE_NUM: ${{ steps.ctx.outputs.issue_number }}
           MAX_INFLIGHT: "3"
@@ -175,7 +221,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ steps.ctx.outputs.repo }}
-          token: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+          token: ${{ steps.auth.outputs.token }}
           fetch-depth: 0
 
       - name: Configure git identity
@@ -228,8 +274,7 @@ jobs:
           settings: |
             {
               "env": {
-                "GH_TOKEN": "${{ secrets.EVA_PAT_GITHUB_TOKEN }}",
-                "EVA_PAT_GITHUB_TOKEN": "${{ secrets.EVA_PAT_GITHUB_TOKEN }}",
+                "GH_TOKEN": "${{ steps.auth.outputs.token }}",
                 "TARGET_REPO": "${{ steps.ctx.outputs.repo }}",
                 "TARGET_ISSUE": "${{ steps.ctx.outputs.issue_number }}"
               }
@@ -244,7 +289,7 @@ jobs:
       - name: Release claim on failure
         if: failure() && steps.claim.outputs.skip == 'false'
         env:
-          GH_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
           REPO: ${{ steps.ctx.outputs.repo }}
           ISSUE_NUM: ${{ steps.ctx.outputs.issue_number }}
         run: |

@@ -70,16 +70,18 @@ jobs:
     #   repository_dispatch — unchanged; cross-repo trusted callers
     #
     # eva-implement carve-out (eva#106 Phase 1b): eva-implement.yml authors its
-    # PRs as the `ievo-eva` machine USER (EVA_PAT) so the App can approve them
-    # (App `ievo-eva[bot]` ≠ user `ievo-eva` = different principals). But that
-    # means Tests on those PRs are triggered by `ievo-eva`, which the loop filter
-    # below would otherwise reject. Carve out ONLY branches matching `eva-impl/*`
-    # (the prefix eva-implement uses) so Eva can review her own implement PRs.
-    # Safe: (1) head_repository.owner.login == 'ievo-ai' still rejects forks;
-    # (2) only org members can push an `eva-impl/*` branch to ievo-ai/eva;
-    # (3) no loop — eva-review only reviews + merges these PRs, it never pushes
-    # to them, so there is nothing to re-trigger; (4) the sensitive-path gate +
-    # the runtime Tests-green/draft checks below still apply unchanged.
+    # PRs as the `ievo-eva` **App** (`ievo-eva[bot]`). Tests on those PRs are
+    # triggered by `ievo-eva[bot]`, which ALREADY passes the loop filter below
+    # (`!= 'ievo-eva'` AND `!= 'github-actions[bot]'`), so for the current App
+    # author the `eva-impl/*` carve-out is a no-op. It is kept as belt-and-
+    # suspenders: if eva-implement ever authors as a principal whose login the
+    # loop filter rejects (e.g. an `ievo-eva` machine USER, were that account
+    # unblocked), the `eva-impl/*` prefix still lets Eva review her own implement
+    # PRs. Safe regardless: (1) head_repository.owner.login == 'ievo-ai' still
+    # rejects forks; (2) only org members can push an `eva-impl/*` branch to
+    # ievo-ai/eva; (3) no loop — eva-review only reviews + merges these PRs, it
+    # never pushes to them, so there is nothing to re-trigger; (4) the
+    # sensitive-path gate + the runtime Tests-green/draft checks still apply.
     if: >
       (github.event_name == 'repository_dispatch' &&
        github.event.client_payload.triggered_by != 'ievo-eva' &&
@@ -246,9 +248,16 @@ jobs:
             fi
           fi
 
+          # PR author — drives review-token selection below. The App can't
+          # approve its own PR (self-approval block), so an App-authored PR
+          # ('ievo-eva[bot]') must be APPROVED via the PAT (a different
+          # principal) to satisfy branch protection's required review.
+          PR_AUTHOR=$(gh api "repos/$REPO/pulls/$PR_NUM" --jq '.user.login')
+
           {
             echo "repo=$REPO"
             echo "pr_number=$PR_NUM"
+            echo "pr_author=$PR_AUTHOR"
             echo "skip=false"
           } >> "$GITHUB_OUTPUT"
 
@@ -386,11 +395,45 @@ jobs:
             echo "EOFCOMMENT"
           } >> "$GITHUB_OUTPUT"
 
+      # --- Select the token that POSTS the review ---
+      # The App can't approve its own PR (self-approval block → APPROVE falls
+      # back to COMMENTED → required-review never satisfied → no auto-merge,
+      # proven on App-authored PRs #105/#111/#114). For App-authored PRs
+      # ('ievo-eva[bot]') submit the review as the PAT (a DIFFERENT principal,
+      # currently the operator) so the APPROVE is a valid cross-principal review
+      # that satisfies branch protection — verified on #114 (2026-06-29: a
+      # PAT/rotnov APPROVE flipped it to MERGED). For every other author keep the
+      # default auth token (App on workflow_run): App≠author → valid approve (the
+      # #110 path); using the PAT there could self-approve a PAT-authored PR.
+      - name: Select review token
+        id: reviewtok
+        if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large != 'true'
+        env:
+          AUTH_TOKEN: ${{ steps.auth.outputs.token }}
+          PAT_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+          PR_AUTHOR: ${{ steps.ctx.outputs.pr_author }}
+        run: |
+          if [ "$PR_AUTHOR" = "ievo-eva[bot]" ]; then
+            # App-authored: the App can't approve itself, so the PAT MUST post the
+            # APPROVE. If the PAT is missing, falling back to the App token would
+            # self-approve → COMMENTED → required-review unmet → auto-merge silently
+            # sticks with a green workflow. Fail loudly instead so the operator sees it.
+            if [ -z "$PAT_TOKEN" ]; then
+              echo "::error::App-authored PR but EVA_PAT_GITHUB_TOKEN is empty — cross-principal APPROVE is impossible; auto-merge would silently fail. Configure the PAT secret."
+              exit 1
+            fi
+            echo "token=$PAT_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "Review will be posted via the PAT (App-authored PR — cross-principal approve)"
+          else
+            echo "token=$AUTH_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "Review will be posted via the default auth token (author != App)"
+          fi
+
       # --- Post review to PR ---
       - name: Post review
         if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large != 'true'
         env:
-          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GH_TOKEN: ${{ steps.reviewtok.outputs.token }}
           REPO: ${{ steps.ctx.outputs.repo }}
           PR_NUM: ${{ steps.ctx.outputs.pr_number }}
           DECISION: ${{ steps.review.outputs.decision }}
@@ -404,7 +447,9 @@ jobs:
 
           BODY=$(printf '**Eva** reviewed this PR.\n\n%s\n\n---\n> Reviewed by Eva (meta-evolution agent)' "$COMMENT")
 
-          # Post review — fall back to COMMENT if APPROVE fails (e.g. own PR)
+          # Post review — fall back to COMMENT if APPROVE fails (e.g. own PR).
+          # With cross-principal token selection above this fallback should no
+          # longer trigger for App-authored PRs; it stays as defense in depth.
           gh api "repos/$REPO/pulls/$PR_NUM/reviews" \
             --method POST \
             -f event="$EVENT" \
