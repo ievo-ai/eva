@@ -117,7 +117,7 @@ jobs:
             # are mutually exclusive — the claim swaps one for the other — but we
             # re-check below to be safe against any drift.)
             APPROVED=$(gh issue list --repo "$REPO" --label approved --state open \
-              --json number --jq '.[].number' 2>/dev/null || true)
+              --limit 100 --json number --jq '.[].number' 2>/dev/null || true)
             [ -z "$APPROVED" ] && continue
 
             INFLIGHT=$(gh issue list --repo "$REPO" --label eva-implementing \
