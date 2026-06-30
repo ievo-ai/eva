@@ -246,19 +246,30 @@ jobs:
 
       # CONSTRAINT: eva-implement.md must never contain the literal string
       # "EVA_IMPLEMENT_PROMPT_EOF" on a line by itself (heredoc delimiter).
+      #
+      # The prompt lives in EVA (this workflow's repo), but the workspace is the
+      # TARGET repo checkout (cross-repo build → the working tree is e.g. cli,
+      # which has no eva prompt). Fetch the prompt from eva via the API at the
+      # commit this workflow is running, NOT from the working tree.
       - name: Load implement prompt
         if: steps.claim.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          PROMPT_REPO: ${{ github.repository }}
+          PROMPT_REF: ${{ github.sha }}
         run: |
-          if [ ! -f .github/prompts/eva-implement.md ]; then
-            echo "::error::eva-implement.md not found"; exit 1
+          PROMPT=$(gh api \
+            "repos/$PROMPT_REPO/contents/.github/prompts/eva-implement.md?ref=$PROMPT_REF" \
+            --jq '.content' | base64 -d)
+          if [ -z "$PROMPT" ]; then
+            echo "::error::eva-implement.md not found in $PROMPT_REPO@$PROMPT_REF"; exit 1
           fi
-          if grep -qxF 'EVA_IMPLEMENT_PROMPT_EOF' .github/prompts/eva-implement.md; then
+          if printf '%s\n' "$PROMPT" | grep -qxF 'EVA_IMPLEMENT_PROMPT_EOF'; then
             echo "::error::eva-implement.md contains the heredoc delimiter"; exit 1
           fi
           {
             echo "IMPLEMENT_PROMPT<<EVA_IMPLEMENT_PROMPT_EOF"
-            cat .github/prompts/eva-implement.md
-            echo ""
+            printf '%s\n' "$PROMPT"
             echo "EVA_IMPLEMENT_PROMPT_EOF"
           } >> "$GITHUB_ENV"
 
