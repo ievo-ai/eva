@@ -279,6 +279,14 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           show_full_output: true
+          # eva-queue (the proactive heartbeat) dispatches implement-issue with
+          # the App token, so the triggering actor is ievo-eva[bot]. The action
+          # rejects bot-initiated runs by default — allow OUR bot. Trust is NOT
+          # weakened: the real gate is the job-level author_association
+          # MEMBER/OWNER check + EVA_IMPLEMENT_ENABLED, not the dispatcher.
+          # (The reactive forwarder dispatches via the PAT = a human actor, so it
+          # never needed this; only the App-token queue path does.)
+          allowed_bots: "ievo-eva"
           claude_args: |
             --model opus
             --allowedTools "Bash,Edit,Read,Write,Glob,Grep,WebFetch,WebSearch"
