@@ -1,0 +1,173 @@
+# Eva — Approved-Queue Executor (the proactive heartbeat, D-004 / eva#106).
+#
+# NOTE: this is a DISTINCT workflow from `eva-scan.yml`. eva-scan runs the
+# `eva scan` mutation pipeline (Sentry/issue signals → mutation PRs). THIS
+# workflow drains the cross-repo issue lifecycle queue. D-004 overloads the
+# name "eva-scan"; the triage-sweep ships here as its own file so the two are
+# never conflated.
+#
+# What it does — deterministic, no LLM:
+#   Sweeps the watch-list for issues that are `approved` + open + NOT yet
+#   `eva-implementing`, and dispatches `implement-issue` to eva for each (up to
+#   the free per-repo build slots). This drains the ONE steady source of a real
+#   queue: rate-limited issues. eva-implement leaves `approved` ON a deferred
+#   issue and GitHub won't re-fire on an already-present label, so without this
+#   sweep a rate-limited issue is stuck until a human removes+re-adds `approved`.
+#
+# What it does NOT do (yet): close stale/duplicate, ping stalled. That layer is
+# judgment-heavy + destructive (closing public issues) → a separate, separately
+# gated workflow, not folded in here.
+#
+# Safety:
+#   - Reuses the SAME build path as the reactive forwarder
+#     (repository_dispatch:implement-issue) — no parallel build logic.
+#   - Author-trust gated HERE (consuming actor): dispatches only for an issue
+#     whose author is MEMBER/OWNER. Does not assume an upstream enforced it.
+#   - Per-repo slot math (cap − in-flight) caps dispatch; eva-implement re-checks
+#     the claim + rate-limit on its side, and its per-issue concurrency group
+#     no-ops any duplicate vs the reactive path. The cap is best-effort (a
+#     simultaneous-dispatch race can leave a couple extra parallel builds — a
+#     resource cost, not a correctness/security one; no distributed lock).
+#   - Live dispatch is double-gated: NOT dry_run AND vars.EVA_QUEUE_ENABLED.
+#     Ships dry-run-only; cron schedule is added after clean manual live runs.
+#
+# Watch-list = the D-004 repos EXCEPT godfather (operator's private command
+# center) and skills (still runs v1 issue-pipeline with conflicting label
+# semantics — joins when v1 is removed). Harmless for not-yet-onboarded repos:
+# they simply have no `approved` issues, so the sweep is a no-op there.
+
+name: "Eva: Approved-Queue Executor"
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run — log the queue + slot math, dispatch nothing"
+        type: boolean
+        default: true
+  # schedule: added after a couple of clean manual live runs (see header).
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eva-queue
+  cancel-in-progress: false
+
+jobs:
+  drain:
+    name: "Eva: drain approved queue"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Generate App token
+        if: vars.USE_GITHUB_APP == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547  # v1.12.0
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ievo-ai
+
+      - name: Set auth token
+        id: auth
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          PAT_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+        run: |
+          if [ -n "$APP_TOKEN" ]; then
+            echo "token=$APP_TOKEN" >> "$GITHUB_OUTPUT"
+          else
+            echo "token=$PAT_TOKEN" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Drain approved queue
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          # Space-separated watch-list (owner/repo). Excludes godfather + skills.
+          WATCH_LIST: >-
+            ievo-ai/eva
+            ievo-ai/cli
+            ievo-ai/marketplace
+            ievo-ai/curator
+            ievo-ai/sdk
+            ievo-ai/agents
+            ievo-ai/cortex
+            ievo-ai/ievo.ai
+          MAX_INFLIGHT: "3"
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+          QUEUE_ENABLED: ${{ vars.EVA_QUEUE_ENABLED }}
+        run: |
+          set -euo pipefail
+
+          # Live dispatch only when NOT dry_run AND the flag is on. Note: a
+          # scheduled run has no dry_run input (DRY_RUN=''), which must count as
+          # live-eligible — so test `!= "true"`, not `== "false"`. The
+          # workflow_dispatch default (true) keeps manual runs safe.
+          LIVE="false"
+          if [ "$DRY_RUN" != "true" ] && [ "$QUEUE_ENABLED" = "true" ]; then
+            LIVE="true"
+          fi
+          echo "Mode: $([ "$LIVE" = "true" ] && echo 'LIVE dispatch' || echo 'DRY RUN (no dispatch)')"
+
+          TOTAL_QUEUED=0; TOTAL_DISPATCHED=0; TOTAL_SKIPPED=0
+
+          for REPO in $WATCH_LIST; do
+            # Open issues labelled `approved`. (`approved` and `eva-implementing`
+            # are mutually exclusive — the claim swaps one for the other — but we
+            # re-check below to be safe against any drift.)
+            APPROVED=$(gh issue list --repo "$REPO" --label approved --state open \
+              --json number --jq '.[].number' 2>/dev/null || true)
+            [ -z "$APPROVED" ] && continue
+
+            INFLIGHT=$(gh issue list --repo "$REPO" --label eva-implementing \
+              --state open --json number --jq 'length' 2>/dev/null || echo 0)
+            SLOTS=$(( MAX_INFLIGHT - INFLIGHT ))
+
+            for N in $APPROVED; do
+              TOTAL_QUEUED=$(( TOTAL_QUEUED + 1 ))
+
+              # Pull author_association + labels + author login in one call.
+              META=$(gh api "repos/$REPO/issues/$N" \
+                --jq '{assoc:.author_association, by:.user.login, labels:[.labels[].name]}')
+              ASSOC=$(printf '%s' "$META" | jq -r '.assoc')
+              AUTHOR=$(printf '%s' "$META" | jq -r '.by')
+              HAS_IMPL=$(printf '%s' "$META" | jq -r '.labels | index("eva-implementing") | if . == null then "no" else "yes" end')
+
+              if [ "$HAS_IMPL" = "yes" ]; then
+                echo "  $REPO#$N — already eva-implementing, skip"
+                TOTAL_SKIPPED=$(( TOTAL_SKIPPED + 1 )); continue
+              fi
+
+              # Author-trust gate (this workflow is the consuming actor).
+              case "$ASSOC" in
+                MEMBER|OWNER) : ;;
+                *)
+                  echo "  $REPO#$N — author $AUTHOR is $ASSOC (not MEMBER/OWNER), skip"
+                  TOTAL_SKIPPED=$(( TOTAL_SKIPPED + 1 )); continue ;;
+              esac
+
+              if [ "$SLOTS" -le 0 ]; then
+                echo "  $REPO#$N — queued, but no free slots (inflight=$INFLIGHT/$MAX_INFLIGHT), defer to next sweep"
+                TOTAL_SKIPPED=$(( TOTAL_SKIPPED + 1 )); continue
+              fi
+
+              if [ "$LIVE" = "true" ]; then
+                jq -nc \
+                  --arg repo "$REPO" --argjson num "$N" \
+                  --arg assoc "$ASSOC" --arg by "$AUTHOR" \
+                  '{event_type:"implement-issue", client_payload:{repo:$repo, issue_number:$num, author_association:$assoc, triggered_by:$by}}' \
+                  | gh api "repos/ievo-ai/eva/dispatches" --input -
+                echo "  $REPO#$N — DISPATCHED implement-issue (author $AUTHOR/$ASSOC)"
+                SLOTS=$(( SLOTS - 1 ))
+                TOTAL_DISPATCHED=$(( TOTAL_DISPATCHED + 1 ))
+              else
+                echo "  $REPO#$N — WOULD dispatch (author $AUTHOR/$ASSOC, slots left=$SLOTS)"
+                SLOTS=$(( SLOTS - 1 ))
+                TOTAL_DISPATCHED=$(( TOTAL_DISPATCHED + 1 ))
+              fi
+            done
+          done
+
+          echo ""
+          echo "Queue sweep: queued=$TOTAL_QUEUED dispatched=$TOTAL_DISPATCHED skipped=$TOTAL_SKIPPED (live=$LIVE)"
