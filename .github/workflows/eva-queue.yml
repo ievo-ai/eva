@@ -29,7 +29,9 @@
 #     simultaneous-dispatch race can leave a couple extra parallel builds — a
 #     resource cost, not a correctness/security one; no distributed lock).
 #   - Live dispatch is double-gated: NOT dry_run AND vars.EVA_QUEUE_ENABLED.
-#     Ships dry-run-only; cron schedule is added after clean manual live runs.
+#     Runs on a 30-min cron (live, flag-gated) + manual workflow_dispatch
+#     (dry_run default true for safe inspection). Validated end-to-end with
+#     cap=1 before the schedule was enabled.
 #
 # Watch-list = the D-004 repos EXCEPT godfather (operator's private command
 # center) and skills (still runs v1 issue-pipeline with conflicting label
@@ -45,7 +47,13 @@ on:
         description: "Dry run — log the queue + slot math, dispatch nothing"
         type: boolean
         default: true
-  # schedule: added after a couple of clean manual live runs (see header).
+  schedule:
+    # Every 30 min, offset off the top of the hour (GitHub deprioritizes :00).
+    # A freed build slot is picked up within ~30 min; the sweep is ~10s of API
+    # calls and a no-op when the queue is empty. Scheduled runs have no dry_run
+    # input → live (gated by vars.EVA_QUEUE_ENABLED; the `!= "true"` test in the
+    # drain step treats the empty input as live-eligible).
+    - cron: "7,37 * * * *"
 
 permissions:
   contents: read
