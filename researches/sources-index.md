@@ -36,14 +36,15 @@ run_id: <GitHub Actions run ID or null>
 ## https://www.anthropic.com/news
 
 ```yaml
-last_scan: 2026-06-27T07:21:43Z
-status: unchanged
-run_id: 28282216625
+last_scan: 2026-06-30T00:00:00Z
+status: changed
+run_id: 28415000000
 ```
 
-**Summary:** No new developer-tool or agent-platform announcements since May 27. Tracking via Claude Code release notes directly for Claude Code changes.
+**Summary:** Claude Tag (June 23, 2026) — new way for teams to work with Claude. Services Track and Partner Hub (June 3). No Claude Code API or agent-skill-format changes observed since June 27.
 
 History:
+- 2026-06-30T00:00:00Z — changed: Claude Tag (June 23) — team collaboration feature; Services Track + Partner Hub (June 3); no model releases or CC-specific changes
 - 2026-06-27T07:21:43Z — unchanged: not re-fetched; tracking Claude Code releases directly; no evidence of new Anthropic blog announcements since last scan
 - 2026-06-02T08:04:18Z — unchanged: not re-fetched (tracking Claude Code releases directly via github.com/anthropics/claude-code/releases); no Anthropic blog developer announcements observed
 - 2026-06-01T08:08:22Z — changed: Opus 4.8 released (May 28); Series H; no CC-specific or agent-format changes
@@ -64,14 +65,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-06-29T14:15:20Z
-status: unchanged
-run_id: 28377959834
+last_scan: 2026-06-30T00:00:00Z
+status: changed
+run_id: 28415000000
 ```
 
-**Summary:** v2.1.195 (2026-06-26) remains the latest release — no new releases since June 26. v2.1.195 additions: `CLAUDE_CODE_DISABLE_MOUSE_CLICKS` env var; hook matchers with hyphenated identifiers now exact-match instead of substring-match (use `mcp__brave-search__.*` for wildcard); voice dictation fixes for macOS/Japanese/Chinese/Thai; background jobs + agent daemon stability improvements.
+**Summary:** v2.1.196 (2026-06-29) is now the latest. Key additions: `${CLAUDE_PROJECT_DIR}` substitution variable in skill content; MCP security — `claude mcp list`/`get` no longer spawn `.mcp.json` servers from repo-committed `.claude/settings.json` in untrusted workspaces (shows `⏸ Pending approval`); `disable-model-invocation` field now also prevents scheduled tasks from running the skill; clickable file attachments in chat; fixed plugin install consent for external plugins; fixed hook matchers for hyphenated identifiers (exact-match confirmed).
 
 History:
+- 2026-06-30T00:00:00Z — changed: v2.1.196 (June 29); ${CLAUDE_PROJECT_DIR} skill variable; MCP untrusted-workspace spawn restriction; disable-model-invocation prevents scheduled task runs; hook matcher hyphen exact-match confirmed fixed
 - 2026-06-29T14:15:20Z — unchanged: v2.1.195 still latest (June 26); no new releases since previous scan
 - 2026-06-27T07:21:43Z — changed: v2.1.161–v2.1.195; v2.1.195 hook matcher exact-match for hyphenated names (triggered F-2026-06-27-001); v2.1.193 autoMode.classifyAllShell + OTel event; v2.1.187 sandbox.credentials; v2.1.186 display-name/default-enabled/fallback frontmatter; v2.1.183 destructive-git blocks + WebSearch subagents; v2.1.181 /config key=value
 - 2026-06-02T08:04:18Z — changed: v2.1.153 through v2.1.160; v2.1.160 acceptEdits for .pre-commit-config.yaml (triggered F-2026-06-02-002); v2.1.157 .claude/skills/ auto-load + claude plugin init; v2.1.154 Opus 4.8 + Dynamic Workflows + defaultEnabled; v2.1.153 MCP enforcement fix
@@ -93,14 +95,15 @@ History:
 ## https://github.com/anthropics/claude-code-action/releases
 
 ```yaml
-last_scan: 2026-06-01T08:08:22Z
-status: unchanged
-run_id: 26742668563
+last_scan: 2026-06-30T00:00:00Z
+status: changed
+run_id: 28415000000
 ```
 
-**Summary:** v1.0.133 (2026-05-23) remains the latest release. No new releases since last scan. Workload Identity Federation (OIDC) was the last addition. Prior: v1.0 GA breaking changes: `mode`/`direct_prompt`/`override_prompt` removed; `model`/`allowed_tools`/`mcp_config` deprecated. Eva's own workflows (eva#65) still need auditing for v0.x inputs.
+**Summary:** v1.0.160 (2026-06-29) is now the latest. Significant updates since v1.0.133: v1.0.155 filter PR reviews to trigger time + allow @ in branch names; v1.0.159 fixed app token revocation cleanup; v1.0.160 automatic mode detection (interactive vs automation) + unified interface (single prompt + claude_args). eva#65 (workflow migration from v0.x inputs) still open — overdue (6+ consecutive deferrals).
 
 History:
+- 2026-06-30T00:00:00Z — changed: v1.0.134–v1.0.160 since last scan; v1.0.160 unified interface (automatic mode detection); eva#65 still open + overdue
 - 2026-06-01T08:08:22Z — unchanged: still v1.0.133; no new releases since May 23
 - 2026-05-31T00:00:00Z — unchanged: no releases since v1.0.133 (May 23); eva#65 still open
 - 2026-05-30T07:15:49Z — unchanged: still v1.0.133; no new releases; eva#65 still open
@@ -150,14 +153,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-06-29T14:15:20Z
-status: changed
-run_id: 28377959834
+last_scan: 2026-06-30T00:00:00Z
+status: unchanged
+run_id: 28415000000
 ```
 
-**Summary:** rust-v0.142.4 (2026-06-29, today) — maintenance patch, no user-facing changes. v0.143.0-alpha series active (alpha.21–alpha.29, June 25–28) — no changelogs yet; pre-release, not actionable until stable. rust-v0.142.3 remains the last stable with user-facing changes (maintenance); v0.142.2 curated plugin rankings; v0.142.0 multi-agent delegation + /import from CC.
+**Summary:** No new stable releases since rust-v0.142.4 (2026-06-29). v0.143.0-alpha series at alpha.31 (June 29) — no changelogs; watching for v0.143.0 stable.
 
 History:
+- 2026-06-30T00:00:00Z — unchanged: no stable releases since rust-v0.142.4; alpha.31 still pre-release with no changelog
 - 2026-06-29T14:15:20Z — changed: rust-v0.142.4 (June 29, maintenance-only); v0.143.0-alpha.21–alpha.29 pre-release series (no changelogs); watching for v0.143.0 stable
 - 2026-06-27T07:21:43Z — changed: rust-v0.137.0 through rust-v0.142.3; v0.142.2 remote plugin catalog curated rankings (triggered F-2026-06-27-003); v0.142.0 multi-agent delegation + /import from CC; v0.141.0 per-thread MCP + PostToolUse code-mode fix; v0.140.0 /import from Claude Code
 - 2026-06-02T08:04:18Z — changed: rust-v0.135.0 (named permission profiles, thread-idle hook) + rust-v0.136.0 (hook schema tightening — breaking, runtime skill roots API, /archive); triggered F-2026-06-02-001, F-2026-06-02-003
@@ -179,14 +183,15 @@ History:
 ## https://blog.google/technology/google-deepmind/
 
 ```yaml
-last_scan: 2026-06-01T08:08:22Z
+last_scan: 2026-06-30T00:00:00Z
 status: unchanged
-run_id: 26742668563
+run_id: 28415000000
 ```
 
-**Summary:** Most recent posts: Gemini for Science (May 8). No agent framework, MCP, or skill-spec relevant announcements since last scan.
+**Summary:** No posts from June 2026 relevant to AI agent frameworks, MCP, tool use, or agent skill specifications.
 
 History:
+- 2026-06-30T00:00:00Z — unchanged: no relevant agent tooling posts in June 2026
 - 2026-06-01T08:08:22Z — unchanged: no new agent tooling posts relevant to skills repo
 - 2026-05-30T07:15:49Z — unchanged: no new agent tooling posts since last scan
 - 2026-05-29T07:38:29Z — unchanged: no new agent tooling posts; scan delegated to prior result
@@ -322,14 +327,15 @@ History:
 ## https://code.claude.com/docs/en/skills.md
 
 ```yaml
-last_scan: 2026-06-01T08:08:22Z
+last_scan: 2026-06-30T00:00:00Z
 status: changed
-run_id: 26742668563
+run_id: 28415000000
 ```
 
-**Summary:** v2.1.152 additions: `disallowed-tools` frontmatter (space-separated tool patterns to block while skill runs); `allowed-tools` experimental field now confirmed production. `effort:` field confirmed stable (values: low/medium/high/xhigh/max). Skills in `.claude/skills/` auto-loaded as of v2.1.157 — no marketplace install required. Body ≤500 lines recommendation unchanged.
+**Summary:** Major field expansion since June 1. Now documents 17 frontmatter fields: `name`, `description`, `when_to_use` (NEW — separate trigger context, combined 1,536-char cap with description), `argument-hint` (NEW — autocomplete hint), `arguments` (NEW — named positional args for $name substitution), `disable-model-invocation` (prevents auto-activation by model), `user-invocable` (hide from / menu), `allowed-tools`, `disallowed-tools`, `model`, `effort`, `context`, `agent`, `hooks`, `paths` (NEW — glob patterns limiting auto-activation to specific files), `shell` (NEW — bash/powershell for !`cmd` blocks). Substitution variables: `$ARGUMENTS`, `$ARGUMENTS[N]`, `$name`, `${CLAUDE_SESSION_ID}`, `${CLAUDE_EFFORT}`, `${CLAUDE_SKILL_DIR}`, `${CLAUDE_PROJECT_DIR}` (NEW — requires v2.1.196). Triggered F-2026-06-30-001, F-2026-06-30-002, F-2026-06-30-003.
 
 History:
+- 2026-06-30T00:00:00Z — changed: 7 new/clarified fields (when_to_use, argument-hint, arguments, paths, shell, disable-model-invocation, ${CLAUDE_PROJECT_DIR}); triggered F-2026-06-30-001/002/003
 - 2026-06-01T08:08:22Z — changed: disallowed-tools frontmatter added (v2.1.152); .claude/skills auto-load (v2.1.157); effort: stable
 - 2026-05-31T00:00:00Z — unchanged: no new fields since last scan; `disallowed-tools` and `effort:` already documented; iEvo security-check and vuln-scan already use disallowed-tools
 - 2026-05-30T07:15:49Z — changed: hooks frontmatter, disallowed-tools, context:fork, dynamic !`cmd` injection, $CLAUDE_SKILL_DIR vars — major expansion; triggered F-2026-05-30-001, F-2026-05-30-003

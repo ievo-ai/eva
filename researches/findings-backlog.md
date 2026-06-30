@@ -927,3 +927,141 @@ iEvo's 14 SKILL.md files have no activation eval fixtures. The agents-best-pract
 Proposal (Phase 1): add `plugins/ievo/skills/<name>/evals/activation.yaml` per skill with ≥3 positive prompts (SHOULD activate this skill) and ≥2 negative prompts (should NOT, with `routes_to:` field). No eval runner in Phase 1 — fixtures serve as regression documentation and seed data for a future Phase 2 runner. Phase 2 (separate proposal): `eval_activations.mjs` script with 100% test coverage gate.
 
 Priority order for ambiguity-critical pairs first: security-check vs vuln-scan → hooks-setup vs init → inspect vs overlay-status → remaining 11 skills.
+
+---
+
+## F-2026-06-30-001 — Add `when_to_use` frontmatter to all 14 iEvo SKILL.md files for precise automatic-invocation routing
+
+```yaml
+id: F-2026-06-30-001
+discovered_at: 2026-06-30T00:00:00Z
+run_id: 28415000000
+target_repo: ievo-ai/skills
+title: Add when_to_use frontmatter to all 14 iEvo SKILL.md files for precise automatic-invocation routing
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/268
+effort: low
+scope: multi-file
+evidence:
+  - https://code.claude.com/docs/en/skills.md: when_to_use is a documented SKILL.md frontmatter field separate from description — provides additional trigger context; description + when_to_use combined cap is 1,536 chars; enables separation of "what it does" vs "when to automatically invoke it"
+```
+
+Claude Code's skills documentation (fetched 2026-06-30) documents `when_to_use` as a first-class SKILL.md frontmatter field, distinct from `description`. The `description` field explains what the skill does; `when_to_use` provides additional context for Claude's automatic invocation decisions (trigger phrases, example user requests, and negative examples of when NOT to invoke). The combined character cap for routing is 1,536 chars across both fields.
+
+None of iEvo's 14 SKILL.md files currently declare `when_to_use`. Instead, descriptions try to serve both purposes simultaneously — cramming "what it does + when to use it + trigger examples" into a single field. The result is that some skill descriptions are long enough that the routing signal is diluted. A proper `when_to_use` field would:
+
+1. Allow `description` to focus on a concise capability statement
+2. Allow `when_to_use` to enumerate trigger phrases without crowding the description
+3. Provide negative examples ("do NOT use when already installed — use /ievo:update instead") to reduce false-positive auto-activation
+
+This is especially important for skill pairs with overlapping subject matter:
+- `security-check` vs `vuln-scan` — both involve security analysis
+- `hooks-setup` vs `init` — both configure iEvo
+- `inspect` vs `overlay-status` — both answer "what does X have"
+- `deep-review` vs `feedback` — both involve reviewing something
+
+Proposed `when_to_use` values:
+| Skill | Proposed when_to_use (key triggers) |
+|-------|--------------------------------------|
+| `init` | "when setting up iEvo for the first time in a project; do NOT use if .ievo/ already exists — use /ievo:update or /ievo:overlay-status instead" |
+| `security-check` | "when auditing a remote skill or plugin before install; do NOT use for source code vulns — use /ievo:vuln-scan for that" |
+| `vuln-scan` | "when scanning project source code for CWE vulnerabilities; do NOT use for plugin/skill install auditing — use /ievo:security-check for that" |
+| `deep-review` | "when reviewing a diff or staged changes for gaps that linters miss; do NOT use for security issues — use /ievo:security-check" |
+| `evolution` | "when capturing a lesson or pattern learned in this session; when user says 'save this', 'remember that', 'capture this pattern'" |
+| `overlay-status` | "when asked what evolutions or overlays are active; when asked 'what rules are applied'" |
+| `index-repos` | "when asked to index or catalog GitHub repositories for the iEvo ecosystem" |
+| `inspect` | "when asked to preview or summarize a remote skill/repo before installing" |
+| `hooks-setup` | "when asked to set up lifecycle hooks; NOT for configuring Claude Code settings broadly — just hook configuration" |
+| `schedule` | "when asked to create a recurring or scheduled iEvo operation" |
+| `handoff` | "when switching sessions, machines, or contexts and needing to resume work" |
+| `feedback` | "when asked to file an issue or bug report about iEvo itself" |
+| `debug-on` | "when enabling verbose logging or debug mode for iEvo" |
+| `debug-off` | "when disabling verbose logging or debug mode for iEvo" |
+
+Implementation: add 1–3 line `when_to_use:` frontmatter to each of the 14 SKILL.md files. No body changes, no scripts, no coverage obligation. Single version bump per AGENTS.md rules.
+
+---
+
+## F-2026-06-30-002 — Add `paths` glob frontmatter to context-sensitive iEvo SKILL.md files for automatic-activation scoping
+
+```yaml
+id: F-2026-06-30-002
+discovered_at: 2026-06-30T00:00:00Z
+run_id: 28415000000
+target_repo: ievo-ai/skills
+title: Add paths glob frontmatter to context-sensitive iEvo SKILL.md files to limit automatic activation to relevant file contexts
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/269
+effort: low
+scope: multi-file
+evidence:
+  - https://code.claude.com/docs/en/skills.md: paths is a documented SKILL.md frontmatter field (added after May 2026) — accepts glob patterns (comma-separated string or YAML list); limits when a skill is activated automatically to sessions where the current file matches the glob; unknown frontmatter is ignored gracefully on platforms that don't support it
+```
+
+Claude Code's skills documentation (fetched 2026-06-30) documents `paths` as a SKILL.md frontmatter field that restricts a skill's automatic-invocation to contexts where the active file matches specified glob patterns. The field was added after May 2026 (per the docs page annotation). On platforms that don't support it, unknown frontmatter is ignored gracefully.
+
+None of iEvo's 14 SKILL.md files currently declare `paths`. For most iEvo skills this is fine — they are user-invoked (not auto-invoked). But a subset of skills are meaningfully context-sensitive:
+
+1. **`security-check`** — most useful when the active file is a `SKILL.md` or `agents/*.md` or `plugin.json` (the user is looking at a plugin they're about to install). Proposed paths: `**/SKILL.md,**/plugin.json,**/.claude-plugin/**`
+2. **`deep-review`** — most useful when the active file is any source file (diff review context). Proposed paths: could be left broad (`**`) but a negative path restriction could exclude `.ievo/evolution/**` (overlays aren't reviewed via deep-review)
+3. **`overlay-status`** — most useful when the active file is under `.ievo/evolution/**` (user is looking at overlay files). Proposed paths: `.ievo/evolution/**`
+4. **`evolution`** — natural to activate in `.ievo/**` context but should NOT be restricted (useful in any file context)
+
+The most concrete win is `security-check` — limiting its auto-activation to when the user has a plugin file open prevents it from auto-triggering during normal source code editing sessions.
+
+Implementation: add `paths:` frontmatter to 2-4 SKILL.md files (security-check, overlay-status, deep-review). Single version bump per AGENTS.md rules. No body changes, no scripts. The AGENTS.md § Skills format section should also document `paths:` as a supported optional frontmatter field (currently not mentioned).
+
+Files affected:
+| File | Change |
+|------|--------|
+| `plugins/ievo/skills/security-check/SKILL.md` | add `paths: "**/SKILL.md,**/plugin.json,**/.claude-plugin/**,**/.codex-plugin/**"` |
+| `plugins/ievo/skills/overlay-status/SKILL.md` | add `paths: ".ievo/evolution/**,.ievo/**"` |
+| `plugins/ievo/skills/deep-review/SKILL.md` | add `paths: "**"` (explicit universal — documents intent) |
+| `AGENTS.md` | add `paths:` to the Skills format section's frontmatter field list |
+
+---
+
+## F-2026-06-30-003 — Add `disable-model-invocation: true` to heavyweight iEvo skills to prevent unintended auto-activation
+
+```yaml
+id: F-2026-06-30-003
+discovered_at: 2026-06-30T00:00:00Z
+run_id: 28415000000
+target_repo: ievo-ai/skills
+title: Add disable-model-invocation: true to heavyweight iEvo skills (init, security-check, vuln-scan, deep-review) to prevent costly unintended auto-activation
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/270
+effort: low
+scope: multi-file
+evidence:
+  - https://code.claude.com/docs/en/skills.md: disable-model-invocation is a documented SKILL.md frontmatter field — "Set to true to prevent Claude from automatically loading skill. Only user can invoke. As of v2.1.196, also prevents scheduled tasks from running the skill."
+```
+
+Claude Code's skills documentation documents `disable-model-invocation` as a SKILL.md frontmatter field that prevents the model from automatically loading the skill based on description match. The field was confirmed in the docs (fetched 2026-06-30), with a v2.1.196 note that it also prevents scheduled tasks from running the skill. Only explicit user invocation (e.g., typing `/ievo:security-check`) triggers the skill.
+
+None of iEvo's 14 SKILL.md files currently declare `disable-model-invocation`. For iEvo's lightweight, informational skills (`overlay-status`, `inspect`, `handoff`, etc.), auto-activation by description match may be acceptable. But for the 4 heavyweight skills, unintended auto-activation is a significant problem:
+
+**`/ievo:init`** — 6-stage orchestrator (security audit + repo indexing + evolution install + hooks config + testing). If this auto-activates because a user said "let's initialize our project", it runs a full install pipeline they didn't intend.
+
+**`/ievo:security-check`** — dispatches parallel security-auditor sub-agents, runs `scan_repo.mjs` on candidate repos, fetches external URLs. If this auto-activates because a user said "let's check security", it could run multiple API calls and burn significant tokens.
+
+**`/ievo:vuln-scan`** — 4-phase exploit-chain vulnerability scanner (threat model → parallel dispatch → exploit validation → report). If this auto-activates because a user said "scan for vulnerabilities", it runs a deep multi-agent analysis.
+
+**`/ievo:deep-review`** — dispatches `deep-reviewer` sub-agent with full fresh context. If this auto-activates because a user says "review this code", it spends tokens on a structured 11-point gap-detection analysis the user didn't request.
+
+Adding `disable-model-invocation: true` to these 4 skills ensures:
+1. They only run when the user explicitly invokes them (`/ievo:security-check`, etc.)
+2. They don't accidentally trigger in scheduled Routines that weren't designed for them (v2.1.196 behavior)
+3. Token spend stays predictable — heavyweight scans only when requested
+
+The 10 remaining skills (init excluded above) may or may not benefit from auto-invocation; that's a separate decision. This proposal focuses on the 4 highest-cost skills.
+
+**Files affected:**
+| File | Change |
+|------|--------|
+| `plugins/ievo/skills/init/SKILL.md` | add `disable-model-invocation: true` |
+| `plugins/ievo/skills/security-check/SKILL.md` | add `disable-model-invocation: true` |
+| `plugins/ievo/skills/vuln-scan/SKILL.md` | add `disable-model-invocation: true` |
+| `plugins/ievo/skills/deep-review/SKILL.md` | add `disable-model-invocation: true` |
+
+Single version bump per AGENTS.md rules. No body changes, no scripts, no coverage obligation. Purely additive frontmatter changes.
