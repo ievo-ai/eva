@@ -128,8 +128,15 @@ jobs:
               TOTAL_QUEUED=$(( TOTAL_QUEUED + 1 ))
 
               # Pull author_association + labels + author login in one call.
+              # Guard with `|| true`: a transient API hiccup or a since-deleted
+              # issue must skip THIS issue, not abort the whole sweep under set -e.
               META=$(gh api "repos/$REPO/issues/$N" \
-                --jq '{assoc:.author_association, by:.user.login, labels:[.labels[].name]}')
+                --jq '{assoc:.author_association, by:.user.login, labels:[.labels[].name]}' \
+                2>/dev/null || true)
+              if [ -z "$META" ]; then
+                echo "  $REPO#$N — could not fetch issue metadata, skip"
+                TOTAL_SKIPPED=$(( TOTAL_SKIPPED + 1 )); continue
+              fi
               ASSOC=$(printf '%s' "$META" | jq -r '.assoc')
               AUTHOR=$(printf '%s' "$META" | jq -r '.by')
               HAS_IMPL=$(printf '%s' "$META" | jq -r '.labels | index("eva-implementing") | if . == null then "no" else "yes" end')
