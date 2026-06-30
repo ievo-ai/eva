@@ -230,19 +230,39 @@ jobs:
           git config --global user.name "iEVO Eva"
           git config --global user.email "noreply@ievo.ai"
 
-      - name: Set up Python 3.13
+      # Polyglot: the target repo may not be Python (cli/eva are uv projects, but
+      # skills/marketplace/agents/ievo.ai are markdown/yaml/static). Only run the
+      # Python toolchain when the checked-out target actually has a pyproject.toml;
+      # otherwise uv sync would abort before the agent runs. Non-Python repos get
+      # no managed toolchain — the agent installs whatever the repo's own gate
+      # needs (e.g. pre-commit) via Bash, per the generalized prompt.
+      - name: Detect project type
+        id: detect
         if: steps.claim.outputs.skip != 'true'
+        run: |
+          if [ -f pyproject.toml ]; then
+            echo "python=true" >> "$GITHUB_OUTPUT"
+            echo "Target is a Python project (pyproject.toml present)."
+          else
+            echo "python=false" >> "$GITHUB_OUTPUT"
+            echo "Target is NOT a Python project — skipping the uv toolchain."
+          fi
+
+      - name: Set up Python 3.13
+        if: steps.claim.outputs.skip != 'true' && steps.detect.outputs.python == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
 
       - name: Install uv
-        if: steps.claim.outputs.skip != 'true'
+        if: steps.claim.outputs.skip != 'true' && steps.detect.outputs.python == 'true'
         uses: astral-sh/setup-uv@v4
 
       - name: Install dependencies
-        if: steps.claim.outputs.skip != 'true'
-        run: uv sync --group dev
+        if: steps.claim.outputs.skip != 'true' && steps.detect.outputs.python == 'true'
+        # Prefer the dev group; fall back to a plain sync if the project defines
+        # no dev group, so a Python repo with a different layout still installs.
+        run: uv sync --group dev 2>/dev/null || uv sync
 
       # CONSTRAINT: eva-implement.md must never contain the literal string
       # "EVA_IMPLEMENT_PROMPT_EOF" on a line by itself (heredoc delimiter).
