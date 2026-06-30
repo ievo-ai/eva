@@ -94,7 +94,7 @@ jobs:
             ievo-ai/agents
             ievo-ai/cortex
             ievo-ai/ievo.ai
-          MAX_INFLIGHT: "3"
+          MAX_INFLIGHT: ${{ vars.EVA_MAX_INFLIGHT || '3' }}
           DRY_RUN: ${{ github.event.inputs.dry_run }}
           QUEUE_ENABLED: ${{ vars.EVA_QUEUE_ENABLED }}
         run: |

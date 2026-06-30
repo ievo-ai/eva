@@ -176,7 +176,7 @@ jobs:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           REPO: ${{ steps.ctx.outputs.repo }}
           ISSUE_NUM: ${{ steps.ctx.outputs.issue_number }}
-          MAX_INFLIGHT: "3"
+          MAX_INFLIGHT: ${{ vars.EVA_MAX_INFLIGHT || '3' }}
         run: |
           LABELS=$(gh issue view "$ISSUE_NUM" --repo "$REPO" --json labels \
             --jq '[.labels[].name] | join(" ")')
