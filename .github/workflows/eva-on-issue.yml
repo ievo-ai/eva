@@ -108,6 +108,13 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           show_full_output: true
+          # Public-repo forwarders that dispatch new-issue with an App token (not
+          # a PAT) make the triggering actor ievo-eva[bot]; the action rejects
+          # bot-initiated runs by default. Allow OUR bot. Trust is unchanged —
+          # the Router only reads the issue + posts analysis/labels (no build),
+          # and the job already filters client_payload.triggered_by != ievo-eva
+          # to stop Eva's own bot-filed issues from looping.
+          allowed_bots: "ievo-eva"
           claude_args: |
             --model sonnet
             --allowedTools "Bash,Read,Glob,Grep,WebFetch,WebSearch"
