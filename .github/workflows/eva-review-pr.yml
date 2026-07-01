@@ -549,14 +549,28 @@ jobs:
           PR_NUM: ${{ steps.ctx.outputs.pr_number }}
         run: |
           # This step runs after Tests complete, so required checks are green.
+          #
+          # Pick a merge method the TARGET repo actually allows. eva/cli enable
+          # squash, but some repos (e.g. skills) disable it — a hardcoded
+          # `--squash` would fail there ("Squash merges are not allowed"). Prefer
+          # squash (clean history), then merge-commit, then rebase.
+          read -r SQ MG RB < <(gh api "repos/$REPO" \
+            --jq '[.allow_squash_merge, .allow_merge_commit, .allow_rebase_merge] | map(tostring) | join(" ")')
+          if [ "$SQ" = "true" ]; then METHOD="--squash"
+          elif [ "$MG" = "true" ]; then METHOD="--merge"
+          elif [ "$RB" = "true" ]; then METHOD="--rebase"
+          else METHOD="--merge"  # fall back to merge-commit if the API is unclear
+          fi
+          echo "Merge method for $REPO: $METHOD (squash=$SQ merge=$MG rebase=$RB)"
+
           # Try a direct merge first — it succeeds when the PR is already
           # mergeable (the common case). `gh pr merge --auto` ALONE silently
           # no-ops when there are no pending required checks (the PR is already
           # clean), which is why approved PRs used to sit open. Fall back to
           # --auto to QUEUE the merge if the PR is momentarily behind main or a
           # required check is still settling.
-          gh pr merge "$PR_NUM" --repo "$REPO" --squash --delete-branch \
-            || gh pr merge "$PR_NUM" --repo "$REPO" --auto --squash --delete-branch \
+          gh pr merge "$PR_NUM" --repo "$REPO" "$METHOD" --delete-branch \
+            || gh pr merge "$PR_NUM" --repo "$REPO" --auto "$METHOD" --delete-branch \
             || echo "Could not merge now and could not enable auto-merge — operator may need to merge manually (check mergeable state / branch protection)."
 
       # --- Operator-required comment on sensitive PRs ---
