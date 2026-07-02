@@ -66,14 +66,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-07-01T00:00:00Z
+last_scan: 2026-07-02T07:21:05Z
 status: changed
-run_id: 28450000000
+run_id: 28572513053
 ```
 
-**Summary:** v2.1.197 (2026-06-30) is now the latest — Claude Sonnet 5 now the default model (native 1M-token context). v2.1.196 (June 29) additions still current: `${CLAUDE_PROJECT_DIR}` substitution variable; MCP untrusted-workspace spawn restriction; `disable-model-invocation` also blocks scheduled tasks; hook matcher hyphen exact-match; `sandbox.credentials` setting to block credential-file reads from sandboxed commands (new detail this scan); auto-mode blocks destructive git commands unless explicitly requested; `claude mcp login/logout` CLI commands added.
+**Summary:** v2.1.198 (2026-07-01, 20:45) is now the latest — new `Notification` hook matchers `agent_needs_input`/`agent_completed` for `claude agents` background sessions (triggered F-2026-07-02-001); malformed SKILL.md frontmatter now degrades gracefully (loads body with empty metadata instead of failing); Explore agent now inherits main session model (capped opus) instead of haiku; subagents/compaction inherit extended-thinking config; background agents auto-commit+push+draft-PR on finish instead of stopping to ask.
 
 History:
+- 2026-07-02T07:21:05Z — changed: v2.1.198 (July 1) — Notification hook agent_needs_input/agent_completed matchers (triggered F-2026-07-02-001); malformed SKILL.md frontmatter graceful degradation; Explore agent model inheritance; background agents auto-PR on finish
 - 2026-07-01T00:00:00Z — changed: v2.1.197 (June 30) — Sonnet 5 default model, 1M context; v2.1.196 detail confirmed: sandbox.credentials setting, destructive-git auto-mode block, mcp login/logout commands, display-name/default-enabled/fallback now case-insensitive (kebab/snake/camel)
 - 2026-06-30T00:00:00Z — changed: v2.1.196 (June 29); ${CLAUDE_PROJECT_DIR} skill variable; MCP untrusted-workspace spawn restriction; disable-model-invocation prevents scheduled task runs; hook matcher hyphen exact-match confirmed fixed
 - 2026-06-29T14:15:20Z — unchanged: v2.1.195 still latest (June 26); no new releases since previous scan
@@ -97,14 +98,15 @@ History:
 ## https://github.com/anthropics/claude-code-action/releases
 
 ```yaml
-last_scan: 2026-07-01T00:00:00Z
+last_scan: 2026-07-02T07:21:05Z
 status: changed
-run_id: 28450000000
+run_id: 28572513053
 ```
 
-**Summary:** v1.0.161 (2026-06-30) is now the latest — incremental patch on top of v1.0.160's unified interface (automatic mode detection + single `prompt` + `claude_args`). eva#65 (workflow migration off deprecated v0.x inputs: `mode`/`direct_prompt`/`override_prompt`/`model`/`allowed_tools`/`mcp_config`) still open — now 7+ consecutive run deferrals. Escalating in this run's Blockers.
+**Summary:** v1.0.162 (2026-07-01) is now the latest — added `agent-approval-check` composite action, incremental patch. eva#65 (workflow migration off deprecated v0.x inputs) **RESOLVED AND CLOSED this run** — verified directly via `grep` that none of eva's workflows use deprecated inputs (eva-review-pr.yml doesn't even use this Action; eva-on-issue.yml/eva-research.yml/eva-implement.yml are already on `@v1` with zero v0.x inputs). This confirms the operator's 2026-05-25 triage comment on the issue, which 7+ consecutive research runs failed to read before re-deferring. See eva#65 (closed) and findings-backlog.md F-2026-05-25-003 (status: rejected).
 
 History:
+- 2026-07-02T07:21:05Z — changed: v1.0.162 (July 1) — agent-approval-check composite action; eva#65 resolved+closed this run after direct verification (grep confirmed zero deprecated inputs across all eva workflows)
 - 2026-07-01T00:00:00Z — changed: v1.0.161 (June 30) patch release; eva#65 still open, 7th consecutive deferral, escalated
 - 2026-06-30T00:00:00Z — changed: v1.0.134–v1.0.160 since last scan; v1.0.160 unified interface (automatic mode detection); eva#65 still open + overdue
 - 2026-06-01T08:08:22Z — unchanged: still v1.0.133; no new releases since May 23
@@ -158,14 +160,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-07-01T00:00:00Z
-status: changed
-run_id: 28450000000
+last_scan: 2026-07-02T07:21:05Z
+status: unchanged
+run_id: 28572513053
 ```
 
-**Summary:** v0.142.5 (2026-07-01) — small maintenance release (WebSocket logging fix). v0.143.0-alpha.32 (2026-07-01) still pre-release, no changelog. No stable v0.143.0 yet; no hook/MCP/skill-format changes.
+**Summary:** v0.142.5 (2026-07-01) still latest stable (WebSocket trace-log fix). v0.143.0-alpha.33 (2026-07-02) still pre-release, no changelog. No stable v0.143.0 yet; no hook/MCP/skill-format changes.
 
 History:
+- 2026-07-02T07:21:05Z — unchanged: v0.142.5 still latest stable; v0.143.0-alpha.33 (July 2) still pre-release, no changelog; no hook/MCP/skill-format changes
 - 2026-07-01T00:00:00Z — changed: v0.142.5 (Jul 1, WebSocket logging fix); v0.143.0-alpha.32 (Jul 1) still pre-release; no stable v0.143.0
 - 2026-06-30T00:00:00Z — unchanged: no stable releases since rust-v0.142.4; alpha.31 still pre-release with no changelog
 - 2026-06-29T14:15:20Z — changed: rust-v0.142.4 (June 29, maintenance-only); v0.143.0-alpha.21–alpha.29 pre-release series (no changelogs); watching for v0.143.0 stable
@@ -237,14 +240,15 @@ History:
 ## https://github.com/agentskills/agentskills
 
 ```yaml
-last_scan: 2026-07-01T00:00:00Z
-status: changed
-run_id: 28450000000
+last_scan: 2026-07-02T07:21:05Z
+status: unchanged
+run_id: 28572513053
 ```
 
-**Summary:** Latest commit 2026-06-30 (PR #421 merged — "Add Deep Code to client showcase", a client-list addition only, no spec change). Prior spec-relevant commit still 2026-05-20. Tracked PRs #380 (versioning), #386 (UTF-8 fix), #345 (Unicode name) confirmed still open via `gh api` — none merged.
+**Summary:** No new merges since PR #421 (June 30, client showcase only). Tracked PRs #380 (versioning), #386 (UTF-8 fix), #345 (Unicode name) re-confirmed still open, unmerged via `gh api repos/agentskills/agentskills/pulls/{380,386,345}` (state=open, merged=false for all three).
 
 History:
+- 2026-07-02T07:21:05Z — unchanged: #380/#386/#345 re-verified open+unmerged via gh api; no new merges since #421
 - 2026-07-01T00:00:00Z — changed: PR #421 merged June 30 (client showcase entry only, no spec impact); #380/#386/#345 still open per gh api
 - 2026-06-01T08:08:22Z — unchanged: PRs #380, #386, #345 still open; no new merges since May 20
 - 2026-05-31T00:00:00Z — unchanged: last commit still May 20; PRs #380, #386, #345 still open; no new merges or spec changes
@@ -263,14 +267,15 @@ History:
 ## https://www.cursor.com/changelog
 
 ```yaml
-last_scan: 2026-07-01T00:00:00Z
-status: changed
-run_id: 28450000000
+last_scan: 2026-07-02T07:21:05Z
+status: unchanged
+run_id: 28572513053
 ```
 
-**Summary:** v3.9 continues to accumulate entries under one version umbrella: June 29 added a Cursor Mobile app (launch/manage cloud agents + Remote Control from phone) and June 30 added Team MCP server distribution + org-group-scoped Team marketplaces. Neither is a skill-format or agentskills.io-relevant change — both are Cursor-client-only features (mobile app UX, org marketplace scoping) with no iEvo-actionable surface. Issue #235 (v3.9 unified customization) remains the tracked finding for this version.
+**Summary:** v3.9 (June 29) still latest; no v3.10. Re-confirmed June 29-30 entries (Mobile app, Team MCP distribution, org-group marketplace scoping) — all Cursor-client-only, no iEvo-actionable surface. Issue #235 remains the tracked finding.
 
 History:
+- 2026-07-02T07:21:05Z — unchanged: v3.9 still latest; no new entries since June 30 scan
 - 2026-07-01T00:00:00Z — changed: v3.9 gained Mobile app (June 29) + Team MCP/org marketplace scoping (June 30); Cursor-client-only, not iEvo-actionable; #235 remains sufficient
 - 2026-06-29T14:15:20Z — unchanged: v3.9 still latest (June 22); no v3.10; Team marketplace multi-source (GitLab/BitBucket/Azure DevOps) not yet filed as finding (low priority — requires Cursor team plan + non-skills.sh source not currently in iEvo scope)
 - 2026-06-01T08:08:22Z — changed: v3.6 (May 29) — Auto-review Run Mode with classifier subagent; triggered existing issue #164
@@ -313,14 +318,15 @@ History:
 ## https://github.com/DenisSergeevitch/agents-best-practices
 
 ```yaml
-last_scan: 2026-07-01T00:00:00Z
-status: changed
-run_id: 28450000000
+last_scan: 2026-07-02T07:21:05Z
+status: unchanged
+run_id: 28572513053
 ```
 
-**Summary:** New commit 2026-06-29T21:15 (a few hours after the prior scan): "Split agent harness evals into dedicated reference" — extracted a new `references/evals.md` (+143 lines) out of `security-observability.md` (-65 lines), plus small edits to `checklists.md`, `coverage-audit.md`, `mvp-agent-blueprint.md`, `source-links.md`. This formalizes "activation evals" and "output quality evals" as a first-class dedicated topic rather than a subsection — directly strengthens the evidence for the already-open F-2026-06-29-002 (skills#267, activation eval fixtures). No new finding filed; treated as supplementary evidence for the existing open issue.
+**Summary:** No commits since the June 29 21:15 `evals.md` split (last scan). No new activity in the last 3 days.
 
 History:
+- 2026-07-02T07:21:05Z — unchanged: no commits since June 29 21:15; last change still the evals.md split (evidence for open F-2026-06-29-002/skills#267)
 - 2026-07-01T00:00:00Z — changed: June 29 21:15 commit split out references/evals.md (+143 lines); strengthens existing F-2026-06-29-002 / skills#267, no new finding filed
 - 2026-06-29T14:15:20Z — unchanged: no commits since June 14; checklists.md activation-evals requirement triggered F-2026-06-29-002
 - 2026-06-27T07:21:43Z — changed: new references/coding-agents.md (June 7, 436 lines) + workflow-orchestration.md expansion (June 14) + SVG diagram; coding-agents MVP boundary triggered F-2026-06-27-002

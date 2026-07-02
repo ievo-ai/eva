@@ -283,7 +283,8 @@ discovered_at: 2026-05-25T07:48:17Z
 run_id: 26389613586
 target_repo: ievo-ai/eva
 title: Audit and migrate ievo-ai/eva GitHub Actions workflows from deprecated claude-code-action@v0.x inputs to v1.0 API
-status: issued
+status: rejected
+reason: "Premise was false. Verified 2026-07-02 (run in this audit): eva-review-pr.yml does not use claude-code-action at all (Docker CLI direct invocation); eva-on-issue.yml, eva-research.yml, eva-implement.yml all already on @v1 with zero deprecated inputs (grep for direct_prompt/override_prompt/custom_instructions/mode: found nothing). Operator flagged this exact conclusion in a 2026-05-25 triage comment on eva#65 with the same grep command — 7+ consecutive research runs re-deferred the same unverified assumption without reading that comment or running the check themselves. Issue closed as not-planned."
 issue_url: https://github.com/ievo-ai/eva/issues/65
 effort: medium
 scope: multi-file
@@ -1065,3 +1066,51 @@ The 10 remaining skills (init excluded above) may or may not benefit from auto-i
 | `plugins/ievo/skills/deep-review/SKILL.md` | add `disable-model-invocation: true` |
 
 Single version bump per AGENTS.md rules. No body changes, no scripts, no coverage obligation. Purely additive frontmatter changes.
+
+---
+
+## F-2026-07-02-001 — Document Notification hook type (agent_needs_input / agent_completed) in hooks-setup/SKILL.md
+
+```yaml
+id: F-2026-07-02-001
+discovered_at: 2026-07-02T07:21:05Z
+run_id: 28572513053
+target_repo: ievo-ai/skills
+title: Document Claude Code v2.1.198 Notification hook (agent_needs_input / agent_completed matchers) in hooks-setup/SKILL.md
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/278
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases (v2.1.198, 2026-07-01): "Added background agent notifications in `claude agents` — sessions that need input or finish now fire the `Notification` hook (`agent_needs_input` / `agent_completed`)"
+  - /tmp/skills/plugins/ievo/skills/hooks-setup/SKILL.md: grep for hook type sections shows only PostToolUse (Step 1/5) and Stop (Step 5.5) are documented; the `Notification` hook type is not mentioned anywhere in the file
+```
+
+Claude Code v2.1.198 (2026-07-01) added a new use of the `Notification` hook: background agents launched via `claude agents` now fire it with `agent_needs_input` (session is blocked waiting on user input) or `agent_completed` (session finished) matcher values. `hooks-setup/SKILL.md` is iEvo's authoritative guide for configuring lifecycle hooks and already has deep coverage of `PostToolUse` (signal-file detection, Step 1-5) and `Stop` (all-background-agents-complete polling via `background_tasks`/`session_crons`, Step 5.5) — but the `Notification` hook type itself is entirely absent from the file, even as a passing mention.
+
+This is a distinct mechanism from the existing Step 5.5 Stop-hook approach: Step 5.5 polls `background_tasks`/`session_crons` counts on every session Stop (works for Task-tool-dispatched sub-agents within one session, e.g. iEvo's parallel `security-auditor`/`repo-indexer` dispatch during `/ievo:init`). The new `Notification` hook is event-driven and specific to the separate `claude agents` background-session feature (multi-session background agents, not Task-tool sub-agents) — it fires once per state transition rather than being polled at session-stop time, and also distinguishes "needs input" from "completed", which the Stop-hook polling approach cannot do (it can't tell you a background agent is stuck waiting on a prompt).
+
+Proposed solution: add a new subsection to `hooks-setup/SKILL.md` (after the existing Step 5.5 "Stop hook for all background agents complete" section) documenting the `Notification` hook type: matcher values `agent_needs_input` / `agent_completed`, when they fire (only for sessions launched via `claude agents`, not Task-tool sub-agents), and a worked example (desktop notification distinguishing the two states, since "needs input" is actionable — the user should respond — while "completed" is informational). Update the `compatibility` frontmatter field to note the v2.1.198 minimum version for this specific hook. Cross-reference Step 5.5 to clarify which mechanism applies to which agent-dispatch pattern (Task-tool sub-agents → Stop hook polling; `claude agents` background sessions → Notification hook).
+
+## Files affected
+
+| File | Change | Notes |
+|------|--------|-------|
+| plugins/ievo/skills/hooks-setup/SKILL.md | modified | new subsection + compatibility field update |
+
+## Acceptance criteria
+
+- [ ] New subsection documents the `Notification` hook type with both matcher values
+- [ ] Worked example distinguishes `agent_needs_input` (actionable) from `agent_completed` (informational)
+- [ ] Clarifies scope: applies to `claude agents` background sessions, not Task-tool-dispatched sub-agents (existing Step 5.5 remains the correct guidance for those)
+- [ ] `compatibility` frontmatter field updated with v2.1.198 minimum version note
+
+## Effort estimate
+
+- Scope: single-file
+- Effort: low (~20-30 min)
+- Risk: low
+
+## Open questions for the operator
+
+- Should this be a new "Step 5.6" following the existing Step 5.5 pattern, or a lighter-weight "See also" callout given the narrower applicability (only relevant to `claude agents` users, which iEvo's own docs don't currently instruct users to use for iEvo operations)?
