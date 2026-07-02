@@ -1,0 +1,340 @@
+# Eva — Review-fix loop for Eva-authored PRs (eva#135)
+#
+# Restores, on the eva side, the auto-fix loop v1's `review-fixer.yml` (in
+# ievo-ai/skills) provided before skills#277 deleted it with the v1 cutover.
+# When eva-review-pr.yml posts REQUEST_CHANGES on an `ievo-eva[bot]`-authored PR
+# (branch `eva-impl/*`), it dispatches `fix-pr` here; this workflow checks out
+# the PR branch, reads Eva's own review findings, fixes them, runs the target
+# repo's local gate, and pushes a `[pr-fix-N]`-marked commit. The push re-fires
+# product gates → workflow_run → eva-review-pr re-reviews. The loop continues
+# until APPROVE or the budget (5 rounds) is spent.
+#
+# WHY a dedicated workflow (not a job in eva-implement.yml — eva#135 operator
+# answer #1): distinct trigger (an INTERNAL `repository_dispatch: fix-pr` sent by
+# eva-review-pr), a distinct and NARROWER trust surface than the builder, and
+# eva-implement's existing gate stays untouched. The fixer RE-ENTERS an existing
+# branch (higher blast radius than opening a new one), so its gate is stricter.
+#
+# TRUST GATE (eva#135 operator answer #2 — three stacked conditions, ALL
+# required; any mismatch → fail-safe exit, no push):
+#   1. Fired only by eva-review-pr's own dispatch. `repository_dispatch` can only
+#      be sent by a principal with repo write; the `fix-pr` event type is emitted
+#      ONLY by eva-review-pr. No external event type reaches this workflow.
+#   2. The target PR's head branch matches `eva-impl/*` AND the PR author is the
+#      ievo-eva App (`ievo-eva[bot]`) — NEVER a human PR (humans fix their own
+#      reviews; v1 rule kept).
+#   3. The payload carries the triggering review id; this workflow RE-FETCHES that
+#      review via the API and verifies its state is CHANGES_REQUESTED and it was
+#      posted by a trusted reviewer (the App, or a MEMBER/OWNER — eva-review-pr
+#      posts the REQUEST_CHANGES on an App-authored PR via the PAT = the operator,
+#      a different principal, so its author_association is OWNER) before touching
+#      anything.
+# The fixer's INPUT is Eva's OWN review text + an App-authored branch — no
+# third-party free text enters the loop.
+#
+# BUDGET (eva#135 operator answer #4): fully independent — 5 rounds per PR,
+# counted as `[pr-fix-N]` markers in THAT PR's branch history only (no sharing;
+# there is no issue-handler here, and there is no `/fix` extension command in v1
+# of the fixer). On exhaustion: comment + `eva-fix-budget-exhausted` label for the
+# operator, then stop. The terminal labels below block re-triggering until the
+# operator removes them.
+#
+# WORKFLOW-FILE HAND-OFF (eva#135 operator answer #3): the ievo-eva App lacks the
+# `Workflows` permission (eva#132/#133 lesson), so a fix that would touch
+# `.github/workflows/**` CANNOT be pushed. In that case the agent does NOT push —
+# it posts the patch as a PR comment (eva#133-style), adds `eva-handoff-workflows`,
+# and stops. That hand-off does NOT consume a `[pr-fix-N]` slot (nothing was
+# pushed); the label prevents re-triggering until the operator clears it.
+#
+# SAFETY: the fixer NEVER merges (eva-review-pr's existing auto-merge stays the
+# only merge path). Per-PR concurrency, cancel-in-progress: false (never abandon a
+# half-pushed fix).
+
+name: "Eva: Fix PR"
+
+on:
+  # Internal only: eva-review-pr dispatches this when it posts REQUEST_CHANGES on
+  # an App-authored eva-impl/* PR. No other event type reaches this workflow.
+  repository_dispatch:
+    types: [fix-pr]
+
+# One in-flight fix per PR; never cancel a fix mid-push (a cancelled push could
+# leave the branch in a half-fixed state that still reads as CHANGES_REQUESTED).
+concurrency:
+  group: eva-fix-pr-${{ github.event.client_payload.repo }}-${{ github.event.client_payload.pr_number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read       # the actual push uses the App token minted below, not this
+  pull-requests: write
+  id-token: write       # required by anthropics/claude-code-action@v1's OIDC startup
+
+jobs:
+  fix:
+    name: "Eva: Fix PR"
+    runs-on: ubuntu-latest
+    # Capped at 50 for the same reason as eva-implement: the App installation
+    # token minted below is valid 1h from job start; keep the job under 50 min so
+    # the late `git push` always runs on a still-valid token.
+    timeout-minutes: 50
+
+    steps:
+      # --- Auth: fix as the ievo-eva App (ievo-eva[bot]) so the [pr-fix-N] commit
+      # is attributed to the App, same principal that authored the PR. The push
+      # only works for NON-workflow files (App lacks the Workflows permission);
+      # a workflow-file fix hands off instead (see the prompt's hand-off phase). ---
+      - name: Generate App token
+        if: vars.USE_GITHUB_APP == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547  # v1.12.0 — SHA-pinned: mints an org-wide App token
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ievo-ai
+
+      - name: Set auth token
+        id: auth
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          PAT_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+        run: |
+          # No `pull_request` event here (repository_dispatch only), so the App
+          # token is NOT subject to the workflow-boundary scope downgrade that
+          # forces eva-review-pr onto a PAT — use the App token directly so the
+          # fix commit is authored by ievo-eva[bot].
+          if [ -n "$APP_TOKEN" ]; then
+            echo "token=$APP_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "Using App token — fix commit authored by ievo-eva[bot]"
+          else
+            echo "token=$PAT_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "Using PAT fallback (USE_GITHUB_APP != true)"
+          fi
+
+      # --- Resolve + re-verify: the stacked trust gate (operator answer #2).
+      # Everything here is fail-safe: any mismatch sets skip=true and the job ends
+      # without touching the branch. ---
+      - name: Resolve + verify PR context
+        id: ctx
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          PAYLOAD_REPO: ${{ github.event.client_payload.repo }}
+          PAYLOAD_PR: ${{ github.event.client_payload.pr_number }}
+          PAYLOAD_REVIEW_ID: ${{ github.event.client_payload.review_id }}
+          FIX_BUDGET: ${{ vars.EVA_FIX_BUDGET || '5' }}
+        run: |
+          REPO="$PAYLOAD_REPO"
+          PR_NUM="$PAYLOAD_PR"
+          REVIEW_ID="$PAYLOAD_REVIEW_ID"
+
+          if [ -z "$REPO" ] || [ -z "$PR_NUM" ] || [ -z "$REVIEW_ID" ]; then
+            echo "Missing repo / pr_number / review_id in payload — skipping (fail-safe)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+
+          # PR must be open — a closed/merged PR must never be pushed to.
+          PR_JSON=$(gh api "repos/$REPO/pulls/$PR_NUM" 2>/dev/null || echo '{}')
+          STATE=$(printf '%s' "$PR_JSON" | jq -r '.state // empty')
+          if [ "$STATE" != "open" ]; then
+            echo "PR $REPO#$PR_NUM is not open (state=$STATE) — skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+
+          # Condition 2a: head branch must be eva-impl/*.
+          HEAD_REF=$(printf '%s' "$PR_JSON" | jq -r '.head.ref // empty')
+          case "$HEAD_REF" in
+            eva-impl/*) : ;;
+            *)
+              echo "Head branch '$HEAD_REF' is not eva-impl/* — refusing (fail-safe)."
+              echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0 ;;
+          esac
+
+          # Condition 2b: PR author must be the ievo-eva App. Humans fix their own
+          # reviews (v1 rule) — the fixer never re-enters a human-authored branch.
+          PR_AUTHOR=$(printf '%s' "$PR_JSON" | jq -r '.user.login // empty')
+          if [ "$PR_AUTHOR" != "ievo-eva[bot]" ]; then
+            echo "PR author '$PR_AUTHOR' is not ievo-eva[bot] — refusing (fail-safe)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+
+          # Condition 3: re-fetch the triggering review by id and verify it is a
+          # genuine CHANGES_REQUESTED from a trusted reviewer. This guards against
+          # a stale dispatch (review since dismissed / PR state moved) and against
+          # any payload whose review_id does not resolve to a real blocking review.
+          REVIEW_JSON=$(gh api "repos/$REPO/pulls/$PR_NUM/reviews/$REVIEW_ID" 2>/dev/null || echo '{}')
+          REVIEW_STATE=$(printf '%s' "$REVIEW_JSON" | jq -r '.state // empty')
+          REVIEW_AUTHOR=$(printf '%s' "$REVIEW_JSON" | jq -r '.user.login // empty')
+          REVIEW_ASSOC=$(printf '%s' "$REVIEW_JSON" | jq -r '.author_association // empty')
+          if [ "$REVIEW_STATE" != "CHANGES_REQUESTED" ]; then
+            echo "Review $REVIEW_ID state is '$REVIEW_STATE' (not CHANGES_REQUESTED) — skipping (fail-safe)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          # eva-review-pr posts REQUEST_CHANGES on an App-authored PR via the PAT
+          # (the operator = OWNER); if ever posted by the App directly the login is
+          # ievo-eva[bot]. Accept either — reject anything else.
+          if [ "$REVIEW_AUTHOR" != "ievo-eva[bot]" ] \
+             && [ "$REVIEW_ASSOC" != "MEMBER" ] && [ "$REVIEW_ASSOC" != "OWNER" ]; then
+            echo "Review $REVIEW_ID author '$REVIEW_AUTHOR' (assoc=$REVIEW_ASSOC) is not a trusted reviewer — refusing (fail-safe)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+
+          # Terminal-label guard: a prior round already handed off to the operator
+          # (workflow-file fix) or spent the budget. Do NOT re-enter until the
+          # operator clears the label. PR labels live on the issues endpoint.
+          LABELS=$(gh api "repos/$REPO/issues/$PR_NUM/labels" --jq '[.[].name] | join(" ")' 2>/dev/null || echo "")
+          case " $LABELS " in
+            *" eva-handoff-workflows "*)
+              echo "PR carries eva-handoff-workflows — operator must apply the handed-off patch first. Skipping."
+              echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0 ;;
+            *" eva-fix-budget-exhausted "*)
+              echo "PR carries eva-fix-budget-exhausted — budget already spent, operator owns it. Skipping."
+              echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0 ;;
+          esac
+
+          {
+            echo "repo=$REPO"
+            echo "pr_number=$PR_NUM"
+            echo "review_id=$REVIEW_ID"
+            echo "head_ref=$HEAD_REF"
+            echo "skip=false"
+          } >> "$GITHUB_OUTPUT"
+
+      # --- Checkout the PR branch (the eva-impl/* head) so the fix pushes back to
+      # the SAME branch. Full history so the [pr-fix-N] budget count is accurate. ---
+      - name: Checkout PR branch
+        if: steps.ctx.outputs.skip != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.ctx.outputs.repo }}
+          ref: ${{ steps.ctx.outputs.head_ref }}
+          token: ${{ steps.auth.outputs.token }}
+          fetch-depth: 0
+
+      # --- HARD budget guard (review finding on eva#137): the 5-round budget is
+      # primarily enforced by the fixer prompt, but an LLM miscount or ignored
+      # instruction must not be able to loop. Count [pr-fix-N] markers in the
+      # branch history deterministically and stop BEFORE the agent runs. ---
+      - name: Enforce fix budget (hard guard)
+        id: budget
+        if: steps.ctx.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          REPO: ${{ steps.ctx.outputs.repo }}
+          PR_NUM: ${{ steps.ctx.outputs.pr_number }}
+          MAX_ROUNDS: ${{ vars.EVA_FIX_BUDGET || '5' }}
+        run: |
+          # Same counting semantics as the fixer prompt (base ref + marker regex),
+          # so the hard guard and the soft (prompt) budget can never diverge.
+          BASE=$(gh api "repos/$REPO/pulls/$PR_NUM" --jq '.base.ref' 2>/dev/null || echo "main")
+          ROUNDS=$(git log --format='%s' "origin/$BASE..HEAD" 2>/dev/null | grep -cE '\[pr-fix-[0-9]+\]' || true)
+          echo "Fix rounds already on this branch: $ROUNDS (max $MAX_ROUNDS, base $BASE)"
+          if [ "$ROUNDS" -ge "$MAX_ROUNDS" ]; then
+            gh issue edit "$PR_NUM" --repo "$REPO" --add-label eva-fix-budget-exhausted 2>/dev/null || true
+            gh pr comment "$PR_NUM" --repo "$REPO" --body \
+              "Fix budget exhausted ($ROUNDS/$MAX_ROUNDS \`[pr-fix-N]\` rounds) — hard workflow guard, independent of the fixer agent. Operator review needed; the fixer will not run again on this PR." || true
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Configure git identity
+        if: steps.ctx.outputs.skip != 'true' && steps.budget.outputs.skip != 'true'
+        run: |
+          git config --global user.name "iEVO Eva"
+          git config --global user.email "noreply@ievo.ai"
+
+      # Polyglot: the target repo may not be Python. Only run the uv toolchain when
+      # the checked-out target actually has a pyproject.toml; otherwise the agent
+      # installs whatever the repo's own gate needs via Bash (same as eva-implement).
+      - name: Detect project type
+        id: detect
+        if: steps.ctx.outputs.skip != 'true' && steps.budget.outputs.skip != 'true'
+        run: |
+          if [ -f pyproject.toml ]; then
+            echo "python=true" >> "$GITHUB_OUTPUT"
+            echo "Target is a Python project (pyproject.toml present)."
+          else
+            echo "python=false" >> "$GITHUB_OUTPUT"
+            echo "Target is NOT a Python project — skipping the uv toolchain."
+          fi
+
+      - name: Set up Python 3.13
+        if: steps.ctx.outputs.skip != 'true' && steps.budget.outputs.skip != 'true' && steps.detect.outputs.python == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        if: steps.ctx.outputs.skip != 'true' && steps.budget.outputs.skip != 'true' && steps.detect.outputs.python == 'true'
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        if: steps.ctx.outputs.skip != 'true' && steps.budget.outputs.skip != 'true' && steps.detect.outputs.python == 'true'
+        run: uv sync --group dev 2>/dev/null || uv sync
+
+      # The prompt lives in EVA (this workflow's repo). When the fixer targets a
+      # cross-repo PR the working tree is that other repo, so fetch the prompt from
+      # eva via the API at the commit this workflow is running (same as
+      # eva-implement's prompt load).
+      #
+      # CONSTRAINT: eva-fix-pr.md must never contain the literal string
+      # "EVA_FIX_PROMPT_EOF" on a line by itself (heredoc delimiter).
+      - name: Load fix prompt
+        if: steps.ctx.outputs.skip != 'true' && steps.budget.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          PROMPT_REPO: ${{ github.repository }}
+          PROMPT_REF: ${{ github.sha }}
+        run: |
+          PROMPT=$(gh api \
+            "repos/$PROMPT_REPO/contents/.github/prompts/eva-fix-pr.md?ref=$PROMPT_REF" \
+            --jq '.content' | base64 -d)
+          if [ -z "$PROMPT" ]; then
+            echo "::error::eva-fix-pr.md not found in $PROMPT_REPO@$PROMPT_REF"; exit 1
+          fi
+          if printf '%s\n' "$PROMPT" | grep -qxF 'EVA_FIX_PROMPT_EOF'; then
+            echo "::error::eva-fix-pr.md contains the heredoc delimiter"; exit 1
+          fi
+          {
+            echo "FIX_PROMPT<<EVA_FIX_PROMPT_EOF"
+            printf '%s\n' "$PROMPT"
+            echo "EVA_FIX_PROMPT_EOF"
+          } >> "$GITHUB_ENV"
+
+      - name: Run Fix agent
+        if: steps.ctx.outputs.skip != 'true' && steps.budget.outputs.skip != 'true'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          show_full_output: true
+          # eva-review-pr dispatches fix-pr with the App token, so the triggering
+          # actor is ievo-eva[bot]. The action rejects bot-initiated runs by
+          # default — allow OUR bot. Trust is NOT weakened: the real gate is the
+          # stacked trust re-verification in "Resolve + verify PR context" above.
+          allowed_bots: "ievo-eva"
+          claude_args: |
+            --model opus
+            --allowedTools "Bash,Edit,Read,Write,Glob,Grep,WebFetch,WebSearch"
+          settings: |
+            {
+              "env": {
+                "GH_TOKEN": "${{ steps.auth.outputs.token }}",
+                "TARGET_REPO": "${{ steps.ctx.outputs.repo }}",
+                "TARGET_PR": "${{ steps.ctx.outputs.pr_number }}",
+                "REVIEW_ID": "${{ steps.ctx.outputs.review_id }}",
+                "FIX_BUDGET": "${{ vars.EVA_FIX_BUDGET || '5' }}"
+              }
+            }
+          prompt: ${{ env.FIX_PROMPT }}
+
+      # If the fixer crashed AFTER passing the trust gate, leave a breadcrumb so
+      # the PR does not silently strand. No claim label to release (unlike
+      # eva-implement) — the loop is bounded by the [pr-fix-N] budget regardless.
+      - name: Note failure
+        if: failure() && steps.ctx.outputs.skip == 'false' && steps.budget.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          REPO: ${{ steps.ctx.outputs.repo }}
+          PR_NUM: ${{ steps.ctx.outputs.pr_number }}
+        run: |
+          gh pr comment "$PR_NUM" --repo "$REPO" --body \
+            "Eva's fix run failed or was interrupted after passing the trust gate. No commit was pushed this round (the [pr-fix-N] budget is unchanged). eva-review-pr will not re-dispatch unless a new push re-triggers review — operator can inspect the run logs or push a fix manually." || true
