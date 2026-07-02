@@ -431,6 +431,7 @@ jobs:
 
       # --- Post review to PR ---
       - name: Post review
+        id: postreview
         if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large != 'true'
         env:
           GH_TOKEN: ${{ steps.reviewtok.outputs.token }}
@@ -450,14 +451,80 @@ jobs:
           # Post review — fall back to COMMENT if APPROVE fails (e.g. own PR).
           # With cross-principal token selection above this fallback should no
           # longer trigger for App-authored PRs; it stays as defense in depth.
-          gh api "repos/$REPO/pulls/$PR_NUM/reviews" \
+          # Capture the response so the REQUEST_CHANGES review id can drive the
+          # eva-fix-pr dispatch below (eva#135). Command substitution captures
+          # stdout only; stderr still surfaces on failure.
+          RESP=$(gh api "repos/$REPO/pulls/$PR_NUM/reviews" \
             --method POST \
             -f event="$EVENT" \
-            -f body="$BODY" \
-          || gh api "repos/$REPO/pulls/$PR_NUM/reviews" \
+            -f body="$BODY") \
+          || RESP=$(gh api "repos/$REPO/pulls/$PR_NUM/reviews" \
             --method POST \
             -f event="COMMENT" \
-            -f body="$BODY (could not submit as $EVENT — likely own-PR restriction)"
+            -f body="$BODY (could not submit as $EVENT — likely own-PR restriction)")
+
+          REVIEW_ID=$(printf '%s' "$RESP" | jq -r '.id // empty' 2>/dev/null || true)
+          echo "review_id=$REVIEW_ID" >> "$GITHUB_OUTPUT"
+
+      # --- Dispatch the review-fix loop (eva#135) ---
+      # When Eva REQUEST_CHANGES her OWN implement PR (App-authored, eva-impl/*
+      # branch), hand the finding to eva-fix-pr.yml so it auto-fixes instead of
+      # stranding until an operator intervenes. Human-authored PRs are NEVER
+      # auto-fixed (humans fix their own reviews — v1 review-fixer rule, kept).
+      #
+      # This hook is deliberately THIN: it only decides "is this an eligible
+      # self-authored PR that isn't already handed off" and dispatches. ALL the
+      # fixer logic (budget, trust re-verification, the fix, the workflow-file
+      # hand-off) lives in eva-fix-pr.yml so the loop's safety is in one place.
+      #
+      # No self-trigger loop: the dispatch is sent with the App/PAT token (NOT the
+      # automatic GITHUB_TOKEN), so it CAN start eva-fix-pr; the fixer's push then
+      # re-fires Tests → this workflow → possibly another dispatch, bounded by the
+      # [pr-fix-N] budget the fixer enforces (max 5).
+      - name: Dispatch fix-pr on self-authored CHANGES_REQUESTED
+        if: >
+          steps.ctx.outputs.skip != 'true' &&
+          steps.pr.outputs.large != 'true' &&
+          steps.review.outputs.decision == 'REQUEST_CHANGES' &&
+          steps.ctx.outputs.pr_author == 'ievo-eva[bot]'
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          REPO: ${{ steps.ctx.outputs.repo }}
+          PR_NUM: ${{ steps.ctx.outputs.pr_number }}
+          REVIEW_ID: ${{ steps.postreview.outputs.review_id }}
+        run: |
+          # Only self-authored eva-impl/* PRs are auto-fixable.
+          HEAD_REF=$(gh api "repos/$REPO/pulls/$PR_NUM" --jq '.head.ref')
+          case "$HEAD_REF" in
+            eva-impl/*) : ;;
+            *)
+              echo "Head branch '$HEAD_REF' is not eva-impl/* — no fix dispatch."
+              exit 0 ;;
+          esac
+
+          # Don't re-dispatch when a prior round already handed off to the
+          # operator (workflow-file fix) or spent the budget — those terminal
+          # labels are cleared by the operator, not by a new review.
+          LABELS=$(gh api "repos/$REPO/issues/$PR_NUM/labels" --jq '[.[].name] | join(" ")' 2>/dev/null || echo "")
+          case " $LABELS " in
+            *" eva-handoff-workflows "*|*" eva-fix-budget-exhausted "*)
+              echo "PR carries a terminal fix label (handoff/exhausted) — operator must clear it. No dispatch."
+              exit 0 ;;
+          esac
+
+          if [ -z "$REVIEW_ID" ]; then
+            echo "No review id captured — cannot dispatch the fixer safely (it re-verifies by id). Skipping."
+            exit 0
+          fi
+
+          # Internal same-repo dispatch. Sent with the App/PAT token so it fires
+          # eva-fix-pr (the automatic GITHUB_TOKEN would NOT). The fixer re-verifies
+          # every condition before touching the branch (fail-safe).
+          jq -nc \
+            --arg repo "$REPO" --argjson pr "$PR_NUM" --argjson rid "$REVIEW_ID" \
+            '{event_type:"fix-pr", client_payload:{repo:$repo, pr_number:$pr, review_id:$rid}}' \
+            | gh api "repos/ievo-ai/eva/dispatches" --input -
+          echo "Dispatched fix-pr for $REPO#$PR_NUM (review $REVIEW_ID, branch $HEAD_REF)"
 
       # --- Sensitive-path gate (godfather task #41, 2026-05-23) ---
       # Block auto-merge on PRs that touch Eva's own behavior or critical
