@@ -220,10 +220,13 @@ jobs:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           REPO: ${{ steps.ctx.outputs.repo }}
           PR_NUM: ${{ steps.ctx.outputs.pr_number }}
-          MAX_ROUNDS: 5
+          MAX_ROUNDS: ${{ vars.EVA_FIX_BUDGET || '5' }}
         run: |
-          ROUNDS=$(git log --oneline origin/main..HEAD 2>/dev/null | grep -c "\[pr-fix-" || true)
-          echo "Fix rounds already on this branch: $ROUNDS (max $MAX_ROUNDS)"
+          # Same counting semantics as the fixer prompt (base ref + marker regex),
+          # so the hard guard and the soft (prompt) budget can never diverge.
+          BASE=$(gh api "repos/$REPO/pulls/$PR_NUM" --jq '.base.ref' 2>/dev/null || echo "main")
+          ROUNDS=$(git log --format='%s' "origin/$BASE..HEAD" 2>/dev/null | grep -cE '\[pr-fix-[0-9]+\]' || true)
+          echo "Fix rounds already on this branch: $ROUNDS (max $MAX_ROUNDS, base $BASE)"
           if [ "$ROUNDS" -ge "$MAX_ROUNDS" ]; then
             gh issue edit "$PR_NUM" --repo "$REPO" --add-label eva-fix-budget-exhausted 2>/dev/null || true
             gh pr comment "$PR_NUM" --repo "$REPO" --body \
@@ -244,7 +247,7 @@ jobs:
       # installs whatever the repo's own gate needs via Bash (same as eva-implement).
       - name: Detect project type
         id: detect
-        if: steps.ctx.outputs.skip != 'true'
+        if: steps.ctx.outputs.skip != 'true' && steps.budget.outputs.skip != 'true'
         run: |
           if [ -f pyproject.toml ]; then
             echo "python=true" >> "$GITHUB_OUTPUT"
@@ -255,17 +258,17 @@ jobs:
           fi
 
       - name: Set up Python 3.13
-        if: steps.ctx.outputs.skip != 'true' && steps.detect.outputs.python == 'true'
+        if: steps.ctx.outputs.skip != 'true' && steps.budget.outputs.skip != 'true' && steps.detect.outputs.python == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
 
       - name: Install uv
-        if: steps.ctx.outputs.skip != 'true' && steps.detect.outputs.python == 'true'
+        if: steps.ctx.outputs.skip != 'true' && steps.budget.outputs.skip != 'true' && steps.detect.outputs.python == 'true'
         uses: astral-sh/setup-uv@v4
 
       - name: Install dependencies
-        if: steps.ctx.outputs.skip != 'true' && steps.detect.outputs.python == 'true'
+        if: steps.ctx.outputs.skip != 'true' && steps.budget.outputs.skip != 'true' && steps.detect.outputs.python == 'true'
         run: uv sync --group dev 2>/dev/null || uv sync
 
       # The prompt lives in EVA (this workflow's repo). When the fixer targets a
@@ -276,7 +279,7 @@ jobs:
       # CONSTRAINT: eva-fix-pr.md must never contain the literal string
       # "EVA_FIX_PROMPT_EOF" on a line by itself (heredoc delimiter).
       - name: Load fix prompt
-        if: steps.ctx.outputs.skip != 'true'
+        if: steps.ctx.outputs.skip != 'true' && steps.budget.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           PROMPT_REPO: ${{ github.repository }}
@@ -298,7 +301,7 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Run Fix agent
-        if: steps.ctx.outputs.skip != 'true'
+        if: steps.ctx.outputs.skip != 'true' && steps.budget.outputs.skip != 'true'
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -327,7 +330,7 @@ jobs:
       # the PR does not silently strand. No claim label to release (unlike
       # eva-implement) — the loop is bounded by the [pr-fix-N] budget regardless.
       - name: Note failure
-        if: failure() && steps.ctx.outputs.skip == 'false'
+        if: failure() && steps.ctx.outputs.skip == 'false' && steps.budget.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           REPO: ${{ steps.ctx.outputs.repo }}
