@@ -83,19 +83,35 @@ jobs:
     timeout-minutes: 50
 
     # DORMANT until the operator sets repo variable EVA_IMPLEMENT_ENABLED=true.
-    # Then build ONLY for trusted authors:
-    #   - issues: the `approved` label on a non-PR issue whose AUTHOR is a
-    #     MEMBER or OWNER. This author gate is a hard security boundary, NOT
-    #     redundant with the router: eva-on-issue.yml gates the `approved`
-    #     verdict on clarity + low-risk ONLY, not author association — so a
-    #     non-member's issue CAN get `approved`. Without this gate, that
-    #     non-member's issue body would become trusted requirements for an
-    #     autonomous agent holding the ievo-eva App token (org-wide write) +
-    #     Bash/Write/WebFetch (a prompt-injection → token path). MEMBER/OWNER
-    #     also inherently excludes bots (bots are never MEMBER/OWNER).
+    # Then build ONLY for trusted authors. This author gate is a hard security
+    # boundary, NOT redundant with the router: eva-on-issue.yml gates the
+    # `approved` verdict on clarity + low-risk ONLY (member path) or on a
+    # skeptic-mode self-approve (bot path) — so trust MUST be re-verified here,
+    # at the CONSUMING workflow, never relying solely on the label producer.
+    #
+    # Trust matrix (eva#132 — kept identical to forward-to-eva.yml's gate):
+    #   (issue author = human MEMBER/OWNER)
+    #     OR
+    #   (issue author = ievo-eva[bot] AND the `approved` sender ∈
+    #        {human MEMBER/OWNER, ievo-eva[bot]})
+    # The bot path admits Eva's OWN skeptic-mode self-approvals (sender = the
+    # App) and one-click human adoption of a bot proposal (sender = operator).
+    # We pin the EXACT App login (`ievo-eva[bot]`), never a general `user.type`
+    # relaxation — otherwise any installed bot becomes an autonomous-build source
+    # (eva#132 security note). Without the human-MEMBER/OWNER floor on the member
+    # path, a non-member's issue body would become trusted requirements for an
+    # agent holding the ievo-eva App token (org-wide write) + Bash/Write/WebFetch
+    # (a prompt-injection → token path).
+    #
+    #   - issues: the coarse if: below admits the candidate (author is a
+    #     MEMBER/OWNER, OR author is the App AND the label sender is a User/the
+    #     App). The `Claim issue` step then PRECISELY verifies the sender's repo
+    #     permission via the API for the bot path (fail-safe: refuse on <write).
     #   - repository_dispatch: the trusted forwarder MUST supply
-    #     client_payload.author_association (the upstream issue author's
-    #     association); we build only for MEMBER/OWNER (Phase 2 contract).
+    #     client_payload.author_association (upstream author's association) and,
+    #     for the bot path, client_payload.issue_author_login +
+    #     approved_by_association / approved_by_login (who applied `approved`).
+    #     Phase 2 contract — the skills forward-to-eva.yml gate mirrors this.
     if: >
       vars.EVA_IMPLEMENT_ENABLED == 'true' &&
       (
@@ -103,11 +119,18 @@ jobs:
          github.event.label.name == 'approved' &&
          !github.event.issue.pull_request &&
          (github.event.issue.author_association == 'MEMBER' ||
-          github.event.issue.author_association == 'OWNER'))
+          github.event.issue.author_association == 'OWNER' ||
+          (github.event.issue.user.login == 'ievo-eva[bot]' &&
+           (github.event.sender.type == 'User' ||
+            github.event.sender.login == 'ievo-eva[bot]'))))
         ||
         (github.event_name == 'repository_dispatch' &&
          (github.event.client_payload.author_association == 'MEMBER' ||
-          github.event.client_payload.author_association == 'OWNER'))
+          github.event.client_payload.author_association == 'OWNER' ||
+          (github.event.client_payload.issue_author_login == 'ievo-eva[bot]' &&
+           (github.event.client_payload.approved_by_association == 'MEMBER' ||
+            github.event.client_payload.approved_by_association == 'OWNER' ||
+            github.event.client_payload.approved_by_login == 'ievo-eva[bot]'))))
       )
 
     steps:
@@ -177,7 +200,43 @@ jobs:
           REPO: ${{ steps.ctx.outputs.repo }}
           ISSUE_NUM: ${{ steps.ctx.outputs.issue_number }}
           MAX_INFLIGHT: ${{ vars.EVA_MAX_INFLIGHT || '3' }}
+          EVENT_NAME: ${{ github.event_name }}
+          ISSUE_AUTHOR: ${{ github.event.issue.user.login }}
+          APPROVED_BY: ${{ github.event.sender.login }}
         run: |
+          # eva#132 — PRECISE trust re-verification for the SELF-AUTHORED
+          # (ievo-eva[bot]) issues:[labeled] path. The job `if:` only coarsely
+          # admitted (sender.type==User OR the App); confirm here that the
+          # `approved` sender is actually trusted, because the webhook carries no
+          # sender-association field. Trusted = the Eva App itself (skeptic-mode
+          # self-approve), OR a human with admin/write on the repo (a MEMBER/OWNER
+          # able to apply labels in this org — one-click adoption). Fail-safe:
+          # refuse (skip) on anything less. Consuming workflow gates on trust.
+          if [ "$EVENT_NAME" = "issues" ] && [ "$ISSUE_AUTHOR" = "ievo-eva[bot]" ]; then
+            if [ "$APPROVED_BY" = "ievo-eva[bot]" ]; then
+              # App self-approve. NEVER allowed on eva's OWN repo — Eva must not
+              # autonomously build her own automation (eva#132 answer #6). The
+              # Router already holds eva-repo bot issues; this is belt-and-
+              # suspenders at the consuming workflow. A human unlock (sender is a
+              # MEMBER/OWNER, handled below) IS still allowed for eva.
+              if [ "$REPO" = "ievo-ai/eva" ]; then
+                echo "Refusing App self-approve on ievo-ai/eva (eva-self exception, fail-safe)."
+                echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+              fi
+              echo "Self-approved by the Eva App — trusted (skeptic-mode self-approve)."
+            else
+              PERM=$(gh api "repos/$REPO/collaborators/$APPROVED_BY/permission" \
+                --jq '.permission' 2>/dev/null || echo "none")
+              case "$PERM" in
+                admin|write)
+                  echo "approved by $APPROVED_BY ($PERM) — trusted human unlock." ;;
+                *)
+                  echo "approved sender $APPROVED_BY lacks write ($PERM) — refusing (fail-safe)."
+                  echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0 ;;
+              esac
+            fi
+          fi
+
           LABELS=$(gh issue view "$ISSUE_NUM" --repo "$REPO" --json labels \
             --jq '[.labels[].name] | join(" ")')
 

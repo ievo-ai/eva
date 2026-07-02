@@ -248,6 +248,15 @@ jobs:
                 pre-2026-05-22 PM):
                 `gh issue list --repo ievo-ai/skills --state open
                 --label eva-proposal --json number,title`
+              - CLOSED issues Eva's skeptic mode already REJECTED (eva#132):
+                `gh issue list --repo ievo-ai/skills --state closed
+                --label eva-rejected --json number,title`
+                A once-refuted finding must NOT resurface under a new number
+                every daily audit. If a candidate matches a closed
+                `eva-rejected` issue by SUBSTANCE (the concrete gap, not the
+                wording), do NOT re-file. If genuinely new evidence changes the
+                picture, COMMENT on the rejected issue instead and let a human
+                decide whether to unlock it (re-apply `approved`).
               - Merge with `discovered_already` from backlog.
 
             SUBJECT-KEY dedup — MANDATORY, stronger than title matching.
@@ -387,6 +396,9 @@ jobs:
                 `researches/findings-backlog.md` (any status) OR any
                 open `feature-proposal` issue in the target repo
                 (you pre-loaded both sets in Step 1)
+              - Not matching any CLOSED `eva-rejected` issue in the target
+                repo (eva#132 — a skeptic-refuted idea stays dead until a
+                human unlocks it; comment on it instead of re-filing)
 
             Strong preference: at least ONE finding per run if Step 4
             surfaced anything notable. Many zero-finding runs in a row =
@@ -549,6 +561,32 @@ jobs:
             Hard cap: 5 skills PRs per run. If you'd open a sixth, stop
             and list it as deferred in the audit report (Step 6 below).
 
+            ## Step 5b — Gather self-triage stats for the digest (eva#132)
+
+            The daily report doubles as the operator's OVERSIGHT channel for
+            Eva's self-triage — the skeptic-mode dispositions on her OWN
+            bot-authored issues. Post-hoc review of this list (plus the
+            one-command revert of any bad merge) is what replaces pre-approval
+            for the low-risk self-approve tier, so it MUST appear every run.
+
+            For each repo Eva audits (ievo-ai/skills today; add others as they
+            onboard forwarders), collect the last-24h dispositions:
+              - APPROVED — bot-authored issues that received an `approved` label
+                FROM the Eva App in the window (timeline `labeled` events, actor
+                `ievo-eva[bot]`) — the same signal the Router's self-approve cap
+                counts.
+              - REJECTED — issues labeled `eva-rejected` closed in the window:
+                  gh issue list --repo ievo-ai/skills --state closed \
+                    --label eva-rejected \
+                    --search "closed:>=$(date -u -d '1 day ago' +%Y-%m-%d)" \
+                    --json number,title,closedAt
+              - HELD — issues currently labeled `eva-hold-high-risk` (open):
+                  gh issue list --repo ievo-ai/skills --state open \
+                    --label eva-hold-high-risk --json number,title,updatedAt
+            If any query errors, record "unavailable" for that repo rather than
+            dropping the section. Render the result in Step 6 under
+            "Self-triage last 24h".
+
             ## Step 6 — Write the audit report
 
             Even if you opened zero PRs in Step 5 — ESPECIALLY then — this
@@ -597,6 +635,16 @@ jobs:
             ## Deferred findings
             - <one-line finding>: <reason it wasn't opened — "needs deeper investigation" / "duplicate of #N" / "below threshold" / "blocked on spec finalization">
             - (or "none")
+
+            ## Self-triage last 24h (eva#132)
+            Skeptic-mode dispositions on Eva's OWN bot-authored issues, per repo
+            (the oversight channel that replaces pre-approval for the low-risk
+            tier — data from Step 5b):
+            - <repo>: approved <A> / rejected <R> / held <H>
+              - approved: #<n> <title> (self-approved — safe-path + under cap)
+              - rejected: #<n> <title> (<which refutation failed>)
+              - held: #<n> <title> (<out-of-tier / cap-exhausted / eva-self / no-evidence>)
+            - (or "none — no self-authored issues triaged in the window")
 
             ## Blockers
             - <any token-scope issue, rule-conflict, infra problem>
