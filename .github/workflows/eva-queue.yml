@@ -21,8 +21,11 @@
 # Safety:
 #   - Reuses the SAME build path as the reactive forwarder
 #     (repository_dispatch:implement-issue) — no parallel build logic.
-#   - Author-trust gated HERE (consuming actor): dispatches only for an issue
-#     whose author is MEMBER/OWNER. Does not assume an upstream enforced it.
+#   - Trust gated HERE (consuming actor) on the eva#132 matrix, identical to
+#     eva-implement's own gate: dispatches for an issue whose author is a human
+#     MEMBER/OWNER, OR whose author is ievo-eva[bot] AND `approved` was applied
+#     by a human MEMBER/OWNER or the App itself (resolved from the label
+#     timeline). Does not assume an upstream enforced it; fail-safe skip.
 #   - Per-repo slot math (cap − in-flight) caps dispatch; eva-implement re-checks
 #     the claim + rate-limit on its side, and its per-issue concurrency group
 #     no-ops any duplicate vs the reactive path. The cap is best-effort (a
@@ -34,9 +37,10 @@
 #     cap=1 before the schedule was enabled.
 #
 # Watch-list = the D-004 repos EXCEPT godfather (operator's private command
-# center) and skills (still runs v1 issue-pipeline with conflicting label
-# semantics — joins when v1 is removed). Harmless for not-yet-onboarded repos:
-# they simply have no `approved` issues, so the sweep is a no-op there.
+# center). skills joined the list once its v1 issue-pipeline was removed
+# (skills#277, 2026-07-02) — the conflicting `approved` label semantics that
+# kept it out are gone. Harmless for not-yet-onboarded repos: they simply have
+# no `approved` issues, so the sweep is a no-op there.
 
 name: "Eva: Approved-Queue Executor"
 
@@ -92,13 +96,14 @@ jobs:
       - name: Drain approved queue
         env:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
-          # Space-separated watch-list (owner/repo). Excludes godfather + skills.
+          # Space-separated watch-list (owner/repo). Excludes godfather only.
           WATCH_LIST: >-
             ievo-ai/eva
             ievo-ai/cli
             ievo-ai/marketplace
             ievo-ai/curator
             ievo-ai/sdk
+            ievo-ai/skills
             ievo-ai/agents
             ievo-ai/cortex
             ievo-ai/ievo.ai
@@ -154,13 +159,57 @@ jobs:
                 TOTAL_SKIPPED=$(( TOTAL_SKIPPED + 1 )); continue
               fi
 
-              # Author-trust gate (this workflow is the consuming actor).
-              case "$ASSOC" in
-                MEMBER|OWNER) : ;;
-                *)
-                  echo "  $REPO#$N — author $AUTHOR is $ASSOC (not MEMBER/OWNER), skip"
-                  TOTAL_SKIPPED=$(( TOTAL_SKIPPED + 1 )); continue ;;
-              esac
+              # Trust gate (eva#132 matrix — this workflow is the consuming
+              # actor; kept identical to eva-implement.yml's repository_dispatch
+              # gate, which re-verifies on its side). Admit either:
+              #   (a) issue author is a human MEMBER/OWNER, or
+              #   (b) issue author is ievo-eva[bot] AND `approved` was applied by
+              #       a human MEMBER/OWNER (one-click adoption) or by the App
+              #       itself (skeptic-mode self-approve).
+              # For the bot case we resolve WHO applied `approved` (the label
+              # sender is not on a poll, so read it from the timeline) and map
+              # their repo permission to the association eva-implement expects —
+              # the same admin→OWNER / write→MEMBER mapping as skills#283's
+              # forward-to-eva "Resolve approved-by trust" step. Fail-safe: any
+              # lookup error / insufficient permission → skip THIS issue.
+              APPROVED_BY_LOGIN=""
+              APPROVED_BY_ASSOC="NONE"
+              if [ "$AUTHOR" = "ievo-eva[bot]" ]; then
+                # Most-recent `labeled:approved` event wins (the label may have
+                # been toggled). Streaming select over --paginate + tail -n 1,
+                # the same timeline pattern the Router uses for its daily cap.
+                APPROVED_BY_LOGIN=$(gh api "repos/$REPO/issues/$N/timeline" --paginate \
+                  --jq '.[] | select(.event=="labeled" and .label.name=="approved") | .actor.login' \
+                  2>/dev/null | tail -n 1 || true)
+                if [ "$APPROVED_BY_LOGIN" = "ievo-eva[bot]" ]; then
+                  # App self-approve — eva-implement admits it via approved_by_login;
+                  # association stays NONE (matches skills#283).
+                  APPROVED_BY_ASSOC="NONE"
+                elif [ -n "$APPROVED_BY_LOGIN" ]; then
+                  PERM=$(gh api "repos/$REPO/collaborators/$APPROVED_BY_LOGIN/permission" \
+                    --jq '.permission' 2>/dev/null || echo "none")
+                  case "$PERM" in
+                    admin) APPROVED_BY_ASSOC="OWNER" ;;
+                    write) APPROVED_BY_ASSOC="MEMBER" ;;
+                    *)     APPROVED_BY_ASSOC="NONE" ;;
+                  esac
+                fi
+                # Admit only a trusted applier; otherwise fail-safe skip.
+                if [ "$APPROVED_BY_LOGIN" != "ievo-eva[bot]" ] \
+                   && [ "$APPROVED_BY_ASSOC" != "MEMBER" ] \
+                   && [ "$APPROVED_BY_ASSOC" != "OWNER" ]; then
+                  echo "  $REPO#$N — bot-authored, but 'approved' applier '${APPROVED_BY_LOGIN:-unknown}' is not trusted (assoc=$APPROVED_BY_ASSOC), skip"
+                  TOTAL_SKIPPED=$(( TOTAL_SKIPPED + 1 )); continue
+                fi
+              else
+                # Non-bot author must be a human MEMBER/OWNER (unchanged floor).
+                case "$ASSOC" in
+                  MEMBER|OWNER) : ;;
+                  *)
+                    echo "  $REPO#$N — author $AUTHOR is $ASSOC (not MEMBER/OWNER), skip"
+                    TOTAL_SKIPPED=$(( TOTAL_SKIPPED + 1 )); continue ;;
+                esac
+              fi
 
               if [ "$SLOTS" -le 0 ]; then
                 echo "  $REPO#$N — queued, but no free slots (inflight=$INFLIGHT/$MAX_INFLIGHT), defer to next sweep"
@@ -171,7 +220,10 @@ jobs:
                 jq -nc \
                   --arg repo "$REPO" --argjson num "$N" \
                   --arg assoc "$ASSOC" --arg by "$AUTHOR" \
-                  '{event_type:"implement-issue", client_payload:{repo:$repo, issue_number:$num, author_association:$assoc, triggered_by:$by}}' \
+                  --arg author_login "$AUTHOR" \
+                  --arg approved_by "$APPROVED_BY_LOGIN" \
+                  --arg approved_assoc "$APPROVED_BY_ASSOC" \
+                  '{event_type:"implement-issue", client_payload:{repo:$repo, issue_number:$num, author_association:$assoc, issue_author_login:$author_login, approved_by_login:$approved_by, approved_by_association:$approved_assoc, triggered_by:$by}}' \
                   | gh api "repos/ievo-ai/eva/dispatches" --input -
                 echo "  $REPO#$N — DISPATCHED implement-issue (author $AUTHOR/$ASSOC)"
                 SLOTS=$(( SLOTS - 1 ))
