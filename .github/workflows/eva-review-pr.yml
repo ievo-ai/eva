@@ -577,7 +577,9 @@ jobs:
               fi
             done
           fi
-          [ -z "$merged" ] && echo "Could not merge now and could not enable auto-merge — operator may need to merge manually (check mergeable state / branch protection / allowed merge methods)."
+          if [ -z "$merged" ]; then
+            echo "Could not merge now and could not enable auto-merge — operator may need to merge manually (check mergeable state / branch protection / allowed merge methods)."
+          fi
 
       # --- Operator-required comment on sensitive PRs ---
       - name: Operator-required notification
