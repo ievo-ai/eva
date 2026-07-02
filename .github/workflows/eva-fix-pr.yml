@@ -209,8 +209,32 @@ jobs:
           token: ${{ steps.auth.outputs.token }}
           fetch-depth: 0
 
-      - name: Configure git identity
+      # --- HARD budget guard (review finding on eva#137): the 5-round budget is
+      # primarily enforced by the fixer prompt, but an LLM miscount or ignored
+      # instruction must not be able to loop. Count [pr-fix-N] markers in the
+      # branch history deterministically and stop BEFORE the agent runs. ---
+      - name: Enforce fix budget (hard guard)
+        id: budget
         if: steps.ctx.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          REPO: ${{ steps.ctx.outputs.repo }}
+          PR_NUM: ${{ steps.ctx.outputs.pr_number }}
+          MAX_ROUNDS: 5
+        run: |
+          ROUNDS=$(git log --oneline origin/main..HEAD 2>/dev/null | grep -c "\[pr-fix-" || true)
+          echo "Fix rounds already on this branch: $ROUNDS (max $MAX_ROUNDS)"
+          if [ "$ROUNDS" -ge "$MAX_ROUNDS" ]; then
+            gh issue edit "$PR_NUM" --repo "$REPO" --add-label eva-fix-budget-exhausted 2>/dev/null || true
+            gh pr comment "$PR_NUM" --repo "$REPO" --body \
+              "Fix budget exhausted ($ROUNDS/$MAX_ROUNDS \`[pr-fix-N]\` rounds) — hard workflow guard, independent of the fixer agent. Operator review needed; the fixer will not run again on this PR." || true
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Configure git identity
+        if: steps.ctx.outputs.skip != 'true' && steps.budget.outputs.skip != 'true'
         run: |
           git config --global user.name "iEVO Eva"
           git config --global user.email "noreply@ievo.ai"
