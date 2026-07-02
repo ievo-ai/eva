@@ -66,14 +66,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-07-02T07:21:05Z
-status: changed
-run_id: 28572513053
+last_scan: 2026-07-02T09:10:00Z
+status: unchanged
+run_id: 28578697520
 ```
 
-**Summary:** v2.1.198 (2026-07-01, 20:45) is now the latest — new `Notification` hook matchers `agent_needs_input`/`agent_completed` for `claude agents` background sessions (triggered F-2026-07-02-001); malformed SKILL.md frontmatter now degrades gracefully (loads body with empty metadata instead of failing); Explore agent now inherits main session model (capped opus) instead of haiku; subagents/compaction inherit extended-thinking config; background agents auto-commit+push+draft-PR on finish instead of stopping to ask.
+**Summary:** v2.1.198 (2026-07-01, 20:45) is still the latest — new `Notification` hook matchers `agent_needs_input`/`agent_completed` for `claude agents` background sessions (triggered F-2026-07-02-001); malformed SKILL.md frontmatter now degrades gracefully (loads body with empty metadata instead of failing); Explore agent now inherits main session model (capped opus) instead of haiku; subagents/compaction inherit extended-thinking config; background agents auto-commit+push+draft-PR on finish instead of stopping to ask.
 
 History:
+- 2026-07-02T09:10:00Z — unchanged: re-confirmed ~2h after prior scan, still v2.1.198, no newer release
 - 2026-07-02T07:21:05Z — changed: v2.1.198 (July 1) — Notification hook agent_needs_input/agent_completed matchers (triggered F-2026-07-02-001); malformed SKILL.md frontmatter graceful degradation; Explore agent model inheritance; background agents auto-PR on finish
 - 2026-07-01T00:00:00Z — changed: v2.1.197 (June 30) — Sonnet 5 default model, 1M context; v2.1.196 detail confirmed: sandbox.credentials setting, destructive-git auto-mode block, mcp login/logout commands, display-name/default-enabled/fallback now case-insensitive (kebab/snake/camel)
 - 2026-06-30T00:00:00Z — changed: v2.1.196 (June 29); ${CLAUDE_PROJECT_DIR} skill variable; MCP untrusted-workspace spawn restriction; disable-model-invocation prevents scheduled task runs; hook matcher hyphen exact-match confirmed fixed
@@ -98,14 +99,15 @@ History:
 ## https://github.com/anthropics/claude-code-action/releases
 
 ```yaml
-last_scan: 2026-07-02T07:21:05Z
-status: changed
-run_id: 28572513053
+last_scan: 2026-07-02T09:10:00Z
+status: unchanged
+run_id: 28578697520
 ```
 
-**Summary:** v1.0.162 (2026-07-01) is now the latest — added `agent-approval-check` composite action, incremental patch. eva#65 (workflow migration off deprecated v0.x inputs) **RESOLVED AND CLOSED this run** — verified directly via `grep` that none of eva's workflows use deprecated inputs (eva-review-pr.yml doesn't even use this Action; eva-on-issue.yml/eva-research.yml/eva-implement.yml are already on `@v1` with zero v0.x inputs). This confirms the operator's 2026-05-25 triage comment on the issue, which 7+ consecutive research runs failed to read before re-deferring. See eva#65 (closed) and findings-backlog.md F-2026-05-25-003 (status: rejected).
+**Summary:** v1.0.162 (2026-07-01) is still the latest dated release — added `agent-approval-check` composite action, incremental patch. eva#65 (workflow migration off deprecated v0.x inputs) resolved and closed 2026-07-02 — verified directly via `grep` that none of eva's workflows use deprecated inputs. See eva#65 (closed) and findings-backlog.md F-2026-05-25-003 (status: rejected).
 
 History:
+- 2026-07-02T09:10:00Z — unchanged: re-confirmed ~2h after prior scan, still v1.0.162; page also shows a floating `v1` major-version tag (ambiguous "26 Aug" date, no year) pointing at the same commit — not a new release, noted for future scans to avoid a false "changed" read
 - 2026-07-02T07:21:05Z — changed: v1.0.162 (July 1) — agent-approval-check composite action; eva#65 resolved+closed this run after direct verification (grep confirmed zero deprecated inputs across all eva workflows)
 - 2026-07-01T00:00:00Z — changed: v1.0.161 (June 30) patch release; eva#65 still open, 7th consecutive deferral, escalated
 - 2026-06-30T00:00:00Z — changed: v1.0.134–v1.0.160 since last scan; v1.0.160 unified interface (automatic mode detection); eva#65 still open + overdue
@@ -160,14 +162,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-07-02T07:21:05Z
+last_scan: 2026-07-02T09:10:00Z
 status: unchanged
-run_id: 28572513053
+run_id: 28578697520
 ```
 
 **Summary:** v0.142.5 (2026-07-01) still latest stable (WebSocket trace-log fix). v0.143.0-alpha.33 (2026-07-02) still pre-release, no changelog. No stable v0.143.0 yet; no hook/MCP/skill-format changes.
 
 History:
+- 2026-07-02T09:10:00Z — unchanged: re-confirmed ~2h after prior scan, still v0.142.5 stable / alpha.33 pre-release
 - 2026-07-02T07:21:05Z — unchanged: v0.142.5 still latest stable; v0.143.0-alpha.33 (July 2) still pre-release, no changelog; no hook/MCP/skill-format changes
 - 2026-07-01T00:00:00Z — changed: v0.142.5 (Jul 1, WebSocket logging fix); v0.143.0-alpha.32 (Jul 1) still pre-release; no stable v0.143.0
 - 2026-06-30T00:00:00Z — unchanged: no stable releases since rust-v0.142.4; alpha.31 still pre-release with no changelog
