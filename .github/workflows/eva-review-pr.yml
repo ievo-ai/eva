@@ -609,6 +609,7 @@ jobs:
 
       # --- Auto-merge on approval (only if not sensitive) ---
       - name: Auto-merge
+        id: merge
         if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large != 'true' && steps.review.outputs.decision == 'APPROVE' && steps.sensitive.outputs.is_sensitive == 'false'
         env:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
@@ -633,6 +634,16 @@ jobs:
             fi
           done
 
+          # eva#144: signal a DIRECT merge only. A direct merge completes
+          # synchronously — the PR is merged now, its linked issue closes, and the
+          # build slot it held is genuinely free this instant, so the drain-queue
+          # kick (next step) can retry a deferred issue immediately. The --auto
+          # fallback below only QUEUES the merge (slot not free yet), so it
+          # deliberately does NOT set this; the queue cron is the backstop there.
+          if [ -n "$merged" ]; then
+            echo "direct_merged=true" >> "$GITHUB_OUTPUT"
+          fi
+
           # If no direct merge worked, the PR may just be momentarily behind main
           # or a required check still settling — QUEUE via --auto (same method
           # order). `gh pr merge --auto` ALONE silently no-ops on an already-clean
@@ -647,6 +658,48 @@ jobs:
           if [ -z "$merged" ]; then
             echo "Could not merge now and could not enable auto-merge — operator may need to merge manually (check mergeable state / branch protection / allowed merge methods)."
           fi
+
+      # --- Event-driven queue kick on freed slot (eva#144) ---
+      # The instant a DIRECT auto-merge of an `eva-impl/*` PR completes, the
+      # in-flight build slot that PR held is free. Fire repository_dispatch
+      # (drain-queue) so eva-queue.yml immediately retries any issue that
+      # eva-implement deferred on the MAX_INFLIGHT cap — instead of it sitting up
+      # to ~2.5h until the schedule-skewed queue cron. The cron stays as the
+      # fail-safe backstop (e.g. this run dying before reaching here).
+      #
+      # Scoped to `eva-impl/*` head refs: those are the ONLY slot-consuming
+      # branches. Other merged PRs (human, research audits) hold no in-flight slot,
+      # so kicking the sweep for them would be a wasted no-op. Gated on the Auto-
+      # merge step's `direct_merged` output — the --auto (queued) path leaves the
+      # slot occupied until the merge later completes, so it must NOT kick here.
+      #
+      # No new trust surface (eva#132 contract unchanged): the dispatch carries NO
+      # payload, and eva-queue's sweep re-discovers + re-trust-gates every queued
+      # issue itself, identical to the cron path. Sent with the App/PAT token (not
+      # the automatic GITHUB_TOKEN, which cannot start a workflow via
+      # repository_dispatch). Dispatched to ievo-ai/eva — where eva-queue.yml lives
+      # — regardless of which repo the merged PR was in, matching the fix-pr
+      # dispatch pattern above.
+      - name: Kick approved-queue drain on freed slot
+        if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large != 'true' && steps.merge.outputs.direct_merged == 'true'
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          REPO: ${{ steps.ctx.outputs.repo }}
+          PR_NUM: ${{ steps.ctx.outputs.pr_number }}
+        run: |
+          # Only an eva-impl/* PR merge frees an in-flight build slot.
+          HEAD_REF=$(gh api "repos/$REPO/pulls/$PR_NUM" --jq '.head.ref')
+          case "$HEAD_REF" in
+            eva-impl/*) : ;;
+            *)
+              echo "Merged head branch '$HEAD_REF' is not eva-impl/* — no build slot freed, no drain kick."
+              exit 0 ;;
+          esac
+
+          # Payload-free dispatch; event_type MUST match eva-queue.yml's
+          # `repository_dispatch: types: [drain-queue]`.
+          echo '{"event_type":"drain-queue"}' | gh api "repos/ievo-ai/eva/dispatches" --input -
+          echo "Dispatched drain-queue after merging $REPO#$PR_NUM (branch $HEAD_REF freed a slot)"
 
       # --- Operator-required comment on sensitive PRs ---
       - name: Operator-required notification
