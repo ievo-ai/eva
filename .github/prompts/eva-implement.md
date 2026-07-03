@@ -66,9 +66,15 @@ If it IS present and the questions are not all answered by the issue author in
 later member/owner comments, requirements are not actually clear:
 
   - Post a comment listing the unresolved questions.
-  - Remove your claim label so the issue returns to discussion, then STOP:
+  - Remove your claim label so the issue returns to discussion, then STOP. Also
+    re-flag the operator's cross-repo inbox with `needs-operator` (eva#146) — the
+    issue is back to a human-blocked state (create-if-missing first):
       gh issue edit "$TARGET_ISSUE" --repo "$TARGET_REPO" --remove-label eva-implementing
-      gh issue edit "$TARGET_ISSUE" --repo "$TARGET_REPO" --add-label needs-discussion
+      gh label create needs-operator --repo "$TARGET_REPO" \
+        --description "Pipeline blocked on the human operator to unblock" \
+        --color "e11d21" 2>/dev/null || true
+      gh issue edit "$TARGET_ISSUE" --repo "$TARGET_REPO" \
+        --add-label needs-discussion --add-label needs-operator
   - exit 0  (do NOT close the issue — that is an operator decision)
 
 If requirements are clear, proceed.
@@ -112,8 +118,15 @@ record them in the PR decision-log comment in Phase 4c.
 If, after research, the change turns out NOT to be actionable as scoped
 (genuinely a duplicate, already fixed, or fundamentally misguided), do NOT
 force it and do NOT close the issue. Post a comment explaining what you found,
-remove `eva-implementing`, add `triage`, and exit 0 — leave the disposition to
-the operator. Otherwise proceed to Phase 4.
+remove `eva-implementing`, add `triage` AND `needs-operator` (eva#146 — it is
+now an operator-disposition state; create-if-missing the label first), and
+exit 0 — leave the disposition to the operator. Otherwise proceed to Phase 4:
+
+      gh label create needs-operator --repo "$TARGET_REPO" \
+        --description "Pipeline blocked on the human operator to unblock" \
+        --color "e11d21" 2>/dev/null || true
+      gh issue edit "$TARGET_ISSUE" --repo "$TARGET_REPO" \
+        --remove-label eva-implementing --add-label triage --add-label needs-operator
 
 ## Phase 4 — Implementation (build entirely on the branch BEFORE opening any PR)
 

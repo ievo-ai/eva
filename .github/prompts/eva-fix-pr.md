@@ -70,9 +70,14 @@ If `USED >= FIX_BUDGET` the budget is spent — do NOT fix. Comment, label, stop
   gh label create eva-fix-budget-exhausted --repo "$TARGET_REPO" \
     --description "Eva's review-fix budget for this PR is spent — operator owns it" \
     --color "b60205" 2>/dev/null || true
+  gh label create needs-operator --repo "$TARGET_REPO" \
+    --description "Pipeline blocked on the human operator to unblock" \
+    --color "e11d21" 2>/dev/null || true
   gh pr comment "$TARGET_PR" --repo "$TARGET_REPO" --body \
     "Eva's automatic review-fix budget ($FIX_BUDGET rounds) is spent for this PR — the findings still aren't resolved after $USED fix attempts. Handing this to the operator: please inspect the outstanding review, fix manually or close, then remove the \`eva-fix-budget-exhausted\` label to re-enable the fixer."
-  gh issue edit "$TARGET_PR" --repo "$TARGET_REPO" --add-label eva-fix-budget-exhausted
+  # eva#146: flag the operator's cross-repo inbox alongside the specific label.
+  gh issue edit "$TARGET_PR" --repo "$TARGET_REPO" \
+    --add-label eva-fix-budget-exhausted --add-label needs-operator
   # STOP — exit 0. Do not push, do not merge.
 
 Otherwise the next commit's marker will be `[pr-fix-$NEXT]`.
@@ -126,7 +131,15 @@ slot (nothing was pushed):
   gh label create eva-handoff-workflows --repo "$TARGET_REPO" \
     --description "Eva's fix needs a workflow-file change the App can't push — operator must apply" \
     --color "b60205" 2>/dev/null || true
-  gh issue edit "$TARGET_PR" --repo "$TARGET_REPO" --add-label eva-handoff-workflows
+  gh label create needs-operator --repo "$TARGET_REPO" \
+    --description "Pipeline blocked on the human operator to unblock" \
+    --color "e11d21" 2>/dev/null || true
+  # eva#146: a workflow-file hand-off is operator-owned — flag the cross-repo inbox
+  # alongside the specific label. (Removal is MANUAL in v1: the operator's hand-
+  # carried PR closes the issue via "Closes #N"; issue-close is the removal
+  # backstop — a closed issue must never keep `needs-operator`.)
+  gh issue edit "$TARGET_PR" --repo "$TARGET_REPO" \
+    --add-label eva-handoff-workflows --add-label needs-operator
   git reset   # unstage; leave the tree as-is
   # STOP — exit 0. Do not push, do not merge.
 

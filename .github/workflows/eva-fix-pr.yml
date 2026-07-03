@@ -228,7 +228,14 @@ jobs:
           ROUNDS=$(git log --format='%s' "origin/$BASE..HEAD" 2>/dev/null | grep -cE '\[pr-fix-[0-9]+\]' || true)
           echo "Fix rounds already on this branch: $ROUNDS (max $MAX_ROUNDS, base $BASE)"
           if [ "$ROUNDS" -ge "$MAX_ROUNDS" ]; then
-            gh issue edit "$PR_NUM" --repo "$REPO" --add-label eva-fix-budget-exhausted 2>/dev/null || true
+            # eva#146 — a spent fix budget is an operator-owned state; surface it
+            # in the operator's cross-repo inbox alongside the specific terminal
+            # label. Both via the App token (steps.auth) already in this step.
+            gh label create needs-operator --repo "$REPO" \
+              --description "Pipeline blocked on the human operator to unblock" \
+              --color "e11d21" 2>/dev/null || true
+            gh issue edit "$PR_NUM" --repo "$REPO" \
+              --add-label eva-fix-budget-exhausted --add-label needs-operator 2>/dev/null || true
             gh pr comment "$PR_NUM" --repo "$REPO" --body \
               "Fix budget exhausted ($ROUNDS/$MAX_ROUNDS \`[pr-fix-N]\` rounds) — hard workflow guard, independent of the fixer agent. Operator review needed; the fixer will not run again on this PR." || true
             echo "skip=true" >> "$GITHUB_OUTPUT"
