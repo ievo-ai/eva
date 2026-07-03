@@ -66,14 +66,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-07-02T09:10:00Z
-status: unchanged
-run_id: 28578697520
+last_scan: 2026-07-03T00:00:00Z
+status: changed
+run_id: null
 ```
 
-**Summary:** v2.1.198 (2026-07-01, 20:45) is still the latest — new `Notification` hook matchers `agent_needs_input`/`agent_completed` for `claude agents` background sessions (triggered F-2026-07-02-001); malformed SKILL.md frontmatter now degrades gracefully (loads body with empty metadata instead of failing); Explore agent now inherits main session model (capped opus) instead of haiku; subagents/compaction inherit extended-thinking config; background agents auto-commit+push+draft-PR on finish instead of stopping to ask.
+**Summary:** v2.1.199 (2026-07-02, 23:35) is latest — no new SKILL.md/agent frontmatter fields; mostly bug fixes: `SessionStart`/`Setup`/`SubagentStart` hooks no longer silently hide stderr on exit code 2; `SendMessage` misrouting fix for re-spawned agents reusing a prior name; subagent messages from the launcher are now treated as task direction (never as user approval); stacked slash-skill invocations (`/skill-a /skill-b do XYZ`) now load all leading skills (up to 5) instead of just the first, each getting the trailing text as `$ARGUMENTS` — a Claude Code CLI-invocation behavior with no SKILL.md/AGENTS.md surface for iEvo (none of iEvo's skills are typically stacked); subagents cut off by rate-limit/API error now correctly report partial work / the error to the parent instead of silently failing or reporting false success; idle subagents collapse into an expandable summary row instead of vanishing. None of this is iEvo-actionable — no new frontmatter, no hook-type addition, no plugin-manifest change.
 
 History:
+- 2026-07-03T00:00:00Z — changed: v2.1.199 (July 2) — hook stderr visibility fix, SendMessage re-spawn misrouting fix, subagent error-propagation fixes, stacked slash-skill invocation (up to 5); no new frontmatter fields, no iEvo action
 - 2026-07-02T09:10:00Z — unchanged: re-confirmed ~2h after prior scan, still v2.1.198, no newer release
 - 2026-07-02T07:21:05Z — changed: v2.1.198 (July 1) — Notification hook agent_needs_input/agent_completed matchers (triggered F-2026-07-02-001); malformed SKILL.md frontmatter graceful degradation; Explore agent model inheritance; background agents auto-PR on finish
 - 2026-07-01T00:00:00Z — changed: v2.1.197 (June 30) — Sonnet 5 default model, 1M context; v2.1.196 detail confirmed: sandbox.credentials setting, destructive-git auto-mode block, mcp login/logout commands, display-name/default-enabled/fallback now case-insensitive (kebab/snake/camel)
@@ -99,14 +100,15 @@ History:
 ## https://github.com/anthropics/claude-code-action/releases
 
 ```yaml
-last_scan: 2026-07-02T09:10:00Z
-status: unchanged
-run_id: 28578697520
+last_scan: 2026-07-03T00:00:00Z
+status: changed
+run_id: null
 ```
 
-**Summary:** v1.0.162 (2026-07-01) is still the latest dated release — added `agent-approval-check` composite action, incremental patch. eva#65 (workflow migration off deprecated v0.x inputs) resolved and closed 2026-07-02 — verified directly via `grep` that none of eva's workflows use deprecated inputs. See eva#65 (closed) and findings-backlog.md F-2026-05-25-003 (status: rejected).
+**Summary:** v1.0.163 (2026-07-02) is latest dated release — minor patch, no changelog detail surfaced beyond "minor update". eva#65 (workflow migration off deprecated v0.x inputs) remains resolved+closed (2026-07-02) — no new deprecated-input risk introduced. The floating `v1` major-version tag (ambiguous "26 Aug" date, no year, same underlying GA-description content each scan) is confirmed NOT a new dated release — do not treat as `changed` in future scans; only trust dated point releases like v1.0.163.
 
 History:
+- 2026-07-03T00:00:00Z — changed: v1.0.163 (July 2) minor patch; floating `v1` tag re-confirmed as a non-signal (same ambiguous-date GA content as prior scans); eva#65 stays closed, no new action
 - 2026-07-02T09:10:00Z — unchanged: re-confirmed ~2h after prior scan, still v1.0.162; page also shows a floating `v1` major-version tag (ambiguous "26 Aug" date, no year) pointing at the same commit — not a new release, noted for future scans to avoid a false "changed" read
 - 2026-07-02T07:21:05Z — changed: v1.0.162 (July 1) — agent-approval-check composite action; eva#65 resolved+closed this run after direct verification (grep confirmed zero deprecated inputs across all eva workflows)
 - 2026-07-01T00:00:00Z — changed: v1.0.161 (June 30) patch release; eva#65 still open, 7th consecutive deferral, escalated
@@ -162,14 +164,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-07-02T09:10:00Z
+last_scan: 2026-07-03T00:00:00Z
 status: unchanged
-run_id: 28578697520
+run_id: null
 ```
 
-**Summary:** v0.142.5 (2026-07-01) still latest stable (WebSocket trace-log fix). v0.143.0-alpha.33 (2026-07-02) still pre-release, no changelog. No stable v0.143.0 yet; no hook/MCP/skill-format changes.
+**Summary:** v0.142.5 (2026-07-01) still latest stable (WebSocket trace-log fix). v0.143.0-alpha.35 (2026-07-03) still pre-release, no changelog. No stable v0.143.0 yet; no hook/MCP/skill-format changes. Alpha series now at 35 builds with zero published changelogs — worth a spot-check of alpha diffs if v0.143.0 stable still hasn't shipped by the next few runs.
 
 History:
+- 2026-07-03T00:00:00Z — unchanged: still v0.142.5 stable; alpha line advanced to alpha.35 (July 3), still no changelog; no stable v0.143.0
 - 2026-07-02T09:10:00Z — unchanged: re-confirmed ~2h after prior scan, still v0.142.5 stable / alpha.33 pre-release
 - 2026-07-02T07:21:05Z — unchanged: v0.142.5 still latest stable; v0.143.0-alpha.33 (July 2) still pre-release, no changelog; no hook/MCP/skill-format changes
 - 2026-07-01T00:00:00Z — changed: v0.142.5 (Jul 1, WebSocket logging fix); v0.143.0-alpha.32 (Jul 1) still pre-release; no stable v0.143.0
@@ -216,14 +219,15 @@ History:
 ## https://agentskills.io/specification
 
 ```yaml
-last_scan: 2026-07-01T00:00:00Z
+last_scan: 2026-07-03T00:00:00Z
 status: unchanged
-run_id: 28450000000
+run_id: null
 ```
 
-**Summary:** Required fields: `name` + `description` (≤1024 chars). Optional: `license`, `compatibility` (≤500 chars), `metadata`, `allowed-tools` (experimental, space-separated pre-approved tools). `name` max 64 chars, lowercase alphanumeric+hyphens, no consecutive/leading/trailing hyphens, must match directory. Progressive disclosure: metadata ~100 tokens at startup, full body on activation, referenced files on demand. Body ≤500 lines. Spec stable — same 6-field structure. PRs #380/#386/#345 confirmed still open via `gh api` (not merged). Note: `disallowed-tools`, `effort:`, `display-name:`, `fallback:`, `default-enabled:`, `hooks:`, `model:` (all Claude Code conventions) are NOT in the official agentskills.io spec.
+**Summary:** Required fields: `name` + `description` (≤1024 chars). Optional: `license`, `compatibility` (≤500 chars), `metadata`, `allowed-tools` (experimental, space-separated pre-approved tools). `name` max 64 chars, lowercase alphanumeric+hyphens, no consecutive/leading/trailing hyphens, must match directory. Progressive disclosure: metadata ~100 tokens at startup, full body on activation, referenced files on demand. Body ≤500 lines. Spec stable — same 6-field structure. PRs #380/#386/#345 confirmed still open via `gh api` (not merged); no new spec-relevant merges since #421 (checked open PR list through #449 — all client-showcase/docs/ecosystem-listing entries). Note: `disallowed-tools`, `effort:`, `display-name:`, `fallback:`, `default-enabled:`, `hooks:`, `model:` (all Claude Code conventions) are NOT in the official agentskills.io spec.
 
 History:
+- 2026-07-03T00:00:00Z — unchanged: full spec re-read, same 6 fields; PRs #380/#386/#345 re-confirmed open+unmerged via gh api; newest PRs (#445-449) are ecosystem-listing/docs only, no spec impact
 - 2026-07-01T00:00:00Z — unchanged: full spec re-read, same 6 fields; PRs #380/#386/#345 confirmed still open (not merged) via gh api
 - 2026-06-29T14:15:20Z — unchanged: spec stable; no new fields or constraints; same 6-field structure confirmed
 - 2026-06-02T08:04:18Z — unchanged: spec stable; fetched (HTML too large to parse fully but no new fields detected based on ievo-ai/skills AGENTS.md spec references which are current)
@@ -243,14 +247,15 @@ History:
 ## https://github.com/agentskills/agentskills
 
 ```yaml
-last_scan: 2026-07-02T07:21:05Z
+last_scan: 2026-07-03T00:00:00Z
 status: unchanged
-run_id: 28572513053
+run_id: null
 ```
 
-**Summary:** No new merges since PR #421 (June 30, client showcase only). Tracked PRs #380 (versioning), #386 (UTF-8 fix), #345 (Unicode name) re-confirmed still open, unmerged via `gh api repos/agentskills/agentskills/pulls/{380,386,345}` (state=open, merged=false for all three).
+**Summary:** No new merges since PR #421 (June 30, client showcase only); one PR merged since (#446 "scale square client logos", 2026-07-01, cosmetic). Tracked PRs #380 (versioning), #386 (UTF-8 fix), #345 (Unicode name) re-confirmed still open, unmerged via `gh api`. Newest open PRs (#445-449) are ecosystem-listing/docs additions (client showcase, CODE_OF_CONDUCT/SECURITY policy, ecosystem tools page) — no spec impact.
 
 History:
+- 2026-07-03T00:00:00Z — unchanged: #380/#386/#345 re-verified open+unmerged; #446 merged (cosmetic logo scaling); #445/447/448/449 open (listings/docs only, no spec impact)
 - 2026-07-02T07:21:05Z — unchanged: #380/#386/#345 re-verified open+unmerged via gh api; no new merges since #421
 - 2026-07-01T00:00:00Z — changed: PR #421 merged June 30 (client showcase entry only, no spec impact); #380/#386/#345 still open per gh api
 - 2026-06-01T08:08:22Z — unchanged: PRs #380, #386, #345 still open; no new merges since May 20
@@ -270,14 +275,15 @@ History:
 ## https://www.cursor.com/changelog
 
 ```yaml
-last_scan: 2026-07-02T07:21:05Z
+last_scan: 2026-07-03T00:00:00Z
 status: unchanged
-run_id: 28572513053
+run_id: null
 ```
 
-**Summary:** v3.9 (June 29) still latest; no v3.10. Re-confirmed June 29-30 entries (Mobile app, Team MCP distribution, org-group marketplace scoping) — all Cursor-client-only, no iEvo-actionable surface. Issue #235 remains the tracked finding.
+**Summary:** v3.9 (June 30) still latest; no v3.10. Re-confirmed June 29-30 entries (Mobile app, Team MCP distribution, org-group marketplace scoping) — all Cursor-client-only, no iEvo-actionable surface. Issue #235 remains the tracked finding.
 
 History:
+- 2026-07-03T00:00:00Z — unchanged: v3.9 still latest, no new entries since June 30
 - 2026-07-02T07:21:05Z — unchanged: v3.9 still latest; no new entries since June 30 scan
 - 2026-07-01T00:00:00Z — changed: v3.9 gained Mobile app (June 29) + Team MCP/org marketplace scoping (June 30); Cursor-client-only, not iEvo-actionable; #235 remains sufficient
 - 2026-06-29T14:15:20Z — unchanged: v3.9 still latest (June 22); no v3.10; Team marketplace multi-source (GitLab/BitBucket/Azure DevOps) not yet filed as finding (low priority — requires Cursor team plan + non-skills.sh source not currently in iEvo scope)
@@ -321,14 +327,15 @@ History:
 ## https://github.com/DenisSergeevitch/agents-best-practices
 
 ```yaml
-last_scan: 2026-07-02T07:21:05Z
+last_scan: 2026-07-03T00:00:00Z
 status: unchanged
-run_id: 28572513053
+run_id: null
 ```
 
-**Summary:** No commits since the June 29 21:15 `evals.md` split (last scan). No new activity in the last 3 days.
+**Summary:** No commits since the June 29 21:15 `evals.md` split (confirmed via `gh api repos/.../commits` — latest commit still 2026-06-29T21:15:08Z). No new activity in 4 days.
 
 History:
+- 2026-07-03T00:00:00Z — unchanged: gh api confirms latest commit still 2026-06-29T21:15:08Z (evals.md split); no new activity
 - 2026-07-02T07:21:05Z — unchanged: no commits since June 29 21:15; last change still the evals.md split (evidence for open F-2026-06-29-002/skills#267)
 - 2026-07-01T00:00:00Z — changed: June 29 21:15 commit split out references/evals.md (+143 lines); strengthens existing F-2026-06-29-002 / skills#267, no new finding filed
 - 2026-06-29T14:15:20Z — unchanged: no commits since June 14; checklists.md activation-evals requirement triggered F-2026-06-29-002
@@ -348,14 +355,16 @@ History:
 ## https://code.claude.com/docs/en/skills.md
 
 ```yaml
-last_scan: 2026-07-01T00:00:00Z
-status: unchanged
-run_id: 28450000000
+last_scan: 2026-07-03T00:00:00Z
+status: changed
+run_id: null
+note: "IMPORTANT — the frontmatter reference table fetched this run lists 16 fields (name, description, when_to_use, argument-hint, arguments, disable-model-invocation, user-invocable, allowed-tools, disallowed-tools, model, effort, context, agent, hooks, paths, shell) and does NOT include display-name / default-enabled / fallback, which prior scans (per the v2.1.186 changelog wording 'display-name, default-enabled, fallback, and metadata.* keys now accept kebab-case, snake_case, and camelCase') assumed were live SKILL.md frontmatter fields. Full-text grep of this fetch for 'display-name'/'default-enabled'/'fallback' returned zero matches (one unrelated prose use of the word 'fallback'). This does NOT prove the fields don't exist (they could be real but omitted from this reference table, e.g. if scoped to plugin.json rather than SKILL.md, or intentionally left out of the public docs) -- it means the premise behind open skills#233 and skills#236 needs re-verification before implementation, not a new Eva-filed finding (would risk a 3rd near-duplicate of the same subject key)."
 ```
 
-**Summary:** Re-fetched in full; confirms the same 17-field frontmatter reference table and substitution-variable list as the June 30 scan (name, description, when_to_use, argument-hint, arguments, disable-model-invocation, user-invocable, allowed-tools, disallowed-tools, model, effort, context, agent, hooks, paths, shell + $ARGUMENTS/$name/${CLAUDE_SESSION_ID}/${CLAUDE_EFFORT}/${CLAUDE_SKILL_DIR}/${CLAUDE_PROJECT_DIR}). No new fields since yesterday. F-2026-06-30-001/002/003 (skills#268/269/270) remain the open findings for this content — no new filing warranted.
+**Summary:** Re-fetched in full (2 days since the July 1 scan). Frontmatter reference table: name, description, when_to_use, argument-hint, arguments, disable-model-invocation, user-invocable, allowed-tools, disallowed-tools, model, effort, context, agent, hooks, paths, shell (16 fields) + substitution vars $ARGUMENTS/$ARGUMENTS[N]/$N/$name/${CLAUDE_SESSION_ID}/${CLAUDE_EFFORT}/${CLAUDE_SKILL_DIR}/${CLAUDE_PROJECT_DIR}. New in this fetch vs July 1: v2.1.199 stacked-skill-invocation behavior (up to 5 skills, `$ARGUMENTS` passed to each) and `skillOverrides` `"off"` now also hiding from Remote Control / Agent SDK listings (both CLI-behavior notes, not new frontmatter — no iEvo action). See the flagged discrepancy above re: display-name/default-enabled/fallback — not re-filing, but flagging for operator re-verification since it bears on open skills#233/#236.
 
 History:
+- 2026-07-03T00:00:00Z — changed: v2.1.199 stacked-skill-invocation + skillOverrides Remote-Control note added; **display-name/default-enabled/fallback fields absent from this fetch's frontmatter table** — flagged for re-verification against skills#233/#236, not re-filed
 - 2026-07-01T00:00:00Z — unchanged: full re-read confirms same 17 fields as June 30; no new fields; F-2026-06-30-001/002/003 remain the tracked open findings
 - 2026-06-30T00:00:00Z — changed: 7 new/clarified fields (when_to_use, argument-hint, arguments, paths, shell, disable-model-invocation, ${CLAUDE_PROJECT_DIR}); triggered F-2026-06-30-001/002/003
 - 2026-06-01T08:08:22Z — changed: disallowed-tools frontmatter added (v2.1.152); .claude/skills auto-load (v2.1.157); effort: stable
