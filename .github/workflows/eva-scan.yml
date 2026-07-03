@@ -1,5 +1,5 @@
 # Eva — scheduled scan
-# Runs on cron (every 6 hours) and manual trigger.
+# Runs on cron (daily) and manual trigger.
 # Uses Docker container for reproducible environment.
 #
 # Auth: supports both GitHub App (recommended) and PAT.
@@ -10,8 +10,14 @@ name: Eva Scan
 
 on:
   schedule:
-    # Every 6 hours
-    - cron: "0 */6 * * *"
+    # Daily, off-peak, ahead of the 06:00 research audit — anything scan
+    # surfaces lands before the same morning's audit reads the ecosystem.
+    # Was every 6h (from when scan was Eva's only loop); at today's signal
+    # volume (~1 signal, 0 patterns per run) 4×/day only added runner minutes
+    # and schedule-skew pressure on the other crons (operator decision
+    # 2026-07-03). Raise the frequency again only when a real signal stream
+    # exists (production Sentry, active child evolution logs).
+    - cron: "0 3 * * *"
 
   workflow_dispatch:
     inputs:
