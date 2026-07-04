@@ -27,7 +27,9 @@
 #
 # No new trust surface: the dispatch is payload-free, and eva-queue.yml's
 # drain step independently re-verifies the eva#132 trust chain per issue —
-# identical contract to the existing eva-review-pr.yml kick.
+# identical contract to the existing eva-review-pr.yml kick. This trigger can
+# overlap with eva-review-pr.yml's own kick (both fire on a direct Eva
+# self-merge) — harmless, since a duplicate drain-queue sweep is idempotent.
 
 name: "Eva: Drain-Queue Kick (freed slot)"
 
@@ -44,7 +46,10 @@ jobs:
     name: "Dispatch drain-queue on eva-impl/* merge"
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'eva-impl/')
+    if: >
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'eva-impl/')
     steps:
       - name: Generate App token
         if: vars.USE_GITHUB_APP == 'true'
@@ -58,13 +63,26 @@ jobs:
       - name: Set auth token
         id: auth
         env:
+          EVENT_NAME: ${{ github.event_name }}
           APP_TOKEN: ${{ steps.app-token.outputs.token }}
           PAT_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
         run: |
-          if [ -n "$APP_TOKEN" ]; then
+          # Force PAT on `pull_request` events (eva-review-pr.yml, 2026-05-23,
+          # PR #54 run 26327402101): the App installation token gets scope-
+          # restricted when a `pull_request`-event run's PR touches
+          # `.github/workflows/`, even with `workflows: write` granted at the
+          # install level — this workflow triggers ONLY on `pull_request`, and
+          # its very reason to exist is workflow-touching eva-impl/* PRs, so
+          # it would hit that exact 403 on its own motivating case otherwise.
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            echo "token=$PAT_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "Using PAT (pull_request event — App token gets restricted on workflow-modifying PRs)"
+          elif [ -n "$APP_TOKEN" ]; then
             echo "token=$APP_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "Using App token"
           else
             echo "token=$PAT_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "Using PAT (App token unavailable)"
           fi
 
       # Payload-free dispatch; event_type MUST match eva-queue.yml's
