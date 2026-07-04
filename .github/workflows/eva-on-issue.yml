@@ -335,6 +335,7 @@ jobs:
                     --add-label approved --remove-label needs-discussion
                   gh issue edit "$TARGET_ISSUE" --repo "$TARGET_REPO" \
                     --remove-label needs-operator 2>/dev/null || true
+                Then run Step 6.5 (optional model escalation) before finishing.
               - verdict `hold` (questions remain, or external-author-awaiting-approval,
                 or not low-risk) → keep `needs-discussion` as-is; do NOT add
                 `approved`. Ensure `needs-operator` (eva#146) is present — it is
@@ -595,7 +596,8 @@ jobs:
 
             Lifecycle state (auto-apply EXACTLY one primary state, per the verdict):
               - verdict `implement` → add `approved` (clear + low-risk; the
-                implement step consumes this in a later phase)
+                implement step consumes this in a later phase), THEN run Step 6.5
+                (optional model escalation) before finishing
               - verdict `hold` with open questions → add `needs-discussion` AND
                 `needs-operator`
               - verdict `hold`, no open questions but not low-risk → add `triage`
@@ -634,6 +636,93 @@ jobs:
               needs-operator: e11d21
             `needs-operator` description (use verbatim on create):
               "Pipeline blocked on the human operator to unblock"
+
+            ## Step 6.5 — Optional model escalation (Router auto-selection, eva#172)
+
+            Run this ONLY when your verdict is `implement` (you just applied
+            `approved` in Step 6, or in R7 on the re-triage path). For a `hold`
+            verdict, SKIP entirely — no build fires, so escalation is meaningless.
+            This step MAY add the `model:fable` label so the eva-implement build
+            runs on Fable instead of the default (opus). It is OPTIONAL and
+            CONSERVATIVE: when unsure, do NOT escalate — opus is the safe default.
+
+            You should have DECIDED whether to escalate back at Step 4 (alongside
+            the verdict) and STATED the decision in the Step 5 analysis comment;
+            this step is where you mechanically apply the label. If you did not
+            decide earlier, decide now against the criteria below.
+
+            WHY escalate at all: Fable is strongest on reasoning-heavy work
+            (root-cause hunts, security-sensitive design, cross-system invariants)
+            but times out on volume-heavy tasks (the eva#159 50-min kill). So
+            escalate ONLY when BOTH hold:
+              (a) REASONING-HEAVY — the hard part is thinking, not typing: a
+                  root-cause hunt, a security/invariant design, a subtle
+                  cross-system interaction. NOT a mechanical or boilerplate change.
+              (b) NARROW SURFACE — a small file set (roughly ≤3 files, no sweeping
+                  or multi-subsystem edit). A WIDE reasoning-heavy task must be
+                  SPLIT, never escalated (Fable + volume = timeout, eva#159). If you
+                  see fable-worthy reasoning on a wide surface, recommend a split in
+                  `### Approach` instead of escalating.
+
+            GUARDRAILS (ALL mandatory — any miss → do NOT escalate):
+
+            1. OPERATOR LABEL WINS (same semantics as "the Router can never
+               resurrect a terminal skeptic verdict"). A human's explicit model
+               choice is authoritative and the Router NEVER overrides it. Inspect
+               this issue's timeline for any `model:*` label event (labeled OR
+               unlabeled):
+                 gh api "repos/$TARGET_REPO/issues/$TARGET_ISSUE/timeline" --paginate \
+                   --jq '.[] | select((.event=="labeled" or .event=="unlabeled")
+                                      and (.label.name != null)
+                                      and (.label.name | startswith("model:")))
+                              | {event, label: .label.name, actor: .actor.login}'
+               If ANY such event has an actor OTHER than `ievo-eva[bot]` (a human —
+               e.g. the operator applied or REMOVED a `model:*` label), STOP: do not
+               add, remove, or override any model label. The human has spoken. (If
+               the issue already carries a human-applied `model:fable`, it is already
+               escalated — nothing to do; if a human removed one, respect that.)
+
+            2. DAILY ESCALATION BUDGET — max 3 Router-applied `model:fable` builds
+               per $TARGET_REPO per 24h, counted statelessly from label-event
+               timestamps (NO counter store — the SAME pattern as the Skeptic
+               self-approve cap above). Count `model:fable` `labeled` events whose
+               actor is `ievo-eva[bot]` across recent issues in the last 24h:
+                 gh issue list --repo "$TARGET_REPO" --state all --limit 50 --json number
+                 # then per issue N:
+                 gh api "repos/$TARGET_REPO/issues/<N>/timeline" --paginate \
+                   --jq '.[] | select(.event=="labeled" and .label.name=="model:fable"
+                                      and .actor.login=="ievo-eva[bot]") | .created_at'
+               Count those within the last 24h. If the count is >= 3 → do NOT
+               escalate (cap exhausted); note it in `### Approach`. Operator-applied
+               `model:fable` labels do NOT count (their actor is not
+               `ievo-eva[bot]`) — the cap bounds ONLY the Router's autonomous
+               escalations. FAIL-SAFE: if the query errors or you cannot determine
+               the count, treat the cap as EXHAUSTED → do NOT escalate.
+
+            3. IDENTITY — apply the label with the App token so its timeline actor
+               is `ievo-eva[bot]` (this is exactly what guardrail 2 counts and what
+               guardrail 1 tells apart from a human). Create-if-missing then add,
+               BOTH via `GH_TOKEN="$EVA_APP_TOKEN"` (NOT the default PAT used for
+               the Step 6 lifecycle labels — a PAT-applied `model:fable` would look
+               human-applied, escaping the cap AND tripping "operator label wins"
+               against the Router forever):
+                 GH_TOKEN="$EVA_APP_TOKEN" gh label create model:fable --repo "$TARGET_REPO" \
+                   --description "Build this issue on Fable (reasoning-heavy, narrow surface)" \
+                   --color "d4c5f9" 2>/dev/null || true
+                 GH_TOKEN="$EVA_APP_TOKEN" gh issue edit "$TARGET_ISSUE" --repo "$TARGET_REPO" \
+                   --add-label model:fable
+
+            4. AUDITABILITY — the escalation decision MUST be visible in the Step 5
+               analysis comment. When you escalate, `### Approach` states e.g.
+               "Model: escalated to Fable — reasoning-heavy, narrow surface (N
+               files)." When you deliberately do NOT escalate a task that looked
+               reasoning-heavy (wide surface → split, cap exhausted, or an operator
+               model label present), say that too, so the call is auditable either
+               way.
+
+            NEVER apply `model:opus` (opus is already the default — nothing to
+            escalate) and NEVER REMOVE a model label. The Router only ever ADDS
+            `model:fable`, and only under ALL the guardrails above.
 
             ## Safety reminders (non-negotiable)
               - NEVER close the issue, open PRs, or modify files. The router only analyzes + labels; implementation is a separate gated step (consumes the `approved` label).

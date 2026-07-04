@@ -313,6 +313,63 @@ jobs:
           echo "Claimed #$ISSUE_NUM"
           echo "skip=false" >> "$GITHUB_OUTPUT"
 
+      # Per-issue model/effort escalation (eva#172). Precedence: issue LABEL >
+      # repo VARIABLE > workflow DEFAULT. Only whitelisted literals ever reach
+      # the CLI — a `model:*`/`effort:*` label whose value is not on the
+      # whitelist is IGNORED (never interpolated), which closes the
+      # shell-injection surface the issue's guardrail calls out and keeps the
+      # `--model`/`--effort` operands a fixed set of constants. Labels are
+      # collaborator-only (same trust boundary as `approved`), so this is not an
+      # external cost-escalation vector. With no model/effort label present this
+      # resolves to exactly the eva#161 behaviour (var || default), byte-for-byte.
+      - name: Resolve model + effort
+        id: resolve
+        if: steps.claim.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          REPO: ${{ steps.ctx.outputs.repo }}
+          ISSUE_NUM: ${{ steps.ctx.outputs.issue_number }}
+          VAR_MODEL: ${{ vars.EVA_MODEL_IMPLEMENT }}
+          VAR_EFFORT: ${{ vars.EVA_EFFORT_IMPLEMENT }}
+          DEFAULT_MODEL: opus
+          DEFAULT_EFFORT: high
+        run: |
+          # Newline-free single-value extraction (robust to label names with
+          # spaces): take the FIRST model:*/effort:* label if any.
+          LJSON=$(gh issue view "$ISSUE_NUM" --repo "$REPO" --json labels --jq '[.labels[].name]')
+          MODEL_LABEL=$(printf '%s' "$LJSON" | jq -r 'map(select(startswith("model:"))) | first // ""')
+          EFFORT_LABEL=$(printf '%s' "$LJSON" | jq -r 'map(select(startswith("effort:"))) | first // ""')
+
+          WARN=""
+          # --- model: whitelist opus|fable (label > var > default) ---
+          case "$MODEL_LABEL" in
+            "")           MODEL="${VAR_MODEL:-$DEFAULT_MODEL}" ;;
+            model:opus)   MODEL="opus" ;;
+            model:fable)  MODEL="fable" ;;
+            *)            MODEL="${VAR_MODEL:-$DEFAULT_MODEL}"
+                          WARN="${WARN}- Ignored unrecognized \`$MODEL_LABEL\` (model whitelist: \`model:opus\`, \`model:fable\`). Using \`$MODEL\`."$'\n' ;;
+          esac
+          # --- effort: whitelist low|medium|high|xhigh|max (label > var > default) ---
+          case "$EFFORT_LABEL" in
+            "")                                                        EFFORT="${VAR_EFFORT:-$DEFAULT_EFFORT}" ;;
+            effort:low|effort:medium|effort:high|effort:xhigh|effort:max) EFFORT="${EFFORT_LABEL#effort:}" ;;
+            *)                                                         EFFORT="${VAR_EFFORT:-$DEFAULT_EFFORT}"
+                          WARN="${WARN}- Ignored unrecognized \`$EFFORT_LABEL\` (effort whitelist: \`effort:low|medium|high|xhigh|max\`). Using \`$EFFORT\`."$'\n' ;;
+          esac
+
+          echo "Resolved model=$MODEL effort=$EFFORT (model_label='$MODEL_LABEL' effort_label='$EFFORT_LABEL')"
+          {
+            echo "model=$MODEL"
+            echo "effort=$EFFORT"
+          } >> "$GITHUB_OUTPUT"
+
+          # Surface a whitelist miss on the issue so the operator sees why the
+          # label had no effect (best-effort — never fail the build on this).
+          if [ -n "$WARN" ]; then
+            gh issue comment "$ISSUE_NUM" --repo "$REPO" --body \
+              "$(printf 'Eva model-escalation notice:\n%s' "$WARN")" || true
+          fi
+
       - name: Checkout target repo
         if: steps.claim.outputs.skip != 'true'
         uses: actions/checkout@v4
@@ -495,18 +552,21 @@ jobs:
           # may invoke the iEvo plugin's /ievo:* skills; with the flag unset the
           # tool list is byte-for-byte identical to before (eva#158).
           #
-          # Model + effort runbook (eva#161): to switch this flow without a code
-          # change, set repo/org Actions variables — EVA_MODEL_IMPLEMENT (an alias
-          # like `opus`/`fable` or a full id like `claude-fable-5`) and
-          # EVA_EFFORT_IMPLEMENT (low|medium|high|xhigh|max). Empty → today's
-          # defaults below. Repo-level vars override org-level (GitHub precedence),
-          # so per-repo experiments stay possible. `--effort` is a real per-session
-          # CLI flag (docs: code.claude.com/docs/en/model-config#adjust-effort-level);
-          # `high` is also the current model-default effort for opus (Opus 4.8), so
-          # the effort default is behavior-preserving, not a silent uplift.
+          # Model + effort (eva#161 runbook + eva#172 per-issue escalation): the
+          # `Resolve model + effort` step above already applied the precedence
+          # LABEL > repo VARIABLE (EVA_MODEL_IMPLEMENT / EVA_EFFORT_IMPLEMENT) >
+          # DEFAULT (opus / high), whitelisting label values so only fixed
+          # constants reach these operands. To switch the flow without a per-issue
+          # label, set the repo/org Actions variable (empty → the default). A
+          # collaborator can escalate ONE issue by labelling it `model:fable`
+          # (optionally `effort:xhigh`); the Router may also auto-apply
+          # `model:fable` for narrow reasoning-heavy tasks. `--effort` is a real
+          # per-session CLI flag (docs: code.claude.com/docs/en/model-config#adjust-effort-level);
+          # `high` is also the model-default effort for opus (Opus 4.8), so the
+          # default is behavior-preserving, not a silent uplift.
           claude_args: |
-            --model ${{ vars.EVA_MODEL_IMPLEMENT || 'opus' }}
-            --effort ${{ vars.EVA_EFFORT_IMPLEMENT || 'high' }}
+            --model ${{ steps.resolve.outputs.model }}
+            --effort ${{ steps.resolve.outputs.effort }}
             --allowedTools "Bash,Edit,Read,Write,Glob,Grep,WebFetch,WebSearch${{ vars.EVA_IEVO_PLUGIN_ENABLED == 'true' && ',Skill' || '' }}"
           settings: |
             {
