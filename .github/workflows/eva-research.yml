@@ -607,6 +607,40 @@ jobs:
             Record the count (0 or "unavailable" on error). Render it in Step 6
             under "Eva-filed feedback (last 24h)".
 
+            ## Step 5c — Gather backlog re-triage stats for the digest (eva#167)
+
+            The Backlog Re-Triage workflow (eva-triage-backlog.yml) bulk
+            re-verifies the oldest open `feature-proposal` issues in
+            ievo-ai/skills and closes stale/duplicate ones, stamps valid ones
+            `backlog-verified`, or escalates high-value ones with
+            `needs-operator`. Its results surface to the operator HERE — this
+            report is the daily digest. Gather statelessly (same pattern as
+            Step 5b):
+              - CLOSED in the last 24h (stale/superseded/duplicate closes land
+                as closed feature-proposals; each carries a short verdict
+                comment saying which):
+                  gh issue list --repo ievo-ai/skills --state closed \
+                    --label feature-proposal \
+                    --search "closed:>=$(date -u -d '1 day ago' +%Y-%m-%d)" \
+                    --json number,title,closedAt
+              - VERIFIED (cumulative — open, stamped valid-but-minor):
+                  gh issue list --repo ievo-ai/skills --state open \
+                    --label feature-proposal --label backlog-verified \
+                    --json number --jq 'length'
+              - ESCALATED, awaiting the operator (open, high-value tier — the
+                operator-attention list):
+                  gh issue list --repo ievo-ai/skills --state open \
+                    --label feature-proposal --label needs-operator \
+                    --json number,title
+              - REMAINING unprocessed (drain progress — open feature-proposals
+                carrying neither `backlog-verified` nor `needs-operator`):
+                  gh issue list --repo ievo-ai/skills --state open \
+                    --label feature-proposal --limit 200 --json labels \
+                    --jq '[ .[] | select(([.labels[].name] | any(. == "backlog-verified" or . == "needs-operator")) | not) ] | length'
+            If any query errors, record "unavailable" for that line rather than
+            dropping the section. Render the result in Step 6 under
+            "Backlog re-triage".
+
             ## Step 6 — Write the audit report
 
             Even if you opened zero PRs in Step 5 — ESPECIALLY then — this
@@ -672,6 +706,16 @@ jobs:
             - count: <N> (or "0" / "unavailable")
             - if the count climbs or any issue is feedback-about-feedback, flag it
               here — that's the trigger for dedicated accounting.
+
+            ## Backlog re-triage (eva#167)
+            Bulk re-verification state of the `feature-proposal` backlog in
+            ievo-ai/skills (data from Step 5c; runs are eva-triage-backlog.yml).
+            The "escalated" line is the OPERATOR section — issues Eva judged
+            valid and high-value, awaiting a human decision:
+            - closed last 24h: #<n> <title> / ... (or "none")
+            - verified (open, `backlog-verified`, cumulative): <N>
+            - **escalated — awaiting operator** (open, `needs-operator`): #<n> <title> / ... (or "none")
+            - unprocessed remaining: <N>
 
             ## Blockers
             - <any token-scope issue, rule-conflict, infra problem>

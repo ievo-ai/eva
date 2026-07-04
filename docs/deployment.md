@@ -12,6 +12,7 @@ Zero infrastructure needed. Eva runs on GitHub's runners.
 |----------|------|---------|---------|
 | **Eva Scan** | `eva-scan.yml` | Cron (every 6h) + manual | Scheduled full pipeline scan |
 | **Eva on Issue** | `eva-on-issue.yml` | New issue + `repository_dispatch` | Reactive scan when issues are opened |
+| **Eva: Backlog Re-Triage** | `eva-triage-backlog.yml` | Cron (daily 08:19 UTC) + manual | Bulk re-verify the oldest open `feature-proposal` issues in ievo-ai/skills against the current codebase: close stale/duplicate (with cited evidence), stamp `backlog-verified`, or escalate `needs-operator` (eva#167). Dormant until `EVA_TRIAGE_ENABLED=true`; manual dispatch defaults to dry-run. |
 | **Tests** | `tests.yml` | Push / PR | CI: ruff lint + pytest on Python 3.10/3.11/3.12 |
 
 ### How the Scan Works
@@ -73,6 +74,7 @@ Required: `EVA_DISPATCH_TOKEN` secret with `repo` scope in the source repo.
 | Variable | Values | Description |
 |----------|--------|-------------|
 | `USE_GITHUB_APP` | `true` / `false` | Switch between GitHub App and PAT auth |
+| `EVA_TRIAGE_ENABLED` | `true` / `false` | Safety valve for `eva-triage-backlog.yml` (same pattern as `EVA_IMPLEMENT_ENABLED` / `EVA_QUEUE_ENABLED`): scheduled runs no-op and manual dispatches are forced to dry-run until set to `true` |
 
 #### Agent model + effort (per-flow, eva#161)
 
@@ -95,6 +97,8 @@ is one of `low` / `medium` / `high` / `xhigh` / `max`.
 | `EVA_MODEL_ROUTER` | `sonnet` | eva-on-issue (issue router) |
 | `EVA_EFFORT_ROUTER` | `high` | eva-on-issue |
 | `EVA_MODEL_RESEARCH` | `sonnet` | eva-research (model only) |
+| `EVA_MODEL_TRIAGE` | `sonnet` | eva-triage-backlog (backlog re-triage) |
+| `EVA_EFFORT_TRIAGE` | `high` | eva-triage-backlog |
 | `EVA_MODEL_PUBLISH` | `haiku` | publish-evolution blurb (model only) |
 
 `high` is also the current model-default effort for the `opus` (Opus 4.8) and

@@ -46,6 +46,9 @@ Body sections (each optional, omit if empty):
 - `## Skills PRs opened` — atomic fix PRs to existing functionality (Step 5 output)
 - `## Findings filed` — new-capability findings filed as issues (Step 4b output); references backlog IDs + issue URLs. Full backlog lives in `findings-backlog.md`.
 - `## Deferred findings`
+- `## Self-triage last 24h (eva#132)` — skeptic-mode dispositions on Eva's own bot-authored issues (approved / rejected / held), the operator's oversight channel for the self-approve tier (Step 5b output)
+- `## Eva-filed feedback (last 24h) (eva#158)` — count of `/ievo:feedback` issues Eva filed into ievo-ai/skills, the anti-recursion watch (Step 5b output)
+- `## Backlog re-triage (eva#167)` — bulk re-verification state of the skills `feature-proposal` backlog: closed / verified / escalated-awaiting-operator / remaining (Step 5c output; the re-triage runs themselves are `eva-triage-backlog.yml`)
 - `## Blockers`
 - `## Notes for next run`
 
