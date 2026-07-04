@@ -587,6 +587,20 @@ jobs:
             dropping the section. Render the result in Step 6 under
             "Self-triage last 24h".
 
+            Also gather the FEEDBACK-loop count (eva#158, operator Q4 — anti-
+            recursion watch): the number of `/ievo:feedback` issues Eva filed into
+            ievo-ai/skills in the last 24h. These are bot-authored and carry the
+            `feedback` label; Eva now dogfoods the plugin in her own agents, so her
+            own runs are a NEW bot-authored feedback source into her Router. The
+            existing skeptic caps apply as-is (no new accounting in v1) — but this
+            count MUST be surfaced each run so feedback-about-feedback is caught
+            before it loops:
+              gh issue list --repo ievo-ai/skills --state all --label feedback \
+                --search "author:app/ievo-eva created:>=$(date -u -d '1 day ago' +%Y-%m-%d)" \
+                --json number,title,createdAt --jq 'length'
+            Record the count (0 or "unavailable" on error). Render it in Step 6
+            under "Eva-filed feedback (last 24h)".
+
             ## Step 6 — Write the audit report
 
             Even if you opened zero PRs in Step 5 — ESPECIALLY then — this
@@ -645,6 +659,13 @@ jobs:
               - rejected: #<n> <title> (<which refutation failed>)
               - held: #<n> <title> (<out-of-tier / cap-exhausted / eva-self / no-evidence>)
             - (or "none — no self-authored issues triaged in the window")
+
+            ## Eva-filed feedback (last 24h) (eva#158)
+            `/ievo:feedback` issues Eva opened into ievo-ai/skills in the window
+            (anti-recursion watch — operator Q4; from Step 5b):
+            - count: <N> (or "0" / "unavailable")
+            - if the count climbs or any issue is feedback-about-feedback, flag it
+              here — that's the trigger for dedicated accounting.
 
             ## Blockers
             - <any token-scope issue, rule-conflict, infra problem>

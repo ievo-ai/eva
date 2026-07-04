@@ -301,6 +301,57 @@ jobs:
         if: steps.ctx.outputs.skip != 'true' && steps.budget.outputs.skip != 'true' && steps.detect.outputs.python == 'true'
         run: uv sync --group dev 2>/dev/null || uv sync
 
+      # --- iEvo plugin dogfooding (eva#158) -------------------------------------
+      # The fixer dogfoods the ievo plugin too: /ievo:evolution to capture "what the
+      # implementer got wrong" on EVERY REQUEST_CHANGES round (the review event is
+      # the mechanical trigger), and /ievo:feedback on plugin malfunction. Same
+      # verified delivery mechanism + failure-isolation rationale as eva-implement.yml
+      # (see that file's block): a `continue-on-error` install into ~/.claude that
+      # the action's own `claude` picks up; DORMANT until EVA_IEVO_PLUGIN_ENABLED=true.
+      - name: Install iEvo plugin (dogfood, best-effort)
+        id: ievo_plugin
+        if: steps.ctx.outputs.skip != 'true' && steps.budget.outputs.skip != 'true' && vars.EVA_IEVO_PLUGIN_ENABLED == 'true'
+        continue-on-error: true   # operator Q5: a plugin failure must NEVER fail the build
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          READY=false
+          if npm install -g @anthropic-ai/claude-code \
+             && timeout 300 claude plugin marketplace add ievo-ai/skills \
+             && timeout 300 claude plugin install ievo@ievo-skills \
+             && claude plugin list 2>/dev/null | grep -qi 'ievo'; then
+            READY=true
+            echo "iEvo plugin installed + enabled (user scope) — skills available to the fixer."
+          else
+            echo "iEvo plugin unavailable this run — the fixer proceeds WITHOUT it (degraded, operator Q5)."
+          fi
+          echo "ready=$READY" >> "$GITHUB_OUTPUT"
+
+      # READ path for Eva's evolution store (operator Q1 — mandatory). Pulled from
+      # ievo-ai/eva@main (Eva-side, not the target repo). Best-effort. Also seeds the
+      # capture file the fixer appends REQUEST_CHANGES lessons to.
+      - name: Load Eva evolution store (best-effort)
+        id: evo_store
+        if: steps.ctx.outputs.skip != 'true' && steps.budget.outputs.skip != 'true' && vars.EVA_IEVO_PLUGIN_ENABLED == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          STORE_FILE="$RUNNER_TEMP/eva-evolution-store.md"
+          CAPTURE_FILE="$RUNNER_TEMP/eva-evolution-capture.md"
+          if gh api "repos/ievo-ai/eva/contents/agent/memory/evolution/lessons.md?ref=main" \
+               --jq '.content' 2>/dev/null | base64 -d > "$STORE_FILE" 2>/dev/null \
+             && [ -s "$STORE_FILE" ]; then
+            echo "Loaded Eva evolution store ($(wc -l < "$STORE_FILE") lines)."
+          else
+            echo "No Eva evolution store yet (or fetch failed) — starting empty." > "$STORE_FILE"
+          fi
+          : > "$CAPTURE_FILE"
+          {
+            echo "store=$STORE_FILE"
+            echo "capture=$CAPTURE_FILE"
+          } >> "$GITHUB_OUTPUT"
+
       # The prompt lives in EVA (this workflow's repo). When the fixer targets a
       # cross-repo PR the working tree is that other repo, so fetch the prompt from
       # eva via the API at the commit this workflow is running (same as
@@ -352,9 +403,11 @@ jobs:
           # default — allow OUR bot. Trust is NOT weakened: the real gate is the
           # stacked trust re-verification in "Resolve + verify PR context" above.
           allowed_bots: "ievo-eva"
+          # `Skill` appended ONLY when plugin dogfooding is enabled (eva#158);
+          # byte-for-byte identical to before with the flag unset.
           claude_args: |
             --model opus
-            --allowedTools "Bash,Edit,Read,Write,Glob,Grep,WebFetch,WebSearch"
+            --allowedTools "Bash,Edit,Read,Write,Glob,Grep,WebFetch,WebSearch${{ vars.EVA_IEVO_PLUGIN_ENABLED == 'true' && ',Skill' || '' }}"
           settings: |
             {
               "env": {
@@ -362,10 +415,26 @@ jobs:
                 "TARGET_REPO": "${{ steps.ctx.outputs.repo }}",
                 "TARGET_PR": "${{ steps.ctx.outputs.pr_number }}",
                 "REVIEW_ID": "${{ steps.ctx.outputs.review_id }}",
-                "FIX_BUDGET": "${{ vars.EVA_FIX_BUDGET || '5' }}"
+                "FIX_BUDGET": "${{ vars.EVA_FIX_BUDGET || '5' }}",
+                "EVA_IEVO_PLUGIN_READY": "${{ steps.ievo_plugin.outputs.ready }}",
+                "EVA_EVOLUTION_STORE": "${{ steps.evo_store.outputs.store }}",
+                "EVA_EVOLUTION_CAPTURE": "${{ steps.evo_store.outputs.capture }}"
               }
             }
           prompt: ${{ env.FIX_PROMPT }}
+
+      # WRITE path (operator Q1, per-run artifact): upload the REQUEST_CHANGES
+      # lessons the fixer captured this round for later consolidation into
+      # agent/memory/evolution/lessons.md. always() + best-effort.
+      - name: Upload evolution capture (best-effort)
+        if: always() && steps.ctx.outputs.skip != 'true' && steps.budget.outputs.skip != 'true' && vars.EVA_IEVO_PLUGIN_ENABLED == 'true' && steps.evo_store.outputs.capture != ''
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: eva-evolution-capture-pr-${{ steps.ctx.outputs.pr_number }}
+          path: ${{ steps.evo_store.outputs.capture }}
+          if-no-files-found: ignore
+          retention-days: 90
 
       # If the fixer crashed AFTER passing the trust gate, leave a breadcrumb so
       # the PR does not silently strand. No claim label to release (unlike
