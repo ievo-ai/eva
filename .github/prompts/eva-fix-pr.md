@@ -107,8 +107,24 @@ Otherwise the next commit's marker will be `[pr-fix-$NEXT]`.
 
 If, after reading, you conclude the review finding is mistaken or not actionable
 as written, do NOT guess and do NOT push a no-op. Post a comment on the PR
-explaining precisely why (with file/line evidence), and stop WITHOUT pushing —
-leave the disposition to the operator. Do not consume a budget slot for a no-op.
+explaining precisely why (with file/line evidence), then mark the deliberate
+stop with the terminal labels below, and stop WITHOUT pushing — leave the
+disposition to the operator. Do not consume a budget slot for a no-op. The
+labels are REQUIRED, not optional (eva#170): the workflow post-check needs a
+concrete signal to tell a deliberate no-push stop from a silent death — with
+no push and no terminal label, the run is FAILED and flagged:
+
+  gh label create eva-fix-declined --repo "$TARGET_REPO" \
+    --description "Eva's fixer deliberately stopped without pushing — operator disposition needed" \
+    --color "b60205" 2>/dev/null || true
+  gh label create needs-operator --repo "$TARGET_REPO" \
+    --description "Pipeline blocked on the human operator to unblock" \
+    --color "e11d21" 2>/dev/null || true
+  gh issue edit "$TARGET_PR" --repo "$TARGET_REPO" \
+    --add-label eva-fix-declined --add-label needs-operator
+
+(`eva-fix-declined` is a terminal label like `eva-handoff-workflows`: the
+fixer will not re-enter this PR until the operator clears it.)
 
 ## Phase 3b — Capture the lesson (eva#158)
 
@@ -117,6 +133,16 @@ capture WHAT the implementer got wrong and WHY, on EVERY fix round (operator Q3 
 no judgment call, the review event is the trigger). This is capture-ONLY: it must
 not change what you fix (Phase 3's scope rule still holds) and must never touch a
 workflow file (it writes to a temp file outside the repo).
+
+HARD RULE — FOREGROUND only (eva#170): this is a headless `claude -p` run —
+when your final turn ends, the process EXITS and any still-running background
+work dies with it (proven on implement run 28705052982: background review
+subagents were killed at end-of-turn, leaving a silent stall the workflow read
+as green). Invoke every skill/subagent in this prompt SYNCHRONOUSLY — never
+via a background option (background Bash, background Task/agent dispatch) —
+and NEVER end your turn while any dispatched work is still pending. Your turn
+may end only after the `[pr-fix-N]` push (Phase 6) or a documented no-push
+stop that left its terminal label.
 
 - If `EVA_IEVO_PLUGIN_READY` is `"true"`: invoke the `/ievo:evolution` skill,
   recording the review finding + the root cause the first implementation missed.
@@ -191,8 +217,11 @@ the merge gate eva-review-pr waits on. Install whatever they need via Bash.
 - Non-Python repo → run THAT repo's gate (pre-commit, a schema/frontmatter
   validator, its lint script), matching its CI exactly.
 Re-run until all pass. If a formatter changed files, re-stage them. If you cannot
-get the gate green, do NOT push — comment on the PR with the failing output and
-stop (the operator decides). A red push just burns a budget slot.
+get the gate green, do NOT push — comment on the PR with the failing output,
+apply the same `eva-fix-declined` + `needs-operator` terminal labels as the
+Phase 3 stop (eva#170 — the deliberate-stop signal for the workflow
+post-check), and stop (the operator decides). A red push just burns a budget
+slot.
 
 ## Phase 6 — Commit + push the fix (the ONLY push)
 
@@ -237,8 +266,15 @@ fixer fires again for the next round.
   it never changes the fix, expands scope, or touches a workflow file.
   `/ievo:feedback` fires ONLY on a real plugin malfunction, never about itself.
 - Respect the budget: at `FIX_BUDGET` used rounds, hand to the operator (Phase 2).
+- FOREGROUND ONLY (eva#170): never dispatch background work (skills, subagents,
+  background Bash) and end your turn while it is pending — ending the turn in
+  this headless run kills the process and everything still in flight. End only
+  after the push (Phase 6) or a labelled no-push stop. A deterministic workflow
+  post-check FAILS the run if neither happened.
 - If you become unsure — the finding is ambiguous, the gate won't go green, or the
   fix would need to touch a workflow file — STOP without pushing and leave a
-  comment. Do not guess.
+  comment. Do not guess. Unless a more specific terminal label applies (Phase 4's
+  `eva-handoff-workflows`), mark the stop with `eva-fix-declined` +
+  `needs-operator` so the post-check reads it as deliberate (eva#170).
 - Per `agent/ROLE.md`: never fabricate identifiers (paths, branches, review ids) —
   look them up. Verify tool/library behavior against docs before relying on it.

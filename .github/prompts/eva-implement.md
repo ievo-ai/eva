@@ -239,7 +239,11 @@ Co-Authored-By: iEVO Eva <noreply@ievo.ai>"
 ### 4f. Freshness check — rebase if main moved
 
 Main may have moved while you worked. Rebase onto fresh main (up to 3 attempts)
-so the PR you open is mergeable:
+so the PR you open is mergeable. IMPORTANT (eva#170): every no-PR stop below
+RELEASES the claim label — that marks it as a documented exit for the
+workflow's `Verify implement contract` post-check; a stop that leaves
+`eva-implementing` in place with no PR is treated as a silent stall and FAILS
+the run:
   for attempt in 1 2 3; do
     git fetch origin main
     BEHIND=$(git rev-list --count HEAD..origin/main)
@@ -249,6 +253,11 @@ so the PR you open is mergeable:
       git rebase --abort 2>/dev/null || true
       gh issue comment "$TARGET_ISSUE" --repo "$TARGET_REPO" \
         --body "Rebase conflict against main — operator review needed. Branch: $(git branch --show-current)"
+      gh label create needs-operator --repo "$TARGET_REPO" \
+        --description "Pipeline blocked on the human operator to unblock" \
+        --color "e11d21" 2>/dev/null || true
+      gh issue edit "$TARGET_ISSUE" --repo "$TARGET_REPO" \
+        --remove-label eva-implementing --add-label triage --add-label needs-operator
       exit 1
     fi
   done
@@ -256,6 +265,11 @@ so the PR you open is mergeable:
   if [ "$(git rev-list --count HEAD..origin/main)" != "0" ]; then
     gh issue comment "$TARGET_ISSUE" --repo "$TARGET_REPO" \
       --body "Main kept moving after 3 rebase attempts. Branch $(git branch --show-current) pushed but no PR opened — operator can open/rebase once the burst settles."
+    gh label create needs-operator --repo "$TARGET_REPO" \
+      --description "Pipeline blocked on the human operator to unblock" \
+      --color "e11d21" 2>/dev/null || true
+    gh issue edit "$TARGET_ISSUE" --repo "$TARGET_REPO" \
+      --remove-label eva-implementing --add-label triage --add-label needs-operator
     exit 1
   fi
   # Re-run the SAME gate you ran in Phase 4d (the repo's actual checks — uv run …
@@ -269,6 +283,19 @@ distinct from (and earlier than) eva-review-pr. This runs ONLY when
 `EVA_IEVO_PLUGIN_READY` is `"true"`; if it is anything else, SKIP this entire
 phase and add one line to the PR body: "iEvo plugin unavailable this run —
 /ievo:deep-review skipped." Then go to Phase 5.
+
+HARD RULE — run every pass in the FOREGROUND (eva#170). This is a headless
+`claude -p` run: when your final turn ends, the process EXITS and anything
+still running in the background dies with it. On run 28705052982 the agent
+dispatched deep-review + vuln-scan as background subagents and ended its turn
+"to wait for them" — the process terminated, no PR was opened, the claim label
+was left dangling, and the workflow still read green. So: invoke every
+skill/subagent in this phase (and anywhere else in this prompt) SYNCHRONOUSLY
+— never via a background option (background Bash, background Task/agent
+dispatch) — and NEVER end your turn while any dispatched work is still
+pending. "The reviews are running; I'll open the PR when they finish" is a
+failure mode, not a hand-off. Your turn may end ONLY after Phase 5's PR exists
+or a documented exit path released the claim.
 
 When the plugin IS ready:
 - Invoke the `/ievo:deep-review` skill on the diff of this branch against
@@ -328,6 +355,13 @@ PREOF
     if [ -z "$PR_NUMBER" ]; then
       gh issue comment "$TARGET_ISSUE" --repo "$TARGET_REPO" \
         --body "Failed to open PR. Branch: $(git branch --show-current)"
+      # eva#170: release the claim so this documented stop is not read as a
+      # silent stall by the workflow post-check.
+      gh label create needs-operator --repo "$TARGET_REPO" \
+        --description "Pipeline blocked on the human operator to unblock" \
+        --color "e11d21" 2>/dev/null || true
+      gh issue edit "$TARGET_ISSUE" --repo "$TARGET_REPO" \
+        --remove-label eva-implementing --add-label triage --add-label needs-operator
       exit 1
     fi
   fi
@@ -373,6 +407,12 @@ DONEEOF
   `EVA_IEVO_PLUGIN_READY == "true"`, and they NEVER block or replace the build,
   the acceptance bar, or eva-review-pr. `/ievo:feedback` fires ONLY on a real
   plugin malfunction you hit this run — never routinely, never about itself.
+- FOREGROUND ONLY (eva#170): never dispatch background work (skills, subagents,
+  background Bash) and end your turn while it is pending — in this headless run,
+  ending the turn kills the process and everything still in flight. End the turn
+  only after the ready PR exists (Phase 5) or a documented exit path released
+  the claim. A deterministic workflow post-check FAILS the run if neither
+  happened — a silent stall can no longer read as green.
 - PR-only: never push to `main` directly (you work on a feature branch).
 - Do NOT create issues in other repos.
 - If you become unsure mid-build, post a comment on the issue asking for
