@@ -361,6 +361,83 @@ jobs:
         # no dev group, so a Python repo with a different layout still installs.
         run: uv sync --group dev 2>/dev/null || uv sync
 
+      # --- iEvo plugin dogfooding (eva#158) -------------------------------------
+      # Eva dogfoods her own product (the ievo plugin in ievo-ai/skills) inside her
+      # autonomous agents: /ievo:deep-review before the PR, /ievo:evolution to
+      # capture lessons from failures, /ievo:feedback on plugin malfunction. The
+      # prompt drives WHEN each fires; these two steps make the plugin + lesson
+      # store available. Both are DORMANT until the operator sets repo variable
+      # EVA_IEVO_PLUGIN_ENABLED=true (same dormant-by-default pattern as
+      # EVA_IMPLEMENT_ENABLED) — with the flag unset the workflow is byte-for-byte
+      # unchanged from before.
+      #
+      # DELIVERY MECHANISM (operator Q2 — verified against current docs +
+      # claude-code-action source, 2026-07-04; documented here as required):
+      #   - The action ALSO exposes native `plugins` / `plugin_marketplaces` inputs,
+      #     but its installPlugins() THROWS on any add/install error and is awaited
+      #     BEFORE the agent runs — so a transient marketplace/clone failure via
+      #     those inputs would fail the whole build. That violates operator Q5
+      #     ("plugin install failure must not fail the build"). So we do NOT use them.
+      #   - Instead we install the plugin here in a `continue-on-error` step (so a
+      #     failure is isolated — the build proceeds plugin-free) into the user
+      #     scope (~/.claude). The action's own `claude` invocation then PICKS IT UP:
+      #     its setup-claude-code-settings shallow-MERGES the `settings` input over
+      #     the existing ~/.claude/settings.json (preserving the `enabledPlugins`
+      #     key written by `claude plugin install`), and `-p`/print mode loads
+      #     installed marketplace plugins + their /name skills (both documented).
+      #   - `claude plugin marketplace add` clones ievo-ai/skills LIVE each run, so
+      #     this is install-fresh-at-run-start by construction (the "живая версия"
+      #     requirement — ephemeral runners, always the latest release).
+      - name: Install iEvo plugin (dogfood, best-effort)
+        id: ievo_plugin
+        if: steps.claim.outputs.skip != 'true' && vars.EVA_IEVO_PLUGIN_ENABLED == 'true'
+        continue-on-error: true   # operator Q5: a plugin failure must NEVER fail the build
+        env:
+          # plugin subcommands are local git/fs ops (no model calls), but pass the
+          # token so `claude` never refuses to run for lack of auth.
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          # install-fresh-at-run-start: latest CLI + a live clone of the marketplace.
+          # `timeout` bounds each network op so a hang can't eat the 50-min budget.
+          READY=false
+          if npm install -g @anthropic-ai/claude-code \
+             && timeout 300 claude plugin marketplace add ievo-ai/skills \
+             && timeout 300 claude plugin install ievo@ievo-skills \
+             && claude plugin list 2>/dev/null | grep -qi 'ievo'; then
+            READY=true
+            echo "iEvo plugin installed + enabled (user scope) — skills available to the agent."
+          else
+            echo "iEvo plugin unavailable this run — the agent proceeds WITHOUT it (degraded, operator Q5)."
+          fi
+          echo "ready=$READY" >> "$GITHUB_OUTPUT"
+
+      # READ path for Eva's evolution store (operator Q1 — mandatory). The store is
+      # Eva-side (ievo-ai/eva), NOT the target repo, so pull it via the API at main
+      # (the working tree is $TARGET_REPO). Best-effort: an empty/missing store is
+      # fine and must not fail the build. Also seed the WRITE-path capture file the
+      # agent appends lessons to (uploaded as an artifact after the run).
+      - name: Load Eva evolution store (best-effort)
+        id: evo_store
+        if: steps.claim.outputs.skip != 'true' && vars.EVA_IEVO_PLUGIN_ENABLED == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          STORE_FILE="$RUNNER_TEMP/eva-evolution-store.md"
+          CAPTURE_FILE="$RUNNER_TEMP/eva-evolution-capture.md"
+          if gh api "repos/ievo-ai/eva/contents/agent/memory/evolution/lessons.md?ref=main" \
+               --jq '.content' 2>/dev/null | base64 -d > "$STORE_FILE" 2>/dev/null \
+             && [ -s "$STORE_FILE" ]; then
+            echo "Loaded Eva evolution store ($(wc -l < "$STORE_FILE") lines)."
+          else
+            echo "No Eva evolution store yet (or fetch failed) — starting empty." > "$STORE_FILE"
+          fi
+          : > "$CAPTURE_FILE"
+          {
+            echo "store=$STORE_FILE"
+            echo "capture=$CAPTURE_FILE"
+          } >> "$GITHUB_OUTPUT"
+
       # CONSTRAINT: eva-implement.md must never contain the literal string
       # "EVA_IMPLEMENT_PROMPT_EOF" on a line by itself (heredoc delimiter).
       #
@@ -414,18 +491,38 @@ jobs:
           # (The reactive forwarder dispatches via the PAT = a human actor, so it
           # never needed this; only the App-token queue path does.)
           allowed_bots: "ievo-eva"
+          # `Skill` is appended ONLY when plugin dogfooding is enabled so the agent
+          # may invoke the iEvo plugin's /ievo:* skills; with the flag unset the
+          # tool list is byte-for-byte identical to before (eva#158).
           claude_args: |
             --model opus
-            --allowedTools "Bash,Edit,Read,Write,Glob,Grep,WebFetch,WebSearch"
+            --allowedTools "Bash,Edit,Read,Write,Glob,Grep,WebFetch,WebSearch${{ vars.EVA_IEVO_PLUGIN_ENABLED == 'true' && ',Skill' || '' }}"
           settings: |
             {
               "env": {
                 "GH_TOKEN": "${{ steps.auth.outputs.token }}",
                 "TARGET_REPO": "${{ steps.ctx.outputs.repo }}",
-                "TARGET_ISSUE": "${{ steps.ctx.outputs.issue_number }}"
+                "TARGET_ISSUE": "${{ steps.ctx.outputs.issue_number }}",
+                "EVA_IEVO_PLUGIN_READY": "${{ steps.ievo_plugin.outputs.ready }}",
+                "EVA_EVOLUTION_STORE": "${{ steps.evo_store.outputs.store }}",
+                "EVA_EVOLUTION_CAPTURE": "${{ steps.evo_store.outputs.capture }}"
               }
             }
           prompt: ${{ env.IMPLEMENT_PROMPT }}
+
+      # WRITE path (operator Q1, per-run artifact): upload the lessons the agent
+      # captured this run for later consolidation into agent/memory/evolution/
+      # lessons.md. `always()` so lessons about a FAILED build are captured too;
+      # best-effort so a missing/empty capture never affects the build outcome.
+      - name: Upload evolution capture (best-effort)
+        if: always() && steps.claim.outputs.skip != 'true' && vars.EVA_IEVO_PLUGIN_ENABLED == 'true' && steps.evo_store.outputs.capture != ''
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: eva-evolution-capture-${{ steps.ctx.outputs.issue_number }}
+          path: ${{ steps.evo_store.outputs.capture }}
+          if-no-files-found: ignore
+          retention-days: 90
 
       # Release the claim if the build crashed/failed AFTER claiming. Without
       # this, a failed run strands the issue in `eva-implementing` forever, and
