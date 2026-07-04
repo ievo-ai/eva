@@ -5,6 +5,10 @@
 # Auth: supports both GitHub App (recommended) and PAT.
 #   GitHub App: set APP_ID + APP_PRIVATE_KEY secrets
 #   PAT: set EVA_PAT_GITHUB_TOKEN secret
+#
+# workflows-permission smoke (eva#147, #151): proves the ievo-eva App can push
+# workflow files after the token-routing fix (#154 — the claude-code-action git
+# credential is now the App token) + the explicit `workflows: write` mint (#152/#153).
 
 name: Eva Scan
 
