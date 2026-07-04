@@ -494,8 +494,19 @@ jobs:
           # `Skill` is appended ONLY when plugin dogfooding is enabled so the agent
           # may invoke the iEvo plugin's /ievo:* skills; with the flag unset the
           # tool list is byte-for-byte identical to before (eva#158).
+          #
+          # Model + effort runbook (eva#161): to switch this flow without a code
+          # change, set repo/org Actions variables — EVA_MODEL_IMPLEMENT (an alias
+          # like `opus`/`fable` or a full id like `claude-fable-5`) and
+          # EVA_EFFORT_IMPLEMENT (low|medium|high|xhigh|max). Empty → today's
+          # defaults below. Repo-level vars override org-level (GitHub precedence),
+          # so per-repo experiments stay possible. `--effort` is a real per-session
+          # CLI flag (docs: code.claude.com/docs/en/model-config#adjust-effort-level);
+          # `high` is also the current model-default effort for opus (Opus 4.8), so
+          # the effort default is behavior-preserving, not a silent uplift.
           claude_args: |
-            --model opus
+            --model ${{ vars.EVA_MODEL_IMPLEMENT || 'opus' }}
+            --effort ${{ vars.EVA_EFFORT_IMPLEMENT || 'high' }}
             --allowedTools "Bash,Edit,Read,Write,Glob,Grep,WebFetch,WebSearch${{ vars.EVA_IEVO_PLUGIN_ENABLED == 'true' && ',Skill' || '' }}"
           settings: |
             {

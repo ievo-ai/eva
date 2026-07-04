@@ -405,8 +405,18 @@ jobs:
           allowed_bots: "ievo-eva"
           # `Skill` appended ONLY when plugin dogfooding is enabled (eva#158);
           # byte-for-byte identical to before with the flag unset.
+          #
+          # Model + effort runbook (eva#161): set repo/org Actions variables
+          # EVA_MODEL_FIX (alias like `opus`/`fable` or a full id like
+          # `claude-fable-5`) and EVA_EFFORT_FIX (low|medium|high|xhigh|max) to
+          # switch this flow with no code change. Empty → today's defaults below.
+          # Repo-level vars override org-level. `--effort` is a real per-session
+          # CLI flag (docs: code.claude.com/docs/en/model-config#adjust-effort-level);
+          # `high` is also the current model-default effort for opus (Opus 4.8), so
+          # the effort default is behavior-preserving, not a silent uplift.
           claude_args: |
-            --model opus
+            --model ${{ vars.EVA_MODEL_FIX || 'opus' }}
+            --effort ${{ vars.EVA_EFFORT_FIX || 'high' }}
             --allowedTools "Bash,Edit,Read,Write,Glob,Grep,WebFetch,WebSearch${{ vars.EVA_IEVO_PLUGIN_ENABLED == 'true' && ',Skill' || '' }}"
           settings: |
             {
