@@ -13,6 +13,12 @@ plugin inside Eva's agents). It is the answer to that issue's crux design point 
 Lessons are Eva's *internal* knowledge — they are NOT committed into target-repo
 PRs (noise + wrong ownership).
 
+[#169](https://github.com/ievo-ai/eva/issues/169) closed the write-path gap #158
+left open: v1 uploaded per-run captures as build artifacts with consolidation
+"deferred" — nobody ever consumed them, so `lessons.md` stayed empty forever and
+every run's read path loaded nothing back. The write path below (v2) commits the
+lesson every time, with no human maintenance step in the loop.
+
 ## Files
 
 | File | Role |
@@ -36,22 +42,38 @@ Every `eva-implement` / `eva-fix-pr` run loads this store at start when the
 A missing or empty store is fine (no lessons captured yet) and must never fail a
 build — the read is best-effort.
 
-## Write path (per-run artifact + periodic consolidation)
-
-Direct commits into every run would be noisy and, for cross-repo builds, land in
-the wrong repo. Instead (operator's accepted v1 option, issue #158):
+## Write path (atomic commit or auto-consolidator — no human step, issue #169)
 
 1. During a run the agent appends captured lessons to the file at
    `EVA_EVOLUTION_CAPTURE` (seeded empty by the store-load step). If the iEvo
    plugin is available it captures via the `/ievo:evolution` skill; otherwise it
    appends a brief dated note directly.
-2. After the agent finishes, the workflow uploads that capture file as a build
-   **artifact** (`eva-evolution-capture-*`).
-3. **Consolidation** (periodic, operator/maintenance step — deferred in v1):
-   captured lessons are reviewed and the durable, project-wide ones are appended
-   to `lessons.md` here via a small PR to `ievo-ai/eva`, so future runs read them
-   back. Same "auto-write only unambiguous lessons, park the rest for review"
-   contract the plugin's auto-evolution mode uses for interactive sessions.
+2. After the agent finishes, the workflow ALSO uploads that capture file as a
+   build **artifact** (`eva-evolution-capture-*`) — kept as debug belt-and-braces
+   only; nothing depends on the artifact being read.
+3. **Persistence** happens before the agent's turn ends, by one of two paths
+   depending on where the run happened:
+   - **eva-repo run** (`eva-implement` / `eva-fix-pr` building/fixing in
+     `ievo-ai/eva` itself): the agent appends the captured lesson to `lessons.md`
+     directly in the working tree and stages it in the SAME commit as the fix —
+     for `eva-implement` that's the PR-opening commit, for `eva-fix-pr` that's
+     the `[pr-fix-N]` commit. Merging that ONE PR persists the lesson
+     atomically; there is no second PR on this path.
+   - **Cross-repo run** (building/fixing any other repo — cli, skills,
+     marketplace, sdk, ievo.ai): lessons must not land in the target repo
+     (operator's #158 Q1 answer), so the agent instead clones `ievo-ai/eva`,
+     dedups against the current `lessons.md`, and — only if there is new
+     content — opens a small append-only PR on an `evolution/consolidate-*`
+     branch touching nothing but `agent/memory/evolution/lessons.md`.
+     `eva-review-pr.yml`'s sensitive-path gate carries a narrow carve-out for
+     exactly that branch-prefix + path-scope combination (mirroring the
+     existing `research/audit-*` exception), so it auto-merges without
+     operator involvement — the human gate on the REST of `agent/memory/`
+     (`ROLE.md`, sessions, anything else shaping Eva's identity) is unchanged.
+4. **Dedup**: an entry is skipped (not appended, no PR opened) when a section
+   with the exact same `## L-YYYY-MM-DD-NN — <title>` line already exists in
+   `lessons.md`. An empty capture (the gate passed on the first attempt, so
+   there is no lesson) produces no commit and no PR on either path.
 
 ## `lessons.md` entry format
 

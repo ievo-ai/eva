@@ -31,9 +31,12 @@ operator enabled it, so an empty value is normal, never an error):
 - `EVA_EVOLUTION_STORE` — path to a file holding lessons Eva captured on PRIOR
   autonomous runs. READ it in Phase 1 (below) and apply relevant lessons.
 - `EVA_EVOLUTION_CAPTURE` — path to a file you APPEND new lessons to this run
-  (Phase 4d below). Uploaded as a build artifact for later consolidation.
+  (Phase 4d below). Uploaded as a build artifact (debug belt-and-braces), and
+  ALSO consolidated into `agent/memory/evolution/lessons.md` before your turn
+  ends — atomically in THIS PR for an eva-repo build (Phase 4d), or via a small
+  separate PR to `ievo-ai/eva` for a cross-repo build (Phase 6). See eva#169.
 
-Where these are used is called out inline in Phases 1, 4d, and 4.5. When
+Where these are used is called out inline in Phases 1, 4d, 4.5, and 6. When
 `EVA_IEVO_PLUGIN_READY` is not `"true"`, this whole section is a no-op — build
 exactly as you otherwise would.
 
@@ -224,6 +227,21 @@ already got green:
 - If neither is available, skip silently.
 Do NOT capture anything if the gate passed first try — there's no lesson.
 
+eva-repo write path (eva#169 — ONLY when `$TARGET_REPO` is `ievo-ai/eva`): the
+working tree already IS the evolution store, so persist the lesson atomically
+with the fix, not as a side artifact nobody reads. If you captured a non-empty
+entry above (`EVA_EVOLUTION_CAPTURE` file has content), append it to
+`agent/memory/evolution/lessons.md` right now:
+- Dedup: if a section with the SAME `## L-YYYY-MM-DD-NN — <title>` line already
+  exists in `lessons.md`, skip — do not append a duplicate.
+- Otherwise append the new `## L-...` section(s) from the capture file to the
+  end of `lessons.md` (after the existing "Lessons go below this line" marker).
+- Stage `agent/memory/evolution/lessons.md` alongside your other changed files
+  in the Phase 4e commit — merging the PR persists the lesson. Do NOT open a
+  separate PR for this on an eva-repo build (Phase 6 is cross-repo only).
+- Cross-repo builds skip this — see Phase 6 instead (lessons must not land in
+  the target repo, operator's #158 Q1 answer).
+
 ### 4e. Commit + push the branch (NO PR yet)
 
 Stage only the files you changed (no `git add -A`). Footer MUST include the Eva
@@ -295,7 +313,8 @@ skill/subagent in this phase (and anywhere else in this prompt) SYNCHRONOUSLY
 dispatch) — and NEVER end your turn while any dispatched work is still
 pending. "The reviews are running; I'll open the PR when they finish" is a
 failure mode, not a hand-off. Your turn may end ONLY after Phase 5's PR exists
-or a documented exit path released the claim.
+(and Phase 6's consolidation attempt, if applicable, has completed) or a
+documented exit path released the claim.
 
 When the plugin IS ready:
 - Invoke the `/ievo:deep-review` skill on the diff of this branch against
@@ -386,6 +405,70 @@ operator (sensitive path). No further action needed from the implementer.
 DONEEOF
   gh issue comment "$TARGET_ISSUE" --repo "$TARGET_REPO" --body-file /tmp/done.md
 
+## Phase 6 — Cross-repo evolution consolidation (eva#169)
+
+Only when `$TARGET_REPO` is NOT `ievo-ai/eva` (a cross-repo build). An eva-repo
+build already persisted the captured lesson atomically, inside the SAME PR
+(Phase 4d) — do not repeat that work or open a second PR here. Lessons about
+Eva's own autonomous behavior must never land in the target repo (operator's
+#158 Q1 answer), so a cross-repo build instead opens a SEPARATE, small,
+append-only PR to `ievo-ai/eva`.
+
+This is best-effort and runs AFTER your real job (Phase 5's PR) is already
+done — a failure here is a missed learning opportunity, not a build failure,
+and must never change the outcome already recorded in Phase 5. Still run it
+SYNCHRONOUSLY, in the foreground, before ending your turn (same FOREGROUND
+rule as Phase 4.5 — see Safety rules).
+
+  CAPTURE_FILE="$EVA_EVOLUTION_CAPTURE"
+  if [ "$TARGET_REPO" != "ievo-ai/eva" ] && [ -n "$CAPTURE_FILE" ] && [ -s "$CAPTURE_FILE" ]; then
+    WORKDIR=$(mktemp -d)
+    gh auth setup-git
+    if git clone --depth 1 https://github.com/ievo-ai/eva.git "$WORKDIR/eva"; then
+      (
+        cd "$WORKDIR/eva"
+        git config user.name "iEVO Eva"
+        git config user.email "noreply@ievo.ai"
+        LESSONS=agent/memory/evolution/lessons.md
+
+        # Dedup: append only capture entries (## L-... blocks) whose title
+        # line is not already present verbatim in lessons.md.
+        NEW_CONTENT=$(awk -v lessons="$LESSONS" '
+          BEGIN { while ((getline line < lessons) > 0) seen[line] = 1 }
+          /^## / {
+            if (block != "" && !(title in seen)) printf "%s", block
+            title = $0; block = $0 "\n"; next
+          }
+          { block = block $0 "\n" }
+          END { if (block != "" && !(title in seen)) printf "%s", block }
+        ' "$CAPTURE_FILE")
+
+        if [ -n "$NEW_CONTENT" ]; then
+          printf '\n%s\n' "$NEW_CONTENT" >> "$LESSONS"
+          STAMP=$(date -u +%Y-%m-%d-%H%M)
+          SLUG="$(echo "$TARGET_REPO" | tr '/' '-')-${TARGET_ISSUE}"
+          BRANCH="evolution/consolidate-${STAMP}-${SLUG}"
+          git checkout -b "$BRANCH"
+          git add "$LESSONS"
+          git commit -m "docs: consolidate evolution lesson from $TARGET_REPO#$TARGET_ISSUE
+
+Co-Authored-By: iEVO Eva <noreply@ievo.ai>"
+          git push -u origin "$BRANCH"
+          gh pr create --repo ievo-ai/eva --base main \
+            --title "docs: consolidate evolution lesson ($TARGET_REPO#$TARGET_ISSUE)" \
+            --label silent \
+            --body "Auto-consolidated lesson captured while implementing $TARGET_REPO#$TARGET_ISSUE (eva#169). Append-only, docs-only diff — eva-review-pr's \`evolution/consolidate-*\` carve-out allows auto-merge despite \`agent/memory/\` being sensitive-listed."
+        else
+          echo "Captured lesson(s) already present in lessons.md verbatim — nothing new to consolidate."
+        fi
+      )
+    else
+      echo "Could not clone ievo-ai/eva for consolidation — skipping (best-effort)."
+    fi
+  else
+    echo "No lesson to consolidate this run (eva-repo build, or nothing captured)."
+  fi
+
 ## Safety rules (non-negotiable)
 
 - NEVER merge the PR. eva-review-pr reviews and merges. Your job ends when you
@@ -410,9 +493,17 @@ DONEEOF
 - FOREGROUND ONLY (eva#170): never dispatch background work (skills, subagents,
   background Bash) and end your turn while it is pending — in this headless run,
   ending the turn kills the process and everything still in flight. End the turn
-  only after the ready PR exists (Phase 5) or a documented exit path released
-  the claim. A deterministic workflow post-check FAILS the run if neither
-  happened — a silent stall can no longer read as green.
+  only after (the ready PR exists (Phase 5) AND Phase 6's consolidation attempt,
+  if applicable, has completed) or a documented exit path released the claim. The
+  deterministic workflow post-check (`.github/workflows/eva-implement.yml`) only
+  knows about the PR-exists / claim-released outcomes — it has no visibility into
+  Phase 6 (that PR, if any, lands in a separate repo this check never inspects) —
+  so it FAILS the run if neither of those two happened, regardless of Phase 6.
+- Phase 6 (eva#169) is best-effort and must never change the Phase 5 outcome
+  already recorded: a failed clone/push/PR there is a missed learning
+  opportunity, not a build failure — do not retry it against the main build,
+  do not fail the run over it, and never open more than the one small PR to
+  `ievo-ai/eva`.
 - PR-only: never push to `main` directly (you work on a feature branch).
 - Do NOT create issues in other repos.
 - If you become unsure mid-build, post a comment on the issue asking for

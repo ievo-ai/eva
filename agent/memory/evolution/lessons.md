@@ -5,7 +5,8 @@ Append-only ledger of lessons Eva captured from her own autonomous work
 [`README.md`](README.md) for the format and the read/write contract (issue #158).
 
 No lessons captured yet — this store is seeded empty. New entries are appended
-below as Eva's runs surface durable, project-wide lessons (per-run captures are
-uploaded as build artifacts first, then consolidated here via a small PR).
+below as Eva's runs surface durable, project-wide lessons: an eva-repo run
+commits the lesson atomically with its own fix, a cross-repo run opens a small
+append-only PR here (dedup'd against existing entries) — see `README.md`.
 
 <!-- Lessons go below this line, newest last. Format: see README.md. -->
