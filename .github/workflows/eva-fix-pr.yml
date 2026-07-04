@@ -272,6 +272,55 @@ jobs:
           fi
           echo "skip=false" >> "$GITHUB_OUTPUT"
 
+      # Per-issue model/effort escalation — fix rounds INHERIT the escalation the
+      # issue carries (eva#172). The fixer operates on a PR, so the escalation
+      # label lives on the ISSUE the PR closes (`Closes #N` → closingIssuesReferences),
+      # not the PR. Same precedence + whitelist as eva-implement's resolve step:
+      # issue LABEL > repo VARIABLE (EVA_MODEL_FIX / EVA_EFFORT_FIX) > DEFAULT
+      # (opus / high). Only whitelisted literals reach the CLI. No linked issue,
+      # or no model/effort label, → var || default (byte-for-byte the eva#161
+      # behaviour), so an un-escalated PR is unchanged.
+      - name: Resolve model + effort
+        id: resolve
+        if: steps.ctx.outputs.skip != 'true' && steps.budget.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          REPO: ${{ steps.ctx.outputs.repo }}
+          PR_NUM: ${{ steps.ctx.outputs.pr_number }}
+          VAR_MODEL: ${{ vars.EVA_MODEL_FIX }}
+          VAR_EFFORT: ${{ vars.EVA_EFFORT_FIX }}
+          DEFAULT_MODEL: opus
+          DEFAULT_EFFORT: high
+        run: |
+          # The issue this PR closes carries the escalation label (if any).
+          ISSUE_NUM=$(gh pr view "$PR_NUM" --repo "$REPO" \
+            --json closingIssuesReferences \
+            --jq '.closingIssuesReferences[0].number // ""' 2>/dev/null || echo "")
+
+          MODEL_LABEL=""
+          EFFORT_LABEL=""
+          if [ -n "$ISSUE_NUM" ]; then
+            LJSON=$(gh issue view "$ISSUE_NUM" --repo "$REPO" --json labels --jq '[.labels[].name]' 2>/dev/null || echo '[]')
+            MODEL_LABEL=$(printf '%s' "$LJSON" | jq -r 'map(select(startswith("model:"))) | first // ""')
+            EFFORT_LABEL=$(printf '%s' "$LJSON" | jq -r 'map(select(startswith("effort:"))) | first // ""')
+          fi
+
+          case "$MODEL_LABEL" in
+            model:opus)   MODEL="opus" ;;
+            model:fable)  MODEL="fable" ;;
+            *)            MODEL="${VAR_MODEL:-$DEFAULT_MODEL}" ;;
+          esac
+          case "$EFFORT_LABEL" in
+            effort:low|effort:medium|effort:high|effort:xhigh|effort:max) EFFORT="${EFFORT_LABEL#effort:}" ;;
+            *)                                                            EFFORT="${VAR_EFFORT:-$DEFAULT_EFFORT}" ;;
+          esac
+
+          echo "Resolved model=$MODEL effort=$EFFORT (issue #${ISSUE_NUM:-none}, model_label='$MODEL_LABEL' effort_label='$EFFORT_LABEL')"
+          {
+            echo "model=$MODEL"
+            echo "effort=$EFFORT"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Configure git identity
         if: steps.ctx.outputs.skip != 'true' && steps.budget.outputs.skip != 'true'
         run: |
@@ -412,17 +461,18 @@ jobs:
           # `Skill` appended ONLY when plugin dogfooding is enabled (eva#158);
           # byte-for-byte identical to before with the flag unset.
           #
-          # Model + effort runbook (eva#161): set repo/org Actions variables
-          # EVA_MODEL_FIX (alias like `opus`/`fable` or a full id like
-          # `claude-fable-5`) and EVA_EFFORT_FIX (low|medium|high|xhigh|max) to
-          # switch this flow with no code change. Empty → today's defaults below.
-          # Repo-level vars override org-level. `--effort` is a real per-session
-          # CLI flag (docs: code.claude.com/docs/en/model-config#adjust-effort-level);
-          # `high` is also the current model-default effort for opus (Opus 4.8), so
-          # the effort default is behavior-preserving, not a silent uplift.
+          # Model + effort (eva#161 runbook + eva#172 per-issue escalation): the
+          # `Resolve model + effort` step above applied LABEL (inherited from the
+          # issue this PR closes) > repo VARIABLE (EVA_MODEL_FIX / EVA_EFFORT_FIX) >
+          # DEFAULT (opus / high), so a fable-escalated issue's fix rounds also run
+          # on Fable. To switch the flow globally set the Actions variable (empty →
+          # the default). `--effort` is a real per-session CLI flag (docs:
+          # code.claude.com/docs/en/model-config#adjust-effort-level); `high` is
+          # also the model-default effort for opus (Opus 4.8), so the default is
+          # behavior-preserving, not a silent uplift.
           claude_args: |
-            --model ${{ vars.EVA_MODEL_FIX || 'opus' }}
-            --effort ${{ vars.EVA_EFFORT_FIX || 'high' }}
+            --model ${{ steps.resolve.outputs.model }}
+            --effort ${{ steps.resolve.outputs.effort }}
             --allowedTools "Bash,Edit,Read,Write,Glob,Grep,WebFetch,WebSearch${{ vars.EVA_IEVO_PLUGIN_ENABLED == 'true' && ',Skill' || '' }}"
           settings: |
             {

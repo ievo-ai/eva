@@ -103,6 +103,44 @@ pin what the CLI already used implicitly. Effort is deliberately not parametrize
 for `eva-research` / `publish-evolution` (model only). To try Fable, set the
 relevant `EVA_MODEL_*` to `fable` (or `claude-fable-5`).
 
+### Per-issue model escalation (eva#172)
+
+The variables above are **global** — they flip a whole flow for every run. For a
+finer lever, a single issue can be escalated to Fable without touching anyone
+else's builds. Two paths feed the same resolution:
+
+**Manual (label).** A collaborator labels an issue `model:fable` (and optionally
+`effort:xhigh`). `eva-implement` reads the label at claim time and resolves the
+build's model/effort as **label > repo variable > default**; `eva-fix-pr`
+inherits the same escalation for its fix rounds by reading the label off the
+issue the PR closes. Labels are collaborator-only (same trust boundary as
+`approved`), so this is not an external cost-escalation vector.
+
+- **Whitelist**: only `model:opus` / `model:fable` and
+  `effort:{low,medium,high,xhigh,max}` are honoured. Any other `model:*`/`effort:*`
+  label value is ignored (the flow falls back to variable → default) and a notice
+  is posted on the issue. No free-form label text ever reaches the CLI invocation.
+
+**Router auto-selection (autonomous).** At verdict time the Issue Router
+(`eva-on-issue`) MAY apply `model:fable` itself, but only when the task is BOTH
+**reasoning-heavy** (root-cause hunt, security/invariant design, cross-system
+interaction) AND **narrow-surface** (≤~3 files, no sweeping edit). A
+reasoning-heavy but WIDE task must be **split**, never escalated — Fable + volume
+times out (the eva#159 50-min kill). The Router states the decision in its
+analysis comment so it is auditable, and is bounded by:
+
+- **Daily budget**: max 3 Router-applied `model:fable` builds per repo per 24h,
+  counted statelessly from `model:fable` label-events whose actor is
+  `ievo-eva[bot]` (the same pattern as the Skeptic-mode self-approve cap).
+  Operator-applied labels do not count against it.
+- **Operator label wins**: if a human applied or removed a `model:*` label, the
+  Router never overrides it (same semantics as "the Router can never resurrect a
+  terminal verdict"). The Router applies its label via the App token so its
+  actor (`ievo-eva[bot]`) is distinguishable from a human's.
+
+Because these workflow files are a sensitive path, a change to them still routes
+the merge to the operator; the escalation labels themselves need no such gate.
+
 ## Docker (Self-Hosted)
 
 ### Image
