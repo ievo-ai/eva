@@ -25,6 +25,15 @@ SITE_REPO = "ievo-ai/ievo.ai"
 EVOLUTIONS_PATH = "docs/evolutions.json"
 
 
+class EvolutionPublishError(Exception):
+    """At least one publish channel (GitHub feed, Telegram) failed.
+
+    Both channels are always attempted before this is raised; the message
+    aggregates every failure so callers can fail loudly (eva#160 — a swallowed
+    409 hid a production outage for 8+ hours).
+    """
+
+
 class EvolutionPublisher:
     """Publishes evolution entries to ievo.ai and optionally Telegram."""
 
@@ -59,11 +68,14 @@ class EvolutionPublisher:
         """Publish EvolutionEntry objects to GitHub and optionally Telegram.
 
         Auto-assigns id and date to entries that don't have them.
-        Returns number of entries published.
+        Both channels are attempted independently: a feed failure does not
+        silence Telegram (nor vice versa). Raises EvolutionPublishError if
+        either channel failed. Returns number of entries published.
         """
         if not entries:
             return 0
 
+        feed_error: str | None = None
         try:
             # Read current evolutions.json
             existing = await self._client.get_file_content(SITE_REPO, EVOLUTIONS_PATH, "main")
@@ -109,26 +121,47 @@ class EvolutionPublisher:
                 f"  [green]\u2713[/green] Published {len(entries)} evolution(s) to ievo.ai"
             )
 
-            # Notify Telegram
-            await self._notify_telegram(entries)
-
-            return len(entries)
-
         except Exception as e:
+            feed_error = str(e)
             console.print(f"  [yellow]\u26a0[/yellow] Evolution publish failed: {e}")
-            return 0
 
-    async def _notify_telegram(self, entries: list[EvolutionEntry]) -> None:
-        """Send evolution notifications to Telegram community chat."""
+        # Notify Telegram \u2014 always attempted, even when the feed write failed
+        # (entries keep their default id/date if the feed read never ran).
+        telegram_errors = await self._notify_telegram(entries)
+
+        if feed_error or telegram_errors:
+            failures = []
+            if feed_error:
+                failures.append(f"feed: {feed_error}")
+            failures.extend(f"telegram: {err}" for err in telegram_errors)
+            raise EvolutionPublishError("; ".join(failures))
+
+        return len(entries)
+
+    async def _notify_telegram(self, entries: list[EvolutionEntry]) -> list[str]:
+        """Send evolution notifications to Telegram community chat.
+
+        Returns error descriptions for failed sends (empty list when all
+        sends succeeded or no Telegram client is configured).
+        """
         if not self._telegram:
-            return
+            return []
 
         topic_id = self._evolutions_topic
+        errors: list[str] = []
 
         for entry in entries:
             msg = format_telegram_message(entry)
-            result = await self._telegram.send_message(msg, message_thread_id=topic_id)
+            try:
+                result = await self._telegram.send_message(msg, message_thread_id=topic_id)
+            except Exception as e:
+                console.print(f"  [yellow]\u26a0[/yellow] Telegram {entry.id}: {e}")
+                errors.append(f"{entry.id}: {e}")
+                continue
             if result.success:
                 console.print(f"  [green]\u2713[/green] Telegram: {entry.id}")
             else:
                 console.print(f"  [yellow]\u26a0[/yellow] Telegram {entry.id}: {result.error}")
+                errors.append(f"{entry.id}: {result.error}")
+
+        return errors

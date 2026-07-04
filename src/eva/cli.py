@@ -246,7 +246,7 @@ def publish(
         console.print("\n[dim]Use --live to publish.[/dim]")
         return
 
-    from eva.github.evolution_publisher import EvolutionPublisher
+    from eva.github.evolution_publisher import EvolutionPublisher, EvolutionPublishError
     from eva.telegram.client import TelegramClient
 
     telegram = None
@@ -255,15 +255,23 @@ def publish(
     except ValueError:
         console.print("[dim]No Telegram config — publishing to GitHub only.[/dim]")
 
+    # Fail loudly (eva#160): any live-publish failure must exit non-zero so a
+    # broken feed shows red in CI instead of a green run with a swallowed ⚠.
     try:
         pub = EvolutionPublisher(telegram=telegram)
         count = asyncio.run(pub.publish_entries([entry]))
-        if count:
-            console.print(f"[green]✓[/green] Published {entry.id}")
-        else:
-            console.print("[yellow]⚠[/yellow] Nothing published.")
+    except EvolutionPublishError as e:
+        console.print(f"[red]✗[/red] Publish failed: {e}")
+        raise SystemExit(1) from e
     except ValueError as e:
         console.print(f"[red]✗[/red] {e}")
+        raise SystemExit(1) from e
+
+    if count:
+        console.print(f"[green]✓[/green] Published {entry.id}")
+    else:
+        console.print("[yellow]⚠[/yellow] Nothing published.")
+        raise SystemExit(1)
 
 
 @main.group()
