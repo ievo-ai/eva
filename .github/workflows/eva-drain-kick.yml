@@ -1,0 +1,81 @@
+# Eva — Drain-Queue Kick on Any Freed Slot (eva#163)
+#
+# eva-review-pr.yml's own "Kick approved-queue drain on freed slot" step
+# (eva#144) fires repository_dispatch(drain-queue) ONLY when its OWN
+# Auto-merge step performed the merge (`steps.merge.outputs.direct_merged ==
+# 'true'`). That step never runs for a PR touching a sensitive path
+# (`.github/workflows/`, `agent/ROLE.md`, etc.) — those get an "operator
+# review required" comment instead and are merged by hand later, outside
+# that workflow run, so no kick fires. Approved issues then sit until the
+# schedule-skewed `eva-queue.yml` cron catches up (eva#159/#160, 2026-07-04).
+#
+# This workflow closes that gap with a same-repo, merge-agnostic trigger: ANY
+# `eva-impl/*` PR closed-and-merged in ievo-ai/eva — Eva self-merge or
+# operator manual merge alike — fires the identical payload-free
+# `drain-queue` dispatch eva-review-pr already uses. Kept as its own small
+# file rather than folded into eva-review-pr.yml (whose fork/trust filtering
+# is irrelevant here — this is a native `pull_request` event on this repo's
+# own merges, not a cross-repo dispatch) or eva-queue.yml (already carries the
+# sweep's own dry_run/schedule surface) — the "15-line dedicated workflow"
+# option from eva#163.
+#
+# Scope: ievo-ai/eva only (eva#163's `Repos: repos/eva` note) — a
+# `pull_request` trigger only fires on the repo the workflow file lives in,
+# so an `eva-impl/*` PR merged by hand in a child repo (cli, marketplace,
+# skills, ...) has the identical gap still. Extending coverage there is a
+# separate follow-up, not in scope here.
+#
+# No new trust surface: the dispatch is payload-free, and eva-queue.yml's
+# drain step independently re-verifies the eva#132 trust chain per issue —
+# identical contract to the existing eva-review-pr.yml kick.
+
+name: "Eva: Drain-Queue Kick (freed slot)"
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  kick:
+    name: "Dispatch drain-queue on eva-impl/* merge"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'eva-impl/')
+    steps:
+      - name: Generate App token
+        if: vars.USE_GITHUB_APP == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547  # v1.12.0
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ievo-ai
+
+      - name: Set auth token
+        id: auth
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          PAT_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+        run: |
+          if [ -n "$APP_TOKEN" ]; then
+            echo "token=$APP_TOKEN" >> "$GITHUB_OUTPUT"
+          else
+            echo "token=$PAT_TOKEN" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Payload-free dispatch; event_type MUST match eva-queue.yml's
+      # `repository_dispatch: types: [drain-queue]`. GITHUB_TOKEN cannot be
+      # used here — a workflow run triggered by the default GITHUB_TOKEN
+      # cannot itself start another workflow run, by GitHub Actions design.
+      - name: Dispatch drain-queue
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_NUM: ${{ github.event.pull_request.number }}
+        run: |
+          echo '{"event_type":"drain-queue"}' | gh api "repos/ievo-ai/eva/dispatches" --input -
+          echo "Dispatched drain-queue after merging ievo-ai/eva#$PR_NUM (branch $HEAD_REF freed a slot)"
