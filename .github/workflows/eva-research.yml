@@ -132,8 +132,14 @@ jobs:
           # exactly here. Manual workflow_dispatch runs report the
           # operator as actor and skip this check.
           allowed_bots: "ievo-eva"
+          # Model runbook (eva#161): set repo/org Actions variable
+          # EVA_MODEL_RESEARCH (alias like `sonnet`/`fable` or a full id like
+          # `claude-fable-5`) to switch this flow with no code change. Empty →
+          # today's default below. Repo-level vars override org-level. Effort is
+          # intentionally NOT parametrized here (per eva#161: model only for
+          # research) — it inherits the model's default effort.
           claude_args: |
-            --model sonnet
+            --model ${{ vars.EVA_MODEL_RESEARCH || 'sonnet' }}
             --allowedTools "Bash,Edit,Read,Write,Glob,Grep,WebFetch,WebSearch"
           settings: |
             {

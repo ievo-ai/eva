@@ -200,8 +200,15 @@ jobs:
           # and the job already filters client_payload.triggered_by != ievo-eva
           # to stop Eva's own bot-filed issues from looping.
           allowed_bots: "ievo-eva"
+          # Model + effort runbook (eva#161): set repo/org Actions variables
+          # EVA_MODEL_ROUTER (alias like `sonnet`/`fable` or a full id like
+          # `claude-fable-5`) and EVA_EFFORT_ROUTER (low|medium|high|xhigh|max) to
+          # switch this flow with no code change. Empty → today's defaults below.
+          # Repo-level vars override org-level. `--effort` is a real per-session
+          # CLI flag (docs: code.claude.com/docs/en/model-config#adjust-effort-level).
           claude_args: |
-            --model sonnet
+            --model ${{ vars.EVA_MODEL_ROUTER || 'sonnet' }}
+            --effort ${{ vars.EVA_EFFORT_ROUTER || 'high' }}
             --allowedTools "Bash,Read,Glob,Grep,WebFetch,WebSearch"
           settings: |
             {

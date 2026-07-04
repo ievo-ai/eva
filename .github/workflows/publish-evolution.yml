@@ -208,7 +208,13 @@ jobs:
             printf '%s' "${PR_BODY:0:500}"
           } > /tmp/desc-prompt.txt
 
-          DESCRIPTION=$(claude -p --model haiku < /tmp/desc-prompt.txt) \
+          # Model runbook (eva#161): set repo/org Actions variable
+          # EVA_MODEL_PUBLISH (alias like `haiku`/`fable` or a full id like
+          # `claude-fable-5`) to switch this one-line-blurb generator with no code
+          # change. Empty → today's default below. Repo-level vars override
+          # org-level. Effort is intentionally NOT parametrized here (per eva#161:
+          # model only for publish) — a one-sentence blurb needs no deep reasoning.
+          DESCRIPTION=$(claude -p --model "${{ vars.EVA_MODEL_PUBLISH || 'haiku' }}" < /tmp/desc-prompt.txt) \
             || DESCRIPTION="$PR_TITLE"
 
           # Fallback to title if Claude returned empty.

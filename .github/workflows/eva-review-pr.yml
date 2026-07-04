@@ -335,7 +335,14 @@ jobs:
           # Clear CLAUDECODE to avoid nested session issues
           unset CLAUDECODE
 
-          REVIEW=$(cat /tmp/prompt.txt | claude -p --model opus --allowedTools "Bash(read-only),Read,Glob,Grep") || true
+          # Model + effort runbook (eva#161): set repo/org Actions variables
+          # EVA_MODEL_REVIEW (alias like `opus`/`fable` or a full id like
+          # `claude-fable-5`) and EVA_EFFORT_REVIEW (low|medium|high|xhigh|max) to
+          # switch this raw-CLI review call with no code change. Empty → today's
+          # defaults below. Repo-level vars override org-level. `--effort` is a
+          # real per-session CLI flag (docs:
+          # code.claude.com/docs/en/model-config#adjust-effort-level).
+          REVIEW=$(cat /tmp/prompt.txt | claude -p --model "${{ vars.EVA_MODEL_REVIEW || 'opus' }}" --effort "${{ vars.EVA_EFFORT_REVIEW || 'high' }}" --allowedTools "Bash(read-only),Read,Glob,Grep") || true
 
           # SAFETY (2026-05-23): on CLI failure, default to REQUEST_CHANGES
           # — operator decides. Previously defaulted to APPROVE which let
