@@ -36,14 +36,15 @@ run_id: <GitHub Actions run ID or null>
 ## https://www.anthropic.com/news
 
 ```yaml
-last_scan: 2026-07-01T00:00:00Z
-status: changed
-run_id: 28450000000
+last_scan: 2026-07-04T08:49:33Z
+status: unchanged
+run_id: 28700876614
 ```
 
 **Summary:** Claude Sonnet 5 released (June 30) — new default model, native 1M-token context, promotional pricing ($2/$10 per Mtok through Aug 31). Claude Science workbench (June 30) and Fable 5 redeployment update (June 30) also posted. No agent-skill-format changes; Sonnet 5 is consumed transparently via iEvo's vendor-neutral `sonnet` alias — no action needed.
 
 History:
+- 2026-07-04T08:49:33Z — unchanged: re-fetched; same June 30 items (Sonnet 5, Claude Science, Fable 5 redeployment — returns globally July 1 with a cross-industry jailbreak-severity framework); nothing new since July 1 scan
 - 2026-07-01T00:00:00Z — changed: Claude Sonnet 5 (June 30) — new default model, 1M context, promo pricing; Claude Science + Fable 5 redeployment also June 30; no CC-specific or skill-format changes; `sonnet` alias auto-resolves, no iEvo action needed
 - 2026-06-30T00:00:00Z — changed: Claude Tag (June 23) — team collaboration feature; Services Track + Partner Hub (June 3); no model releases or CC-specific changes
 - 2026-06-27T07:21:43Z — unchanged: not re-fetched; tracking Claude Code releases directly; no evidence of new Anthropic blog announcements since last scan
@@ -66,14 +67,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-07-03T00:00:00Z
+last_scan: 2026-07-04T08:49:33Z
 status: changed
-run_id: null
+run_id: 28700876614
 ```
 
-**Summary:** v2.1.199 (2026-07-02, 23:35) is latest — no new SKILL.md/agent frontmatter fields; mostly bug fixes: `SessionStart`/`Setup`/`SubagentStart` hooks no longer silently hide stderr on exit code 2; `SendMessage` misrouting fix for re-spawned agents reusing a prior name; subagent messages from the launcher are now treated as task direction (never as user approval); stacked slash-skill invocations (`/skill-a /skill-b do XYZ`) now load all leading skills (up to 5) instead of just the first, each getting the trailing text as `$ARGUMENTS` — a Claude Code CLI-invocation behavior with no SKILL.md/AGENTS.md surface for iEvo (none of iEvo's skills are typically stacked); subagents cut off by rate-limit/API error now correctly report partial work / the error to the parent instead of silently failing or reporting false success; idle subagents collapse into an expandable summary row instead of vanishing. None of this is iEvo-actionable — no new frontmatter, no hook-type addition, no plugin-manifest change.
+**Summary:** v2.1.201 (2026-07-03, 23:50) is latest. v2.1.200 (2026-07-03): `AskUserQuestion` dialogs no longer auto-continue by default (idle timeout is now opt-in via `/config`) — makes iEvo's interview flows (init install choices) safer against unattended auto-accept, no doc change required; the "default" permission mode is renamed "Manual" across CLI/IDE surfaces with `--permission-mode manual` / `"defaultMode": "manual"` accepted as aliases (iEvo has no doc references to the old name — verified via grep); plus a large batch of background-agent daemon fixes (stale `daemon.lock` PID reuse, roster corruption, socket auth tokens), subagent rate-limit empty-result fix, and `claude agents --plugin-dir` flag-position fix. v2.1.201: Sonnet 5 sessions stop using the mid-conversation system role for harness reminders. No new SKILL.md/agent frontmatter fields, no new hook types — nothing iEvo-actionable.
 
 History:
+- 2026-07-04T08:49:33Z — changed: v2.1.200/v2.1.201 (July 3) — AskUserQuestion no-auto-continue default, "default"→"Manual" permission-mode rename (alias kept), background-agent daemon fixes; no new frontmatter, no iEvo action
 - 2026-07-03T00:00:00Z — changed: v2.1.199 (July 2) — hook stderr visibility fix, SendMessage re-spawn misrouting fix, subagent error-propagation fixes, stacked slash-skill invocation (up to 5); no new frontmatter fields, no iEvo action
 - 2026-07-02T09:10:00Z — unchanged: re-confirmed ~2h after prior scan, still v2.1.198, no newer release
 - 2026-07-02T07:21:05Z — changed: v2.1.198 (July 1) — Notification hook agent_needs_input/agent_completed matchers (triggered F-2026-07-02-001); malformed SKILL.md frontmatter graceful degradation; Explore agent model inheritance; background agents auto-PR on finish
@@ -100,14 +102,15 @@ History:
 ## https://github.com/anthropics/claude-code-action/releases
 
 ```yaml
-last_scan: 2026-07-03T00:00:00Z
+last_scan: 2026-07-04T08:49:33Z
 status: changed
-run_id: null
+run_id: 28700876614
 ```
 
-**Summary:** v1.0.163 (2026-07-02) is latest dated release — minor patch, no changelog detail surfaced beyond "minor update". eva#65 (workflow migration off deprecated v0.x inputs) remains resolved+closed (2026-07-02) — no new deprecated-input risk introduced. The floating `v1` major-version tag (ambiguous "26 Aug" date, no year, same underlying GA-description content each scan) is confirmed NOT a new dated release — do not treat as `changed` in future scans; only trust dated point releases like v1.0.163.
+**Summary:** v1.0.165 (2026-07-03, 23:52) is latest dated release; v1.0.164 also July 3. Both have empty bodies (compare-link only) — routine minor patches tracking the CLI's v2.1.200/201 releases. No deprecated-input changes, no action-interface changes. eva#65 remains resolved+closed. Floating `v1` tag remains a non-signal.
 
 History:
+- 2026-07-04T08:49:33Z — changed: v1.0.164/v1.0.165 (July 3), empty release bodies, routine patches; no action
 - 2026-07-03T00:00:00Z — changed: v1.0.163 (July 2) minor patch; floating `v1` tag re-confirmed as a non-signal (same ambiguous-date GA content as prior scans); eva#65 stays closed, no new action
 - 2026-07-02T09:10:00Z — unchanged: re-confirmed ~2h after prior scan, still v1.0.162; page also shows a floating `v1` major-version tag (ambiguous "26 Aug" date, no year) pointing at the same commit — not a new release, noted for future scans to avoid a false "changed" read
 - 2026-07-02T07:21:05Z — changed: v1.0.162 (July 1) — agent-approval-check composite action; eva#65 resolved+closed this run after direct verification (grep confirmed zero deprecated inputs across all eva workflows)
@@ -164,14 +167,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-07-03T00:00:00Z
+last_scan: 2026-07-04T08:49:33Z
 status: unchanged
-run_id: null
+run_id: 28700876614
 ```
 
 **Summary:** v0.142.5 (2026-07-01) still latest stable (WebSocket trace-log fix). v0.143.0-alpha.35 (2026-07-03) still pre-release, no changelog. No stable v0.143.0 yet; no hook/MCP/skill-format changes. Alpha series now at 35 builds with zero published changelogs — worth a spot-check of alpha diffs if v0.143.0 stable still hasn't shipped by the next few runs.
 
 History:
+- 2026-07-04T08:49:33Z — unchanged: still v0.142.5 stable / alpha.35 (no new alpha since July 3); no stable v0.143.0, alpha line paused
 - 2026-07-03T00:00:00Z — unchanged: still v0.142.5 stable; alpha line advanced to alpha.35 (July 3), still no changelog; no stable v0.143.0
 - 2026-07-02T09:10:00Z — unchanged: re-confirmed ~2h after prior scan, still v0.142.5 stable / alpha.33 pre-release
 - 2026-07-02T07:21:05Z — unchanged: v0.142.5 still latest stable; v0.143.0-alpha.33 (July 2) still pre-release, no changelog; no hook/MCP/skill-format changes
@@ -219,14 +223,15 @@ History:
 ## https://agentskills.io/specification
 
 ```yaml
-last_scan: 2026-07-03T00:00:00Z
+last_scan: 2026-07-04T08:49:33Z
 status: unchanged
-run_id: null
+run_id: 28700876614
 ```
 
 **Summary:** Required fields: `name` + `description` (≤1024 chars). Optional: `license`, `compatibility` (≤500 chars), `metadata`, `allowed-tools` (experimental, space-separated pre-approved tools). `name` max 64 chars, lowercase alphanumeric+hyphens, no consecutive/leading/trailing hyphens, must match directory. Progressive disclosure: metadata ~100 tokens at startup, full body on activation, referenced files on demand. Body ≤500 lines. Spec stable — same 6-field structure. PRs #380/#386/#345 confirmed still open via `gh api` (not merged); no new spec-relevant merges since #421 (checked open PR list through #449 — all client-showcase/docs/ecosystem-listing entries). Note: `disallowed-tools`, `effort:`, `display-name:`, `fallback:`, `default-enabled:`, `hooks:`, `model:` (all Claude Code conventions) are NOT in the official agentskills.io spec.
 
 History:
+- 2026-07-04T08:49:33Z — unchanged: full spec re-read, same 6 fields (name, description, license, compatibility, metadata, allowed-tools); no versioning/MCP-requirements/disable-model-invocation additions
 - 2026-07-03T00:00:00Z — unchanged: full spec re-read, same 6 fields; PRs #380/#386/#345 re-confirmed open+unmerged via gh api; newest PRs (#445-449) are ecosystem-listing/docs only, no spec impact
 - 2026-07-01T00:00:00Z — unchanged: full spec re-read, same 6 fields; PRs #380/#386/#345 confirmed still open (not merged) via gh api
 - 2026-06-29T14:15:20Z — unchanged: spec stable; no new fields or constraints; same 6-field structure confirmed
@@ -247,14 +252,15 @@ History:
 ## https://github.com/agentskills/agentskills
 
 ```yaml
-last_scan: 2026-07-03T00:00:00Z
+last_scan: 2026-07-04T08:49:33Z
 status: unchanged
-run_id: null
+run_id: 28700876614
 ```
 
 **Summary:** No new merges since PR #421 (June 30, client showcase only); one PR merged since (#446 "scale square client logos", 2026-07-01, cosmetic). Tracked PRs #380 (versioning), #386 (UTF-8 fix), #345 (Unicode name) re-confirmed still open, unmerged via `gh api`. Newest open PRs (#445-449) are ecosystem-listing/docs additions (client showcase, CODE_OF_CONDUCT/SECURITY policy, ecosystem tools page) — no spec impact.
 
 History:
+- 2026-07-04T08:49:33Z — unchanged: #380/#386/#345 re-verified open+unmerged via gh api; noted PR #428 "RFC: declarative MCP server requirements for Agent Skills" closed WITHOUT merge — the idea is dead upstream for now, don't treat as spec signal
 - 2026-07-03T00:00:00Z — unchanged: #380/#386/#345 re-verified open+unmerged; #446 merged (cosmetic logo scaling); #445/447/448/449 open (listings/docs only, no spec impact)
 - 2026-07-02T07:21:05Z — unchanged: #380/#386/#345 re-verified open+unmerged via gh api; no new merges since #421
 - 2026-07-01T00:00:00Z — changed: PR #421 merged June 30 (client showcase entry only, no spec impact); #380/#386/#345 still open per gh api
@@ -275,14 +281,15 @@ History:
 ## https://www.cursor.com/changelog
 
 ```yaml
-last_scan: 2026-07-03T00:00:00Z
+last_scan: 2026-07-04T08:49:33Z
 status: unchanged
-run_id: null
+run_id: 28700876614
 ```
 
 **Summary:** v3.9 (June 30) still latest; no v3.10. Re-confirmed June 29-30 entries (Mobile app, Team MCP distribution, org-group marketplace scoping) — all Cursor-client-only, no iEvo-actionable surface. Issue #235 remains the tracked finding.
 
 History:
+- 2026-07-04T08:49:33Z — unchanged: v3.9 still latest (June 30 Team-MCP entry), no v3.10
 - 2026-07-03T00:00:00Z — unchanged: v3.9 still latest, no new entries since June 30
 - 2026-07-02T07:21:05Z — unchanged: v3.9 still latest; no new entries since June 30 scan
 - 2026-07-01T00:00:00Z — changed: v3.9 gained Mobile app (June 29) + Team MCP/org marketplace scoping (June 30); Cursor-client-only, not iEvo-actionable; #235 remains sufficient
@@ -304,14 +311,15 @@ History:
 ## https://news.ycombinator.com
 
 ```yaml
-last_scan: 2026-07-01T00:00:00Z
-status: changed
-run_id: 28450000000
+last_scan: 2026-07-04T08:49:33Z
+status: unchanged
+run_id: 28700876614
 ```
 
 **Summary:** Front page has "Claude Code is steganographically marking requests" (1,827 pts), "Claude Sonnet 5" (1,077 pts), "Claude Science" (463 pts), Fable 5/Mythos 5 export-control lift (614 pts). The steganographic-marking thread is a community reaction to Claude Code's own request-attribution mechanism — not an agent-skill-format or MCP topic, and not something the skills repo controls or needs to react to. No Codex/agent-skills/MCP posts on front page.
 
 History:
+- 2026-07-04T08:49:33Z — unchanged: only tangential items ("Agentic coding notes from Galapagos Island" 74 pts, local-LLM guide 334 pts); no Claude Code/Codex/MCP/agent-skills posts on front page
 - 2026-07-01T00:00:00Z — changed: Claude Sonnet 5 + steganographic-marking discussion threads trending; not iEvo-actionable (Claude Code's own attribution mechanism, not agent-skill format)
 - 2026-06-01T08:08:22Z — unchanged: no relevant AI agent tooling posts on front page at scan time
 - 2026-05-31T00:00:00Z — unchanged: no relevant AI agent tooling posts on front page at scan time
@@ -327,14 +335,15 @@ History:
 ## https://github.com/DenisSergeevitch/agents-best-practices
 
 ```yaml
-last_scan: 2026-07-03T00:00:00Z
+last_scan: 2026-07-04T08:49:33Z
 status: unchanged
-run_id: null
+run_id: 28700876614
 ```
 
 **Summary:** No commits since the June 29 21:15 `evals.md` split (confirmed via `gh api repos/.../commits` — latest commit still 2026-06-29T21:15:08Z). No new activity in 4 days.
 
 History:
+- 2026-07-04T08:49:33Z — unchanged: gh api confirms latest commit still 2026-06-29T21:15:08Z; 5 days without activity
 - 2026-07-03T00:00:00Z — unchanged: gh api confirms latest commit still 2026-06-29T21:15:08Z (evals.md split); no new activity
 - 2026-07-02T07:21:05Z — unchanged: no commits since June 29 21:15; last change still the evals.md split (evidence for open F-2026-06-29-002/skills#267)
 - 2026-07-01T00:00:00Z — changed: June 29 21:15 commit split out references/evals.md (+143 lines); strengthens existing F-2026-06-29-002 / skills#267, no new finding filed
@@ -355,15 +364,16 @@ History:
 ## https://code.claude.com/docs/en/skills.md
 
 ```yaml
-last_scan: 2026-07-03T00:00:00Z
-status: changed
-run_id: null
+last_scan: 2026-07-04T08:49:33Z
+status: unchanged
+run_id: 28700876614
 note: "IMPORTANT — the frontmatter reference table fetched this run lists 16 fields (name, description, when_to_use, argument-hint, arguments, disable-model-invocation, user-invocable, allowed-tools, disallowed-tools, model, effort, context, agent, hooks, paths, shell) and does NOT include display-name / default-enabled / fallback, which prior scans (per the v2.1.186 changelog wording 'display-name, default-enabled, fallback, and metadata.* keys now accept kebab-case, snake_case, and camelCase') assumed were live SKILL.md frontmatter fields. Full-text grep of this fetch for 'display-name'/'default-enabled'/'fallback' returned zero matches (one unrelated prose use of the word 'fallback'). This does NOT prove the fields don't exist (they could be real but omitted from this reference table, e.g. if scoped to plugin.json rather than SKILL.md, or intentionally left out of the public docs) -- it means the premise behind open skills#233 and skills#236 needs re-verification before implementation, not a new Eva-filed finding (would risk a 3rd near-duplicate of the same subject key)."
 ```
 
 **Summary:** Re-fetched in full (2 days since the July 1 scan). Frontmatter reference table: name, description, when_to_use, argument-hint, arguments, disable-model-invocation, user-invocable, allowed-tools, disallowed-tools, model, effort, context, agent, hooks, paths, shell (16 fields) + substitution vars $ARGUMENTS/$ARGUMENTS[N]/$N/$name/${CLAUDE_SESSION_ID}/${CLAUDE_EFFORT}/${CLAUDE_SKILL_DIR}/${CLAUDE_PROJECT_DIR}. New in this fetch vs July 1: v2.1.199 stacked-skill-invocation behavior (up to 5 skills, `$ARGUMENTS` passed to each) and `skillOverrides` `"off"` now also hiding from Remote Control / Agent SDK listings (both CLI-behavior notes, not new frontmatter — no iEvo action). See the flagged discrepancy above re: display-name/default-enabled/fallback — not re-filing, but flagging for operator re-verification since it bears on open skills#233/#236.
 
 History:
+- 2026-07-04T08:49:33Z — unchanged: same 16-field frontmatter table re-confirmed (name, description, when_to_use, argument-hint, arguments, disable-model-invocation, user-invocable, allowed-tools, disallowed-tools, model, effort, context, agent, hooks, paths, shell); display-name/default-enabled/fallback STILL absent (second consecutive confirmation — the skills#233/#236 premise discrepancy stands); `name` field description now reads "Display name shown in skill listings", suggesting `name` itself absorbed any display-name role
 - 2026-07-03T00:00:00Z — changed: v2.1.199 stacked-skill-invocation + skillOverrides Remote-Control note added; **display-name/default-enabled/fallback fields absent from this fetch's frontmatter table** — flagged for re-verification against skills#233/#236, not re-filed
 - 2026-07-01T00:00:00Z — unchanged: full re-read confirms same 17 fields as June 30; no new fields; F-2026-06-30-001/002/003 remain the tracked open findings
 - 2026-06-30T00:00:00Z — changed: 7 new/clarified fields (when_to_use, argument-hint, arguments, paths, shell, disable-model-invocation, ${CLAUDE_PROJECT_DIR}); triggered F-2026-06-30-001/002/003
@@ -379,14 +389,15 @@ History:
 ## https://code.claude.com/docs/en/routines.md
 
 ```yaml
-last_scan: 2026-07-01T00:00:00Z
-status: unchanged
-run_id: 28450000000
+last_scan: 2026-07-04T08:49:33Z
+status: changed
+run_id: 28700876614
 ```
 
-**Summary:** Claude Code Routines — scheduled sessions on Anthropic-managed infra. Created via `/schedule` CLI command, claude.ai/code/routines web UI, or Desktop app sidebar. Account-level config (Pro/Max/Team/Enterprise required). Triggers: schedule (recurring or one-off), API (`/fire` endpoint, bearer token), GitHub events (PR/release with field-level filters). Not available if ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN is set. Full re-read confirms no material change since first scan — F-2026-05-25-002 (skills#84, /ievo:schedule) already covers this.
+**Summary:** Substantially expanded since the July 1 read. Routines are explicitly "research preview" now. CLI surface: creation is **conversational `/schedule`** (in-session slash command, optionally with a natural-language description); management via `/schedule list` / `/schedule update` / `/schedule run`. The docs describe **no `claude schedule create` shell subcommand** — but iEvo's `schedule/SKILL.md` Step 6 instructs exactly that (`claude schedule create --name ... --schedule ... --prompt-file ...`) and Step 1 probes availability with `claude schedule list`; likely broken primary path → **triggered F-2026-07-04-001**. Other new/clarified surface: one-off runs (`/schedule tomorrow at 9am, ...`, auto-disable after firing, exempt from daily routine cap); custom cron via `/schedule update` with a **1-hour minimum interval**; connectors (claude.ai MCP integrations) included by default per routine; cloud environments with Trusted-network default allowlist; GitHub trigger PR filters (author/title/body/branches/labels/draft/merged with regex-matches-whole-value semantics); API `/fire` endpoint gated behind `experimental-cc-routine-2026-04-01` beta header; `claude/`-prefixed branch push restriction by default; Team/Enterprise org-level Routines disable toggle. Plan gating unchanged (Pro/Max/Team/Enterprise + Claude Code on the web enabled; API-key auth still unsupported — now documented in a troubleshooting section listing telemetry env vars that also hide `/schedule`).
 
 History:
+- 2026-07-04T08:49:33Z — changed: major doc expansion — /schedule list/update/run subcommands, one-off runs, 1h cron minimum, connectors/environments, GitHub trigger filters, /fire beta header; no `claude schedule create` CLI documented → schedule/SKILL.md drift, triggered F-2026-07-04-001
 - 2026-07-01T00:00:00Z — unchanged: full re-read, same trigger types and API shape as first-scan; F-2026-05-25-002/skills#84 remains sufficient
 - 2026-06-01T08:08:22Z — unchanged: spec stable; no new triggers or API changes
 - 2026-05-31T00:00:00Z — unchanged: Routines docs stable; F-2026-05-25-002 implemented (skills#84 closed COMPLETED)
@@ -400,14 +411,15 @@ History:
 ## https://code.claude.com/docs/en/channels.md
 
 ```yaml
-last_scan: 2026-07-01T00:00:00Z
+last_scan: 2026-07-04T08:49:33Z
 status: unchanged
-run_id: 28450000000
+run_id: 28700876614
 ```
 
 **Summary:** Claude Code Channels — push events from Telegram/Discord/iMessage into Claude Code sessions. Still research preview (requires v2.1.80+, Bun, not on Bedrock/Vertex/Foundry). Plugin-based (`/plugin install telegram@claude-plugins-official`), then `claude --channels plugin:...`. Enterprise: `channelsEnabled` + `allowedChannelPlugins` managed settings. No GA timeline visible; not actionable for iEvo yet.
 
 History:
+- 2026-07-04T08:49:33Z — unchanged: still research preview (v2.1.80+, Bun, allowlist-gated plugins); docs expanded with fakechat demo channel, permission-relay capability note, and `allowedChannelPlugins` enterprise allowlist detail; no GA, not iEvo-actionable
 - 2026-07-01T00:00:00Z — unchanged: full re-read, still research preview; no GA announcement; not actionable
 - 2026-06-01T08:08:22Z — unchanged: still research preview; Bun required; no GA announcement
 - 2026-05-31T00:00:00Z — unchanged: still in research preview; Bun required; no GA announcement; not actionable
@@ -421,14 +433,15 @@ History:
 ## https://code.claude.com/docs/en/sub-agents
 
 ```yaml
-last_scan: 2026-07-01T00:00:00Z
-status: unchanged
-run_id: 28450000000
+last_scan: 2026-07-04T08:49:33Z
+status: changed
+run_id: 28700876614
 ```
 
-**Summary:** Re-read in full (overdue since May 31). Confirms same field list previously documented plus `initialPrompt` clarified (auto-submitted as first user turn for main-session agents via `--agent`) and `Agent(agent_type)` allowlist syntax for restricting spawnable subagents (Task tool renamed to Agent in v2.1.63; old `Task(...)` refs still work as aliases). No new frontmatter fields since the May 31 first-scan. iEvo's 5 agents already comply (model, tools/disallowedTools present where needed; effort now present per F-2026-05-31-002).
+**Summary:** Re-read in full (fetched the `.md` variant; treat this as the canonical entry). Current agent frontmatter table (15 fields): name, description, tools, disallowedTools, model, permissionMode, maxTurns, skills, mcpServers, hooks, memory, background, effort, isolation, color, initialPrompt. New since the July 1 read: `permissionMode` gains a `manual` alias for `default` (v2.1.200); `background:` — as of **v2.1.198 Claude runs subagents in the background by default** when the field is unset (transparent to iEvo's parallel dispatch — the parent still receives results); `permissionMode`/`mcpServers`/`hooks` are **ignored for plugin subagents** (directly relevant: all 5 iEvo agents are plugin subagents, so proposals adding those fields to iEvo agents would be no-ops — a useful negative filter for future findings). The `skills:` preload field (inject full skill content at subagent startup, distinct from Skill-tool invocation) is documented — potentially interesting for security-auditor/vuln-scanner which load their skills via the Skill tool today, but deferred given backlog posture (see 2026-07-04 audit report).
 
 History:
+- 2026-07-04T08:49:33Z — changed: permissionMode `manual` alias (v2.1.200); background-by-default (v2.1.198); noted permissionMode/mcpServers/hooks ignored for PLUGIN subagents — negative filter for future iEvo-agent proposals; `skills:` preload deferred
 - 2026-07-01T00:00:00Z — unchanged: full re-read, same field list as May 31 scan; Agent(type) allowlist + initialPrompt details noted; no new iEvo-actionable gap
 - 2026-05-31T00:00:00Z — first-scan: effort: field documented for agents; 12+ frontmatter fields documented; CLAUDE_CODE_SUBAGENT_MODEL resolution order confirmed; triggered F-2026-05-31-002
 - 2026-05-29T07:38:29Z — first-scan: effort/isolation/memory/background agent fields documented; iEvo agents lack effort: → triggered F-2026-05-29-002
