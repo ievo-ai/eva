@@ -91,6 +91,29 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: ievo-ai
+          # eva#156 — request the token's permissions EXPLICITLY (same fix PR #153
+          # applied to eva-implement). The action's default mint (inherit ALL
+          # installation permissions) does NOT carry `workflows: write` to the
+          # token even though the App-level grant is accepted — so any fix that
+          # pushes a `.github/workflows/**` diff is refused ("refusing to allow a
+          # GitHub App to create or update workflow without workflows permission").
+          # GitHub only surfaces `workflows` on the minted token when it is named
+          # here explicitly.
+          #
+          # This list MUST enumerate EVERY permission the downstream steps use —
+          # once any permission-* input is set the token carries ONLY the listed
+          # ones, no longer the full installation set:
+          #   contents:write      — checkout + agent `git push` (branch + files)
+          #   workflows:write      — agent push of `.github/workflows/**` diffs
+          #   issues:write         — label create/edit + issue/PR comments (labels
+          #                          live on the issues endpoint)
+          #   pull-requests:write  — `gh pr comment` (verify, budget, fixer, failure)
+          #   metadata:read        — baseline repo `gh api` reads (pulls/reviews)
+          permission-contents: write
+          permission-workflows: write
+          permission-issues: write
+          permission-pull-requests: write
+          permission-metadata: read
 
       - name: Set auth token
         id: auth
@@ -312,6 +335,17 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # eva#156 root cause (same as eva#151 → PR #154 fixed in eva-implement):
+          # without this input the action performs its default OIDC exchange and
+          # configures the git credential with the CLAUDE GitHub App's token —
+          # overriding the checkout-persisted ievo-eva token. That app has
+          # contents:write (so ordinary [pr-fix-N] pushes worked) but NOT workflows
+          # — so any `.github/workflows/**` fix push would be refused. Passing OUR
+          # minted App token here makes the fixer's `git push` run as ievo-eva with
+          # the explicit permission set from the Generate App token step (incl.
+          # workflows:write). Fix-round pushes are now attributed to the correct
+          # principal (ievo-eva[bot], same as the PR author), not the Claude App.
+          github_token: ${{ steps.auth.outputs.token }}
           show_full_output: true
           # eva-review-pr dispatches fix-pr with the App token, so the triggering
           # actor is ievo-eva[bot]. The action rejects bot-initiated runs by
