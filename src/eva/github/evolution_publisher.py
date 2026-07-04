@@ -54,7 +54,8 @@ class EvolutionPublisher:
         """Publish successful mutations as evolution entries.
 
         Only publishes mutations that have a pr_url (= successfully created PR).
-        Converts Mutations to EvolutionEntry objects and delegates to publish_entries.
+        Converts Mutations to EvolutionEntry objects and delegates to publish_entries,
+        so it raises EvolutionPublishError if either channel failed.
         Returns number of entries published.
         """
         successful = [m for m in mutations if m.pr_url]
@@ -151,17 +152,20 @@ class EvolutionPublisher:
         errors: list[str] = []
 
         for entry in entries:
+            # id is blank when the feed read failed before assignment \u2014 fall
+            # back to the title so failure messages still identify the entry.
+            label = entry.id or entry.title
             msg = format_telegram_message(entry)
             try:
                 result = await self._telegram.send_message(msg, message_thread_id=topic_id)
             except Exception as e:
-                console.print(f"  [yellow]\u26a0[/yellow] Telegram {entry.id}: {e}")
-                errors.append(f"{entry.id}: {e}")
+                console.print(f"  [yellow]\u26a0[/yellow] Telegram {label}: {e}")
+                errors.append(f"{label}: {e}")
                 continue
             if result.success:
-                console.print(f"  [green]\u2713[/green] Telegram: {entry.id}")
+                console.print(f"  [green]\u2713[/green] Telegram: {label}")
             else:
-                console.print(f"  [yellow]\u26a0[/yellow] Telegram {entry.id}: {result.error}")
-                errors.append(f"{entry.id}: {result.error}")
+                console.print(f"  [yellow]\u26a0[/yellow] Telegram {label}: {result.error}")
+                errors.append(f"{label}: {result.error}")
 
         return errors
