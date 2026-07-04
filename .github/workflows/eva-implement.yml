@@ -395,6 +395,16 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # eva#151 root cause: without this input the action performs its default
+          # OIDC exchange and configures the git credential with the CLAUDE GitHub
+          # App's token — overriding the checkout-persisted ievo-eva token. That
+          # app has contents:write (so ordinary branch pushes always worked) but
+          # NOT workflows — so every `.github/workflows/**` push was refused no
+          # matter what the ievo-eva mint carried (7 identical refusals across
+          # eva#146/#151/#152). Passing OUR minted App token here makes the
+          # agent's `git push` run as ievo-eva with the explicit permission set
+          # from the Generate App token step (incl. workflows:write, #153).
+          github_token: ${{ steps.auth.outputs.token }}
           show_full_output: true
           # eva-queue (the proactive heartbeat) dispatches implement-issue with
           # the App token, so the triggering actor is ievo-eva[bot]. The action
