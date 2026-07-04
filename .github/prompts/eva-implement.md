@@ -270,6 +270,19 @@ distinct from (and earlier than) eva-review-pr. This runs ONLY when
 phase and add one line to the PR body: "iEvo plugin unavailable this run —
 /ievo:deep-review skipped." Then go to Phase 5.
 
+HARD RULE — run every pass in the FOREGROUND (eva#170). This is a headless
+`claude -p` run: when your final turn ends, the process EXITS and anything
+still running in the background dies with it. On run 28705052982 the agent
+dispatched deep-review + vuln-scan as background subagents and ended its turn
+"to wait for them" — the process terminated, no PR was opened, the claim label
+was left dangling, and the workflow still read green. So: invoke every
+skill/subagent in this phase (and anywhere else in this prompt) SYNCHRONOUSLY
+— never via a background option (background Bash, background Task/agent
+dispatch) — and NEVER end your turn while any dispatched work is still
+pending. "The reviews are running; I'll open the PR when they finish" is a
+failure mode, not a hand-off. Your turn may end ONLY after Phase 5's PR exists
+or a documented exit path released the claim.
+
 When the plugin IS ready:
 - Invoke the `/ievo:deep-review` skill on the diff of this branch against
   `origin/main` — every run (the token cost is accepted, operator Q3).
@@ -373,6 +386,12 @@ DONEEOF
   `EVA_IEVO_PLUGIN_READY == "true"`, and they NEVER block or replace the build,
   the acceptance bar, or eva-review-pr. `/ievo:feedback` fires ONLY on a real
   plugin malfunction you hit this run — never routinely, never about itself.
+- FOREGROUND ONLY (eva#170): never dispatch background work (skills, subagents,
+  background Bash) and end your turn while it is pending — in this headless run,
+  ending the turn kills the process and everything still in flight. End the turn
+  only after the ready PR exists (Phase 5) or a documented exit path released
+  the claim. A deterministic workflow post-check FAILS the run if neither
+  happened — a silent stall can no longer read as green.
 - PR-only: never push to `main` directly (you work on a feature branch).
 - Do NOT create issues in other repos.
 - If you become unsure mid-build, post a comment on the issue asking for

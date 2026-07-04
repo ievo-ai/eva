@@ -211,6 +211,9 @@ jobs:
             *" eva-fix-budget-exhausted "*)
               echo "PR carries eva-fix-budget-exhausted — budget already spent, operator owns it. Skipping."
               echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0 ;;
+            *" eva-fix-declined "*)
+              echo "PR carries eva-fix-declined — a prior round deliberately stopped without pushing (finding disputed or gate not green, eva#170); operator must disposition first. Skipping."
+              echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0 ;;
           esac
 
           {
@@ -250,6 +253,9 @@ jobs:
           BASE=$(gh api "repos/$REPO/pulls/$PR_NUM" --jq '.base.ref' 2>/dev/null || echo "main")
           ROUNDS=$(git log --format='%s' "origin/$BASE..HEAD" 2>/dev/null | grep -cE '\[pr-fix-[0-9]+\]' || true)
           echo "Fix rounds already on this branch: $ROUNDS (max $MAX_ROUNDS, base $BASE)"
+          # Pre-agent round count — `Verify fix contract` (eva#170) compares the
+          # remote branch against this to detect whether a fix round was pushed.
+          echo "rounds=$ROUNDS" >> "$GITHUB_OUTPUT"
           if [ "$ROUNDS" -ge "$MAX_ROUNDS" ]; then
             # eva#146 — a spent fix budget is an operator-owned state; surface it
             # in the operator's cross-repo inbox alongside the specific terminal
@@ -446,11 +452,68 @@ jobs:
           if-no-files-found: ignore
           retention-days: 90
 
+      # Deterministic post-check (eva#170): a GREEN fix-agent step must have
+      # produced one of the contract outcomes — a new [pr-fix-N] commit on the
+      # REMOTE branch (the push is what re-fires gates → re-review; a local-only
+      # commit is a stall), or a terminal label marking a deliberate no-push stop
+      # (eva-handoff-workflows / eva-fix-budget-exhausted / eva-fix-declined, the
+      # last added by eva#170 for the "finding disputed" and "gate not green"
+      # stops which previously left only a comment). A run that self-reports
+      # success while producing neither is the silent-stall class run 28705052982
+      # exposed on the implement side: with no push there is no re-review
+      # dispatch, so the PR strands on CHANGES_REQUESTED and nothing notices.
+      # Implicit success() gate: a failed agent step is owned by `Note failure`.
+      - name: Verify fix contract
+        id: contract
+        if: steps.ctx.outputs.skip != 'true' && steps.budget.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          REPO: ${{ steps.ctx.outputs.repo }}
+          PR_NUM: ${{ steps.ctx.outputs.pr_number }}
+          HEAD_REF: ${{ steps.ctx.outputs.head_ref }}
+          PRE_ROUNDS: ${{ steps.budget.outputs.rounds }}
+        run: |
+          # Outcome 1: a new [pr-fix-N] commit landed on the remote branch.
+          # Count remote-side (origin/<head>, freshly fetched) with the same
+          # marker regex as the budget guard, and compare against the pre-agent
+          # count. Any push WITHOUT the marker deliberately does not count — an
+          # unmarked push would dodge the budget counter, which is operator-
+          # attention-worthy in itself.
+          BASE=$(gh api "repos/$REPO/pulls/$PR_NUM" --jq '.base.ref' 2>/dev/null || echo "main")
+          git fetch origin "$BASE" "$HEAD_REF"
+          NEW_ROUNDS=$(git log --format='%s' "origin/$BASE..origin/$HEAD_REF" 2>/dev/null | grep -cE '\[pr-fix-[0-9]+\]' || true)
+          if [ "$NEW_ROUNDS" -gt "${PRE_ROUNDS:-0}" ]; then
+            echo "Contract met: fix round pushed ($PRE_ROUNDS -> $NEW_ROUNDS [pr-fix-N] commits on origin/$HEAD_REF)."
+            exit 0
+          fi
+          # Outcome 2: a terminal label marks a deliberate no-push stop.
+          LABELS=$(gh api "repos/$REPO/issues/$PR_NUM/labels" --jq '[.[].name] | join(" ")' 2>/dev/null || echo "")
+          case " $LABELS " in
+            *" eva-handoff-workflows "* | *" eva-fix-budget-exhausted "* | *" eva-fix-declined "*)
+              echo "Contract met: terminal label present (deliberate no-push stop)."
+              exit 0 ;;
+          esac
+          # Neither: the eva#170 silent-stall class. Flag the operator (all
+          # best-effort so every command runs), then fail the job so the run can
+          # never read as green.
+          echo "remediated=true" >> "$GITHUB_OUTPUT"
+          gh label create needs-operator --repo "$REPO" \
+            --description "Pipeline blocked on the human operator to unblock" \
+            --color "e11d21" 2>/dev/null || true
+          gh issue edit "$PR_NUM" --repo "$REPO" \
+            --add-label needs-operator 2>/dev/null || true
+          gh pr comment "$PR_NUM" --repo "$REPO" --body \
+            "Eva's fix run ended without pushing a fix round and without marking a deliberate stop (no new \`[pr-fix-N]\` commit on the branch, no terminal label) — the eva#170 silent-stall class. Flagged \`needs-operator\`: the outstanding review still blocks this PR and no re-review will fire without a push. Operator: inspect the run logs, then push a fix manually or re-trigger the review loop." || true
+          echo "::error::Fix contract violated: no new [pr-fix-N] commit on origin/$HEAD_REF and no terminal label after the agent step."
+          exit 1
+
       # If the fixer crashed AFTER passing the trust gate, leave a breadcrumb so
       # the PR does not silently strand. No claim label to release (unlike
       # eva-implement) — the loop is bounded by the [pr-fix-N] budget regardless.
+      # Skipped when `Verify fix contract` already remediated (it comments and
+      # flags the operator itself before failing the job).
       - name: Note failure
-        if: failure() && steps.ctx.outputs.skip == 'false' && steps.budget.outputs.skip != 'true'
+        if: failure() && steps.ctx.outputs.skip == 'false' && steps.budget.outputs.skip != 'true' && steps.contract.outputs.remediated != 'true'
         env:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           REPO: ${{ steps.ctx.outputs.repo }}

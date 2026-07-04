@@ -535,13 +535,76 @@ jobs:
           if-no-files-found: ignore
           retention-days: 90
 
+      # Deterministic post-check (eva#170): a GREEN agent step must have produced
+      # one of the contract outcomes — an eva-impl/* PR referencing this issue,
+      # or a documented exit path that released the claim label. Run 28705052982
+      # proved the gap: the agent ended its turn with background subagents still
+      # pending, the process died with them, and the step still reported success
+      # (`is_error: false`) — no PR, claim dangling, queue silently stalled. The
+      # `Release claim on failure` step below cannot catch that (it is gated
+      # `failure()`), so this step verifies the contract on the SUCCESS path and
+      # fails the run loudly when it was not met (same fail-loudly philosophy as
+      # eva#160). Implicit success() gate: if the agent step already failed, the
+      # existing failure path owns the cleanup and this step is skipped.
+      - name: Verify implement contract
+        id: contract
+        if: steps.claim.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          REPO: ${{ steps.ctx.outputs.repo }}
+          ISSUE_NUM: ${{ steps.ctx.outputs.issue_number }}
+        run: |
+          # Outcome 1: a PR on an eva-impl/* branch references this issue in its
+          # title or body (the prompt mandates "(#N)" in the title and
+          # "Closes #N" in the body). OPEN or MERGED only — a CLOSED-unmerged
+          # PR from a previous failed attempt must not satisfy a retry. (A stale
+          # MERGED PR on a reopened issue could in theory false-satisfy this;
+          # accepted — the dominant failure class is NO PR at all.)
+          gh pr list --repo "$REPO" --state all --limit 100 \
+            --json number,state,headRefName,title,body > /tmp/eva-impl-prs.json
+          PR_MATCH=$(jq --arg n "$ISSUE_NUM" \
+            '[.[] | select((.state == "OPEN" or .state == "MERGED")
+                           and (.headRefName | startswith("eva-impl/"))
+                           and (((.title // "") + " " + (.body // "")) | test("#\($n)([^0-9]|$)")))
+             | .number]' /tmp/eva-impl-prs.json)
+          if [ "$(printf '%s' "$PR_MATCH" | jq 'length')" -gt 0 ]; then
+            echo "Contract met: eva-impl/* PR(s) $(printf '%s' "$PR_MATCH" | jq -c .) reference #$ISSUE_NUM."
+            exit 0
+          fi
+          # Outcome 2: a documented exit path released the claim label (open
+          # questions → needs-discussion, not actionable → triage). The agent
+          # left the issue in an operator-visible state on purpose.
+          LABELS=$(gh issue view "$ISSUE_NUM" --repo "$REPO" --json labels \
+            --jq '[.labels[].name] | join(" ")')
+          case " $LABELS " in
+            *" eva-implementing "*) : ;;
+            *)
+              echo "Contract met: claim label already released (documented exit path)."
+              exit 0 ;;
+          esac
+          # Neither: the eva#170 silent-stall class. Remediate exactly like
+          # `Release claim on failure` (all best-effort so every command runs),
+          # then fail the job so the run can never read as green.
+          echo "remediated=true" >> "$GITHUB_OUTPUT"
+          gh label create needs-operator --repo "$REPO" \
+            --description "Pipeline blocked on the human operator to unblock" \
+            --color "e11d21" 2>/dev/null || true
+          gh issue edit "$ISSUE_NUM" --repo "$REPO" \
+            --remove-label eva-implementing --add-label triage --add-label needs-operator 2>/dev/null || true
+          gh issue comment "$ISSUE_NUM" --repo "$REPO" --body \
+            "Eva's implement run ended without opening a PR and without releasing the claim — the eva#170 silent-stall class (e.g. the agent ended its turn while background work was still pending). Released the \`eva-implementing\` claim (freed a build slot) and moved to \`triage\` + \`needs-operator\` for operator review. If a pushed \`eva-impl/*\` branch exists it may hold a partial build — verify before reusing. Re-apply \`approved\` to retry." || true
+          echo "::error::Implement contract violated: no OPEN/MERGED eva-impl/* PR references #$ISSUE_NUM and the claim label was still present. Claim released, issue moved to triage + needs-operator."
+          exit 1
+
       # Release the claim if the build crashed/failed AFTER claiming. Without
       # this, a failed run strands the issue in `eva-implementing` forever, and
       # MAX_INFLIGHT such stuck claims permanently block all future builds. Move
       # to `triage` (NOT back to `approved` — that would re-fire `labeled` and
-      # loop) and flag the operator. Only runs when we actually claimed.
+      # loop) and flag the operator. Only runs when we actually claimed — and
+      # NOT when `Verify implement contract` already remediated (it releases the
+      # claim itself before failing the job; a second pass would double-comment).
       - name: Release claim on failure
-        if: failure() && steps.claim.outputs.skip == 'false'
+        if: failure() && steps.claim.outputs.skip == 'false' && steps.contract.outputs.remediated != 'true'
         env:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           REPO: ${{ steps.ctx.outputs.repo }}
