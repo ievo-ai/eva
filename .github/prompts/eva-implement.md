@@ -239,7 +239,11 @@ Co-Authored-By: iEVO Eva <noreply@ievo.ai>"
 ### 4f. Freshness check — rebase if main moved
 
 Main may have moved while you worked. Rebase onto fresh main (up to 3 attempts)
-so the PR you open is mergeable:
+so the PR you open is mergeable. IMPORTANT (eva#170): every no-PR stop below
+RELEASES the claim label — that marks it as a documented exit for the
+workflow's `Verify implement contract` post-check; a stop that leaves
+`eva-implementing` in place with no PR is treated as a silent stall and FAILS
+the run:
   for attempt in 1 2 3; do
     git fetch origin main
     BEHIND=$(git rev-list --count HEAD..origin/main)
@@ -249,6 +253,11 @@ so the PR you open is mergeable:
       git rebase --abort 2>/dev/null || true
       gh issue comment "$TARGET_ISSUE" --repo "$TARGET_REPO" \
         --body "Rebase conflict against main — operator review needed. Branch: $(git branch --show-current)"
+      gh label create needs-operator --repo "$TARGET_REPO" \
+        --description "Pipeline blocked on the human operator to unblock" \
+        --color "e11d21" 2>/dev/null || true
+      gh issue edit "$TARGET_ISSUE" --repo "$TARGET_REPO" \
+        --remove-label eva-implementing --add-label triage --add-label needs-operator
       exit 1
     fi
   done
@@ -256,6 +265,11 @@ so the PR you open is mergeable:
   if [ "$(git rev-list --count HEAD..origin/main)" != "0" ]; then
     gh issue comment "$TARGET_ISSUE" --repo "$TARGET_REPO" \
       --body "Main kept moving after 3 rebase attempts. Branch $(git branch --show-current) pushed but no PR opened — operator can open/rebase once the burst settles."
+    gh label create needs-operator --repo "$TARGET_REPO" \
+      --description "Pipeline blocked on the human operator to unblock" \
+      --color "e11d21" 2>/dev/null || true
+    gh issue edit "$TARGET_ISSUE" --repo "$TARGET_REPO" \
+      --remove-label eva-implementing --add-label triage --add-label needs-operator
     exit 1
   fi
   # Re-run the SAME gate you ran in Phase 4d (the repo's actual checks — uv run …
@@ -341,6 +355,13 @@ PREOF
     if [ -z "$PR_NUMBER" ]; then
       gh issue comment "$TARGET_ISSUE" --repo "$TARGET_REPO" \
         --body "Failed to open PR. Branch: $(git branch --show-current)"
+      # eva#170: release the claim so this documented stop is not read as a
+      # silent stall by the workflow post-check.
+      gh label create needs-operator --repo "$TARGET_REPO" \
+        --description "Pipeline blocked on the human operator to unblock" \
+        --color "e11d21" 2>/dev/null || true
+      gh issue edit "$TARGET_ISSUE" --repo "$TARGET_REPO" \
+        --remove-label eva-implementing --add-label triage --add-label needs-operator
       exit 1
     fi
   fi

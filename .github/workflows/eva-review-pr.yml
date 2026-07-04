@@ -512,12 +512,14 @@ jobs:
           esac
 
           # Don't re-dispatch when a prior round already handed off to the
-          # operator (workflow-file fix) or spent the budget — those terminal
-          # labels are cleared by the operator, not by a new review.
+          # operator (workflow-file fix), spent the budget, or deliberately
+          # declined to fix (eva#170) — those terminal labels are cleared by
+          # the operator, not by a new review. Keep this list in sync with
+          # eva-fix-pr.yml's re-entry guard and its `Verify fix contract`.
           LABELS=$(gh api "repos/$REPO/issues/$PR_NUM/labels" --jq '[.[].name] | join(" ")' 2>/dev/null || echo "")
           case " $LABELS " in
-            *" eva-handoff-workflows "*|*" eva-fix-budget-exhausted "*)
-              echo "PR carries a terminal fix label (handoff/exhausted) — operator must clear it. No dispatch."
+            *" eva-handoff-workflows "*|*" eva-fix-budget-exhausted "*|*" eva-fix-declined "*)
+              echo "PR carries a terminal fix label (handoff/exhausted/declined) — operator must clear it. No dispatch."
               exit 0 ;;
           esac
 
