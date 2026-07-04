@@ -1114,3 +1114,26 @@ Proposed solution: add a new subsection to `hooks-setup/SKILL.md` (after the exi
 ## Open questions for the operator
 
 - Should this be a new "Step 5.6" following the existing Step 5.5 pattern, or a lighter-weight "See also" callout given the narrower applicability (only relevant to `claude agents` users, which iEvo's own docs don't currently instruct users to use for iEvo operations)?
+
+---
+
+## F-2026-07-04-001 — Fix schedule/SKILL.md drift against current Routines docs (undocumented `claude schedule create` CLI path)
+
+```yaml
+id: F-2026-07-04-001
+discovered_at: 2026-07-04T08:49:33Z
+run_id: 28700876614
+target_repo: ievo-ai/skills
+title: Update schedule/SKILL.md to the current Routines surface — replace undocumented `claude schedule create` CLI with conversational /schedule, document /schedule list/update/run, one-off runs, and the 1-hour cron minimum
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/310
+effort: low
+scope: single-file
+evidence:
+  - https://code.claude.com/docs/en/routines.md: current docs (fetched 2026-07-04) document routine creation ONLY via conversational in-session `/schedule` (optionally with a natural-language description) and management via `/schedule list` / `/schedule update` / `/schedule run` — no `claude schedule create` or `claude schedule list` shell subcommand appears anywhere on the page; also new — one-off runs (auto-disable, exempt from daily cap), custom cron via `/schedule update` with a 1-hour minimum interval, connectors included by default, `claude/`-prefixed branch push restriction
+  - /tmp/skills/plugins/ievo/skills/schedule/SKILL.md: Step 1 probes availability with `claude schedule list 2>&1` (line 33); Step 6 creates via `claude schedule create --name ... --schedule ... --prompt "..."` (line 222) and `claude schedule create --name ... --schedule ... --prompt-file ...` (line 226); Step 7 verifies with `claude schedule list` (line 250) — the skill's primary path relies on a shell-CLI surface the current official docs do not document
+```
+
+`schedule/SKILL.md` (shipped v0.13.0 era, skills#84) drives users through creating a Claude Code Routine. Its Step 1 availability probe, Step 6 creation command, and Step 7 verification all invoke a `claude schedule <subcommand>` shell CLI. The current Routines documentation (re-read 2026-07-04, now explicitly "research preview") documents no such shell subcommand: creation is the in-session `/schedule` slash command (conversational, or `/schedule <natural-language description>`), and management is `/schedule list` / `/schedule update` / `/schedule run` — all in-session. If `claude schedule create` never existed or was removed, every user following the skill's primary path hits a command-not-found and falls through to the manual fallback (Step 7's degraded path), making the wizard pointless. The skill also predates several documented behaviors worth reflecting: one-off runs (`/schedule tomorrow at 9am, ...` — auto-disables after firing, exempt from the daily routine cap), the 1-hour minimum cron interval (expressions more frequent are rejected — the skill's "custom cron" step should validate this), connectors included by default per routine (scope-down guidance belongs in the confirm step), the `claude/`-prefixed branch push restriction, and the troubleshooting matrix for `/schedule` being hidden (API-key auth precedence, telemetry env vars like `DISABLE_TELEMETRY` disabling feature-flag fetching, being inside a web session). Acceptance must include verifying against a live current CLI whether any `claude schedule` shell surface still exists before deleting it — if it works but is merely undocumented, keep it as a documented-fallback with a version note instead.
+
+---
