@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from rich.console import Console
+from rich.markup import escape
 
 from eva.core.models import EvolutionEntry, Mutation
 from eva.github.client import GitHubClient
@@ -23,6 +24,15 @@ console = Console()
 # Target: ievo-ai/ievo.ai repo, docs/evolutions.json
 SITE_REPO = "ievo-ai/ievo.ai"
 EVOLUTIONS_PATH = "docs/evolutions.json"
+
+
+class EvolutionPublishError(Exception):
+    """At least one publish channel (GitHub feed, Telegram) failed.
+
+    Both channels are always attempted before this is raised; the message
+    aggregates every failure so callers can fail loudly (eva#160 — a swallowed
+    409 hid a production outage for 8+ hours).
+    """
 
 
 class EvolutionPublisher:
@@ -45,7 +55,8 @@ class EvolutionPublisher:
         """Publish successful mutations as evolution entries.
 
         Only publishes mutations that have a pr_url (= successfully created PR).
-        Converts Mutations to EvolutionEntry objects and delegates to publish_entries.
+        Converts Mutations to EvolutionEntry objects and delegates to publish_entries,
+        so it raises EvolutionPublishError if either channel failed.
         Returns number of entries published.
         """
         successful = [m for m in mutations if m.pr_url]
@@ -59,11 +70,14 @@ class EvolutionPublisher:
         """Publish EvolutionEntry objects to GitHub and optionally Telegram.
 
         Auto-assigns id and date to entries that don't have them.
-        Returns number of entries published.
+        Both channels are attempted independently: a feed failure does not
+        silence Telegram (nor vice versa). Raises EvolutionPublishError if
+        either channel failed. Returns number of entries published.
         """
         if not entries:
             return 0
 
+        feed_error: str | None = None
         try:
             # Read current evolutions.json
             existing = await self._client.get_file_content(SITE_REPO, EVOLUTIONS_PATH, "main")
@@ -109,26 +123,57 @@ class EvolutionPublisher:
                 f"  [green]\u2713[/green] Published {len(entries)} evolution(s) to ievo.ai"
             )
 
-            # Notify Telegram
-            await self._notify_telegram(entries)
-
-            return len(entries)
-
         except Exception as e:
-            console.print(f"  [yellow]\u26a0[/yellow] Evolution publish failed: {e}")
-            return 0
+            feed_error = str(e)
+            console.print(
+                f"  [yellow]\u26a0[/yellow] Evolution publish failed: {escape(feed_error)}"
+            )
 
-    async def _notify_telegram(self, entries: list[EvolutionEntry]) -> None:
-        """Send evolution notifications to Telegram community chat."""
+        # Notify Telegram \u2014 always attempted, even when the feed write failed
+        # (entries keep their default id/date if the feed read never ran).
+        telegram_errors = await self._notify_telegram(entries)
+
+        if feed_error or telegram_errors:
+            failures = []
+            if feed_error:
+                failures.append(f"feed: {feed_error}")
+            failures.extend(f"telegram: {err}" for err in telegram_errors)
+            raise EvolutionPublishError("; ".join(failures))
+
+        return len(entries)
+
+    async def _notify_telegram(self, entries: list[EvolutionEntry]) -> list[str]:
+        """Send evolution notifications to Telegram community chat.
+
+        Returns error descriptions for failed sends (empty list when all
+        sends succeeded or no Telegram client is configured).
+        """
         if not self._telegram:
-            return
+            return []
 
         topic_id = self._evolutions_topic
+        errors: list[str] = []
 
         for entry in entries:
+            # id is blank when the feed read failed before assignment \u2014 fall
+            # back to the title so failure messages still identify the entry.
+            # Titles are externally influenced (signal/PR/dispatch payloads),
+            # so escape() everything interpolated into Rich markup: raw
+            # brackets could otherwise forge styled status lines in CI logs.
+            label = entry.id or entry.title
             msg = format_telegram_message(entry)
-            result = await self._telegram.send_message(msg, message_thread_id=topic_id)
+            try:
+                result = await self._telegram.send_message(msg, message_thread_id=topic_id)
+            except Exception as e:
+                console.print(f"  [yellow]\u26a0[/yellow] Telegram {escape(f'{label}: {e}')}")
+                errors.append(f"{label}: {e}")
+                continue
             if result.success:
-                console.print(f"  [green]\u2713[/green] Telegram: {entry.id}")
+                console.print(f"  [green]\u2713[/green] Telegram: {escape(label)}")
             else:
-                console.print(f"  [yellow]\u26a0[/yellow] Telegram {entry.id}: {result.error}")
+                console.print(
+                    f"  [yellow]\u26a0[/yellow] Telegram {escape(f'{label}: {result.error}')}"
+                )
+                errors.append(f"{label}: {result.error}")
+
+        return errors

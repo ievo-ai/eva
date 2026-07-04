@@ -228,9 +228,31 @@ jobs:
             echo "EOFDESC"
           } >> "$GITHUB_OUTPUT"
 
+      # eva#160 — the feed write to ievo-ai/ievo.ai must run as the ievo-eva App,
+      # not the operator's PAT: the site repo's `protect-main` ruleset bypass
+      # covers the App only, so a PAT-authenticated Contents-API PUT to
+      # docs/evolutions.json returns 409 Conflict (observed 2026-07-04T00:55Z,
+      # 8+ hours of silently lost publishes). Same explicit-permissions pattern
+      # as eva-implement.yml (eva#152/#153): once any permission-* input is set
+      # the token carries ONLY the listed ones — this step performs a single
+      # Contents-API PUT to ievo-ai/ievo.ai, so contents:write alone suffices,
+      # and the token is scoped to the one repo it writes.
+      - name: Generate App token
+        if: vars.USE_GITHUB_APP == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547  # v1.12.0 — SHA-pinned
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ievo-ai
+          repositories: ievo.ai
+          permission-contents: write
+
       - name: Publish evolution
         env:
-          EVA_GITHUB_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+          # App token when USE_GITHUB_APP is on (step above ran); PAT fallback
+          # otherwise — the two-mode pattern from eva-implement.yml.
+          EVA_GITHUB_TOKEN: ${{ steps.app-token.outputs.token || secrets.EVA_PAT_GITHUB_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_COMMUNITY_CHAT: ${{ secrets.TELEGRAM_COMMUNITY_CHAT }}
           TELEGRAM_EVOLUTIONS_TOPIC: ${{ secrets.TELEGRAM_EVOLUTIONS_TOPIC }}

@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from eva.core.models import EvolutionEntry, EvolutionType, Mutation, MutationType
-from eva.github.evolution_publisher import EvolutionPublisher
+from eva.github.evolution_publisher import EvolutionPublisher, EvolutionPublishError
 from eva.telegram.client import TelegramResult
 
 
@@ -142,14 +142,14 @@ class TestPublishMutations:
         assert written[-1]["id"] == "EVO-006"
 
     @pytest.mark.asyncio
-    async def test_handles_publish_exception(self):
+    async def test_publish_exception_raises(self):
         publisher = EvolutionPublisher(token="test")
 
         mock_client = publisher._client
         mock_client.get_file_content = AsyncMock(side_effect=RuntimeError("API error"))
 
-        count = await publisher.publish([_make_mutation()])
-        assert count == 0
+        with pytest.raises(EvolutionPublishError, match="feed: API error"):
+            await publisher.publish([_make_mutation()])
 
 
 class TestPublishEntries:
@@ -188,14 +188,43 @@ class TestPublishEntries:
         assert count == 0
 
     @pytest.mark.asyncio
-    async def test_publish_entries_exception(self):
+    async def test_publish_entries_exception_raises(self):
         publisher = EvolutionPublisher(token="test")
 
         mock_client = publisher._client
         mock_client.get_file_content = AsyncMock(side_effect=RuntimeError("fail"))
 
-        count = await publisher.publish_entries([_make_entry()])
-        assert count == 0
+        with pytest.raises(EvolutionPublishError, match="feed: fail"):
+            await publisher.publish_entries([_make_entry()])
+
+    @pytest.mark.asyncio
+    async def test_feed_failure_still_attempts_telegram(self):
+        """eva#160: a feed failure must not silence Telegram — both channels
+        are attempted independently, and the aggregate error reports the feed."""
+        mock_tg = AsyncMock()
+        mock_tg.send_message.return_value = TelegramResult(success=True, message_id=7)
+        publisher = EvolutionPublisher(token="test", telegram=mock_tg)
+
+        mock_client = publisher._client
+        mock_client.get_file_content = AsyncMock(side_effect=RuntimeError("409 Conflict"))
+
+        with pytest.raises(EvolutionPublishError, match="feed: 409 Conflict"):
+            await publisher.publish_entries([_make_entry()])
+        mock_tg.send_message.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_both_channels_fail_reports_both(self):
+        mock_tg = AsyncMock()
+        mock_tg.send_message.return_value = TelegramResult(success=False, error="Chat gone")
+        publisher = EvolutionPublisher(token="test", telegram=mock_tg)
+
+        mock_client = publisher._client
+        mock_client.get_file_content = AsyncMock(side_effect=RuntimeError("409 Conflict"))
+
+        with pytest.raises(
+            EvolutionPublishError, match="feed: 409 Conflict; telegram: .*Chat gone"
+        ):
+            await publisher.publish_entries([_make_entry()])
 
 
 class TestNotifyTelegram:
@@ -214,7 +243,9 @@ class TestNotifyTelegram:
         mock_tg.send_message.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_telegram_error_does_not_fail_publish(self):
+    async def test_telegram_error_raises_after_feed_success(self):
+        """eva#160: a Telegram failure fails the publish even when the feed
+        write succeeded — the run must show red if EITHER channel failed."""
         mock_tg = AsyncMock()
         mock_tg.send_message.return_value = TelegramResult(success=False, error="Chat not found")
         publisher = EvolutionPublisher(token="test", telegram=mock_tg)
@@ -223,8 +254,28 @@ class TestNotifyTelegram:
         mock_client.get_file_content = AsyncMock(return_value=None)
         mock_client.create_or_update_file = AsyncMock()
 
-        count = await publisher.publish_entries([_make_entry()])
-        assert count == 1
+        with pytest.raises(EvolutionPublishError, match="telegram: .*Chat not found"):
+            await publisher.publish_entries([_make_entry()])
+        # Feed write still happened — channels are independent.
+        mock_client.create_or_update_file.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_telegram_send_exception_recorded_per_entry(self):
+        """An exception in one send is recorded and the loop continues."""
+        mock_tg = AsyncMock()
+        mock_tg.send_message.side_effect = [
+            RuntimeError("network down"),
+            TelegramResult(success=True, message_id=8),
+        ]
+        publisher = EvolutionPublisher(token="test", telegram=mock_tg)
+
+        mock_client = publisher._client
+        mock_client.get_file_content = AsyncMock(return_value=None)
+        mock_client.create_or_update_file = AsyncMock()
+
+        with pytest.raises(EvolutionPublishError, match="telegram: .*network down"):
+            await publisher.publish_entries([_make_entry(), _make_entry(title="Second")])
+        assert mock_tg.send_message.call_count == 2
 
     @pytest.mark.asyncio
     async def test_no_telegram_skips_notification(self):

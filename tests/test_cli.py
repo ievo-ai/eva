@@ -284,7 +284,8 @@ class TestPublishCommand:
 
         assert result.exit_code == 0
 
-    def test_publish_live_no_github_token(self, runner):
+    def test_publish_live_no_github_token_exits_nonzero(self, runner):
+        # eva#160: a missing token on --live is a publish failure → red run.
         with (
             patch(
                 "eva.github.evolution_publisher.EvolutionPublisher",
@@ -304,10 +305,10 @@ class TestPublishCommand:
                 ],
             )
 
-        assert result.exit_code == 0
+        assert result.exit_code == 1
         assert "No token" in result.output
 
-    def test_publish_live_zero_published(self, runner):
+    def test_publish_live_zero_published_exits_nonzero(self, runner):
         mock_publisher = MagicMock()
         mock_publisher.publish_entries = AsyncMock(return_value=0)
 
@@ -330,8 +331,40 @@ class TestPublishCommand:
                 ],
             )
 
-        assert result.exit_code == 0
+        assert result.exit_code == 1
         assert "Nothing published" in result.output
+
+    def test_publish_live_channel_failure_exits_nonzero(self, runner):
+        # eva#160: EvolutionPublishError (feed 409 / Telegram failure) → red run.
+        from eva.github.evolution_publisher import EvolutionPublishError
+
+        mock_publisher = MagicMock()
+        mock_publisher.publish_entries = AsyncMock(
+            side_effect=EvolutionPublishError("feed: 409 Conflict")
+        )
+
+        with (
+            patch(
+                "eva.github.evolution_publisher.EvolutionPublisher",
+                return_value=mock_publisher,
+            ),
+            patch("eva.telegram.client.TelegramClient", side_effect=ValueError("No tg")),
+        ):
+            result = runner.invoke(
+                main,
+                [
+                    "publish",
+                    "--title",
+                    "Test",
+                    "--type",
+                    "milestone",
+                    "--live",
+                ],
+            )
+
+        assert result.exit_code == 1
+        assert "Publish failed" in result.output
+        assert "409 Conflict" in result.output
 
     def test_publish_live_with_telegram(self, runner):
         mock_tg = MagicMock()
