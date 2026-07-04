@@ -145,6 +145,34 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: ievo-ai
+          # eva#152 — request the token's permissions EXPLICITLY instead of relying
+          # on the action's default (inherit ALL installation permissions). Five
+          # identical push failures (eva#146 ×2, eva#151 ×3) proved the default
+          # mint does NOT carry `workflows: write` to the token even though the
+          # App-level grant (2026-05-22) shows accepted on the installation with no
+          # pending banner — so the agent's `git push` of a `.github/workflows/**`
+          # diff is refused ("refusing to allow a GitHub App to create or update
+          # workflow without workflows permission"). GitHub only surfaces the
+          # recently-added `workflows` permission on the minted token when it is
+          # requested explicitly; naming it here fixes that.
+          #
+          # This list MUST enumerate EVERY permission the downstream steps use —
+          # once any permission-* input is set the token carries ONLY the listed
+          # ones, no longer the full installation set:
+          #   contents:write      — checkout + agent `git push` (branch + files)
+          #   workflows:write      — agent push of `.github/workflows/**` diffs (the fix)
+          #   issues:write         — Claim/Release: label create/edit + issue comments
+          #   pull-requests:write  — agent `gh pr create` / `gh pr comment`
+          #   metadata:read        — Claim's `gh api .../collaborators/.../permission`
+          # Explicitly requesting `workflows` also self-diagnoses eva#152's
+          # hypothesis 1: if the install grant is not actually live server-side,
+          # this mint FAILS LOUDLY here (can't request a permission the
+          # installation lacks) instead of the silent push refusal downstream.
+          permission-contents: write
+          permission-workflows: write
+          permission-issues: write
+          permission-pull-requests: write
+          permission-metadata: read
 
       - name: Set auth token
         id: auth
