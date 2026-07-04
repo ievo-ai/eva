@@ -335,10 +335,23 @@ jobs:
           DEFAULT_EFFORT: high
         run: |
           # Newline-free single-value extraction (robust to label names with
-          # spaces): take the FIRST model:*/effort:* label if any.
-          LJSON=$(gh issue view "$ISSUE_NUM" --repo "$REPO" --json labels --jq '[.labels[].name]')
+          # spaces): take the FIRST model:*/effort:* label if any. A transient
+          # gh/API failure degrades GRACEFULLY to var||default (`|| echo '[]'`) —
+          # pre-#172 the model/effort were pure GHA expressions with zero API
+          # calls, so a hiccup could never fail this build; keep it that way
+          # rather than aborting an otherwise-healthy build to operator triage.
+          LJSON=$(gh issue view "$ISSUE_NUM" --repo "$REPO" --json labels --jq '[.labels[].name]' 2>/dev/null || echo '[]')
           MODEL_LABEL=$(printf '%s' "$LJSON" | jq -r 'map(select(startswith("model:"))) | first // ""')
           EFFORT_LABEL=$(printf '%s' "$LJSON" | jq -r 'map(select(startswith("effort:"))) | first // ""')
+
+          # Display-safe forms for the notice comment below: strip backticks so an
+          # unrecognized label value (collaborator-set, but still untrusted text)
+          # can never break out of the inline-code span it is rendered in — no
+          # markdown/@-mention spoofing in a comment that looks Eva-authored. The
+          # resolved MODEL/EFFORT operands never use these (they are fixed literals
+          # from the whitelist), so this only affects human-readable output.
+          SAFE_MODEL_LABEL=$(printf '%s' "$MODEL_LABEL" | tr -d '`')
+          SAFE_EFFORT_LABEL=$(printf '%s' "$EFFORT_LABEL" | tr -d '`')
 
           WARN=""
           # --- model: whitelist opus|fable (label > var > default) ---
@@ -347,14 +360,14 @@ jobs:
             model:opus)   MODEL="opus" ;;
             model:fable)  MODEL="fable" ;;
             *)            MODEL="${VAR_MODEL:-$DEFAULT_MODEL}"
-                          WARN="${WARN}- Ignored unrecognized \`$MODEL_LABEL\` (model whitelist: \`model:opus\`, \`model:fable\`). Using \`$MODEL\`."$'\n' ;;
+                          WARN="${WARN}- Ignored unrecognized \`$SAFE_MODEL_LABEL\` (model whitelist: \`model:opus\`, \`model:fable\`). Using \`$MODEL\`."$'\n' ;;
           esac
           # --- effort: whitelist low|medium|high|xhigh|max (label > var > default) ---
           case "$EFFORT_LABEL" in
             "")                                                        EFFORT="${VAR_EFFORT:-$DEFAULT_EFFORT}" ;;
             effort:low|effort:medium|effort:high|effort:xhigh|effort:max) EFFORT="${EFFORT_LABEL#effort:}" ;;
             *)                                                         EFFORT="${VAR_EFFORT:-$DEFAULT_EFFORT}"
-                          WARN="${WARN}- Ignored unrecognized \`$EFFORT_LABEL\` (effort whitelist: \`effort:low|medium|high|xhigh|max\`). Using \`$EFFORT\`."$'\n' ;;
+                          WARN="${WARN}- Ignored unrecognized \`$SAFE_EFFORT_LABEL\` (effort whitelist: \`effort:low|medium|high|xhigh|max\`). Using \`$EFFORT\`."$'\n' ;;
           esac
 
           echo "Resolved model=$MODEL effort=$EFFORT (model_label='$MODEL_LABEL' effort_label='$EFFORT_LABEL')"
