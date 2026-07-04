@@ -6,6 +6,7 @@ from pathlib import Path
 import click
 import sentry_sdk
 from rich.console import Console
+from rich.markup import escape
 from rich.panel import Panel
 
 from eva import __version__
@@ -261,7 +262,9 @@ def publish(
         pub = EvolutionPublisher(telegram=telegram)
         count = asyncio.run(pub.publish_entries([entry]))
     except EvolutionPublishError as e:
-        console.print(f"[red]✗[/red] Publish failed: {e}")
+        # escape(): failure text carries externally influenced entry titles —
+        # raw brackets could forge Rich-styled status lines in CI logs.
+        console.print(f"[red]✗[/red] Publish failed: {escape(str(e))}")
         raise SystemExit(1) from e
     except ValueError as e:
         console.print(f"[red]✗[/red] {e}")

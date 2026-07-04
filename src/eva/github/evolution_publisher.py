@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from rich.console import Console
+from rich.markup import escape
 
 from eva.core.models import EvolutionEntry, Mutation
 from eva.github.client import GitHubClient
@@ -124,7 +125,9 @@ class EvolutionPublisher:
 
         except Exception as e:
             feed_error = str(e)
-            console.print(f"  [yellow]\u26a0[/yellow] Evolution publish failed: {e}")
+            console.print(
+                f"  [yellow]\u26a0[/yellow] Evolution publish failed: {escape(feed_error)}"
+            )
 
         # Notify Telegram \u2014 always attempted, even when the feed write failed
         # (entries keep their default id/date if the feed read never ran).
@@ -154,18 +157,23 @@ class EvolutionPublisher:
         for entry in entries:
             # id is blank when the feed read failed before assignment \u2014 fall
             # back to the title so failure messages still identify the entry.
+            # Titles are externally influenced (signal/PR/dispatch payloads),
+            # so escape() everything interpolated into Rich markup: raw
+            # brackets could otherwise forge styled status lines in CI logs.
             label = entry.id or entry.title
             msg = format_telegram_message(entry)
             try:
                 result = await self._telegram.send_message(msg, message_thread_id=topic_id)
             except Exception as e:
-                console.print(f"  [yellow]\u26a0[/yellow] Telegram {label}: {e}")
+                console.print(f"  [yellow]\u26a0[/yellow] Telegram {escape(f'{label}: {e}')}")
                 errors.append(f"{label}: {e}")
                 continue
             if result.success:
-                console.print(f"  [green]\u2713[/green] Telegram: {label}")
+                console.print(f"  [green]\u2713[/green] Telegram: {escape(label)}")
             else:
-                console.print(f"  [yellow]\u26a0[/yellow] Telegram {label}: {result.error}")
+                console.print(
+                    f"  [yellow]\u26a0[/yellow] Telegram {escape(f'{label}: {result.error}')}"
+                )
                 errors.append(f"{label}: {result.error}")
 
         return errors
