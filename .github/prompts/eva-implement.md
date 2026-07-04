@@ -444,9 +444,10 @@ rule as Phase 4.5 — see Safety rules).
         ' "$CAPTURE_FILE")
 
         if [ -n "$NEW_CONTENT" ]; then
-          printf '\n%s' "$NEW_CONTENT" >> "$LESSONS"
+          printf '\n%s\n' "$NEW_CONTENT" >> "$LESSONS"
           STAMP=$(date -u +%Y-%m-%d-%H%M)
-          BRANCH="evolution/consolidate-${STAMP}"
+          SLUG="$(echo "$TARGET_REPO" | tr '/' '-')-${TARGET_ISSUE}"
+          BRANCH="evolution/consolidate-${STAMP}-${SLUG}"
           git checkout -b "$BRANCH"
           git add "$LESSONS"
           git commit -m "docs: consolidate evolution lesson from $TARGET_REPO#$TARGET_ISSUE
@@ -492,10 +493,12 @@ Co-Authored-By: iEVO Eva <noreply@ievo.ai>"
 - FOREGROUND ONLY (eva#170): never dispatch background work (skills, subagents,
   background Bash) and end your turn while it is pending — in this headless run,
   ending the turn kills the process and everything still in flight. End the turn
-  only after the ready PR exists (Phase 5), Phase 6's consolidation attempt (if
-  applicable) has completed, or a documented exit path released the claim. A
-  deterministic workflow post-check FAILS the run if neither of the first two
-  happened — a silent stall can no longer read as green.
+  only after (the ready PR exists (Phase 5) AND Phase 6's consolidation attempt,
+  if applicable, has completed) or a documented exit path released the claim. The
+  deterministic workflow post-check (`.github/workflows/eva-implement.yml`) only
+  knows about the PR-exists / claim-released outcomes — it has no visibility into
+  Phase 6 (that PR, if any, lands in a separate repo this check never inspects) —
+  so it FAILS the run if neither of those two happened, regardless of Phase 6.
 - Phase 6 (eva#169) is best-effort and must never change the Phase 5 outcome
   already recorded: a failed clone/push/PR there is a missed learning
   opportunity, not a build failure — do not retry it against the main build,

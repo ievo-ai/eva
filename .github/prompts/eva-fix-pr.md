@@ -167,7 +167,7 @@ non-empty entry above (`EVA_EVOLUTION_CAPTURE` file has content), append it to
 - Dedup: if a section with the SAME `## L-YYYY-MM-DD-NN — <title>` line already
   exists in `lessons.md`, skip — do not append a duplicate.
 - Otherwise append the new `## L-...` section(s) from the capture file to the
-  end of `lessons.md`.
+  end of `lessons.md` (after the existing "Lessons go below this line" marker).
 - Stage `agent/memory/evolution/lessons.md` alongside your fix in the Phase 6
   `[pr-fix-N]` commit — the lesson rides the fix. Do NOT open a separate PR for
   this on an eva-repo fix (Phase 3c is cross-repo only).
@@ -221,9 +221,10 @@ Safety rules).
         ' "$CAPTURE_FILE")
 
         if [ -n "$NEW_CONTENT" ]; then
-          printf '\n%s' "$NEW_CONTENT" >> "$LESSONS"
+          printf '\n%s\n' "$NEW_CONTENT" >> "$LESSONS"
           STAMP=$(date -u +%Y-%m-%d-%H%M)
-          BRANCH="evolution/consolidate-${STAMP}"
+          SLUG="$(echo "$TARGET_REPO" | tr '/' '-')-${TARGET_PR}"
+          BRANCH="evolution/consolidate-${STAMP}-${SLUG}"
           git checkout -b "$BRANCH"
           git add "$LESSONS"
           git commit -m "docs: consolidate evolution lesson from $TARGET_REPO#$TARGET_PR

@@ -512,12 +512,17 @@ jobs:
           PR_NUM: ${{ steps.ctx.outputs.pr_number }}
           REVIEW_ID: ${{ steps.postreview.outputs.review_id }}
         run: |
-          # Only self-authored eva-impl/* PRs are auto-fixable.
+          # Only self-authored eva-impl/* PRs are auto-fixable. evolution/consolidate-*
+          # PRs (eva#169) are ALSO self-authored (same App) and route through the
+          # SAME eva-fix-pr.yml generically (it targets whatever $TARGET_REPO/
+          # $TARGET_PR the dispatch names) — without this, a REQUEST_CHANGES on a
+          # trivial append-only consolidation PR would strand with no automated
+          # remediation and no operator-visible label.
           HEAD_REF=$(gh api "repos/$REPO/pulls/$PR_NUM" --jq '.head.ref')
           case "$HEAD_REF" in
-            eva-impl/*) : ;;
+            eva-impl/*|evolution/consolidate-*) : ;;
             *)
-              echo "Head branch '$HEAD_REF' is not eva-impl/* — no fix dispatch."
+              echo "Head branch '$HEAD_REF' is not eva-impl/* or evolution/consolidate-* — no fix dispatch."
               exit 0 ;;
           esac
 
