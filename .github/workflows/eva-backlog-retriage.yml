@@ -426,14 +426,21 @@ jobs:
       # any `approved`, and FAILS the run on a breach. `always()` so a breach is
       # caught even if the agent step errored after some writes.
       #
-      # Scoping (avoids false positives from a concurrent eva-on-issue skeptic
-      # run, which is ALSO ievo-eva[bot] and MAY legitimately self-approve/reject
+      # Close-scoping (avoids false positives from a concurrent eva-on-issue
+      # skeptic run, which is ALSO ievo-eva[bot] and MAY legitimately close/reject
       # skills issues): a "re-triage close" = a bot `closed` event in the window
       # on a `feature-proposal` issue that does NOT carry `eva-rejected` (the
-      # skeptic signs its closes with that label; this flow never does). The
-      # never-approve check is scoped to issues THIS run TOUCHED (bot close /
-      # `backlog-verified` / `needs-operator` in the window) — a concurrent
-      # skeptic approving a DIFFERENT issue is not in that set.
+      # skeptic signs its closes with that label; this flow never does).
+      #
+      # Never-approve check: `approved` is NEVER a legitimate ievo-eva[bot] action
+      # anywhere in this org — the eva-on-issue skeptic HOLDs (it never approves)
+      # and only the operator (rotnov, a distinct principal) applies `approved`.
+      # So the check flags ANY bot `approved` labeling in the window, UNSCOPED. An
+      # earlier version gated it on issues THIS run TOUCHED (close / labelled), but
+      # that left a hole: a rogue `approved`-ONLY application (no close, no other
+      # label) set appr_iw=true yet touched=false, silently evading the eva#132
+      # guard this post-check exists to be — the very self-report-distrust case
+      # commit 68eacda exists to catch. Unscoping it closes that hole.
       - name: Verify re-triage contract
         if: always()
         env:
@@ -465,17 +472,15 @@ jobs:
               2>/dev/null || echo "[]")
             closed_iw=$(printf '%s' "$tl" | jq 'any(.[]; .event=="closed")')
             appr_iw=$(printf '%s' "$tl" | jq 'any(.[]; .event=="labeled" and .label.name=="approved")')
-            bv_iw=$(printf '%s' "$tl" | jq 'any(.[]; .event=="labeled" and .label.name=="backlog-verified")')
-            no_iw=$(printf '%s' "$tl" | jq 'any(.[]; .event=="labeled" and .label.name=="needs-operator")')
             if [ "$closed_iw" = "true" ] && [ "$is_fp" = "true" ] && [ "$has_rej" = "false" ]; then
               closes=$((closes + 1))
               echo "  re-triage close: skills#$n"
             fi
-            touched="false"
-            if [ "$closed_iw" = "true" ] || [ "$bv_iw" = "true" ] || [ "$no_iw" = "true" ]; then
-              touched="true"
-            fi
-            if [ "$touched" = "true" ] && [ "$appr_iw" = "true" ]; then
+            # Unscoped never-approve guard (eva#132): a bot `approved` labeling is
+            # illegitimate regardless of whether this run also closed/labelled the
+            # issue — see the header note. Scoping it to "touched" issues left a
+            # hole an `approved`-only application walked through.
+            if [ "$appr_iw" = "true" ]; then
               approved_hits="$approved_hits #$n"
             fi
           done <<< "$ROWS"
