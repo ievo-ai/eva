@@ -205,7 +205,9 @@ jobs:
           # `claude-fable-5`) and EVA_EFFORT_ROUTER (low|medium|high|xhigh|max) to
           # switch this flow with no code change. Empty → today's defaults below.
           # Repo-level vars override org-level. `--effort` is a real per-session
-          # CLI flag (docs: code.claude.com/docs/en/model-config#adjust-effort-level).
+          # CLI flag (docs: code.claude.com/docs/en/model-config#adjust-effort-level);
+          # `high` is also the current model-default effort for sonnet (Sonnet 5),
+          # so the effort default is behavior-preserving, not a silent uplift.
           claude_args: |
             --model ${{ vars.EVA_MODEL_ROUTER || 'sonnet' }}
             --effort ${{ vars.EVA_EFFORT_ROUTER || 'high' }}

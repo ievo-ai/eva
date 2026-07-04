@@ -501,7 +501,9 @@ jobs:
           # EVA_EFFORT_IMPLEMENT (low|medium|high|xhigh|max). Empty → today's
           # defaults below. Repo-level vars override org-level (GitHub precedence),
           # so per-repo experiments stay possible. `--effort` is a real per-session
-          # CLI flag (docs: code.claude.com/docs/en/model-config#adjust-effort-level).
+          # CLI flag (docs: code.claude.com/docs/en/model-config#adjust-effort-level);
+          # `high` is also the current model-default effort for opus (Opus 4.8), so
+          # the effort default is behavior-preserving, not a silent uplift.
           claude_args: |
             --model ${{ vars.EVA_MODEL_IMPLEMENT || 'opus' }}
             --effort ${{ vars.EVA_EFFORT_IMPLEMENT || 'high' }}

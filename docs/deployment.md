@@ -74,6 +74,35 @@ Required: `EVA_DISPATCH_TOKEN` secret with `repo` scope in the source repo.
 |----------|--------|-------------|
 | `USE_GITHUB_APP` | `true` / `false` | Switch between GitHub App and PAT auth |
 
+#### Agent model + effort (per-flow, eva#161)
+
+Each autonomous-agent workflow reads its Claude model and reasoning effort from
+an Actions variable, falling back to today's value when the variable is unset —
+so switching a flow's model/effort is an ops action (change a variable → next run
+uses it), not a workflow-file edit. Repo-level variables override org-level
+(GitHub precedence), so per-repo experiments are possible. Values may be an alias
+(`opus`, `sonnet`, `haiku`, `fable`) or a full id (e.g. `claude-fable-5`); effort
+is one of `low` / `medium` / `high` / `xhigh` / `max`.
+
+| Variable | Default | Flow |
+|----------|---------|------|
+| `EVA_MODEL_IMPLEMENT` | `opus` | eva-implement (issue → PR builder) |
+| `EVA_EFFORT_IMPLEMENT` | `high` | eva-implement |
+| `EVA_MODEL_FIX` | `opus` | eva-fix-pr (review-fix loop) |
+| `EVA_EFFORT_FIX` | `high` | eva-fix-pr |
+| `EVA_MODEL_REVIEW` | `opus` | eva-review-pr (PR gatekeeper) |
+| `EVA_EFFORT_REVIEW` | `high` | eva-review-pr |
+| `EVA_MODEL_ROUTER` | `sonnet` | eva-on-issue (issue router) |
+| `EVA_EFFORT_ROUTER` | `high` | eva-on-issue |
+| `EVA_MODEL_RESEARCH` | `sonnet` | eva-research (model only) |
+| `EVA_MODEL_PUBLISH` | `haiku` | publish-evolution blurb (model only) |
+
+`high` is also the current model-default effort for the `opus` (Opus 4.8) and
+`sonnet` (Sonnet 5) aliases, so the effort defaults are behavior-preserving — they
+pin what the CLI already used implicitly. Effort is deliberately not parametrized
+for `eva-research` / `publish-evolution` (model only). To try Fable, set the
+relevant `EVA_MODEL_*` to `fable` (or `claude-fable-5`).
+
 ## Docker (Self-Hosted)
 
 ### Image
