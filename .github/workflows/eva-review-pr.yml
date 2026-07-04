@@ -82,6 +82,14 @@ jobs:
     # ievo-ai/eva; (3) no loop — eva-review only reviews + merges these PRs, it
     # never pushes to them, so there is nothing to re-trigger; (4) the
     # sensitive-path gate + the runtime Tests-green/draft checks still apply.
+    #
+    # evolution/consolidate-* carve-out (eva#169): the same reasoning applies to
+    # the small append-only PRs eva-implement.yml/eva-fix-pr.yml open against
+    # `ievo-ai/eva` to consolidate a cross-repo build's captured lesson into
+    # `agent/memory/evolution/lessons.md`. These are ALSO authored by the
+    # `ievo-eva` App (same triggering_actor as above), so without this carve-out
+    # they would never reach the sensitive-path gate below at all — the exact
+    # "artifact -> unread PR" failure mode eva#169 exists to close.
     if: >
       (github.event_name == 'repository_dispatch' &&
        github.event.client_payload.triggered_by != 'ievo-eva' &&
@@ -95,6 +103,8 @@ jobs:
           github.event.workflow_run.triggering_actor.login != 'github-actions[bot]')
          ||
          startsWith(github.event.workflow_run.head_branch, 'eva-impl/')
+         ||
+         startsWith(github.event.workflow_run.head_branch, 'evolution/consolidate-')
        )) ||
       (github.event_name == 'pull_request' &&
        github.event.action == 'ready_for_review' &&
@@ -601,9 +611,35 @@ jobs:
             done <<< "$CHANGED"
           fi
 
+          # Routine evolution-consolidation exception (operator, eva#169):
+          # agent/memory/ is in the sensitive list so changes to Eva's identity/
+          # memory get operator review — but that ALSO blocks the small
+          # append-only PRs eva-implement.yml/eva-fix-pr.yml open to consolidate
+          # a cross-repo build's captured lesson into
+          # agent/memory/evolution/lessons.md, which is otherwise the exact
+          # "auto-opened, never auto-merged" failure mode eva#169 exists to
+          # close. Consolidated lessons are the same trust tier as the audit
+          # reports above — Eva's own operational learning, append-only, fully
+          # auditable in git history. Allow auto-merge for routine consolidation
+          # only: head branch matches evolution/consolidate-* AND every changed
+          # file lives under agent/memory/evolution/ (in practice: lessons.md).
+          # Any other edit under agent/memory/ (ROLE.md, sessions, anything else
+          # shaping Eva's identity) still hits the operator-review gate below.
+          IS_EVOLUTION_CONSOLIDATE=false
+          if [[ "$HEAD_REF" == evolution/consolidate-* ]]; then
+            IS_EVOLUTION_CONSOLIDATE=true
+            while IFS= read -r f; do
+              [ -z "$f" ] && continue
+              if [[ "$f" != agent/memory/evolution/* ]]; then IS_EVOLUTION_CONSOLIDATE=false; break; fi
+            done <<< "$CHANGED"
+          fi
+
           if [ "$IS_AUDIT" = "true" ]; then
             echo "is_sensitive=false" >> "$GITHUB_OUTPUT"
             echo "Routine research-audit PR ($HEAD_REF; all files under researches/) — auto-merge allowed despite researches/ being in the sensitive list"
+          elif [ "$IS_EVOLUTION_CONSOLIDATE" = "true" ]; then
+            echo "is_sensitive=false" >> "$GITHUB_OUTPUT"
+            echo "Routine evolution-consolidation PR ($HEAD_REF; all files under agent/memory/evolution/) — auto-merge allowed despite agent/memory/ being in the sensitive list"
           elif [ -n "$SENSITIVE_HITS" ]; then
             echo "is_sensitive=true" >> "$GITHUB_OUTPUT"
             echo "Sensitive paths touched — operator must manually merge:"
