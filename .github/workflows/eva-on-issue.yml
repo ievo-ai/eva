@@ -317,16 +317,30 @@ jobs:
 
             ### R7 — Update lifecycle labels to match the verdict
               - verdict `implement` (trusted author, clear, low-risk) → add
-                `approved` and remove `needs-discussion` (default token — a member
-                unlock, exactly as the new-issue path applies `approved`). This is
-                what fires eva-implement.
+                `approved` and remove BOTH `needs-discussion` and `needs-operator`
+                (default token — a member unlock, exactly as the new-issue path
+                applies `approved`). This is what fires eva-implement. Removing
+                `needs-operator` here is the unlock consuming the operator-blocked
+                state (eva#146 — a resolved issue must never keep it).
                   gh issue edit "$TARGET_ISSUE" --repo "$TARGET_REPO" \
                     --add-label approved --remove-label needs-discussion
+                  gh issue edit "$TARGET_ISSUE" --repo "$TARGET_REPO" \
+                    --remove-label needs-operator 2>/dev/null || true
               - verdict `hold` (questions remain, or external-author-awaiting-approval,
                 or not low-risk) → keep `needs-discussion` as-is; do NOT add
-                `approved`. No label change needed.
+                `approved`. Ensure `needs-operator` (eva#146) is present — it is
+                still blocked on the operator (create-if-missing, default token):
+                  gh label create needs-operator --repo "$TARGET_REPO" \
+                    --description "Pipeline blocked on the human operator to unblock" \
+                    --color "e11d21" 2>/dev/null || true
+                  gh issue edit "$TARGET_ISSUE" --repo "$TARGET_REPO" \
+                    --add-label needs-operator
             NEVER add `approved` on an externally-authored issue; NEVER touch
             `eva-rejected` / `eva-hold-high-risk`.
+            The second `--remove-label needs-operator` above is its OWN best-effort
+            command (never fold it into the `--add-label approved` edit): the label
+            may be absent, and a missing-label removal that aborted the same edit
+            would also drop the `approved`/`needs-discussion` change.
 
             (Re-triage mode ENDS here — do NOT fall through to Step 0 / Skeptic / Steps 1-6.)
 
@@ -413,13 +427,17 @@ jobs:
 
             ### Decide + act on the verdict
 
-            First create the terminal labels idempotently (needed by reject/hold):
+            First create the terminal labels idempotently (needed by reject/hold),
+            plus `needs-operator` (eva#146 — applied on HOLD below):
               GH_TOKEN="$EVA_APP_TOKEN" gh label create eva-rejected --repo "$TARGET_REPO" \
                 --description "Eva skeptic verdict: proposal refuted, closed" \
                 --color "b60205" 2>/dev/null || true
               GH_TOKEN="$EVA_APP_TOKEN" gh label create eva-hold-high-risk --repo "$TARGET_REPO" \
                 --description "Eva skeptic verdict: confirmed but needs operator" \
                 --color "d93f0b" 2>/dev/null || true
+              GH_TOKEN="$EVA_APP_TOKEN" gh label create needs-operator --repo "$TARGET_REPO" \
+                --description "Pipeline blocked on the human operator to unblock" \
+                --color "e11d21" 2>/dev/null || true
 
             **REJECT** (failed ANY refutation attempt) — the default:
               - Write the reason (which attempt failed + why) to /tmp/reject.md.
@@ -427,6 +445,11 @@ jobs:
                   GH_TOKEN="$EVA_APP_TOKEN" gh issue edit "$TARGET_ISSUE" --repo "$TARGET_REPO" --add-label eva-rejected
                   GH_TOKEN="$EVA_APP_TOKEN" gh issue close "$TARGET_ISSUE" --repo "$TARGET_REPO" \
                     --reason "not planned" --comment-file /tmp/reject.md
+              - Cleanup (eva#146 — a closed issue must never carry `needs-operator`):
+                strip it best-effort (own command; the label is normally absent
+                on a rejected issue, so a missing-label removal must not error):
+                  GH_TOKEN="$EVA_APP_TOKEN" gh issue edit "$TARGET_ISSUE" --repo "$TARGET_REPO" \
+                    --remove-label needs-operator 2>/dev/null || true
               Reopening is a no-op (the forwarder listens to opened/labeled only).
               The ONLY unlock is a human MEMBER/OWNER applying `approved`.
 
@@ -446,8 +469,13 @@ jobs:
             **HOLD** (survives refutation WITH evidence, but ANY of: surface not ⊆
             SAFE_PATHS; daily cap exhausted; $TARGET_REPO == 'ievo-ai/eva';
             evidence-contract downgrade):
-              - Add `eva-hold-high-risk` (via `GH_TOKEN="$EVA_APP_TOKEN"`), keep
-                the issue OPEN.
+              - Add `eva-hold-high-risk` AND `needs-operator` (eva#146), keep the
+                issue OPEN. BOTH via `GH_TOKEN="$EVA_APP_TOKEN"` — the App identity
+                keeps the label-event actor `ievo-eva[bot]` per the eva#133
+                actor-accounting rule (same requirement as every skeptic-verdict
+                write):
+                  GH_TOKEN="$EVA_APP_TOKEN" gh issue edit "$TARGET_ISSUE" --repo "$TARGET_REPO" \
+                    --add-label eva-hold-high-risk --add-label needs-operator
               - Post a comment @-mentioning the operator (`@rotnov`) with the
                 confirmed gap + why it is held (out-of-tier / cap / eva-self / no
                 evidence) — via `GH_TOKEN="$EVA_APP_TOKEN"`. The operator unlocks
@@ -556,11 +584,27 @@ jobs:
             Plus secondary signals when found: `duplicate-of-#N`,
             `covered-by-audit-#N`.
 
-            Lifecycle state (auto-apply EXACTLY one, per the verdict):
+            Lifecycle state (auto-apply EXACTLY one primary state, per the verdict):
               - verdict `implement` → add `approved` (clear + low-risk; the
                 implement step consumes this in a later phase)
-              - verdict `hold` with open questions → add `needs-discussion`
+              - verdict `hold` with open questions → add `needs-discussion` AND
+                `needs-operator`
               - verdict `hold`, no open questions but not low-risk → add `triage`
+                AND `needs-operator`
+
+            `needs-operator` (eva#146) is the operator's single cross-repo inbox
+            filter — apply it on EVERY hold verdict (BOTH branches above), on top
+            of the precise state label, so
+            `gh search issues --owner ievo-ai --label needs-operator --state open`
+            surfaces every issue blocked on a human. It complements — never
+            replaces — `needs-discussion` / `triage` (those keep their precise
+            semantics). It is REMOVED when the block clears (a member applies
+            `approved` → eva-implement's claim step strips it) — never leave it on
+            a resolved or closed issue. On the new-issue path here, apply it with
+            the SAME default token used for the other lifecycle labels above (a
+            member-visible action, not a skeptic-verdict action — no App-token
+            actor-accounting requirement applies to it, unlike the skeptic-mode
+            `eva-hold-high-risk` path).
 
             Still operator-only (NEVER auto-apply): `critical`, `priority/*`,
             `accepted`, `rejected`, `wontfix`, `duplicate` (without #N),
@@ -577,7 +621,10 @@ jobs:
               bug: d73a4a, enhancement: a2eeef, question: d876e3,
               documentation: 0075ca, discussion: cfd3d7,
               meta-evolution: 5319e7, out-of-scope: e4e669,
-              approved: 0e8a16, needs-discussion: fbca04, triage: ededed
+              approved: 0e8a16, needs-discussion: fbca04, triage: ededed,
+              needs-operator: e11d21
+            `needs-operator` description (use verbatim on create):
+              "Pipeline blocked on the human operator to unblock"
 
             ## Safety reminders (non-negotiable)
               - NEVER close the issue, open PRs, or modify files. The router only analyzes + labels; implementation is a separate gated step (consumes the `approved` label).

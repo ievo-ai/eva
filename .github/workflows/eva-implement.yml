@@ -256,6 +256,16 @@ jobs:
               echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0 ;;
           esac
 
+          # eva#146 — `approved` is present, so a member (or the Router) has cleared
+          # the operator block. Strip `needs-operator` NOW, BEFORE the rate-limit
+          # branch below: a build that gets deferred for a free slot is already
+          # unblocked (post-eva#144 the queue drains it within seconds), so it must
+          # not keep the umbrella label. Best-effort + its own command — the label
+          # may be absent (a straight-to-`approved` issue never held), and a
+          # missing-label removal must not fail the claim.
+          gh issue edit "$ISSUE_NUM" --repo "$REPO" \
+            --remove-label needs-operator 2>/dev/null || true
+
           # Best-effort rate-limit: cap concurrent in-flight builds. This issue
           # still carries `approved` (not yet swapped), so it is not self-counted.
           INFLIGHT=$(gh issue list --repo "$REPO" --label eva-implementing \
@@ -391,7 +401,14 @@ jobs:
           REPO: ${{ steps.ctx.outputs.repo }}
           ISSUE_NUM: ${{ steps.ctx.outputs.issue_number }}
         run: |
+          # Move to `triage` (operator review) and flag it in the operator's
+          # cross-repo inbox with `needs-operator` (eva#146) — a failed build is a
+          # state only the operator can unblock (re-apply `approved`). Create the
+          # label if missing (same lazy create-if-missing used everywhere).
+          gh label create needs-operator --repo "$REPO" \
+            --description "Pipeline blocked on the human operator to unblock" \
+            --color "e11d21" 2>/dev/null || true
           gh issue edit "$ISSUE_NUM" --repo "$REPO" \
-            --remove-label eva-implementing --add-label triage 2>/dev/null || true
+            --remove-label eva-implementing --add-label triage --add-label needs-operator 2>/dev/null || true
           gh issue comment "$ISSUE_NUM" --repo "$REPO" --body \
-            "Eva's implement run failed or was interrupted after claiming this issue. Released the \`eva-implementing\` claim (freed a build slot) and moved to \`triage\` for operator review. Re-apply \`approved\` to retry." || true
+            "Eva's implement run failed or was interrupted after claiming this issue. Released the \`eva-implementing\` claim (freed a build slot) and moved to \`triage\` + \`needs-operator\` for operator review. Re-apply \`approved\` to retry." || true
