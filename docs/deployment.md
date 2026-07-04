@@ -12,6 +12,7 @@ Zero infrastructure needed. Eva runs on GitHub's runners.
 |----------|------|---------|---------|
 | **Eva Scan** | `eva-scan.yml` | Cron (every 6h) + manual | Scheduled full pipeline scan |
 | **Eva on Issue** | `eva-on-issue.yml` | New issue + `repository_dispatch` | Reactive scan when issues are opened |
+| **Eva CI Failure Watchdog** | `eva-ci-failure.yml` | `repository_dispatch: ci-failure` + own `workflow_run` failures | Main-branch CI failure triage: supersede/dedup/rate-cap gates → transient re-run (once) or structured App-authored issue (eva#159) |
 | **Tests** | `tests.yml` | Push / PR | CI: ruff lint + pytest on Python 3.10/3.11/3.12 |
 
 ### How the Scan Works
@@ -59,6 +60,87 @@ jobs:
 
 Required: `EVA_DISPATCH_TOKEN` secret with `repo` scope in the source repo.
 
+#### CI-failure forwarder (eva#159)
+
+Eva watches for CI going red on `main` (or a scheduled workflow failing) across
+the watch-list. Her own repo is covered directly by `eva-ci-failure.yml`'s
+`workflow_run` subscription; every OTHER repo needs a thin forwarder that
+dispatches `repository_dispatch: ci-failure` to `ievo-ai/eva`. Rollout is
+repo-by-repo (skills first, same first-slice pattern as eva#143 — the forwarder
+is a workflow file, so it lands in each repo via that repo's own PR).
+
+Payload contract — **identifiers only**, no workflow names, no log text, no
+free text (Eva re-reads everything from the API and re-verifies the failure
+server-side): `repo` (slug), `run_id` / `workflow_id` / `run_attempt`
+(numeric), `head_branch` / `head_sha` / `run_event` (enum/sha metadata),
+`triggered_by` (actor login, observability only).
+
+Template (adapt the `workflows:` list per repo — `workflow_run` requires exact
+names, wildcards are not supported; never list forwarder/notify workflows or
+the relay loops itself):
+
+```yaml
+# .github/workflows/forward-ci-failure.yml (per watch-list repo; skills first)
+# Thin CI-failure forwarder — eva#159. Dispatches a metadata-only payload to
+# ievo-ai/eva when a watched workflow FAILS on main. Eva's handler owns
+# supersede/dedup/rate-cap; this stays dumb on purpose.
+name: Forward CI Failure to Eva
+
+on:
+  workflow_run:
+    workflows: ["Coverage Gate", "Pre-commit Gate", "Cut Release"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  forward:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: forward-ci-failure-${{ github.event.workflow_run.workflow_id }}
+      cancel-in-progress: false
+    if: >
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      contains(fromJSON('["push","schedule","workflow_dispatch","repository_dispatch"]'),
+               github.event.workflow_run.event)
+    steps:
+      - name: Generate App token
+        id: app-token
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547  # v1.12.0
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ievo-ai
+          repositories: eva
+      - name: Dispatch ci-failure
+        uses: peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697  # v4.0.1
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          repository: ievo-ai/eva
+          event-type: ci-failure
+          client-payload: >
+            {
+              "repo": "${{ github.repository }}",
+              "run_id": ${{ github.event.workflow_run.id }},
+              "workflow_id": ${{ github.event.workflow_run.workflow_id }},
+              "run_attempt": ${{ github.event.workflow_run.run_attempt }},
+              "head_branch": "${{ github.event.workflow_run.head_branch }}",
+              "head_sha": "${{ github.event.workflow_run.head_sha }}",
+              "run_event": "${{ github.event.workflow_run.event }}",
+              "triggered_by": "${{ github.event.workflow_run.triggering_actor.login }}"
+            }
+```
+
+Known open question for the ievo.ai slice (operator acceptance test 1): it is
+NOT yet verified whether `workflow_run` events fire for the GitHub-managed
+`pages-build-deployment` workflow — verify before wiring that repo, don't
+assume.
+
 ### Required Secrets
 
 | Secret | Required | Description |
@@ -73,6 +155,7 @@ Required: `EVA_DISPATCH_TOKEN` secret with `repo` scope in the source repo.
 | Variable | Values | Description |
 |----------|--------|-------------|
 | `USE_GITHUB_APP` | `true` / `false` | Switch between GitHub App and PAT auth |
+| `EVA_CI_WATCHDOG_ENABLED` | `true` / `false` | Safety valve for `eva-ci-failure.yml` (eva#159) — merged dormant, the operator flips it after the acceptance smoke tests |
 
 #### Agent model + effort (per-flow, eva#161)
 
@@ -96,6 +179,8 @@ is one of `low` / `medium` / `high` / `xhigh` / `max`.
 | `EVA_EFFORT_ROUTER` | `high` | eva-on-issue |
 | `EVA_MODEL_RESEARCH` | `sonnet` | eva-research (model only) |
 | `EVA_MODEL_PUBLISH` | `haiku` | publish-evolution blurb (model only) |
+| `EVA_MODEL_CI_WATCHDOG` | `sonnet` | eva-ci-failure (CI-failure triage) |
+| `EVA_EFFORT_CI_WATCHDOG` | `high` | eva-ci-failure |
 
 `high` is also the current model-default effort for the `opus` (Opus 4.8) and
 `sonnet` (Sonnet 5) aliases, so the effort defaults are behavior-preserving — they
