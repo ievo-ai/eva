@@ -58,7 +58,6 @@ Key concepts:
 | `docs/global-architecture.md` | Full iEvo system design (ADR) |
 | `docs/research/competitive-analysis.md` | 8 competing frameworks analysis |
 | `docs/research/roadmap.md` | Phase 2-4 plans and deferred tasks |
-| `docs/getting-started.md` | First Spec Writer session guide |
 
 ---
 
