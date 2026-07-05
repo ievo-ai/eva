@@ -3,6 +3,21 @@
     "allow": [
       "Bash(gh api*)",
       "Bash(gh search*)"
+    ],
+    "deny": [
+      "Bash(gh api* -X DELETE*)",
+      "Bash(gh api* --method DELETE*)",
+      "Bash(gh api* -X POST*)",
+      "Bash(gh api* --method POST*)",
+      "Bash(gh api* -X PUT*)",
+      "Bash(gh api* --method PUT*)",
+      "Bash(gh api* -X PATCH*)",
+      "Bash(gh api* --method PATCH*)",
+      "Bash(rm *)",
+      "Bash(curl *)",
+      "Bash(wget *)",
+      "Bash(sudo *)",
+      "Bash(chmod *)"
     ]
   },
   "extraKnownMarketplaces": {
