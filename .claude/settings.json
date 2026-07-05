@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh api*)",
+      "Bash(gh search*)"
+    ]
+  },
+  "extraKnownMarketplaces": {
+    "claude-code-plugins": {
+      "source": { "source": "github", "repo": "anthropics/claude-code" }
+    }
+  },
+  "enabledPlugins": {
+    "commit-commands@claude-code-plugins": true
+  }
+}

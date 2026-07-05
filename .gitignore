@@ -29,8 +29,10 @@ output/
 .claude/children/
 site/
 
-# iEvo pipeline (local, not tracked yet)
-.ievo/
+# iEvo local-only artifacts (evolution overlays ARE tracked — see .ievo/evolution/)
+.ievo/log/
+.ievo/cache/
+.ievo/hooks/
 .coverage
 eva-report.json
 .envrc
