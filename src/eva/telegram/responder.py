@@ -45,7 +45,7 @@ class EvaResponder:
         env = {k: v for k, v in os.environ.items() if k != "CLAUDECODE"}
         has_session = continue_session and self._session_marker.exists()
 
-        args = [cli, "-p", "--model", "opus", "--allowedTools", ALLOWED_TOOLS]
+        args = [cli, "-p", "--model", "sonnet", "--effort", "high", "--allowedTools", ALLOWED_TOOLS]
         if has_session:
             args.extend(["--continue", user])
         else:
