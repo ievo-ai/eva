@@ -83,6 +83,7 @@ on:
       - "Tests"
       - "Eva Scan"
       - "Eva Research"
+      - "Eva Backlog Re-triage"
       - "Docs"
       - "Deploy to DO"
       - "Publish Evolution"
@@ -155,6 +156,7 @@ jobs:
           fi
           {
             echo "repo=$REPO"
+            echo "repo_name=${REPO#ievo-ai/}"
             echo "run_id=$RUN_ID"
             echo "skip=false"
           } >> "$GITHUB_OUTPUT"
@@ -266,11 +268,16 @@ jobs:
       - name: Generate App token (issue-filing identity)
         id: app-token
         if: steps.ctx.outputs.skip != 'true' && steps.run.outputs.skip != 'true' && steps.gates.outputs.skip != 'true'
-        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547  # v1.12.0 — SHA-pinned: org-wide App token
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547  # v1.12.0 — SHA-pinned: repo-scoped App token
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: ievo-ai
+          # Scoped to the already-validated SOURCE repo only (steps.ctx.outputs.repo
+          # matched ^ievo-ai/[A-Za-z0-9._-]+$ earlier) — narrows the blast radius of
+          # a token an autonomous LLM agent holds, same pattern as the forwarder
+          # template below and publish-evolution.yml's `repositories: ievo.ai`.
+          repositories: ${{ steps.ctx.outputs.repo_name }}
           # eva#152 rule: enumerate EXACTLY what downstream uses — once any
           # permission-* input is set, the token carries ONLY the listed ones.
           # This token exists solely so the filed issue is App-authored
