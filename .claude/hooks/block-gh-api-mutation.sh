@@ -40,4 +40,20 @@ if echo "$command" | grep -qiE -- '(-X|--method)[[:space:]=]*(POST|PUT|PATCH|DEL
   exit 2
 fi
 
+# gh api defaults to GET, but silently switches to POST when any request
+# parameter is added via -f/-F/--field/--raw-field/--input, even with no
+# -X/--method flag at all (confirmed: cli.github.com/manual/gh_api — "adding
+# request parameters will automatically switch the request method to POST").
+# Block this implicit-POST path too, unless an explicit GET override is
+# present (gh honors --method GET/-X GET even alongside -f/-F).
+if echo "$command" | grep -qiE -- '(^|[[:space:]])(-f|-F|--field|--raw-field|--input)([[:space:]=]|$)'; then
+  if ! echo "$command" | grep -qiE -- '(-X|--method)[[:space:]=]*GET'; then
+    echo "Blocked: gh api call passes request parameters (-f/-F/--field/--raw-field/--input)" >&2
+    echo "with no explicit GET override — gh api silently switches this to POST." >&2
+    echo "This project's gh api/search grant is scoped to read-only discovery/audit use." >&2
+    echo "Command: $command" >&2
+    exit 2
+  fi
+fi
+
 exit 0
