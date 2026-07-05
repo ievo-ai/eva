@@ -84,7 +84,6 @@ on:
       - "Eva Scan"
       - "Eva Research"
       - "Eva Backlog Re-triage"
-      - "Docs"
       - "Deploy to DO"
       - "Publish Evolution"
     types: [completed]
