@@ -1145,6 +1145,70 @@ Proposed fix: add `disallowedTools: [Edit, Write, Bash(rm*), Bash(mv*), Bash(cp*
 
 ---
 
+## F-2026-07-06-001 — Preload the vuln-scan skill into vuln-scanner.md via `skills:` frontmatter instead of a runtime `Skill()` call
+
+```yaml
+id: F-2026-07-06-001
+discovered_at: 2026-07-06T10:51:10Z
+run_id: 28785932375
+target_repo: ievo-ai/skills
+title: Add skills: [ievo:vuln-scan] frontmatter to vuln-scanner.md to deterministically preload the skill and narrow its Skill-tool access
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/317
+effort: low
+scope: single-file
+evidence:
+  - https://code.claude.com/docs/en/sub-agents: skills: field ("Skills to preload into the subagent's context at startup. The full skill content is injected... Subagents can still invoke unlisted project, user, and plugin skills through the Skill tool") carries NO "Ignored for plugin subagents" caveat — unlike permissionMode, mcpServers, and hooks, which are each explicitly marked ignored for plugin subagents on the same page. Re-read in full 2026-07-06; this resolves the open verification question left by the 2026-07-04 audit (deferred, never filed) about whether skills: works for plugin subagents.
+  - /tmp/skills/plugins/ievo/agents/vuln-scanner.md: Step 1 instructs "Invoke the vuln-scan skill via the Skill tool: `Skill(\"ievo:vuln-scan\")`" — a runtime, model-chosen call rather than a guaranteed preload; `tools:` includes unrestricted `Skill`, letting the agent invoke ANY installed skill, not just vuln-scan, despite the agent's documented single-purpose design ("Applies the vuln-scan skill... to ONE module")
+  - /tmp/skills/plugins/ievo/skills/vuln-scan/SKILL.md: no `disable-model-invocation` set, so the skill is eligible for `skills:` preload per the docs' stated restriction ("You can't preload skills that set disable-model-invocation: true")
+```
+
+`vuln-scanner.md` (the per-module parallel-dispatch scanner for `/ievo:vuln-scan`) currently depends on the model correctly executing `Skill("ievo:vuln-scan")` as its literal first step to load the scan methodology (source-read → data-flow mapping → CWE detection → exploit-chain validation → structured output). This is a runtime, model-chosen tool call: if the model skips it, mis-invokes it, or a future edit to the agent body loses the instruction, the sub-agent would scan without the documented methodology and no platform mechanism would catch it.
+
+Claude Code's subagent frontmatter supports a `skills:` field (re-verified 2026-07-06 against `code.claude.com/docs/en/sub-agents`) that preloads full skill content into a subagent's context at startup — deterministic, not dependent on the model choosing to call the `Skill` tool correctly. Critically, the docs mark `permissionMode`, `mcpServers`, and `hooks` as explicitly "Ignored for plugin subagents" but carry no such caveat for `skills:`, meaning `skills:` preload should work for iEvo's plugin-dispatched agents — resolving the open question a prior (2026-07-04) audit run deferred without filing.
+
+A parallel, narrower security auditor pattern was checked as a comparison: `security-auditor.md` does NOT dynamically invoke `security-check/SKILL.md` via the `Skill` tool at all — it is fully self-contained (186 lines of its own embedded instructions) and does not declare `Skill` in its `tools:` list. So this proposal is scoped to `vuln-scanner.md` only; `security-auditor.md` has no equivalent gap.
+
+**Proposed solution:**
+1. Add `skills: [ievo:vuln-scan]` to `vuln-scanner.md` frontmatter — preloads the full `vuln-scan/SKILL.md` content at subagent startup, guaranteeing the methodology is present regardless of whether the model executes the `Skill()` call.
+2. Remove `Skill` from `vuln-scanner.md`'s `tools:` list — since the skill is now preloaded rather than fetched on demand, the agent no longer needs live `Skill`-tool access, which today lets it invoke any installed skill (broader than the documented single-purpose design). This tightens least-privilege in the same spirit as the agent's existing `disallowedTools:` denylist.
+3. Update Step 1 of `vuln-scanner.md`'s body ("Invoke the vuln-scan skill via the Skill tool") to reflect that the methodology is now preloaded context rather than a tool call to make.
+
+## Files affected
+
+| File | Change | Notes |
+|------|--------|-------|
+| plugins/ievo/agents/vuln-scanner.md | modified | add `skills:` frontmatter, drop `Skill` from `tools:`, rewrite Step 1 |
+
+## Acceptance criteria
+
+- [ ] `vuln-scanner.md` declares `skills: [ievo:vuln-scan]` in frontmatter
+- [ ] `Skill` removed from `vuln-scanner.md`'s `tools:` list (no longer needed once preloaded)
+- [ ] Step 1 body text updated to describe the preloaded methodology instead of instructing a runtime `Skill()` call
+- [ ] `validate_agents.mjs` still passes (no new violation class introduced)
+
+## Effort estimate
+
+- Scope: single-file
+- Effort: low (~20 min)
+- Risk: low — narrows attack surface (less Skill-tool access) rather than expanding it; behavior should be equivalent or more reliable, not different
+
+## Open questions for the operator
+
+- Should `WebFetch`/`Skill` removal be verified against a live dispatch (confirm the preloaded skill content is actually visible to the sub-agent) before merging, given this is inferred from documentation rather than an empirical test run?
+- Does the `ievo:vuln-scan` qualified-name format (plugin-scoped skill reference) match what the `skills:` field expects, or does it need a different qualifier for a plugin-vendored skill vs. a project-level one? Worth a live-CLI check similar to the schedule/SKILL.md fix's acceptance-step precedent (skills#310).
+
+## Related
+
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/28785932375
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: F-2026-07-06-001`
+- **Prior deferred mention:** researches/2026-07-04-0849-skills-audit.md § Deferred findings ("`skills:` preload frontmatter for security-auditor/vuln-scanner") — this finding narrows and files that deferred idea for `vuln-scanner.md` only, having established `security-auditor.md` has no equivalent gap and that the plugin-subagent-support question is answered.
+
+---
+Filed by Eva research run 28785932375 against `ievo-ai/eva` (research repo). Triage with `accepted` / `rejected` / `needs-discussion` labels.
+
+---
+
 ## F-2026-07-04-001 — Fix schedule/SKILL.md drift against current Routines docs (undocumented `claude schedule create` CLI path)
 
 ```yaml

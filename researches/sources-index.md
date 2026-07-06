@@ -36,14 +36,15 @@ run_id: <GitHub Actions run ID or null>
 ## https://www.anthropic.com/news
 
 ```yaml
-last_scan: 2026-07-05T00:00:00Z
-status: changed
-run_id: null
+last_scan: 2026-07-06T10:51:10Z
+status: unchanged
+run_id: 28762000000
 ```
 
-**Summary:** Jul 2, 2026 — "More details on Fable 5's cyber safeguards and our jailbreak framework" (non-technical, expands on the July 1 jailbreak-severity framework item). No new items since. Still no agent-skill-format or Claude Code-specific changes; Sonnet 5 remains the newest model-relevant item (June 30), consumed transparently via iEvo's vendor-neutral `sonnet` alias.
+**Summary:** Still no items newer than Jul 2, 2026 ("Fable 5's cyber safeguards and our jailbreak framework"). No agent-skill-format or Claude Code-specific changes.
 
 History:
+- 2026-07-06T10:51:10Z — unchanged: re-fetched, still Jul 2 "Fable 5 cyber safeguards" as newest item; no iEvo action
 - 2026-07-05T00:00:00Z — changed: Jul 2 "Fable 5 cyber safeguards + jailbreak framework" post added; non-technical, no iEvo action
 - 2026-07-04T08:49:33Z — unchanged: re-fetched; same June 30 items (Sonnet 5, Claude Science, Fable 5 redeployment — returns globally July 1 with a cross-industry jailbreak-severity framework); nothing new since July 1 scan
 - 2026-07-01T00:00:00Z — changed: Claude Sonnet 5 (June 30) — new default model, 1M context, promo pricing; Claude Science + Fable 5 redeployment also June 30; no CC-specific or skill-format changes; `sonnet` alias auto-resolves, no iEvo action needed
@@ -68,14 +69,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-07-05T00:00:00Z
+last_scan: 2026-07-06T10:51:10Z
 status: unchanged
-run_id: null
+run_id: 28762000000
 ```
 
-**Summary:** v2.1.201 (2026-07-03, 23:50) still latest — no new releases in the 24h since the July 4 scan. v2.1.200's AskUserQuestion no-auto-continue default and "default"→"Manual" permission-mode rename remain the most recent iEvo-relevant (non-actionable) changes.
+**Summary:** Still v2.1.201 (2026-07-03) as latest — no new release in the 3 days since. v2.1.200's AskUserQuestion no-auto-continue default and "default"→"Manual" permission-mode rename remain the most recent iEvo-relevant (non-actionable) changes.
 
 History:
+- 2026-07-06T10:51:10Z — unchanged: re-confirmed, still v2.1.201, no new release since July 3
 - 2026-07-05T00:00:00Z — unchanged: re-confirmed via `gh api`, still v2.1.201, no new release since July 3
 - 2026-07-04T08:49:33Z — changed: v2.1.200/v2.1.201 (July 3) — AskUserQuestion no-auto-continue default, "default"→"Manual" permission-mode rename (alias kept), background-agent daemon fixes; no new frontmatter, no iEvo action
 - 2026-07-03T00:00:00Z — changed: v2.1.199 (July 2) — hook stderr visibility fix, SendMessage re-spawn misrouting fix, subagent error-propagation fixes, stacked slash-skill invocation (up to 5); no new frontmatter fields, no iEvo action
@@ -104,14 +106,15 @@ History:
 ## https://github.com/anthropics/claude-code-action/releases
 
 ```yaml
-last_scan: 2026-07-05T00:00:00Z
+last_scan: 2026-07-06T10:51:10Z
 status: unchanged
-run_id: null
+run_id: 28762000000
 ```
 
-**Summary:** v1.0.165 (2026-07-03, 23:52) still latest — no new releases since July 4 scan. eva#65 remains resolved+closed.
+**Summary:** v1.0.165 (2026-07-03) still latest — no new releases in 3 days. eva#65 remains resolved+closed.
 
 History:
+- 2026-07-06T10:51:10Z — unchanged: re-confirmed, still v1.0.165, no new release
 - 2026-07-05T00:00:00Z — unchanged: re-confirmed via `gh api`, still v1.0.165, no new release
 - 2026-07-04T08:49:33Z — changed: v1.0.164/v1.0.165 (July 3), empty release bodies, routine patches; no action
 - 2026-07-03T00:00:00Z — changed: v1.0.163 (July 2) minor patch; floating `v1` tag re-confirmed as a non-signal (same ambiguous-date GA content as prior scans); eva#65 stays closed, no new action
@@ -170,14 +173,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-07-05T00:00:00Z
+last_scan: 2026-07-06T10:51:10Z
 status: unchanged
-run_id: null
+run_id: 28762000000
 ```
 
-**Summary:** v0.142.5 (2026-07-01) still latest stable. Alpha line resumed: alpha.36 (July 5), alpha.34/35 (July 2-3) — still zero published changelogs across the whole alpha.21-36 run. No stable v0.143.0 yet; no hook/MCP/skill-format changes.
+**Summary:** v0.142.5 (2026-07-01) still latest stable (WebSocket trace-log fix). Alpha line at alpha.36 (July 5) as newest pre-release, still zero published changelogs. No stable v0.143.0 yet; no hook/MCP/skill-format changes.
 
 History:
+- 2026-07-06T10:51:10Z — unchanged: still v0.142.5 stable; alpha.36 still newest pre-release; no changelogs, no hook/MCP/skill-format content
 - 2026-07-05T00:00:00Z — unchanged: still v0.142.5 stable; alpha line resumed (alpha.36, July 5) after the brief pause noted July 4; still no changelogs
 - 2026-07-04T08:49:33Z — unchanged: still v0.142.5 stable / alpha.35 (no new alpha since July 3); no stable v0.143.0, alpha line paused
 - 2026-07-03T00:00:00Z — unchanged: still v0.142.5 stable; alpha line advanced to alpha.35 (July 3), still no changelog; no stable v0.143.0
@@ -227,14 +231,15 @@ History:
 ## https://agentskills.io/specification
 
 ```yaml
-last_scan: 2026-07-05T00:00:00Z
+last_scan: 2026-07-06T10:51:10Z
 status: unchanged
-run_id: null
+run_id: 28762000000
 ```
 
-**Summary:** Same 6-field structure re-confirmed (name, description, license, compatibility, metadata, allowed-tools). PRs #380 (optional versioning) and #345 (Unicode name) still open, unmerged. No spec changes.
+**Summary:** Same 6-field structure re-confirmed (name, description, license, compatibility, metadata, allowed-tools). No spec changes; PR status not re-queried this run (no signal of movement since July 5).
 
 History:
+- 2026-07-06T10:51:10Z — unchanged: full spec re-read, same 6 fields, same constraints (name ≤64/lowercase/hyphens, description ≤1024, compatibility ≤500)
 - 2026-07-05T00:00:00Z — unchanged: full spec re-read, same 6 fields; #380/#345 re-confirmed open+unmerged via gh api
 - 2026-07-04T08:49:33Z — unchanged: full spec re-read, same 6 fields (name, description, license, compatibility, metadata, allowed-tools); no versioning/MCP-requirements/disable-model-invocation additions
 - 2026-07-03T00:00:00Z — unchanged: full spec re-read, same 6 fields; PRs #380/#386/#345 re-confirmed open+unmerged via gh api; newest PRs (#445-449) are ecosystem-listing/docs only, no spec impact
@@ -287,14 +292,15 @@ History:
 ## https://www.cursor.com/changelog
 
 ```yaml
-last_scan: 2026-07-05T00:00:00Z
+last_scan: 2026-07-06T10:51:10Z
 status: unchanged
-run_id: null
+run_id: 28762000000
 ```
 
-**Summary:** v3.9 (June 30) still latest; no v3.10.
+**Summary:** v3.9 (June 29, Mobile app for iOS) still latest; no v3.10.
 
 History:
+- 2026-07-06T10:51:10Z — unchanged: v3.9 still latest, same Mobile app entry, no new entries
 - 2026-07-05T00:00:00Z — unchanged: v3.9 still latest, no new entries
 - 2026-07-04T08:49:33Z — unchanged: v3.9 still latest (June 30 Team-MCP entry), no v3.10
 - 2026-07-03T00:00:00Z — unchanged: v3.9 still latest, no new entries since June 30
@@ -318,14 +324,15 @@ History:
 ## https://news.ycombinator.com
 
 ```yaml
-last_scan: 2026-07-05T00:00:00Z
+last_scan: 2026-07-06T10:51:10Z
 status: changed
-run_id: null
+run_id: 28762000000
 ```
 
-**Summary:** New front-page items since July 4: "Potential session/cache leakage between workspace instances or consumer accounts" (295 pts, references a Claude Code GitHub issue) and "GPT-5.5 Codex reasoning-token clustering may be leading to degraded performance" (263 pts). The session-leakage thread concerns Claude Code's own infrastructure/session isolation (Anthropic-side), not iEvo's agent-skill surface — not actionable for the skills repo. The Codex reasoning-clustering thread is a model-quality discussion, not a skill-format/hook/API change — not actionable.
+**Summary:** New front-page item: "GPT-5.6 Sol Ultra will be in Codex" (299 pts, sourced from a tweet, not an official OpenAI changelog) — unconfirmed rumor about a future Codex model, no current skill-format/hook/API surface to act on. Also "Does code cleanliness affect coding agents? A controlled minimal-pair study" (135 pts, arxiv) — research finding, not a concrete iEvo capability gap. Neither is actionable for the skills repo today.
 
 History:
+- 2026-07-06T10:51:10Z — changed: "GPT-5.6 Sol Ultra in Codex" rumor (299 pts, tweet-sourced, unconfirmed) + code-cleanliness-vs-agents arxiv study (135 pts) — neither actionable; no agent-skill-format posts
 - 2026-07-05T00:00:00Z — changed: session/cache leakage thread (295 pts, Claude Code infra, not iEvo-actionable) + Codex reasoning-clustering thread (263 pts, model quality, not actionable); no agent-skill-format posts
 - 2026-07-04T08:49:33Z — unchanged: only tangential items ("Agentic coding notes from Galapagos Island" 74 pts, local-LLM guide 334 pts); no Claude Code/Codex/MCP/agent-skills posts on front page
 - 2026-07-01T00:00:00Z — changed: Claude Sonnet 5 + steganographic-marking discussion threads trending; not iEvo-actionable (Claude Code's own attribution mechanism, not agent-skill format)
@@ -343,14 +350,15 @@ History:
 ## https://github.com/DenisSergeevitch/agents-best-practices
 
 ```yaml
-last_scan: 2026-07-05T00:00:00Z
+last_scan: 2026-07-06T10:51:10Z
 status: unchanged
-run_id: null
+run_id: 28762000000
 ```
 
-**Summary:** No commits since the June 29 21:15 `evals.md` split — 6 days without activity now.
+**Summary:** No commits since the June 29 21:15 `evals.md` split — 7 days without activity now.
 
 History:
+- 2026-07-06T10:51:10Z — unchanged: gh api confirms latest commit still 2026-06-29T21:15:08Z; 7 days without activity
 - 2026-07-05T00:00:00Z — unchanged: gh api confirms latest commit still 2026-06-29T21:15:08Z; 6 days without activity
 - 2026-07-04T08:49:33Z — unchanged: gh api confirms latest commit still 2026-06-29T21:15:08Z; 5 days without activity
 - 2026-07-03T00:00:00Z — unchanged: gh api confirms latest commit still 2026-06-29T21:15:08Z (evals.md split); no new activity
@@ -443,14 +451,16 @@ History:
 ## https://code.claude.com/docs/en/sub-agents
 
 ```yaml
-last_scan: 2026-07-05T00:00:00Z
-status: unchanged
-run_id: null
+last_scan: 2026-07-06T10:51:10Z
+status: changed
+run_id: 28762000000
+note: "Resolves the F-2026-06-01-era deferred question: does `skills:` preload work for plugin subagents? Answer is YES — the field's table row and the dedicated `skills:` explainer section both omit the 'Ignored for plugin subagents' caveat that `permissionMode`/`mcpServers`/`hooks` explicitly carry. Triggered F-2026-07-06-001."
 ```
 
-**Summary:** Re-confirmed: same 15-field agent frontmatter table; `permissionMode`/`mcpServers`/`hooks` still explicitly ignored for plugin subagents (all 5 iEvo agents are plugin subagents — negative filter holds). No new fields since July 4.
+**Summary:** Same field table structure, but this run read the `skills:` field row and its dedicated explainer section closely (previously only noted in passing). Unlike `permissionMode`/`mcpServers`/`hooks` — each explicitly marked "Ignored for [plugin subagents]" — the `skills:` field carries no such caveat anywhere on the page, including in the "Preload skills into subagents" section, which describes the mechanism generically (full skill content injected at subagent startup) with no subagent-scope exclusion. `vuln-scanner.md` (plugin subagent) currently invokes its skill dynamically via `Skill("ievo:vuln-scan")` rather than preloading it — a candidate for `skills:` frontmatter now that the plugin-subagent-support question has a documented answer. Triggered F-2026-07-06-001.
 
 History:
+- 2026-07-06T10:51:10Z — changed: closely read the `skills:` field row + explainer section — no "ignored for plugin subagents" caveat present (unlike permissionMode/mcpServers/hooks); resolves the July 4 deferred open question; triggered F-2026-07-06-001
 - 2026-07-05T00:00:00Z — unchanged: same field table re-confirmed; permissionMode/mcpServers/hooks-ignored-for-plugin-subagents note re-verified verbatim
 - 2026-07-04T08:49:33Z — changed: permissionMode `manual` alias (v2.1.200); background-by-default (v2.1.198); noted permissionMode/mcpServers/hooks ignored for PLUGIN subagents — negative filter for future iEvo-agent proposals; `skills:` preload deferred
 - 2026-07-01T00:00:00Z — unchanged: full re-read, same field list as May 31 scan; Agent(type) allowlist + initialPrompt details noted; no new iEvo-actionable gap
