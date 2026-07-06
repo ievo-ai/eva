@@ -239,6 +239,14 @@ jobs:
                 regardless of status (raw / issued / accepted /
                 implemented / rejected / parked) — don't re-propose
 
+            Vetted rejections (eva#187) — candidates self-vetoed BEFORE
+            ever becoming a PR or issue (Step 3b's vet gate):
+              - Read `researches/vetted-rejections.md` (entire file)
+              - Merge its `title` entries into the SAME `discovered_already`
+                set as the findings backlog above — a self-vetoed candidate
+                is skipped exactly like a filed-then-rejected one, unless
+                this run has genuinely NEW cited evidence
+
             Past feature proposals in target repos — secondary dedup
             layer (in case a finding got into a repo's issues without
             backlog tracking, e.g. operator opened it manually):
@@ -316,22 +324,137 @@ jobs:
               - Commit footer: Co-Authored-By: iEVO <noreply@ievo.ai>
               - Universal positioning — NOT Claude Code-only
 
-            ## Step 3 — Audit. Walk these areas in /tmp/skills
+            ## Step 3 — Audit: 8-category sweep of /tmp/skills (+ a 9th, Direction, owned by Step 4b)
 
-              a. plugins/ievo/skills/*/SKILL.md — trigger-effective
-                 descriptions? Conform to agentskills.io spec?
-              b. plugins/ievo/agents/*.md — vendor-neutral models? Passes
-                 validate_agents.mjs?
-              c. plugins/ievo/scripts/*.mjs — 100% test coverage rule
-                 satisfied? Any new scripts since v0.6.0 without tests?
-              d. plugin.json + marketplace.json — version drift?
-              e. README.md + AGENTS.md — universal positioning consistent?
-              f. `gh pr list --repo ievo-ai/skills --state open` — for
-                 DEDUPE only: never open a PR for a finding already in
-                 review.
+            Structural upgrade (eva#187): a fixed a-f area list missed things
+            no one thought to add. Instead, walk ALL nine categories every
+            run — the taxonomy is adapted from the audit half of
+            github.com/shadcn/improve (MIT license; recon → audit → vet →
+            plan). Only recon+audit+vet is adopted — see Step 3b's credit
+            note for why `improve`'s `execute`/`--issues` paths are
+            deliberately NOT vendored (eva#187 fix sketch: those would
+            duplicate `eva-implement.yml`'s job and bypass eva's trust
+            matrix / App-vs-PAT routing).
+
+            For each category, note candidate findings (file:line + a
+            one-line symptom) — do NOT act on any of them yet. Step 3b
+            below vets every candidate before it is allowed to reach Step 5
+            (audit-fix PR) or Step 4b (feature-gap backlog + issue):
+
+              1. **Correctness** — plugins/ievo/skills/*/SKILL.md
+                 trigger-effective descriptions conform to the
+                 agentskills.io spec? plugins/ievo/agents/*.md pass
+                 `validate_agents.mjs`?
+              2. **Security** — any skill/script shelling out to unpinned
+                 remote content, `eval`-ing untrusted input, or logging
+                 secrets? Any SKILL.md example that would execute
+                 attacker-controlled text as a command?
+              3. **Performance** — `plugins/ievo/scripts/*.mjs` doing
+                 redundant filesystem walks or unbounded recursion that
+                 would slow `/ievo:init` on a large target repo?
+              4. **Test coverage** — 100% coverage rule on
+                 `plugins/ievo/scripts/*.mjs` satisfied? Any new script
+                 since the last audit without tests? (`scan_repo.mjs` is
+                 grandfathered until v0.6.1 — don't re-flag it.)
+              5. **Tech debt** — stale `disable-model-invocation` TODOs,
+                 deprecated frontmatter keys still referenced in docs,
+                 grandfather exceptions past their stated expiry version.
+              6. **Dependencies & migrations** — plugin.json +
+                 marketplace.json version drift (`metadata.version` vs
+                 `plugins[0].version`)? Any dependency in
+                 `plugins/ievo/scripts/` behind a security-relevant
+                 upstream release?
+              7. **DX (Developer Experience)** — do SKILL.md trigger
+                 descriptions give the model enough signal to invoke
+                 correctly (per the skills#140-era lessons)? Confusing
+                 error output from any `.mjs` validator?
+              8. **Docs** — README.md + AGENTS.md universal positioning
+                 (NOT Claude Code-only) still consistent with what
+                 shipped?
+              9. **Direction** — the feature-suggestion category;
+                 deliberately NOT audited here to avoid duplicate work —
+                 Step 4b below already owns this, driven by the Step 4
+                 external source scan (a richer evidence base than a
+                 codebase-only read would give).
+
+            Also, for dedupe only: `gh pr list --repo ievo-ai/skills
+            --state open` — never open a PR for a finding already in
+            review.
 
             Honor Step 1 findings — don't re-audit areas your prior selves
-            recently cleared.
+            recently cleared, and skip any candidate matching an entry in
+            `researches/vetted-rejections.md` (Step 1 loaded this — see
+            Step 3b).
+
+            ## Step 3b — Vet every candidate before it proceeds (eva#187)
+
+            Adapted from shadcn/improve's vet discipline: it re-reads every
+            cited location itself before surfacing a finding — false
+            positives get dropped, wrong attributions get corrected,
+            rejections get recorded so they don't reappear. Applied here
+            BEFORE a candidate is allowed into Step 5 (PR) or Step 4b
+            (backlog + issue) — this is the structural fix for the
+            76-issue stale-backlog problem that `eva-backlog-retriage.yml`
+            (eva#167) currently patches reactively: catch the false
+            positive at discovery time, before a Router cycle spends
+            attention triaging it.
+
+            This discipline applies to EVERY finding-generation step this
+            run produces — Step 3's category-audit candidates above, AND
+            Step 4b's feature-gap candidates later (Step 4b references
+            this step; do not re-derive separate vet logic there).
+
+            For each candidate:
+
+              1. Re-read the EXACT cited file:line (or, for a Step 4b
+                 candidate, the cited evidence URL) yourself, fresh — do
+                 not trust the observation made while walking the category
+                 list or scanning sources. If the re-read itself FAILS
+                 (network blip, 404, rate-limit) that is NOT a disproof:
+                 retry once, then if it still fails let the candidate
+                 proceed as if vetted (don't drop a possibly-valid finding
+                 just because the verification channel was unavailable)
+                 and note the failed re-read in the finding body.
+              2. Confirm the symptom still holds: not already fixed, not
+                 by-design (check code comments / ADRs for an explicit
+                 rationale), not a duplicate of an open PR/issue (Step 3's
+                 dedupe check / Step 1's `discovered_already` set).
+              3. If it does NOT hold up — DROP it. Do not open a PR or
+                 file an issue for it. Append a new section to
+                 `researches/vetted-rejections.md` (Edit tool, append-only,
+                 follow the file's own format — every YAML key in the
+                 file's "Format" section is required, not just the ones
+                 called out below):
+                   - `id`: generate exactly like `findings-backlog.md`'s
+                     `F-` IDs (Step 4b.1) — scan the file for
+                     `id: R-<today>-NNN` entries, pick the next
+                     zero-padded 3-digit number (`001` if today has none)
+                   - `rejected_at`: now, ISO 8601 UTC
+                   - `run_id`: `$GITHUB_RUN_ID`
+                   - `source_step`: `audit` (Step 3 candidate) or
+                     `feature-gap` (Step 4b candidate)
+                   - `category`: the exact slug from
+                     `vetted-rejections.md`'s own `category` enum (e.g.
+                     `dependencies-migrations`, not the Step 3 prose name
+                     "Dependencies & migrations"); `direction` for a
+                     Step 4b candidate
+                   - `title`: the one-line candidate description — this is
+                     the field Step 1 dedups against next run, so make it
+                     specific enough to match on (not a generic phrase)
+                   - body line: the premise + the cited file:line/URL that
+                     disproved it, per the file's own template
+                 This is what keeps a self-vetoed candidate from
+                 resurfacing next run — Step 1 loads this file into the
+                 dedup set by `title`.
+              4. If it DOES hold up — correct any wrong file/line
+                 attribution, then let it proceed to Step 5 (audit-fix
+                 candidates) or Step 4b (feature-gap candidates) exactly as
+                 before.
+
+            This step changes nothing about what Step 5 or Step 4b already
+            do downstream — it only gates what reaches them, and it never
+            files issues or opens PRs on its own (no independent
+            execute/issue-filing path — eva#187's fix sketch).
 
             ## Step 4 — Systematic source scan (official + community)
 
@@ -405,6 +528,15 @@ jobs:
               - Not matching any CLOSED `eva-rejected` issue in the target
                 repo (eva#132 — a skeptic-refuted idea stays dead until a
                 human unlocks it; comment on it instead of re-filing)
+              - Not matching any entry in `researches/vetted-rejections.md`
+                (you pre-loaded this in Step 1 — a candidate self-vetoed
+                on a prior run needs new evidence to reopen)
+
+            Vet gate (eva#187): run every gap candidate through Step 3b's
+            vet discipline BEFORE Step 4b.1 below — re-read the cited
+            evidence URL yourself, drop it (with a `vetted-rejections.md`
+            entry, `source_step: feature-gap`) if it doesn't hold up. Only
+            a candidate that survives the vet reaches Step 4b.1.
 
             Strong preference: at least ONE finding per run if Step 4
             surfaced anything notable. Many zero-finding runs in a row =
@@ -656,6 +788,12 @@ jobs:
             - <one-line finding>: <reason it wasn't opened — "needs deeper investigation" / "duplicate of #N" / "below threshold" / "blocked on spec finalization">
             - (or "none")
 
+            ## Vetted rejections this run (eva#187)
+            Candidates Step 3b dropped BEFORE they became a PR or issue —
+            full detail in `researches/vetted-rejections.md`:
+            - R-YYYY-MM-DD-NNN — <one-line premise>: <cited disproof>
+            - (or "none — every candidate this run survived vetting")
+
             ## Self-triage last 24h (eva#132)
             Skeptic-mode dispositions on Eva's OWN bot-authored issues, per repo
             (the oversight channel that replaces pre-approval for the low-risk
@@ -746,6 +884,19 @@ jobs:
             If any of the four fails: STOP. Go execute the missing
             step (re-do Step 4b.1/4b.3 for backlog, Step 6 for audit
             report, Step 7 for the eva PR). Then re-run verification.
+
+            Informational cross-check (eva#187, NOT a fifth hard gate — a
+            zero-rejection run is a legitimate, common outcome, unlike the
+            four above which are always required when their trigger
+            condition applies): compare how many candidates you dropped in
+            Step 3b against how many new `## R-<today>-` sections you
+            actually appended:
+              grep -c "^## R-$(date -u +%Y-%m-%d)-" \
+                researches/vetted-rejections.md 2>/dev/null || echo 0
+            If this is lower than the number of candidates you told
+            yourself you were dropping during Step 3b, go back and append
+            the missing section(s) before continuing — don't let a Step 3b
+            rejection happen in your reasoning without a matching write.
 
             ONLY after all four pass — print the final summary to
             stdout (your last assistant message in this run) listing:
