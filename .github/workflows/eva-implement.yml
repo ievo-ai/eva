@@ -286,9 +286,15 @@ jobs:
           # awaiting review" window. Same reuse-lookup pattern the agent itself
           # uses for crash-retry idempotency (`eva-implement.md` Phase 5) and
           # `Verify implement contract` below uses to confirm success.
+          # Same-repo head only (isCrossRepository == false): a fork PR can name
+          # its branch eva-impl/* and mention #N (see `Verify implement
+          # contract`'s identical filter below) — without it, anyone able to
+          # open a PR against this repo could spoof a permanent "already has a
+          # PR" skip for any issue number, blocking it from ever being claimed.
           EXISTING_OPEN_PR=$(gh pr list --repo "$REPO" --state open --limit 100 \
-            --json number,headRefName,title,body --jq --arg n "$ISSUE_NUM" \
-            '[.[] | select((.headRefName | startswith("eva-impl/"))
+            --json number,headRefName,title,body,isCrossRepository --jq --arg n "$ISSUE_NUM" \
+            '[.[] | select((.isCrossRepository | not)
+                           and (.headRefName | startswith("eva-impl/"))
                            and (((.title // "") + " " + (.body // "")) | test("#\($n)([^0-9]|$)")))]
              | length' 2>/dev/null || echo 0)
           if [ "$EXISTING_OPEN_PR" -gt 0 ]; then
