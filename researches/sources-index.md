@@ -36,14 +36,15 @@ run_id: <GitHub Actions run ID or null>
 ## https://www.anthropic.com/news
 
 ```yaml
-last_scan: 2026-07-06T10:51:10Z
+last_scan: 2026-07-07T10:00:00Z
 status: unchanged
-run_id: 28762000000
+run_id: 28857232826
 ```
 
-**Summary:** Still no items newer than Jul 2, 2026 ("Fable 5's cyber safeguards and our jailbreak framework"). No agent-skill-format or Claude Code-specific changes.
+**Summary:** Still no items newer than Jul 2, 2026 ("Fable 5's cyber safeguards and our jailbreak framework") relevant to Claude Code or agent-skill format. A Jul 6 Alberta cybersecurity case study appeared but is not developer-tool/agent-capability relevant.
 
 History:
+- 2026-07-07T10:00:00Z — unchanged: re-fetched; Jul 6 Alberta cybersecurity case study noted but not iEvo-relevant; still Jul 2 "Fable 5 cyber safeguards" as newest agent/CC-relevant item
 - 2026-07-06T10:51:10Z — unchanged: re-fetched, still Jul 2 "Fable 5 cyber safeguards" as newest item; no iEvo action
 - 2026-07-05T00:00:00Z — changed: Jul 2 "Fable 5 cyber safeguards + jailbreak framework" post added; non-technical, no iEvo action
 - 2026-07-04T08:49:33Z — unchanged: re-fetched; same June 30 items (Sonnet 5, Claude Science, Fable 5 redeployment — returns globally July 1 with a cross-industry jailbreak-severity framework); nothing new since July 1 scan
@@ -69,14 +70,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-07-06T10:51:10Z
-status: unchanged
-run_id: 28762000000
+last_scan: 2026-07-07T10:00:00Z
+status: changed
+run_id: 28857232826
 ```
 
-**Summary:** Still v2.1.201 (2026-07-03) as latest — no new release in the 3 days since. v2.1.200's AskUserQuestion no-auto-continue default and "default"→"Manual" permission-mode rename remain the most recent iEvo-relevant (non-actionable) changes.
+**Summary:** v2.1.202 (July 6, 22:51 UTC) — dynamic-workflow-size `/config` setting, OTel `workflow.run_id`/`workflow.name` attributes, and a fix for re-invoking an already-loaded skill appending a duplicate copy of its instructions to context (internal CC context-management fix, not a SKILL.md/frontmatter surface change). No new SKILL.md/agent frontmatter fields; not iEvo-actionable.
 
 History:
+- 2026-07-07T10:00:00Z — changed: v2.1.202 (July 6) — dynamic workflow size config, OTel workflow attributes, duplicate-skill-instructions-on-reinvoke fix, various CLI/Remote-Control bugfixes; no new frontmatter, no iEvo action
 - 2026-07-06T10:51:10Z — unchanged: re-confirmed, still v2.1.201, no new release since July 3
 - 2026-07-05T00:00:00Z — unchanged: re-confirmed via `gh api`, still v2.1.201, no new release since July 3
 - 2026-07-04T08:49:33Z — changed: v2.1.200/v2.1.201 (July 3) — AskUserQuestion no-auto-continue default, "default"→"Manual" permission-mode rename (alias kept), background-agent daemon fixes; no new frontmatter, no iEvo action
@@ -106,14 +108,15 @@ History:
 ## https://github.com/anthropics/claude-code-action/releases
 
 ```yaml
-last_scan: 2026-07-06T10:51:10Z
-status: unchanged
-run_id: 28762000000
+last_scan: 2026-07-07T10:00:00Z
+status: changed
+run_id: 28857232826
 ```
 
-**Summary:** v1.0.165 (2026-07-03) still latest — no new releases in 3 days. eva#65 remains resolved+closed.
+**Summary:** v1.0.166 (July 6) — routine patches (buffered-comment handling, co-author email format, symlinked CLAUDE.md restore fix, repeated add-dir flag preservation, curl-failure propagation in install pipeline). No new/removed inputs; eva#65 remains resolved+closed, no action.
 
 History:
+- 2026-07-07T10:00:00Z — changed: v1.0.166 (July 6) — routine patches, no input schema changes; eva#65 stays closed
 - 2026-07-06T10:51:10Z — unchanged: re-confirmed, still v1.0.165, no new release
 - 2026-07-05T00:00:00Z — unchanged: re-confirmed via `gh api`, still v1.0.165, no new release
 - 2026-07-04T08:49:33Z — changed: v1.0.164/v1.0.165 (July 3), empty release bodies, routine patches; no action
@@ -173,14 +176,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-07-06T10:51:10Z
+last_scan: 2026-07-07T10:00:00Z
 status: unchanged
-run_id: 28762000000
+run_id: 28857232826
 ```
 
-**Summary:** v0.142.5 (2026-07-01) still latest stable (WebSocket trace-log fix). Alpha line at alpha.36 (July 5) as newest pre-release, still zero published changelogs. No stable v0.143.0 yet; no hook/MCP/skill-format changes.
+**Summary:** v0.142.5 (2026-07-01) still latest stable. Alpha line now at alpha.38 (July 7) as newest pre-release — 3 more builds since alpha.36 (July 5), still zero published changelogs across the entire run. No stable v0.143.0 yet; no hook/MCP/skill-format changes.
 
 History:
+- 2026-07-07T10:00:00Z — unchanged: still v0.142.5 stable; alpha line advanced to alpha.38 (July 7), still no changelogs across 38 pre-release builds; no hook/MCP/skill-format content
 - 2026-07-06T10:51:10Z — unchanged: still v0.142.5 stable; alpha.36 still newest pre-release; no changelogs, no hook/MCP/skill-format content
 - 2026-07-05T00:00:00Z — unchanged: still v0.142.5 stable; alpha line resumed (alpha.36, July 5) after the brief pause noted July 4; still no changelogs
 - 2026-07-04T08:49:33Z — unchanged: still v0.142.5 stable / alpha.35 (no new alpha since July 3); no stable v0.143.0, alpha line paused
@@ -231,14 +235,15 @@ History:
 ## https://agentskills.io/specification
 
 ```yaml
-last_scan: 2026-07-06T10:51:10Z
+last_scan: 2026-07-07T10:00:00Z
 status: unchanged
-run_id: 28762000000
+run_id: 28857232826
 ```
 
-**Summary:** Same 6-field structure re-confirmed (name, description, license, compatibility, metadata, allowed-tools). No spec changes; PR status not re-queried this run (no signal of movement since July 5).
+**Summary:** Same 6-field structure re-confirmed (name, description, license, compatibility, metadata, allowed-tools). No spec changes. PR status re-queried via `gh api` this run: #380/#386/#345 still open+unmerged; no new merges since #446.
 
 History:
+- 2026-07-07T10:00:00Z — unchanged: full spec re-read, same 6 fields; #380/#386/#345 re-confirmed open+unmerged via gh api; no new merges since #446
 - 2026-07-06T10:51:10Z — unchanged: full spec re-read, same 6 fields, same constraints (name ≤64/lowercase/hyphens, description ≤1024, compatibility ≤500)
 - 2026-07-05T00:00:00Z — unchanged: full spec re-read, same 6 fields; #380/#345 re-confirmed open+unmerged via gh api
 - 2026-07-04T08:49:33Z — unchanged: full spec re-read, same 6 fields (name, description, license, compatibility, metadata, allowed-tools); no versioning/MCP-requirements/disable-model-invocation additions
@@ -262,14 +267,15 @@ History:
 ## https://github.com/agentskills/agentskills
 
 ```yaml
-last_scan: 2026-07-05T00:00:00Z
+last_scan: 2026-07-07T10:00:00Z
 status: unchanged
-run_id: null
+run_id: 28857232826
 ```
 
-**Summary:** No new merges since #446 (July 1, cosmetic). #380/#345 still open, unmerged. Newest open PRs (#445/447/448/449) are ecosystem-listing/docs only, no spec impact.
+**Summary:** No new merges since #446 (July 1, cosmetic). #380/#386/#345 still open, unmerged. Newest open PRs (#445/447/448/449) are ecosystem-listing/docs only, no spec impact.
 
 History:
+- 2026-07-07T10:00:00Z — unchanged: #380/#386/#345 re-verified open+unmerged via gh api; no new merges since #446
 - 2026-07-05T00:00:00Z — unchanged: #380/#345 re-verified open+unmerged via gh api; no new merges since #446
 - 2026-07-04T08:49:33Z — unchanged: #380/#386/#345 re-verified open+unmerged via gh api; noted PR #428 "RFC: declarative MCP server requirements for Agent Skills" closed WITHOUT merge — the idea is dead upstream for now, don't treat as spec signal
 - 2026-07-03T00:00:00Z — unchanged: #380/#386/#345 re-verified open+unmerged; #446 merged (cosmetic logo scaling); #445/447/448/449 open (listings/docs only, no spec impact)
@@ -292,14 +298,16 @@ History:
 ## https://www.cursor.com/changelog
 
 ```yaml
-last_scan: 2026-07-06T10:51:10Z
+last_scan: 2026-07-07T10:00:00Z
 status: unchanged
-run_id: 28762000000
+run_id: 28857232826
+note: "Site now labels the June 30 Team-MCP/org-marketplace-scoping content as its own 'v3.10' entry rather than folding it into v3.9 as prior scans read it — same substance already noted July 1/2 (Cursor-client-only, not agentskills.io-relevant, skills#235 sufficient). Not a new signal, just a version-numbering relabel upstream; no new finding."
 ```
 
-**Summary:** v3.9 (June 29, Mobile app for iOS) still latest; no v3.10.
+**Summary:** Cursor's site now shows "v3.10" (June 30) for Team MCPs distribution + organization-group marketplace access — this is the SAME content already observed July 1/2 as part of "v3.9 gained ... Team MCP/org-marketplace scoping (June 30)"; no new information, just a retroactive version-number relabel on Cursor's own changelog page. Still Cursor-client-only, not iEvo-actionable.
 
 History:
+- 2026-07-07T10:00:00Z — unchanged (relabeled): site now shows "v3.10" for the June 30 Team-MCP content already noted under v3.9 in prior scans; no new substance, skills#235 remains sufficient
 - 2026-07-06T10:51:10Z — unchanged: v3.9 still latest, same Mobile app entry, no new entries
 - 2026-07-05T00:00:00Z — unchanged: v3.9 still latest, no new entries
 - 2026-07-04T08:49:33Z — unchanged: v3.9 still latest (June 30 Team-MCP entry), no v3.10
@@ -324,14 +332,15 @@ History:
 ## https://news.ycombinator.com
 
 ```yaml
-last_scan: 2026-07-06T10:51:10Z
+last_scan: 2026-07-07T10:00:00Z
 status: changed
-run_id: 28762000000
+run_id: 28857232826
 ```
 
-**Summary:** New front-page item: "GPT-5.6 Sol Ultra will be in Codex" (299 pts, sourced from a tweet, not an official OpenAI changelog) — unconfirmed rumor about a future Codex model, no current skill-format/hook/API surface to act on. Also "Does code cleanliness affect coding agents? A controlled minimal-pair study" (135 pts, arxiv) — research finding, not a concrete iEvo capability gap. Neither is actionable for the skills repo today.
+**Summary:** New front-page items: "OfficeCLI" (182 pts — an office-suite tool for AI agents to read/edit Microsoft Office files) and "Learning to Code Remains Valuable" (207 pts — discussion piece on coding skills in an AI-influenced landscape). Neither concerns agent-skill-format, hooks, or MCP; OfficeCLI is an adjacent tool-use project but not a concrete iEvo capability gap as-is. Not actionable for the skills repo today.
 
 History:
+- 2026-07-07T10:00:00Z — changed: "OfficeCLI" (182 pts, AI-agent Office file tool) + "Learning to Code Remains Valuable" (207 pts, discussion) — neither actionable; no agent-skill-format posts
 - 2026-07-06T10:51:10Z — changed: "GPT-5.6 Sol Ultra in Codex" rumor (299 pts, tweet-sourced, unconfirmed) + code-cleanliness-vs-agents arxiv study (135 pts) — neither actionable; no agent-skill-format posts
 - 2026-07-05T00:00:00Z — changed: session/cache leakage thread (295 pts, Claude Code infra, not iEvo-actionable) + Codex reasoning-clustering thread (263 pts, model quality, not actionable); no agent-skill-format posts
 - 2026-07-04T08:49:33Z — unchanged: only tangential items ("Agentic coding notes from Galapagos Island" 74 pts, local-LLM guide 334 pts); no Claude Code/Codex/MCP/agent-skills posts on front page
@@ -350,14 +359,15 @@ History:
 ## https://github.com/DenisSergeevitch/agents-best-practices
 
 ```yaml
-last_scan: 2026-07-06T10:51:10Z
+last_scan: 2026-07-07T10:00:00Z
 status: unchanged
-run_id: 28762000000
+run_id: 28857232826
 ```
 
-**Summary:** No commits since the June 29 21:15 `evals.md` split — 7 days without activity now.
+**Summary:** No commits since the June 29 21:15 `evals.md` split — 8 days without activity now.
 
 History:
+- 2026-07-07T10:00:00Z — unchanged: gh api confirms latest commit still 2026-06-29T21:15:08Z; 8 days without activity
 - 2026-07-06T10:51:10Z — unchanged: gh api confirms latest commit still 2026-06-29T21:15:08Z; 7 days without activity
 - 2026-07-05T00:00:00Z — unchanged: gh api confirms latest commit still 2026-06-29T21:15:08Z; 6 days without activity
 - 2026-07-04T08:49:33Z — unchanged: gh api confirms latest commit still 2026-06-29T21:15:08Z; 5 days without activity
@@ -381,15 +391,16 @@ History:
 ## https://code.claude.com/docs/en/skills.md
 
 ```yaml
-last_scan: 2026-07-05T00:00:00Z
+last_scan: 2026-07-07T10:00:00Z
 status: unchanged
-run_id: null
-note: "skills#233/#236 stale-premise discrepancy (display-name/default-enabled/fallback absent from the frontmatter table) is now MOOT — both issues were closed by the operator between the July 4 and July 5 scans (verified via gh issue view: both state=CLOSED). No further tracking needed."
+run_id: 28857232826
+note: "skills#233/#236 stale-premise discrepancy (display-name/default-enabled/fallback absent from the frontmatter table) remains moot — both issues closed since July 4/5. No further tracking needed."
 ```
 
-**Summary:** Re-fetched in full. Same 16-field frontmatter table (name, description, when_to_use, argument-hint, arguments, disable-model-invocation, user-invocable, allowed-tools, disallowed-tools, model, effort, context, agent, hooks, paths, shell). No new fields since July 4. Confirms custom commands (`.claude/commands/*.md`) and skills are now a unified mechanism (`/deploy` from either location) — background/pre-existing behavior, not a new change. skills#233/#236 (the display-name/default-enabled/fallback stale premise) are now closed — no longer a live discrepancy to track.
+**Summary:** Re-fetched in full. Same 16-field frontmatter table (name, description, when_to_use, argument-hint, arguments, disable-model-invocation, user-invocable, allowed-tools, disallowed-tools, model, effort, context, agent, hooks, paths, shell). No new fields since July 4/5.
 
 History:
+- 2026-07-07T10:00:00Z — unchanged: same 16-field table re-confirmed via fresh fetch; no new fields
 - 2026-07-05T00:00:00Z — unchanged: same 16-field table re-confirmed; skills#233/#236 both closed by operator since last scan, discrepancy resolved (moot, no further tracking)
 - 2026-07-04T08:49:33Z — unchanged: same 16-field frontmatter table re-confirmed (name, description, when_to_use, argument-hint, arguments, disable-model-invocation, user-invocable, allowed-tools, disallowed-tools, model, effort, context, agent, hooks, paths, shell); display-name/default-enabled/fallback STILL absent (second consecutive confirmation — the skills#233/#236 premise discrepancy stands); `name` field description now reads "Display name shown in skill listings", suggesting `name` itself absorbed any display-name role
 - 2026-07-03T00:00:00Z — changed: v2.1.199 stacked-skill-invocation + skillOverrides Remote-Control note added; **display-name/default-enabled/fallback fields absent from this fetch's frontmatter table** — flagged for re-verification against skills#233/#236, not re-filed

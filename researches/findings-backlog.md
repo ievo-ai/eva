@@ -1297,3 +1297,60 @@ evidence:
 `schedule/SKILL.md` (shipped v0.13.0 era, skills#84) drives users through creating a Claude Code Routine. Its Step 1 availability probe, Step 6 creation command, and Step 7 verification all invoke a `claude schedule <subcommand>` shell CLI. The current Routines documentation (re-read 2026-07-04, now explicitly "research preview") documents no such shell subcommand: creation is the in-session `/schedule` slash command (conversational, or `/schedule <natural-language description>`), and management is `/schedule list` / `/schedule update` / `/schedule run` — all in-session. If `claude schedule create` never existed or was removed, every user following the skill's primary path hits a command-not-found and falls through to the manual fallback (Step 7's degraded path), making the wizard pointless. The skill also predates several documented behaviors worth reflecting: one-off runs (`/schedule tomorrow at 9am, ...` — auto-disables after firing, exempt from the daily routine cap), the 1-hour minimum cron interval (expressions more frequent are rejected — the skill's "custom cron" step should validate this), connectors included by default per routine (scope-down guidance belongs in the confirm step), the `claude/`-prefixed branch push restriction, and the troubleshooting matrix for `/schedule` being hidden (API-key auth precedence, telemetry env vars like `DISABLE_TELEMETRY` disabling feature-flag fetching, being inside a web session). Acceptance must include verifying against a live current CLI whether any `claude schedule` shell surface still exists before deleting it — if it works but is merely undocumented, keep it as a documented-fallback with a version note instead.
 
 ---
+
+## S-2026-07-07-001 — scan_repo.mjs path traversal via unsanitized `<owner>/<repo>` argument
+
+```yaml
+id: S-2026-07-07-001
+discovered_at: 2026-07-07T10:00:00Z
+run_id: 28857232826
+target_repo: ievo-ai/skills
+title: scan_repo.mjs checkoutOrRefresh()/main() build checkout and output-file paths from an attacker-influenceable `<owner>/<repo>` string using a non-global single-slash replace, allowing directory-traversal escape outside checkout-dir/output-dir
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/339
+cwe: CWE-22
+confidence: medium
+location: plugins/ievo/scripts/scan_repo.mjs:67 (checkoutOrRefresh), :583 (main input validation), :634 (output path construction)
+```
+
+`main()`'s only validation on the `--repo` argument is `!args.repo.includes("/")` (line 583) — it accepts any string containing at least one `/`, with no character-set restriction and no rejection of `..` segments or extra slashes. `checkoutOrRefresh()` (line 67) computes `safeName = ownerRepo.replace("/", "-")` — the non-global single-argument form of `String.prototype.replace`, which rewrites only the FIRST `/` occurrence. For an input like `../../../../tmp/evil/payload`, the validation passes (it contains `/`), and `safeName` becomes `..-../../../tmp/evil/payload` — still containing embedded `..` and `/` — which `path.join(checkoutDir, safeName)` then normalizes, resolving outside `checkoutDir` entirely. Verified by direct reproduction in Node: `path.join("/home/runner/somechkdir", "../../../../tmp/evil/payload".replace("/", "-"))` resolves to `/home/runner/tmp/evil/payload` — completely escaping the intended checkout directory. The same `args.repo.replace("/", "-")` pattern recurs in `main()` (line 634) to build the `--output-dir` index-file (`.md`/`.json`) write paths, so both the `git clone` target and the generated index-file writes can land outside their intended directories. `evolution_candidates.mjs` elsewhere in the same script directory already implements the correct defensive pattern (a `sanitizeSessionId()`-style allowlist validator) for exactly this class of untrusted-identifier-to-path risk — `scan_repo.mjs` lacks the equivalent guard for its `repo` argument. Confidence is medium (not high) because this scan did not have visibility into the `index-repos` skill or the `community-index` GHA workflow (both outside the scanned module) that may supply the `--repo` value to this script — whether either adds its own strict-slug validation upstream before invoking `scan_repo.mjs` is unverified.
+
+---
+
+## S-2026-07-07-002 — pre-commit-gate.yml and coverage-gate.yml pin 4 third-party actions to mutable tags, not commit SHAs
+
+```yaml
+id: S-2026-07-07-002
+discovered_at: 2026-07-07T10:00:00Z
+run_id: 28857232826
+target_repo: ievo-ai/skills
+title: Four GitHub Actions (actions/checkout@v4, actions/setup-node@v4, actions/setup-python@v5, pre-commit/action@v3.0.1) in the fork-triggered pre-commit-gate.yml and coverage-gate.yml workflows use mutable version tags instead of pinned commit SHAs, inconsistent with the SHA-pinning already used in every other workflow in this repo
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/340
+cwe: CWE-829
+confidence: medium
+location: .github/workflows/pre-commit-gate.yml:21,26,31,36; .github/workflows/coverage-gate.yml:21,26
+```
+
+Both `pre-commit-gate.yml` and `coverage-gate.yml` trigger on `pull_request` (including from untrusted forks) and reference third-party actions by mutable tag: `actions/checkout@v4`, `actions/setup-node@v4` (both files), `actions/setup-python@v5` and `pre-commit/action@v3.0.1` (pre-commit-gate.yml only). By contrast, every other workflow in this repo that references a third-party action pins to a full 40-character commit SHA with a trailing version comment: `actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4.3.1` (cut-release.yml, notify-release.yml), `actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547  # v1.12.0` (cut-release.yml, forward-to-eva.yml, notify-eva.yml), `peter-evans/repository-dispatch@28959ce8df70de7be546dd1250a005dd32156697  # v4.0.1` (forward-to-eva.yml, notify-eva.yml). If any of the four mutable tags were ever re-pointed (compromised maintainer account, stolen publish credentials, or a malicious re-tag), the next PR opened against this public repo — including from a first-time external fork — would execute the attacker's code during CI. Blast radius is bounded (both workflows run with `permissions: contents: read` and inject no secrets), but the inconsistency with the rest of the repo's own SHA-pinning convention is a real, verifiable gap, and both gates also run on `push: branches: [main]`.
+
+---
+
+## S-2026-07-07-003 — cut-release.yml grants ambient GITHUB_TOKEN unused `contents: write`
+
+```yaml
+id: S-2026-07-07-003
+discovered_at: 2026-07-07T10:00:00Z
+run_id: 28857232826
+target_repo: ievo-ai/skills
+title: cut-release.yml's workflow-level `permissions: contents: write` grants the default ambient GITHUB_TOKEN write access that no step in the job actually uses — every real write (`gh release view`/`gh release create`) already goes through a separately-minted, narrowly-scoped GitHub App token via an explicit `GH_TOKEN` env override
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/341
+cwe: CWE-250
+confidence: medium
+location: .github/workflows/cut-release.yml:32-33 (permissions block), :109, :169 (GH_TOKEN overrides)
+```
+
+`cut-release.yml` declares workflow-level `permissions: contents: write` (lines 32-33), granting the job's default ambient `GITHUB_TOKEN` write access to repository contents. Verified: every actual write operation in the job — the idempotency check `gh release view` (line 114) and the release creation `gh release create` (line 182) — explicitly sets `GH_TOKEN: ${{ steps.app-token.outputs.token }}` (lines 109, 169), overriding the ambient token with a freshly-minted, purpose-scoped GitHub App token for those calls. No step relies on the ambient `GITHUB_TOKEN` having write access: `actions/checkout` needs only read, and the CHANGELOG-parsing/version-detection steps need no write at all. The workflow-wide `contents: write` grant is therefore dead weight — unused by the job's own design, but still active as standing write access for the whole job's ambient token, needlessly increasing blast radius should any action in the job's dependency chain (e.g. `actions/checkout`, `actions/create-github-app-token`) ever be compromised. Least-privilege fix: drop the top-level grant to `contents: read` (or omit `permissions:` and rely on the org/repo default), since the App token already covers the one legitimate write path.
+
+---
