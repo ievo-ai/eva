@@ -45,8 +45,8 @@ Body sections (each optional, omit if empty):
 - `## Sources scanned` — summary of this run's Step 4 scan (changes detected + errors). Full per-URL state lives in `sources-index.md`.
 - `## Skills PRs opened` — atomic fix PRs to existing functionality (Step 5 output)
 - `## Findings filed` — new-capability findings filed as issues (Step 4b output); references backlog IDs + issue URLs. Full backlog lives in `findings-backlog.md`.
-- `## Security pass` (eva#165) — `/ievo:vuln-scan` + `/ievo:security-check` dogfooding digest from Step 3c: whether it ran, modules scanned, and any `security-finding`-labeled issues opened (`S-` backlog IDs). Dormant (ran: false) until the operator sets `EVA_IEVO_PLUGIN_ENABLED=true`.
 - `## Deferred findings`
+- `## Security pass` (eva#165) — `/ievo:vuln-scan` dogfooding digest from Step 3c: whether it ran, modules scanned, and any `security-finding`-labeled issues opened (`S-` backlog IDs). Dormant (ran: false) until the operator sets `EVA_IEVO_PLUGIN_ENABLED=true`.
 - `## Vetted rejections this run` (eva#187) — candidates Step 3b dropped before they became a PR or issue; references rejection IDs. Full log lives in `vetted-rejections.md`.
 - `## Blockers`
 - `## Notes for next run`

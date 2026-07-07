@@ -39,7 +39,7 @@ Status transitions:
 
 ### Security finding schema (eva#165, required keys)
 
-Filed by Step 3c from `/ievo:vuln-scan --module` (and, rarely, `/ievo:security-check`) findings — same target-repo issue tracker as above, labeled `security-finding` instead of `feature-proposal`.
+Filed by Step 3c from `/ievo:vuln-scan --module` findings — same target-repo issue tracker as above, labeled `security-finding` instead of `feature-proposal`. `/ievo:security-check` (Step 3c.2) never produces an `S-` entry itself — its verdict is attached to the corresponding Step 4b proposal issue instead (see 3c.2).
 
 ```yaml
 id: S-YYYY-MM-DD-NNN          # date + zero-padded sequence within day, separate sequence from F-
@@ -157,7 +157,7 @@ Security findings pass through vuln-scan's own Phase 4 output structure directly
 
 ## Exploit chain
 
-<entry point, data flow step-by-step citing functions and lines, impact — verbatim from vuln-scan's Phase 4 output>
+<entry point, data flow step-by-step citing functions and lines, impact — summarized from vuln-scan's Phase 4 output in your own words; see eva-research.yml Step 3c.3's containment note before including any raw excerpt>
 
 ## Preconditions
 
