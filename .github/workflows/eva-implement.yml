@@ -297,12 +297,22 @@ jobs:
           # proceed to claim anyway — fail the step (the shell's default
           # `-e`) instead, same as `Verify implement contract`'s own
           # no-fallback policy for this exact class of lookup.
-          EXISTING_OPEN_PR=$(gh pr list --repo "$REPO" --state open --limit 100 \
-            --json number,headRefName,title,body,isCrossRepository --jq --arg n "$ISSUE_NUM" \
+          # `gh pr list --jq` runs gojq, which has NO `--arg` flag (only
+          # standalone `jq` does) — passing `--arg n "$ISSUE_NUM"` here would
+          # reach `gh pr list` as stray positional args and error out, failing
+          # this step (and therefore every build) under `-eo pipefail`. Mirror
+          # `Verify implement contract` below: write to a file, then filter
+          # with standalone `jq --arg`. Left-anchor the `#N` match ([^\w#]|^)
+          # so a cross-repo citation like "eva#42" in a PR body doesn't
+          # false-positive match while building local issue #42 — right-anchor
+          # ([^0-9]|$) already guards the other side (so "#4" won't match "#42").
+          gh pr list --repo "$REPO" --state open --limit 100 \
+            --json number,headRefName,title,body,isCrossRepository > /tmp/eva-impl-existing-prs.json
+          EXISTING_OPEN_PR=$(jq --arg n "$ISSUE_NUM" \
             '[.[] | select((.isCrossRepository | not)
                            and (.headRefName | startswith("eva-impl/"))
-                           and (((.title // "") + " " + (.body // "")) | test("#\($n)([^0-9]|$)")))]
-             | length')
+                           and (((.title // "") + " " + (.body // "")) | test("(^|[^\\w#])#\($n)([^0-9]|$)")))]
+             | length' /tmp/eva-impl-existing-prs.json)
           if [ "$EXISTING_OPEN_PR" -gt 0 ]; then
             echo "Issue already has an open eva-impl/* PR referencing it, skipping (avoids duplicate build)"
             echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
@@ -679,14 +689,33 @@ jobs:
           # false 'silent stall' verdict against a possibly healthy build.
           gh pr list --repo "$REPO" --state all --limit 100 \
             --json number,state,headRefName,title,body,isCrossRepository > /tmp/eva-impl-prs.json
+          # Left-anchored the same way as the Claim step's identical filter
+          # above — without it, a same-repo eva-impl/* PR that merely cites a
+          # DIFFERENT repo's issue in prose (e.g. "blocked by eva#42") would
+          # false-satisfy the contract for local issue #42.
           PR_MATCH=$(jq --arg n "$ISSUE_NUM" \
             '[.[] | select((.state == "OPEN" or .state == "MERGED")
                            and (.isCrossRepository | not)
                            and (.headRefName | startswith("eva-impl/"))
-                           and (((.title // "") + " " + (.body // "")) | test("#\($n)([^0-9]|$)")))
+                           and (((.title // "") + " " + (.body // "")) | test("(^|[^\\w#])#\($n)([^0-9]|$)")))
              | .number]' /tmp/eva-impl-prs.json)
           if [ "$(printf '%s' "$PR_MATCH" | jq 'length')" -gt 0 ]; then
             echo "Contract met: eva-impl/* PR(s) $(printf '%s' "$PR_MATCH" | jq -c .) reference #$ISSUE_NUM."
+            # Deterministic backstop for Phase 5's best-effort label release:
+            # if the build's agent turn ended between "PR opened" and "label
+            # removed" (eva-implementing still present despite the PR
+            # existing), this success path would otherwise just exit 0 and
+            # leave the claim — and the build slot it holds — stuck forever,
+            # since nothing else watches an already-satisfied contract. Force
+            # the release here too, so a healthy PR can never coexist with a
+            # leaked claim.
+            CUR_LABELS=$(gh issue view "$ISSUE_NUM" --repo "$REPO" --json labels \
+              --jq '[.labels[].name] | join(" ")' 2>/dev/null || echo "")
+            case " $CUR_LABELS " in
+              *" eva-implementing "*)
+                gh issue edit "$ISSUE_NUM" --repo "$REPO" --remove-label eva-implementing 2>/dev/null || true
+                echo "Backstop: eva-implementing was still present despite a satisfied contract — released it now." ;;
+            esac
             exit 0
           fi
           # Outcome 2: a documented exit path released the claim label (open
