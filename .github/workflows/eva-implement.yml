@@ -291,12 +291,18 @@ jobs:
           # contract`'s identical filter below) — without it, anyone able to
           # open a PR against this repo could spoof a permanent "already has a
           # PR" skip for any issue number, blocking it from ever being claimed.
+          # No `|| echo 0` fallback here (matching the `LABELS` lookup just
+          # above): a guard whose entire purpose is anti-duplication must not
+          # silently read a transient `gh` failure as "no PR found" and
+          # proceed to claim anyway — fail the step (the shell's default
+          # `-e`) instead, same as `Verify implement contract`'s own
+          # no-fallback policy for this exact class of lookup.
           EXISTING_OPEN_PR=$(gh pr list --repo "$REPO" --state open --limit 100 \
             --json number,headRefName,title,body,isCrossRepository --jq --arg n "$ISSUE_NUM" \
             '[.[] | select((.isCrossRepository | not)
                            and (.headRefName | startswith("eva-impl/"))
                            and (((.title // "") + " " + (.body // "")) | test("#\($n)([^0-9]|$)")))]
-             | length' 2>/dev/null || echo 0)
+             | length')
           if [ "$EXISTING_OPEN_PR" -gt 0 ]; then
             echo "Issue already has an open eva-impl/* PR referencing it, skipping (avoids duplicate build)"
             echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
