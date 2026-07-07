@@ -1,6 +1,6 @@
 # Findings Backlog
 
-Append-only log of every feature gap / capability finding Eva surfaces during research runs. One section per finding. Each finding eventually maps to an issue (or a closed status) in its target repo.
+Append-only log of every feature gap / capability finding Eva surfaces during research runs, AND every security finding Eva's `/ievo:vuln-scan` / `/ievo:security-check` dogfooding pass surfaces (Step 3c, eva#165). One section per finding. Each finding eventually maps to an issue (or a closed status) in its target repo.
 
 This file is the **strategic layer** of Eva's research output. The **tactical layer** is the issues themselves (in target repos). The **execution layer** is implementation PRs (handled by operator or by the Issue Triage helper from godfather task #42 once that lands).
 
@@ -11,7 +11,9 @@ Each finding is a Markdown section. Inside the section:
 1. A ` ```yaml ` fenced block with metadata
 2. The detailed proposal body — what the issue WILL say (or already says)
 
-YAML schema (required keys):
+Two finding kinds share this file (same dedup/backlog mechanics, same target-repo issue tracker) but use distinct ID prefixes and schemas — a security finding is a bug in EXISTING code, not a missing capability, so it doesn't fit the capability-gap fields below (see "Security finding schema").
+
+### Feature-gap schema (required keys)
 
 ```yaml
 id: F-YYYY-MM-DD-NNN          # date + zero-padded sequence within day
@@ -35,6 +37,25 @@ Status transitions:
 - `rejected` — operator closed issue with one-line reason
 - `parked` — needs spec/design work first, revisit later
 
+### Security finding schema (eva#165, required keys)
+
+Filed by Step 3c from `/ievo:vuln-scan --module` (and, rarely, `/ievo:security-check`) findings — same target-repo issue tracker as above, labeled `security-finding` instead of `feature-proposal`.
+
+```yaml
+id: S-YYYY-MM-DD-NNN          # date + zero-padded sequence within day, separate sequence from F-
+discovered_at: <ISO 8601 UTC>
+run_id: <GitHub Actions run ID that surfaced this>
+target_repo: <ievo-ai/skills>
+title: <one-line vulnerability summary>
+status: raw | issued | accepted | implemented | rejected | parked
+issue_url: <set when status transitions to issued>
+cwe: <CWE-XXX from vuln-scan's own finding>
+confidence: high | medium | low     # from vuln-scan's Phase 4 confidence
+location: <file:line or file:function cited by vuln-scan>
+```
+
+Status transitions are the same as the feature-gap schema above. `rejected` here means the operator (or a skeptic re-read) determined the finding does not hold up — same as an `eva-rejected` label on the issue.
+
 ## How Eva uses this file per run
 
 **Pre-research (Step 1):**
@@ -48,6 +69,14 @@ Status transitions:
   2. Open a **very detailed** issue in `target_repo` per the schema below
   3. Update the entry: `status: issued`, `issue_url: <url>`
 - Use the Edit tool to update entries in place (per-section), don't rewrite the whole file.
+
+**Post-scan (Step 3c, eva#165):**
+- For each NEW security finding surviving Step 1's `security_discovered_already` dedup:
+  1. APPEND a new `S-YYYY-MM-DD-NNN` section here with `status: raw`
+  2. Open an issue in `ievo-ai/skills` labeled `security-finding`, per the
+     "Security finding issue template" below (NOT the capability template)
+  3. Update the entry: `status: issued`, `issue_url: <url>`
+- Same append-in-place discipline as Step 4b above.
 
 ## Issue body template (what goes in `gh issue create --body-file`)
 
@@ -115,11 +144,50 @@ Filed by Eva research run <$GITHUB_RUN_ID> against `ievo-ai/eva` (research repo)
 
 This issue template is intentionally **detailed** — operator preference 2026-05-22. The goal is for the operator (or a future Issue Triage helper from godfather task #42) to have enough specification to either accept-and-implement or reject-with-reason without a back-and-forth round. Detailed issue > shallow PR, especially when implementation cost is non-trivial.
 
+## Security finding issue template (eva#165 — Step 3c only)
+
+Security findings pass through vuln-scan's own Phase 4 output structure directly instead of the capability template above — an exploit chain isn't a feature proposal:
+
+```markdown
+# Security: <one-line vulnerability summary>
+
+## Summary
+
+<confidence> confidence — <CWE-XXX> — <file:line>
+
+## Exploit chain
+
+<entry point, data flow step-by-step citing functions and lines, impact — verbatim from vuln-scan's Phase 4 output>
+
+## Preconditions
+
+<what must be true for exploitation — from vuln-scan's finding>
+
+## Blast radius
+
+- Confidentiality: <none | low | high>
+- Integrity: <none | low | high>
+- Availability: <none | low | high>
+
+## Recommendation
+
+<specific fix — exact line, function, replacement pattern, from vuln-scan's finding>
+
+## Related
+
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/<RUN_ID>
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: S-YYYY-MM-DD-NNN`
+
+---
+Filed by Eva research run <$GITHUB_RUN_ID> via `/ievo:vuln-scan` dogfooding (eva#165). Triage with `accepted` / `rejected` / `needs-discussion` labels.
+```
+
 ## Constraints
 
 - Hard cap: 3 findings per run. Quality over quantity; remaining gaps go in Deferred findings of the audit report.
+- Same 3-per-run hard cap applies separately to security findings (eva#165, Step 3c) — the two caps don't share a pool.
 - Cross-repo: `target_repo` can be any `ievo-ai/*`. Issue creation works on public repos with basic GitHub auth; no admin needed.
-- No PR creation from Eva for feature proposals. PRs happen ONLY for audit fixes (Step 5, where Eva has full repo context and the change is mechanical). Feature additions go through the issue → triage → implement loop.
+- No PR creation from Eva for feature proposals. PRs happen ONLY for audit fixes (Step 5, where Eva has full repo context and the change is mechanical). Feature additions go through the issue → triage → implement loop. Security findings (Step 3c) follow the same issue → triage → implement loop — Eva does not open fix PRs for vuln-scan findings directly.
 
 ---
 
