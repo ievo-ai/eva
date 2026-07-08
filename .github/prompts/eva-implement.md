@@ -407,6 +407,24 @@ PREOF
   gh issue edit "$TARGET_ISSUE" --repo "$TARGET_REPO" \
     --remove-label eva-implementing 2>/dev/null || true
 
+  # eva#198 — instant queue-drain kick at the TRUE freed-slot moment. Mirrors
+  # eva-review-pr.yml's merge-triggered "Kick approved-queue drain on freed
+  # slot" (eva#144): payload-free repository_dispatch(drain-queue) so
+  # eva-queue.yml immediately retries any issue eva-implement deferred on the
+  # MAX_INFLIGHT cap, instead of it sitting up to ~30min for the queue cron.
+  # Post-eva#196 THIS is the actual freed-slot moment (the label release right
+  # above, not PR-merge) — the merge-triggered kicks in eva-review-pr.yml /
+  # eva-drain-kick.yml now fire only after the slot was already freed here, so
+  # they're a redundant backstop, not the primary signal. No new trust surface:
+  # eva-queue.yml's drain step independently re-verifies the eva#132 trust
+  # chain per issue, identical to the cron path. Always dispatched to
+  # ievo-ai/eva — where eva-queue.yml lives — regardless of which repo this
+  # build is in (matching the existing kicks' cross-repo pattern). Best-effort:
+  # a failed dispatch must not fail the build, the queue cron is the fail-safe.
+  echo '{"event_type":"drain-queue"}' | gh api "repos/ievo-ai/eva/dispatches" --input - 2>/dev/null \
+    && echo "Dispatched drain-queue after opening PR #$PR_NUMBER for $TARGET_REPO#$TARGET_ISSUE (freed a build slot)" \
+    || echo "drain-queue dispatch failed (best-effort, not fatal — queue cron is the backstop)"
+
 Post a decision-log comment to the PR (preserve reasoning that would otherwise
 die with the runner; keep the closing `DLEOF` at column 0):
 
