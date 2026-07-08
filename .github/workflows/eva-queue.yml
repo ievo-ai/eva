@@ -51,14 +51,18 @@ on:
         description: "Dry run — log the queue + slot math, dispatch nothing"
         type: boolean
         default: true
-  # Event-driven wake (eva#144): eva-review-pr.yml fires `drain-queue` the instant
-  # it auto-merges an `eva-impl/*` PR — the moment an in-flight build slot frees —
-  # so a rate-limited (deferred) issue is retried within seconds instead of waiting
-  # up to ~2.5h for the schedule-skewed cron below. Same code path as the cron: no
-  # payload is read, and the drain step re-verifies the eva#132 label/approver
-  # trust chain per issue exactly as a scheduled run does. A dispatch has no
-  # `dry_run` input, so DRY_RUN='' → live-eligible (gated by vars.EVA_QUEUE_ENABLED),
-  # identical to the scheduled path.
+  # Event-driven wake (eva#144): fired by `drain-queue` repository_dispatch so a
+  # rate-limited (deferred) issue is retried within seconds instead of waiting up
+  # to ~30min for the schedule-skewed cron below. The PRIMARY source of this
+  # dispatch is `eva-implement.md` Phase 5, fired the instant the build's PR opens
+  # — the true freed-slot moment post-eva#196 (eva#198). eva-review-pr.yml (on a
+  # direct auto-merge) and eva-drain-kick.yml (on any `eva-impl/*` merge) also
+  # fire the identical dispatch, now as harmless redundant backstops — by the time
+  # either fires, the slot they used to signal was already freed at PR-open. Same
+  # code path as the cron: no payload is read, and the drain step re-verifies the
+  # eva#132 label/approver trust chain per issue exactly as a scheduled run does.
+  # A dispatch has no `dry_run` input, so DRY_RUN='' → live-eligible (gated by
+  # vars.EVA_QUEUE_ENABLED), identical to the scheduled path.
   repository_dispatch:
     types: [drain-queue]
   schedule:

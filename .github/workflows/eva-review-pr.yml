@@ -686,12 +686,17 @@ jobs:
             fi
           done
 
-          # eva#144: signal a DIRECT merge only. A direct merge completes
-          # synchronously — the PR is merged now, its linked issue closes, and the
-          # build slot it held is genuinely free this instant, so the drain-queue
-          # kick (next step) can retry a deferred issue immediately. The --auto
-          # fallback below only QUEUES the merge (slot not free yet), so it
-          # deliberately does NOT set this; the queue cron is the backstop there.
+          # eva#144: signal a DIRECT merge only. Pre-eva#196 this was THE
+          # freed-slot moment: the `eva-implementing` claim was held until
+          # merge, so a direct merge completing synchronously meant the build
+          # slot was genuinely free this instant. Post-#196 the claim releases
+          # right after the build's PR opens (`eva-implement.md` Phase 5,
+          # which fires its own drain-queue kick — eva#198), well before any
+          # merge happens — so by the time we get here the slot is already
+          # free. This output (and the kick step gated on it, below) is now a
+          # harmless redundant backstop, not the primary signal; kept in case
+          # the Phase-5 kick failed to dispatch. The --auto fallback below
+          # only QUEUES the merge, so it deliberately does NOT set this either.
           if [ -n "$merged" ]; then
             echo "direct_merged=true" >> "$GITHUB_OUTPUT"
           fi
@@ -712,18 +717,26 @@ jobs:
           fi
 
       # --- Event-driven queue kick on freed slot (eva#144) ---
-      # The instant a DIRECT auto-merge of an `eva-impl/*` PR completes, the
-      # in-flight build slot that PR held is free. Fire repository_dispatch
-      # (drain-queue) so eva-queue.yml immediately retries any issue that
-      # eva-implement deferred on the MAX_INFLIGHT cap — instead of it sitting up
-      # to ~2.5h until the schedule-skewed queue cron. The cron stays as the
-      # fail-safe backstop (e.g. this run dying before reaching here).
+      # Pre-eva#196, a DIRECT auto-merge of an `eva-impl/*` PR was THE moment
+      # its in-flight build slot freed (the `eva-implementing` claim was held
+      # until merge), so this dispatch was the primary freed-slot signal.
+      # Post-#196 the claim releases right after the build's PR opens
+      # (`eva-implement.md` Phase 5 fires the identical drain-queue dispatch
+      # itself — eva#198), so by the time any PR merges here the slot it held
+      # is already free. This kick is now a harmless redundant backstop (a
+      # drain-queue sweep on an already-unblocked queue is a no-op) — kept in
+      # case the Phase-5 kick failed to dispatch (e.g. a transient API error).
+      # The schedule cron remains the ultimate fail-safe behind both kicks.
       #
       # Scoped to `eva-impl/*` head refs: those are the ONLY slot-consuming
       # branches. Other merged PRs (human, research audits) hold no in-flight slot,
       # so kicking the sweep for them would be a wasted no-op. Gated on the Auto-
-      # merge step's `direct_merged` output — the --auto (queued) path leaves the
-      # slot occupied until the merge later completes, so it must NOT kick here.
+      # merge step's `direct_merged` output: only a completed direct merge in
+      # THIS job run is a fact we can act on immediately — the `--auto` (queued)
+      # path may still need time (branch update / checks) or could fail, so
+      # firing here would be premature; that case falls to the queue cron and
+      # to eva-drain-kick.yml's own `pull_request: closed` trigger once the
+      # queued merge actually lands.
       #
       # No new trust surface (eva#132 contract unchanged): the dispatch carries NO
       # payload, and eva-queue's sweep re-discovers + re-trust-gates every queued

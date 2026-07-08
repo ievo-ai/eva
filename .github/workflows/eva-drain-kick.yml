@@ -30,6 +30,17 @@
 # identical contract to the existing eva-review-pr.yml kick. This trigger can
 # overlap with eva-review-pr.yml's own kick (both fire on a direct Eva
 # self-merge) — harmless, since a duplicate drain-queue sweep is idempotent.
+#
+# Status post-eva#196/#198: this workflow's original purpose (the sensitive-
+# path / hand-merge gap above) is now moot for the SAME reason as
+# eva-review-pr.yml's own kick. eva#196 moved the `eva-implementing` claim
+# release from PR-merge to PR-open; eva#198 wired an instant drain-queue kick
+# directly into that PR-open moment (`eva-implement.md` Phase 5) — which fires
+# regardless of whether the PR is later merged directly, via --auto, or by
+# hand on a sensitive path. So by the time ANY `eva-impl/*` PR merges here, its
+# slot already freed at open time. This workflow's kick is now a harmless
+# redundant backstop, kept as defense-in-depth in case the Phase-5 kick failed
+# to dispatch — not a correctness requirement anymore.
 
 name: "Eva: Drain-Queue Kick (freed slot)"
 
