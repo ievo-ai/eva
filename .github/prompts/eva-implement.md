@@ -351,6 +351,13 @@ PAT (cross-principal, since the App can't approve its own PR) → auto-merges if
 sensitive path is touched, else routes the merge to the operator. Both outcomes
 are correct; your job ends here.
 
+Once the PR exists (fresh or reused, below), release the `eva-implementing`
+claim immediately (eva#196) — `EVA_MAX_INFLIGHT` measures concurrent *builds*,
+not how long the resulting PR then sits on review. Previously the claim was
+held until GitHub's merge-triggered auto-close, so one PR awaiting a human-only
+merge (e.g. a `.github/workflows/**` change) occupied the sole slot for the
+entire review window and stalled every other `approved` issue behind it.
+
   # Idempotency: reuse an existing PR for this branch (handler retry after crash).
   EXISTING_PR=$(gh pr view --repo "$TARGET_REPO" --json number --jq .number 2>/dev/null || true)
   if [ -n "$EXISTING_PR" ]; then
@@ -392,6 +399,13 @@ PREOF
       exit 1
     fi
   fi
+
+  # eva#196 — release the build-concurrency claim now that the PR is out
+  # (covers BOTH branches above: a fresh `gh pr create` and the EXISTING_PR
+  # reuse path). Best-effort: a missing label (already cleared by an earlier
+  # attempt) must not fail the build.
+  gh issue edit "$TARGET_ISSUE" --repo "$TARGET_REPO" \
+    --remove-label eva-implementing 2>/dev/null || true
 
 Post a decision-log comment to the PR (preserve reasoning that would otherwise
 die with the runner; keep the closing `DLEOF` at column 0):

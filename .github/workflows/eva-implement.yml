@@ -40,10 +40,19 @@
 # branch must be up to date with main (it is: built fresh off main).
 #
 # Claim + rate-limit: an atomic-ish label swap (`approved` → `eva-implementing`)
-# claims the issue so a duplicate `labeled` event is a no-op; a best-effort cap
-# of MAX_INFLIGHT concurrent builds bounds the blast radius. `eva-implementing`
-# is a distinct claim label (NOT `in-progress`, which the router reserves as
-# operator-only).
+# claims the issue; a best-effort cap of MAX_INFLIGHT concurrent builds bounds
+# the blast radius. `eva-implementing` is a distinct claim label (NOT
+# `in-progress`, which the router reserves as operator-only).
+#
+# eva#196: the agent itself clears `eva-implementing` as soon as its PR opens
+# (`eva-implement.md` Phase 5) — NOT on merge — so MAX_INFLIGHT measures actual
+# concurrent builds, not however long the resulting PR then sits on review.
+# (Previously a single workflow-touching PR awaiting the operator's human-only
+# merge held the sole slot for the entire review window, deferring every other
+# approved issue behind it — issue #190/PR #193, 2026-07-06/07.) Because the
+# label no longer covers the "PR open, awaiting review" window, duplicate-build
+# protection for that window is NOT the label — the Claim step below checks
+# directly for an existing open `eva-impl/*` PR referencing the issue.
 #
 # Security: untrusted issue title/body never reach `run:` blocks via ${{ }}
 # interpolation — the Claude action receives them via `gh issue view` inside the
@@ -268,12 +277,46 @@ jobs:
           LABELS=$(gh issue view "$ISSUE_NUM" --repo "$REPO" --json labels \
             --jq '[.labels[].name] | join(" ")')
 
-          # Already claimed by a prior (possibly duplicate) event → no-op.
-          case " $LABELS " in
-            *" eva-implementing "*)
-              echo "Issue already claimed (eva-implementing present), skipping"
-              echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0 ;;
-          esac
+          # eva#196 — already has an open eva-impl/* PR referencing this issue:
+          # a build already ran (or is running) for it, so a duplicate/
+          # re-applied `approved` must not kick off a second, competing build.
+          # Derived from actual PR state rather than the `eva-implementing`
+          # label, which the agent now clears as soon as its PR opens (Phase 5)
+          # — a label-presence check alone no longer covers the "PR open,
+          # awaiting review" window. Same reuse-lookup pattern the agent itself
+          # uses for crash-retry idempotency (`eva-implement.md` Phase 5) and
+          # `Verify implement contract` below uses to confirm success.
+          # Same-repo head only (isCrossRepository == false): a fork PR can name
+          # its branch eva-impl/* and mention #N (see `Verify implement
+          # contract`'s identical filter below) — without it, anyone able to
+          # open a PR against this repo could spoof a permanent "already has a
+          # PR" skip for any issue number, blocking it from ever being claimed.
+          # No `|| echo 0` fallback here (matching the `LABELS` lookup just
+          # above): a guard whose entire purpose is anti-duplication must not
+          # silently read a transient `gh` failure as "no PR found" and
+          # proceed to claim anyway — fail the step (the shell's default
+          # `-e`) instead, same as `Verify implement contract`'s own
+          # no-fallback policy for this exact class of lookup.
+          # `gh pr list --jq` runs gojq, which has NO `--arg` flag (only
+          # standalone `jq` does) — passing `--arg n "$ISSUE_NUM"` here would
+          # reach `gh pr list` as stray positional args and error out, failing
+          # this step (and therefore every build) under `-eo pipefail`. Mirror
+          # `Verify implement contract` below: write to a file, then filter
+          # with standalone `jq --arg`. Left-anchor the `#N` match ([^\w#]|^)
+          # so a cross-repo citation like "eva#42" in a PR body doesn't
+          # false-positive match while building local issue #42 — right-anchor
+          # ([^0-9]|$) already guards the other side (so "#4" won't match "#42").
+          gh pr list --repo "$REPO" --state open --limit 100 \
+            --json number,headRefName,title,body,isCrossRepository > /tmp/eva-impl-existing-prs.json
+          EXISTING_OPEN_PR=$(jq --arg n "$ISSUE_NUM" \
+            '[.[] | select((.isCrossRepository | not)
+                           and (.headRefName | startswith("eva-impl/"))
+                           and (((.title // "") + " " + (.body // "")) | test("(^|[^\\w#])#\($n)([^0-9]|$)")))]
+             | length' /tmp/eva-impl-existing-prs.json)
+          if [ "$EXISTING_OPEN_PR" -gt 0 ]; then
+            echo "Issue already has an open eva-impl/* PR referencing it, skipping (avoids duplicate build)"
+            echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
 
           # No `approved` label → router didn't clear it, or it was already
           # handled/removed. Fail safe: do nothing.
@@ -646,14 +689,33 @@ jobs:
           # false 'silent stall' verdict against a possibly healthy build.
           gh pr list --repo "$REPO" --state all --limit 100 \
             --json number,state,headRefName,title,body,isCrossRepository > /tmp/eva-impl-prs.json
+          # Left-anchored the same way as the Claim step's identical filter
+          # above — without it, a same-repo eva-impl/* PR that merely cites a
+          # DIFFERENT repo's issue in prose (e.g. "blocked by eva#42") would
+          # false-satisfy the contract for local issue #42.
           PR_MATCH=$(jq --arg n "$ISSUE_NUM" \
             '[.[] | select((.state == "OPEN" or .state == "MERGED")
                            and (.isCrossRepository | not)
                            and (.headRefName | startswith("eva-impl/"))
-                           and (((.title // "") + " " + (.body // "")) | test("#\($n)([^0-9]|$)")))
+                           and (((.title // "") + " " + (.body // "")) | test("(^|[^\\w#])#\($n)([^0-9]|$)")))
              | .number]' /tmp/eva-impl-prs.json)
           if [ "$(printf '%s' "$PR_MATCH" | jq 'length')" -gt 0 ]; then
             echo "Contract met: eva-impl/* PR(s) $(printf '%s' "$PR_MATCH" | jq -c .) reference #$ISSUE_NUM."
+            # Deterministic backstop for Phase 5's best-effort label release:
+            # if the build's agent turn ended between "PR opened" and "label
+            # removed" (eva-implementing still present despite the PR
+            # existing), this success path would otherwise just exit 0 and
+            # leave the claim — and the build slot it holds — stuck forever,
+            # since nothing else watches an already-satisfied contract. Force
+            # the release here too, so a healthy PR can never coexist with a
+            # leaked claim.
+            CUR_LABELS=$(gh issue view "$ISSUE_NUM" --repo "$REPO" --json labels \
+              --jq '[.labels[].name] | join(" ")' 2>/dev/null || echo "")
+            case " $CUR_LABELS " in
+              *" eva-implementing "*)
+                gh issue edit "$ISSUE_NUM" --repo "$REPO" --remove-label eva-implementing 2>/dev/null || true
+                echo "Backstop: eva-implementing was still present despite a satisfied contract — released it now." ;;
+            esac
             exit 0
           fi
           # Outcome 2: a documented exit path released the claim label (open
