@@ -1490,3 +1490,60 @@ location: plugins/ievo/agents/evolution.md:58-67 (Step 2 — "Ensure target file
 Confirmed by direct re-read of the file: Step 2 unconditionally fetches the plugin file's content (`gh api repos/<owner>/<repo>/contents/<path>` for an agent, or the whole tree for a skill) and writes it straight to `.claude/agents/<name>.md` / `.claude/skills/<name>/` — no `security-auditor` dispatch, no verdict check, no `AskUserQuestion` gate anywhere in this step or elsewhere in the file. `commands/update.md`'s Step 2.5 (added in v0.50.1/#349, this repo's own precedent) performs the structurally identical operation — fetch potentially-changed upstream content and decide whether to let it land on disk — and explicitly dispatches `security-auditor` whenever the fetched content differs from what's already local. `evolution.md`'s vendor-if-needed path has no equivalent, despite being the FIRST time a given plugin-bundled agent/skill is copied into the trusted `.claude/` tree (i.e. exactly the "first install" moment `/ievo:init`'s own pipeline treats as security-auditor-mandatory for a freshly-selected candidate). Full exploit chain, preconditions, and recommendation: see issue body (mirrors update.md's own Step 2.5 pattern: dispatch `security-auditor` before the write, require GREEN or explicit user override via `AskUserQuestion` on YELLOW/RED).
 
 ---
+
+## S-2026-07-10-001 — repo-indexer.md interpolates unvalidated owner/repo into a Bash node scan_repo.mjs invocation
+
+```yaml
+id: S-2026-07-10-001
+discovered_at: 2026-07-10T09:52:47Z
+run_id: 29083934771
+target_repo: ievo-ai/skills
+title: agents/repo-indexer.md Step 1 builds `node scripts/scan_repo.mjs <owner>/<repo> ...` as a literal Bash command with no owner/repo validation before interpolation — a fifth call site of the same command-injection class already fixed in security-check/SKILL.md, inspect/SKILL.md, evo/SKILL.md, and (in progress) index-repos/SKILL.md
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/361
+cwe: CWE-78
+confidence: high
+location: plugins/ievo/agents/repo-indexer.md:26-31
+```
+
+Confirmed by direct re-read: `repo-indexer.md` Step 1 instructs building `node "${CLAUDE_PLUGIN_ROOT}/scripts/scan_repo.mjs" <owner>/<repo> --output-dir ... --checkout-dir ...` via the Bash tool, with no preceding validation of `<owner>/<repo>` anywhere in the file. `scan_repo.mjs`'s own internal `OWNER_REPO_RE`/`isValidOwnerRepo()` guard runs too late — it protects only the script's own subsequent `git` calls (via `execFileSync`, no shell), not the outer shell invocation that already evaluated the attacker's payload. Distinct file/call site from `index-repos/SKILL.md` (S-2026-07-09-002/#356, in progress) — same root-cause pattern, atomic per the established convention (security-check/#347 and inspect/#348 were also filed as separate issues for the same pattern). Full exploit chain, preconditions, and recommendation: see issue body.
+
+---
+
+## S-2026-07-10-002 — update.md interpolates unvalidated source.repo/source.path/name into multiple Bash commands
+
+```yaml
+id: S-2026-07-10-002
+discovered_at: 2026-07-10T09:52:47Z
+run_id: 29083934771
+target_repo: ievo-ai/skills
+title: commands/update.md Steps 2 and 2.5 build gh api / cp / sed Bash commands directly from unvalidated overlay-frontmatter source.repo/source.path and filename-derived <name>, distinct from the already-fixed missing-re-audit-gate issue on the same file (#349)
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/362
+cwe: CWE-78
+confidence: high
+location: plugins/ievo/commands/update.md:41,56,62
+```
+
+Confirmed by direct re-read: Step 2 (`gh api repos/<source.repo>/contents/<source.path> --jq '.content' | base64 -d > /tmp/ievo-update-staged-<name>.md`, line 41) and Step 2.5 (`cp .claude/agents/<name>.md /tmp/ievo-update-localcopy-<name>.md` line 56; `sed '/<!-- ievo:start -->/,/<!-- ievo:end -->/d' ... ` line 62) all substitute `source.repo`/`source.path`/`<name>` — sourced from `.ievo/evolution/<scope>/<name>.md` frontmatter and the overlay filename, both inside the project's own git tree and thus attacker-reachable via a malicious PR — into literal Bash command strings with zero format validation. The Step 2.5 re-audit gate itself (#349/v0.50.1) is confirmed intact and unrelated: this finding is about the Bash-construction safety of the steps that gate protects, not the gate's presence. Full exploit chain, preconditions, and recommendation: see issue body.
+
+---
+
+## S-2026-07-10-003 — scan_repo.mjs follows symlinks during repo enumeration, enabling cross-checkout file read into the published community index
+
+```yaml
+id: S-2026-07-10-003
+discovered_at: 2026-07-10T09:52:47Z
+run_id: 29083934771
+target_repo: ievo-ai/skills
+title: scan_repo.mjs's isDir/fileExists use statSync (which follows symlinks) with no lstatSync guard anywhere in the file, letting a malicious repo's symlink read content from a sibling checkout (or host path) into the published community-index artifact
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/363
+cwe: CWE-59
+confidence: high
+location: plugins/ievo/scripts/scan_repo.mjs:72-86 (isDir/fileExists), used throughout enumeration at lines ~206-418
+```
+
+Confirmed by direct re-read: `isDir`/`fileExists` both call `statSync`, and `lstatSync` is never imported or called anywhere in the current file (grepped the full source — zero occurrences). Every enumeration function (`enumerateOnePlugin`, `enumerateStandaloneAgents`, `enumerateStandaloneSkills`, `enumerateStandaloneCommands`) relies on these two helpers before reading directory/file content, with no symlink guard anywhere in the read path. Distinct from the already-fixed S-2026-07-07-001/#339 (CWE-22 traversal in the `<owner>/<repo>` *argument*, fixed via `OWNER_REPO_RE`+`assertContained` in `checkoutOrRefresh`) — that fix constrains the argument string only; it does not guard symlinks placed inside the cloned repo's own tree, which this finding covers. Full exploit chain, preconditions, and recommendation: see issue body.
+
+---
