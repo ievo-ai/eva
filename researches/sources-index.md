@@ -36,14 +36,15 @@ run_id: <GitHub Actions run ID or null>
 ## https://www.anthropic.com/news
 
 ```yaml
-last_scan: 2026-07-10T09:52:47Z
-status: changed
-run_id: 29083934771
+last_scan: 2026-07-12T08:26:18Z
+status: unchanged
+run_id: manual-research-session-2026-07-12
 ```
 
-**Summary:** 4 new items since Jul 6: "UST is bringing Claude to physical AI" (case study, Jul 9), "Inviting hard questions" (Anthropic public Q&A commitment, Jul 9), "Ben Bernanke appointed to Long-Term Benefit Trust" (governance, Jul 9), "Introducing a way to reflect on how you use Claude" (usage-reflection feature, Jul 9). All non-technical/product announcements — no Claude Code capability, skill-format, or SKILL.md/agent frontmatter changes. No iEvo action.
+**Summary:** Re-fetched — no items published after Jul 9. Still the same 4 Jul 9 items (physical-AI case study, public Q&A commitment, Bernanke Trust appointment, usage-reflection feature) as newest. No iEvo action.
 
 History:
+- 2026-07-12T08:26:18Z — unchanged: re-fetched, no items newer than Jul 9; same 4 items as last scan
 - 2026-07-10T09:52:47Z — changed: 4 new Jul 9 items (physical-AI case study, public-Q&A commitment, Bernanke Trust appointment, usage-reflection feature) — all non-technical, no iEvo action
 - 2026-07-09T10:09:26Z — unchanged: re-fetched, no items newer than Jul 6 "The Making of Claude Code"; no iEvo action
 - 2026-07-08T10:00:00Z — changed: Jul 6 "The Making of Claude Code" feature article added; non-technical retrospective, no CC-specific capability or format change, no iEvo action
@@ -73,14 +74,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-07-10T09:52:47Z
+last_scan: 2026-07-12T08:26:18Z
 status: changed
-run_id: 29083934771
+run_id: manual-research-session-2026-07-12
 ```
 
-**Summary:** v2.1.206 (July 10, latest, published same day as this scan) — `/cd` directory-path suggestions, `/doctor` check proposing CLAUDE.md trims, `/commit-push-pr` auto-allows push to `remote.pushDefault`, gateway public-endpoint login, worktree-outside-project confirmation, background-agent upgrade timing, several MCP timeout/OAuth/model-picker bugfixes. No new SKILL.md/agent frontmatter fields — full 16-field skills.md table and 16-field sub-agents table both re-confirmed unchanged this run via direct fetch. Not iEvo-actionable.
+**Summary:** v2.1.207 (July 11, latest) — Auto mode available on Bedrock/Vertex/Foundry without opt-in env var, several terminal/streaming/worktree bugfixes, and one security-relevant fix: plugin hooks/monitors/MCP headersHelper now REJECT `${user_config.*}` interpolation in shell-form commands (shell-injection fix) — exec-form (`args` array) or `$CLAUDE_PLUGIN_OPTION_<KEY>` required instead. iEvo's own SKILL.md/agent files don't use `${user_config.*}` interpolation, so not directly actionable, but noted as a precedent pattern. No new SKILL.md/agent frontmatter fields — skills.md and sub-agents field tables both re-confirmed unchanged via direct fetch this run (still 16 fields each).
 
 History:
+- 2026-07-12T08:26:18Z — changed: v2.1.207 (July 11) — Auto mode on Bedrock/Vertex/Foundry without opt-in, `${user_config.*}` shell-injection fix for plugin hooks/monitors/headersHelper, various bugfixes; no new frontmatter, no direct iEvo action (iEvo doesn't use user_config interpolation)
 - 2026-07-10T09:52:47Z — changed: v2.1.206 (July 10) — `/cd` suggestions, `/doctor` CLAUDE.md-trim proposal, `/commit-push-pr` pushDefault support, worktree-outside-project confirm, background-agent upgrade-timing fix, MCP timeout/OAuth bugfixes; no new frontmatter, no iEvo action; skills.md + sub-agents field tables independently re-confirmed unchanged (16 fields each)
 - 2026-07-09T10:09:26Z — changed: v2.1.205 (July 8) — `/doctor` full checkup + `/checkup` alias, MCP Claude Browser reservation, plugin LSP fix, agent-view UI polish; no new frontmatter, no iEvo action
 - 2026-07-08T10:00:00Z — changed: v2.1.203 (July 7) — extensive background-agent/daemon fixes, VSCode remote-control toggle, binary size/memory reduction; v2.1.204 (July 7) — SessionStart hook streaming fix in headless mode; no new frontmatter, no iEvo action
@@ -114,14 +116,15 @@ History:
 ## https://github.com/anthropics/claude-code-action/releases
 
 ```yaml
-last_scan: 2026-07-10T09:52:47Z
+last_scan: 2026-07-12T08:26:18Z
 status: changed
-run_id: 29083934771
+run_id: manual-research-session-2026-07-12
 ```
 
-**Summary:** v1.0.170 (July 9) — empty changelog body beyond a compare link, same pattern as the last several patches. No new/removed inputs visible; eva#65 remains resolved+closed, no action.
+**Summary:** v1.0.171 (July 11) — empty changelog body beyond a compare link, same pattern as the last several patches. No new/removed inputs visible; eva#65 remains resolved+closed, no action.
 
 History:
+- 2026-07-12T08:26:18Z — changed: v1.0.171 (July 11) — empty-body patch, no documented input schema changes; eva#65 stays closed
 - 2026-07-10T09:52:47Z — changed: v1.0.170 (July 9) — empty-body patch, no documented input schema changes; eva#65 stays closed
 - 2026-07-09T10:09:26Z — changed: v1.0.169 (July 8) — minor patch, no documented input schema changes; eva#65 stays closed
 - 2026-07-08T10:00:00Z — changed: v1.0.167 (July 7) + v1.0.168 (July 8), both empty-body routine patches; no input schema changes visible; eva#65 stays closed
@@ -185,14 +188,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-07-10T09:52:47Z
-status: changed
-run_id: 29083934771
+last_scan: 2026-07-12T08:26:18Z
+status: unchanged
+run_id: manual-research-session-2026-07-12
 ```
 
-**Summary:** rust-v0.144.0 STABLE + v0.144.1 (both July 9) — ends the alpha watch after 2 days. Highlights: `writes` app-approval mode (declared read-only actions proceed, writes still prompt), MCP tools can request auth interactively without an experimental opt-in, app-server hosts can supply Codex auth at runtime, pasted-terminal-control-sequence TUI-corruption fix, plugin skill-loading perf (resolve namespaces once per root). No skill-format/frontmatter/hook schema changes in the 0.143.0→0.144.0 diff — the skills#170 named-permission-profile flag rename (#30095) is NOT mentioned in this changelog, so still unconfirmed either way without a live Codex CLI. New pre-release line already started: 0.145.0-alpha.1/2 (July 9-10), no changelogs yet.
+**Summary:** Still rust-v0.144.1 stable (July 9). Pre-release line advanced to 0.145.0-alpha.1 through alpha.4 (July 9-11) with empty changelog bodies each — same "watch, no content" pattern as prior alpha runs. skills#170 permission-profile-flag-rename (#30095) re-verification still pending a live Codex CLI.
 
 History:
+- 2026-07-12T08:26:18Z — unchanged: still v0.144.1 stable; 0.145.0-alpha.1-4 (July 9-11) all empty-body pre-releases; skills#170 flag-rename still unconfirmed
 - 2026-07-10T09:52:47Z — changed: rust-v0.144.0 STABLE + v0.144.1 (July 9) — `writes` app-approval mode, interactive MCP auth, runtime app-server auth, terminal-control-sequence TUI fix, plugin skill-loading perf; no skill-format changes; skills#170 flag-rename still unconfirmed (not mentioned in this changelog); new 0.145.0-alpha.1/2 line started, no changelogs yet
 - 2026-07-09T10:09:26Z — unchanged: still v0.143.0 stable; new 0.144.0-alpha.1/2/4 pre-release line started (July 8-9), no changelogs yet; skills#170 flag-rename re-verification still pending a live Codex CLI
 - 2026-07-08T10:00:00Z — changed: rust-v0.143.0 STABLE (July 8) — remote plugins by default, Bedrock GPT-5.6 models, MCP tool-search-by-default, system-proxy routing, sandbox-permission-profile flag rename (#30095, worth re-checking against open skills#170); ends the 6-week alpha watch
@@ -255,6 +259,7 @@ run_id: 29009412533
 **Summary:** Same 6-field structure re-confirmed (name, description, license, compatibility, metadata, allowed-tools) with identical constraints (name ≤64/lowercase/hyphens, description ≤1024, compatibility ≤500). No spec changes. Not re-fetched this run (low cadence, last deep-scanned July 9, no signal from the PR-level `gh api` check below to suggest a spec change).
 
 History:
+- 2026-07-12T08:26:18Z — unchanged (not re-fetched): PR-level `gh api` check (see agentskills/agentskills entry) found no new merges since #446; skip deep re-fetch this run
 - 2026-07-10T09:52:47Z — unchanged (not re-fetched): PR-level `gh api` check (see agentskills/agentskills entry) found no new merges, so page content assumed unchanged; skip deep re-fetch this run
 - 2026-07-09T10:09:26Z — unchanged: full spec re-read, same 6 fields and constraints; no additions
 - 2026-07-08T10:00:00Z — unchanged: full spec re-read, same 6 fields and constraints; no version/versioning-field/MCP-requirements additions
@@ -282,14 +287,15 @@ History:
 ## https://github.com/agentskills/agentskills
 
 ```yaml
-last_scan: 2026-07-10T09:52:47Z
+last_scan: 2026-07-12T08:26:18Z
 status: unchanged
-run_id: 29083934771
+run_id: manual-research-session-2026-07-12
 ```
 
-**Summary:** Direct `gh api repos/agentskills/agentskills/pulls` check this run (per the July 9 note's own recommendation, replacing the WebFetch-of-homepage approach): #380 (versioning), #386 (UTF-8 fix), #345 (Unicode name) all still OPEN, unmerged, unchanged since their last-updated timestamps (June 10 / May 19 / April 29 respectively — no new activity). Newest PRs by `updated_at` are #449 (docs: ecosystem tools page, July 2) and #445 (Forge listing, July 1) — both listings/docs only, no spec impact. No new merges since #446.
+**Summary:** Direct `gh api repos/agentskills/agentskills/pulls` check: #380 (versioning), #386 (UTF-8 fix), #345 (Unicode name) all still OPEN, unmerged. No new merges since #446. Newest PR activity (#449, #445) unchanged from July 10 read.
 
 History:
+- 2026-07-12T08:26:18Z — unchanged: direct `gh api` PR list check — #380/#386/#345 confirmed still open, no new activity; no new merges since #446
 - 2026-07-10T09:52:47Z — unchanged: direct `gh api` PR list check (not WebFetch) — #380/#386/#345 confirmed still open with no new activity; newest PRs are docs/listing-only; no new merges since #446
 - 2026-07-09T10:09:26Z — unchanged (shallow check only): WebFetch of repo root didn't surface PR list; agentskills.io/specification re-read same run found no new fields, so treated as unchanged — recommend a direct `gh api` PR check next run rather than the repo homepage
 - 2026-07-07T10:00:00Z — unchanged: #380/#386/#345 re-verified open+unmerged via gh api; no new merges since #446
@@ -315,14 +321,15 @@ History:
 ## https://www.cursor.com/changelog
 
 ```yaml
-last_scan: 2026-07-10T09:52:47Z
-status: unchanged
-run_id: 29083934771
+last_scan: 2026-07-12T08:26:18Z
+status: changed
+run_id: manual-research-session-2026-07-12
 ```
 
-**Summary:** No new entries — v3.10 (June 30, Team MCPs/org-marketplace scoping, unified Customize page for plugins/skills/MCPs/subagents/rules/commands, `/automate` skill, `/in-cloud` subagents) remains the newest entry. Cursor-client-only, not agentskills.io-relevant; skills#235 remains sufficient.
+**Summary:** v3.11 (July 10) — Side Chats (`/side`, `/btw`), Conversation Search (Cmd+K transcript search), redesigned Project/Repo pickers, and **Cloud Agent Hooks** — new hook types (`beforeSubmitPrompt`, `afterAgentResponse`, `afterAgentThought`, `stop`, `subagentStart`) layered on Cursor's existing stable `hooks.json` system (user `~/.cursor/hooks.json`, project `.cursor/hooks.json`, team/enterprise cloud-distributed). Full hook catalog per `cursor.com/docs/hooks`: lifecycle (`sessionStart`/`sessionEnd`), tool ops (`preToolUse`/`postToolUse`/`postToolUseFailure`), subagent mgmt (`subagentStart`/`subagentStop`), shell/MCP (`beforeShellExecution`/`afterShellExecution`/`beforeMCPExecution`/`afterMCPExecution`), file ops (`beforeReadFile`/`afterFileEdit`), prompt/context (`beforeSubmitPrompt`/`preCompact`), agent output (`afterAgentResponse`/`afterAgentThought`/`stop`) — stdin/stdout JSON contract, exit code 2 = deny. Documented as stable, production feature with partner integrations. iEvo's `hooks-setup/SKILL.md` documents Claude Code hooks (v2.1.152+) and Codex hooks (skills#155) but has ZERO Cursor coverage despite AGENTS.md's universal-positioning claim — triggered **F-2026-07-12-001**.
 
 History:
+- 2026-07-12T08:26:18Z — changed: v3.11 (July 10) — Side Chats, Conversation Search, Project/Repo pickers, Cloud Agent Hooks (beforeSubmitPrompt/afterAgentResponse/afterAgentThought/stop/subagentStart on stable hooks.json system); hooks-setup/SKILL.md has no Cursor coverage — triggered F-2026-07-12-001
 - 2026-07-10T09:52:47Z — unchanged: v3.10 still newest (June 30); re-confirmed same feature set (Team MCPs, unified Customize page, /automate, /in-cloud); no new version
 - 2026-07-09T10:09:26Z — unchanged: v3.10 still newest (June 30); no new version
 - 2026-07-08T10:00:00Z — unchanged: same entries as July 7 (v3.10 newest, June 30); no new version
@@ -351,14 +358,15 @@ History:
 ## https://news.ycombinator.com
 
 ```yaml
-last_scan: 2026-07-10T09:52:47Z
+last_scan: 2026-07-12T08:26:18Z
 status: changed
-run_id: 29083934771
+run_id: manual-research-session-2026-07-12
 ```
 
-**Summary:** Front page dominated by general releases, none agent-skill-format actionable: "GPT-5.6" (1,270 pts, general model announcement, not agent-specific), "Postgres rewritten in Rust" (660 pts, unrelated to AI agents), "Interview with Mitchell Hashimoto about Ghostty and Zig" (248 pts), "Muse Spark 1.1" (model release), EU Chat Control policy discussion. No Claude Code/Codex/MCP/agent-skills-specific posts today. None crossed the evidence bar for a finding.
+**Summary:** Front page general-tech, none agent-skill-format actionable: "Show HN: Mindwalk — replay coding-agent sessions on a 3D map of your codebase" (19 pts, novel but a standalone visualization tool, not a skill-format/hook/MCP signal), "Mesh LLM: distributed AI computing on iroh" (233 pts), "An agent in 100 lines of Lisp" (132 pts, educational, not a capability gap), "Prefer strict tables in SQLite" (278 pts), various non-agent stories. No Claude Code/Codex/Cursor/MCP-specific posts today. None crossed the evidence bar for a finding.
 
 History:
+- 2026-07-12T08:26:18Z — changed: Mindwalk agent-session-replay tool (19 pts) + Mesh LLM (233 pts) + Lisp-agent-in-100-lines (132 pts) + SQLite strict tables (278 pts); none agent-skill-format actionable
 - 2026-07-10T09:52:47Z — changed: GPT-5.6 (1,270 pts) + Postgres-in-Rust (660 pts) + Ghostty/Zig interview (248 pts) + Muse Spark 1.1 + EU Chat Control discussion; none agent-skill-format actionable
 - 2026-07-09T10:09:26Z — changed: coding-agent-eval-methodology posts (OpenAI "signal from noise" 217 pts, Databricks benchmarking 88 pts) + Microsoft Flint agent-visualization tool (285 pts) + GPT-Live (707 pts) + TypeScript 7 (624 pts); none actionable for the skills repo
 - 2026-07-08T10:00:00Z — changed: "GitLost" GitHub-AI-agent private-repo-leak writeup (123 pts) — untrusted issue body -> agent tool call -> public exfiltration; directly informed a new security-hardening finding on security-auditor.md's report_template excerpt-quoting (see findings-backlog.md); "Show HN: Rowboat" (155 pts) not actionable
@@ -381,14 +389,15 @@ History:
 ## https://github.com/DenisSergeevitch/agents-best-practices
 
 ```yaml
-last_scan: 2026-07-10T09:52:47Z
+last_scan: 2026-07-12T08:26:18Z
 status: unchanged
-run_id: 29083934771
+run_id: manual-research-session-2026-07-12
 ```
 
-**Summary:** Direct `gh api` commit check this run (per the July 9 note's own recommendation): latest commit still `b612ddbc` (June 29 21:15:08Z, the `evals.md` split) — now 11 days without activity.
+**Summary:** Direct `gh api` commit check: latest commit still `b612ddbc` (June 29 21:15:08Z, the `evals.md` split) — now 13 days without activity. Reference file list unchanged (17 files, same set as last scan).
 
 History:
+- 2026-07-12T08:26:18Z — unchanged: direct `gh api` commit + reference-file-list check — latest commit still `b612ddbc`; 13 days without activity; 17 reference files, same set
 - 2026-07-10T09:52:47Z — unchanged: direct `gh api repos/.../commits` check — latest commit still `b612ddbc` (June 29 21:15:08Z); 11 days without activity
 - 2026-07-09T10:09:26Z — unchanged (shallow check only): WebFetch of repo root didn't surface commit timestamps; no visible new reference files in the overview; recommend `gh api repos/DenisSergeevitch/agents-best-practices/commits` next run instead of the webpage
 - 2026-07-08T10:00:00Z — unchanged: gh api confirms latest commit still 2026-06-29T21:15:08Z (sha b612ddbc); 9 days without activity
@@ -416,14 +425,15 @@ History:
 ## https://code.claude.com/docs/en/skills.md
 
 ```yaml
-last_scan: 2026-07-10T09:52:47Z
+last_scan: 2026-07-12T08:26:18Z
 status: unchanged
-run_id: 29083934771
+run_id: manual-research-session-2026-07-12
 ```
 
 **Summary:** Re-fetched in full. Same 16-field frontmatter table (name, description, when_to_use, argument-hint, arguments, disable-model-invocation, user-invocable, allowed-tools, disallowed-tools, model, effort, context, agent, hooks, paths, shell). No new fields.
 
 History:
+- 2026-07-12T08:26:18Z — unchanged: full re-fetch, same 16-field table re-confirmed field-by-field; no new fields
 - 2026-07-10T09:52:47Z — unchanged: full re-fetch, same 16-field table re-confirmed field-by-field; no new fields
 - 2026-07-09T10:09:26Z — unchanged: same 16-field table re-confirmed; noted docs now explicitly state commands/skills are unified (`.claude/commands/*.md` == `.claude/skills/*/SKILL.md`), confirms iEvo's existing `plugins/ievo/commands/` files are already skill-equivalent — no action needed
 - 2026-07-07T10:00:00Z — unchanged: same 16-field table re-confirmed via fresh fetch; no new fields
@@ -444,14 +454,15 @@ History:
 ## https://code.claude.com/docs/en/routines.md
 
 ```yaml
-last_scan: 2026-07-04T08:49:33Z
-status: changed
-run_id: 28700876614
+last_scan: 2026-07-12T08:26:18Z
+status: unchanged
+run_id: manual-research-session-2026-07-12
 ```
 
 **Summary:** Substantially expanded since the July 1 read. Routines are explicitly "research preview" now. CLI surface: creation is **conversational `/schedule`** (in-session slash command, optionally with a natural-language description); management via `/schedule list` / `/schedule update` / `/schedule run`. The docs describe **no `claude schedule create` shell subcommand** — but iEvo's `schedule/SKILL.md` Step 6 instructs exactly that (`claude schedule create --name ... --schedule ... --prompt-file ...`) and Step 1 probes availability with `claude schedule list`; likely broken primary path → **triggered F-2026-07-04-001**. Other new/clarified surface: one-off runs (`/schedule tomorrow at 9am, ...`, auto-disable after firing, exempt from daily routine cap); custom cron via `/schedule update` with a **1-hour minimum interval**; connectors (claude.ai MCP integrations) included by default per routine; cloud environments with Trusted-network default allowlist; GitHub trigger PR filters (author/title/body/branches/labels/draft/merged with regex-matches-whole-value semantics); API `/fire` endpoint gated behind `experimental-cc-routine-2026-04-01` beta header; `claude/`-prefixed branch push restriction by default; Team/Enterprise org-level Routines disable toggle. Plan gating unchanged (Pro/Max/Team/Enterprise + Claude Code on the web enabled; API-key auth still unsupported — now documented in a troubleshooting section listing telemetry env vars that also hide `/schedule`).
 
 History:
+- 2026-07-12T08:26:18Z — unchanged: full re-read against the July 4 baseline (schedule list/update/run, one-off runs, 1h cron minimum, connectors/environments, GitHub trigger filters, /fire beta header) — no new or changed content
 - 2026-07-04T08:49:33Z — changed: major doc expansion — /schedule list/update/run subcommands, one-off runs, 1h cron minimum, connectors/environments, GitHub trigger filters, /fire beta header; no `claude schedule create` CLI documented → schedule/SKILL.md drift, triggered F-2026-07-04-001
 - 2026-07-01T00:00:00Z — unchanged: full re-read, same trigger types and API shape as first-scan; F-2026-05-25-002/skills#84 remains sufficient
 - 2026-06-01T08:08:22Z — unchanged: spec stable; no new triggers or API changes
@@ -488,14 +499,15 @@ History:
 ## https://code.claude.com/docs/en/sub-agents
 
 ```yaml
-last_scan: 2026-07-10T09:52:47Z
+last_scan: 2026-07-12T08:26:18Z
 status: unchanged
-run_id: 29083934771
+run_id: manual-research-session-2026-07-12
 ```
 
 **Summary:** Same field table re-confirmed (name, description, tools, disallowedTools, model, permissionMode, maxTurns, skills, mcpServers, hooks, memory, background, effort, isolation, color, initialPrompt — 16 fields). `permissionMode`/`mcpServers`/`hooks` still explicitly "Ignored for plugin subagents"; `skills:` preload section still carries no such caveat. No new fields.
 
 History:
+- 2026-07-12T08:26:18Z — unchanged: full re-fetch, same 16-field table re-confirmed field-by-field; no new fields
 - 2026-07-10T09:52:47Z — unchanged: full re-fetch, same 16-field table re-confirmed field-by-field; no new fields
 - 2026-07-09T10:09:26Z — unchanged: full re-read, same field table and `skills:`/`disallowedTools` semantics as July 6; no new fields
 - 2026-07-06T10:51:10Z — changed: closely read the `skills:` field row + explainer section — no "ignored for plugin subagents" caveat present (unlike permissionMode/mcpServers/hooks); resolves the July 4 deferred open question; triggered F-2026-07-06-001
