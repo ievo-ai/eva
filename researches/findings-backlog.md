@@ -1547,3 +1547,132 @@ location: plugins/ievo/scripts/scan_repo.mjs:72-86 (isDir/fileExists), used thro
 Confirmed by direct re-read: `isDir`/`fileExists` both call `statSync`, and `lstatSync` is never imported or called anywhere in the current file (grepped the full source — zero occurrences). Every enumeration function (`enumerateOnePlugin`, `enumerateStandaloneAgents`, `enumerateStandaloneSkills`, `enumerateStandaloneCommands`) relies on these two helpers before reading directory/file content, with no symlink guard anywhere in the read path. Distinct from the already-fixed S-2026-07-07-001/#339 (CWE-22 traversal in the `<owner>/<repo>` *argument*, fixed via `OWNER_REPO_RE`+`assertContained` in `checkoutOrRefresh`) — that fix constrains the argument string only; it does not guard symlinks placed inside the cloned repo's own tree, which this finding covers. Full exploit chain, preconditions, and recommendation: see issue body.
 
 ---
+
+## F-2026-07-12-001 — Document Cursor Cloud Agent Hooks in hooks-setup/SKILL.md
+
+```yaml
+id: F-2026-07-12-001
+discovered_at: 2026-07-12T08:31:16Z
+run_id: manual-research-session-2026-07-12
+target_repo: ievo-ai/skills
+title: Add Cursor hooks.json coverage to hooks-setup/SKILL.md alongside existing Claude Code and Codex hook documentation
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/367
+effort: low
+scope: single-file
+evidence:
+  - https://www.cursor.com/changelog: v3.11 (2026-07-10) — "Cloud Agent Hooks" — new hook types (beforeSubmitPrompt, afterAgentResponse, afterAgentThought, stop, subagentStart) layered on Cursor's stable hooks.json system
+  - https://cursor.com/docs/hooks: full hook catalog (lifecycle, tool ops, subagent mgmt, shell/MCP, file ops, prompt/context, agent output) with a stdin/stdout JSON contract; documented as a stable, production feature with partner integrations (security/governance/secrets vendors), configured via `~/.cursor/hooks.json` (user), `<project>/.cursor/hooks.json` (project), or cloud-distributed (team/enterprise)
+  - /tmp/skills/plugins/ievo/skills/hooks-setup/SKILL.md: only mention of a non-Claude-Code platform anywhere in the file is "Codex hook schema may differ" in the `compatibility` frontmatter field — zero Cursor coverage, confirmed via full grep of the file
+```
+
+`hooks-setup/SKILL.md` is iEvo's single authoritative guide for configuring lifecycle hooks, and AGENTS.md states iEvo is explicitly "Not a Claude Code-only plugin" — skills work across Claude Code, Cursor, Codex, and 30+ platforms per the agentskills.io standard. The skill already documents Claude Code hooks (PostToolUse, Stop, SessionStart, MessageDisplay, Notification) in depth, and Codex hook types were added in F-2026-05-28-001/skills#155 (SubagentStart, SubagentStop, TurnStartedEvent) — but Cursor is never mentioned beyond a single disclaimer that "Codex hook schema may differ" in the `compatibility` field, which doesn't even reference Cursor.
+
+Cursor's hooks system (documented at cursor.com/docs/hooks, referenced from the v3.11 changelog) is not a preview feature — it's presented as stable and production-ready, with a project-scoped config file (`<project>/.cursor/hooks.json`) that parallels Claude Code's `.claude/settings.json` hooks and Codex's hook config exactly. The July 10 release specifically added agent-conversation-level hooks (`beforeSubmitPrompt`, `afterAgentResponse`, `afterAgentThought`, `stop`, `subagentStart`) that are conceptually equivalent to the Claude Code Stop/Notification hooks this skill already wires up for iEvo pipeline-completion notifications (init complete, security RED verdict, evolution captured).
+
+A Cursor user following iEvo's hooks-setup skill today gets zero guidance — the skill's entire body assumes Claude Code's settings.json hook schema. This is a genuine capability gap for a plugin that positions itself as universal.
+
+## Proposed solution
+
+Add a third "Cursor hooks" section to `hooks-setup/SKILL.md`, parallel to the existing Claude Code and Codex sections, documenting:
+- Config file location: `<project>/.cursor/hooks.json` (project-scoped, matches this skill's existing project-vs-global framing for Claude Code)
+- The relevant hook types for iEvo's notification use case: `stop` (session/turn completion, closest analog to Claude Code's `Stop` hook already used for background-agents-complete notification) and `afterAgentResponse` (closest analog to the `PostToolUse` signal-file pattern this skill already uses)
+- The stdin/stdout JSON contract and exit-code semantics (0 = success, 2 = deny)
+- A worked example mirroring the existing Claude Code Step 2 notification setup, adapted to Cursor's schema
+
+Update the `compatibility` frontmatter field to mention Cursor hooks.json explicitly instead of only Codex.
+
+## Files affected
+
+| File | Change | Notes |
+|------|--------|-------|
+| plugins/ievo/skills/hooks-setup/SKILL.md | modified | add "Cursor hooks" section + update compatibility field |
+
+## API / UX surface
+
+No new commands — this is documentation-only, extending the existing `/ievo:hooks-setup` skill's coverage to a third platform.
+
+## Acceptance criteria
+
+- [ ] `hooks-setup/SKILL.md` documents Cursor's `hooks.json` config location and format
+- [ ] At least the `stop` and `afterAgentResponse` (or closest equivalent) hook types are documented with an iEvo-relevant example
+- [ ] `compatibility` frontmatter mentions Cursor explicitly (not just "Codex hook schema may differ")
+- [ ] Passes `validate_skills.mjs`
+
+## Effort estimate
+
+- Scope: single-file
+- Effort: low (~30 min) — pure documentation addition, no scripts, no test-coverage obligation, follows the exact precedent already set by the Codex hooks addition (skills#155)
+- Risk: low
+
+## Open questions for the operator
+
+- Should the Cursor section also document the broader hook catalog (preToolUse/postToolUse, file ops, MCP hooks) or stay scoped to the notification use case this skill exists for? Recommend starting scoped (matching the skill's stated purpose) and expanding only if a concrete iEvo-on-Cursor use case emerges.
+
+## Related
+
+- **Eva research run:** manual research session, 2026-07-12 (no numbered GitHub Actions run — executed interactively)
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: F-2026-07-12-001`
+- **Companion proposals:** `ievo-ai/skills#155` (Codex hook types — same precedent/pattern, already merged)
+
+---
+Filed by Eva research run (manual session, 2026-07-12) against `ievo-ai/eva` (research repo). Triage with `accepted` / `rejected` / `needs-discussion` labels.
+
+---
+
+## S-2026-07-12-001 — .github/scripts/validators/*.mjs symlink-following on PR-diff files (all 6 validators)
+
+```yaml
+id: S-2026-07-12-001
+discovered_at: 2026-07-12T08:40:00Z
+run_id: manual-research-session-2026-07-12
+target_repo: ievo-ai/skills
+title: All 6 pre-commit validators use readFileSync (follows symlinks) with no lstatSync/O_NOFOLLOW guard, letting a fork PR's committed symlink make CI read arbitrary runner-readable files with content-dependent partial disclosure into public logs
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/364
+cwe: CWE-61
+confidence: medium
+location: .github/scripts/validators/nested-fences.mjs:82, crlf-frontmatter.mjs:97, machine-local-paths.mjs:81, placeholder-leakage.mjs:72, utf8-validate.mjs:63, yaml-frontmatter.mjs:170
+```
+
+Confirmed by direct re-read: all 6 validators call bare `readFileSync(path, ...)` (grepped every file — exact line numbers above), and `lstatSync`/`O_NOFOLLOW` appear nowhere in any of the 6 files. `pre-commit-gate.yml` runs `pre-commit run --all-files` against a fork PR's checked-out HEAD; `actions/checkout` materializes committed git symlinks as real OS symlinks. `.pre-commit-config.yaml`'s `files:` regexes (`.md|.mjs|.js|.ts|.py|.sh|.yaml|.yml|.json|.txt` for most validators) are broad enough that an attacker-named symlink in a fork PR reaches at least one validator. Demonstrated primitive: `machine-local-paths.mjs`'s pattern matches `/home/<user>` entries from a symlinked `/etc/passwd`, echoing the match to CI logs (which are public on this public repo for `pull_request`-triggered workflows). Beyond that concrete leak, existence/error-message differences across the 6 validators function as a broader file-existence oracle. Full exploit chain, preconditions, and recommendation: see issue body.
+
+---
+
+## S-2026-07-12-002 — scan_repo.mjs renderIndexMd interpolates attacker-controlled frontmatter/manifest values unescaped into generated Markdown tables
+
+```yaml
+id: S-2026-07-12-002
+discovered_at: 2026-07-12T08:40:00Z
+run_id: manual-research-session-2026-07-12
+target_repo: ievo-ai/skills
+title: renderIndexMd builds Markdown pipe-tables via naive string interpolation with no escaping of `|`/backticks — table-structure injection and prompt-injection vector against downstream human/LLM consumers of the published community index
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/365
+cwe: CWE-116
+confidence: high
+location: plugins/ievo/scripts/scan_repo.mjs renderIndexMd — p.version/p.author/p.license (~line 480), a.model/a.tools in Agents table (~line 490), s.license in Skills table (~line 500), h.matcher in Hooks table (~line 522), m.name in MCP table (~line 530), plus standalone-agents/standalone-skills table variants
+```
+
+Confirmed by direct re-read of `renderIndexMd`: `${p.version}`, `${p.author}`, `${p.license}`, `${a.model}`, `${a.tools}`, `${h.matcher}`, `${m.name}` are all interpolated raw into Markdown table cells with zero escaping of `|` or backticks — none of these fields pass through `truncate()` or any other sanitizer before interpolation. A frontmatter/manifest value containing `|` breaks out of its table cell and can inject fabricated rows/columns; a `description` field (also unescaped beyond truncation) can carry natural-language prompt-injection text aimed at the downstream `security-auditor` LLM that reads this generated index as install-review input. Full exploit chain, preconditions, and recommendation: see issue body. This finding was explicitly flagged as a filing priority in the 2026-07-10 audit's "Notes for next run" (confidence upgraded medium→high that run); this scan reconfirms high confidence with exact interpolation sites.
+
+---
+
+## S-2026-07-12-003 — agents/evolution.md Step 2 interpolates unvalidated owner/repo/path into a gh api Bash call during plugin vendoring
+
+```yaml
+id: S-2026-07-12-003
+discovered_at: 2026-07-12T08:40:00Z
+run_id: manual-research-session-2026-07-12
+target_repo: ievo-ai/skills
+title: evolution.md Step 2's vendor-fetch instruction (`gh api repos/<owner>/<repo>/contents/<path>`) has no owner/repo/path validation before Bash interpolation — same command-injection class already fixed in security-check/SKILL.md, inspect/SKILL.md, and evo/SKILL.md, at an uncovered call site with zero disallowedTools backstop
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/366
+cwe: CWE-78
+confidence: medium
+location: plugins/ievo/agents/evolution.md Step 2 ("Ensure target file exists locally (vendor if needed)")
+```
+
+Confirmed by direct re-read: Step 2 reads verbatim "For agent: `gh api repos/<owner>/<repo>/contents/<path>` → `.claude/agents/<name>.md`" with no preceding validation instruction anywhere in the step, and `disallowedTools` does not appear anywhere in `evolution.md` (grepped the full file — zero matches), unlike `deep-reviewer.md`/`security-auditor.md`/`vuln-scanner.md` which all self-enforce a denylist. `owner`/`repo`/`path` here trace back to the plugin's own declared source coordinates (attacker-controlled if the plugin is malicious) — git tree/blob paths are not charset-restricted, so a crafted path containing shell metacharacters would execute as a shell command once interpolated. This is the exact vulnerability class already fixed via clone+Read/Glob in `security-check/SKILL.md` (#347), `inspect/SKILL.md` (#348), and `evo/SKILL.md` (#355) — `evolution.md`'s own vendor-fetch step was missed by that fix pass. Distinct from the already-filed S-2026-07-09-003/#357 (evolution.md's separate gap: no `security-auditor` re-audit gate on vendored content, CWE-829) — this finding is about the fetch mechanism itself being command-injectable, not about missing re-audit. Full exploit chain, preconditions, and recommendation: see issue body.
+
+---
