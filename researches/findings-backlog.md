@@ -1891,3 +1891,60 @@ Add an explicit size guard immediately before each `readFileSync` call in `scan_
 Filed by Eva research run 29239669529 via `/ievo:vuln-scan` dogfooding (eva#165). Triage with `accepted` / `rejected` / `needs-discussion` labels.
 
 ---
+
+## S-2026-07-14-001 — scan_repo.mjs's escapeMdCell doesn't neutralize Markdown link/image syntax
+
+```yaml
+id: S-2026-07-14-001
+discovered_at: 2026-07-14T00:00:00Z
+run_id: 29317337749
+target_repo: ievo-ai/skills
+title: escapeMdCell() strips pipe/backtick/control-chars but never [ ] ( ! — a crafted description field renders a live Markdown image/link (beaconing + phishing) in the public community index
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/377
+cwe: CWE-116
+confidence: high
+location: plugins/ievo/scripts/scan_repo.mjs:201-210 (escapeMdCell)
+```
+
+Self-identified gap from the v0.51.1 CHANGELOG entry (which added `escapeMdCell` to close #365): "doesn't neutralize Markdown image/link syntax... left out of scope for this PR, flagged here for a follow-up." Re-confirmed present in current v1.1.2 source and directly proven by the project's own passing test (`tests/scan_repo.test.mjs:129`), which asserts `escapeMdCell("sonnet | [approve](javascript:x) | fake-row")` passes the link syntax through unchanged. A crafted `description:`/`name:` field in a scanned repo's `plugin.json`/`SKILL.md`/agent-`.md` can therefore smuggle a live-rendering `![beacon](url)` image (viewer-fingerprinting beacon) or `[trusted-looking text](evil-url)` link (visual spoofing against human reviewers) into the generated public community-index Markdown. See full exploit chain, preconditions, and recommendation in the filed issue.
+
+---
+
+## S-2026-07-14-002 — validate_agents.mjs / validate_skills.mjs echo unsanitized frontmatter values into CI logs (ANSI/control-sequence injection)
+
+```yaml
+id: S-2026-07-14-002
+discovered_at: 2026-07-14T00:00:00Z
+run_id: 29317337749
+target_repo: ievo-ai/skills
+title: parseFrontmatter() strips quotes but not control characters — a crafted model/effort/name frontmatter value can inject ANSI escape sequences into pre-commit/CI log output
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/378
+cwe: CWE-150
+confidence: medium
+location: plugins/ievo/scripts/validate_agents.mjs:53-112 and plugins/ievo/scripts/validate_skills.mjs:71-127
+```
+
+Deferred and independently re-confirmed across 5+ consecutive prior security passes (2026-07-08 through 07-13) without being filed — promoted this run. Both validators' `parseFrontmatter()` only strips surrounding quotes from a field value; no control-character sanitization exists (unlike `scan_repo.mjs`'s `escapeMdCell`, which explicitly strips `\x00-\x1f`/`\x7f`). `checkModelField()`/`checkEffortField()` (and `validate_skills.mjs`'s `name` check) interpolate the raw value directly into a violation message that `main()` prints verbatim to stdout — captured by both local `pre-commit run` and the always-on `pre-commit-gate.yml` CI gate. See full exploit chain and recommendation in the filed issue.
+
+---
+
+## S-2026-07-14-003 — cut-release.yml / notify-release.yml merge-triggered version parsing skips the semver validation the workflow_dispatch path has
+
+```yaml
+id: S-2026-07-14-003
+discovered_at: 2026-07-14T00:00:00Z
+run_id: 29317337749
+target_repo: ievo-ai/skills
+title: Merge-triggered version-parsing branch lacks semver validation + uses non-delimited $GITHUB_OUTPUT write — a crafted multi-line plugin.json version can inject extra output keys and spoof the public release title / Telegram announcement
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/379
+cwe: CWE-20
+confidence: medium
+location: .github/workflows/cut-release.yml:80-95 and .github/workflows/notify-release.yml:36-50
+```
+
+Deferred (at lower confidence) across multiple prior security passes since 2026-07-09/10 without being filed — this run built out a concrete exploit chain and promoted it to medium confidence. `cut-release.yml`'s `workflow_dispatch` branch validates its version input against `^[0-9]+\.[0-9]+\.[0-9]+$` before use; the merge-triggered `else` branch (and `notify-release.yml`'s only branch) has no equivalent check and writes the parsed value via a single-line, non-delimited `echo "new=$new" >> "$GITHUB_OUTPUT"`. A `plugin.json` version containing an embedded newline (valid JSON) can inject extra `$GITHUB_OUTPUT` keys and propagate an arbitrary, non-semver string into the public GitHub Release title and the community Telegram announcement dispatched by `notify-release.yml`. See full exploit chain and recommendation in the filed issue.
+
+---
