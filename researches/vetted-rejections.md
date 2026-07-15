@@ -55,3 +55,17 @@ URL that shows the premise doesn't hold>.
   NEW evidence in the re-discovery; don't silently overturn the record.
 
 <!-- Rejections go below this line, newest last. -->
+
+## R-2026-07-15-001 — scan_repo.mjs / security-auditor.md lack bundled-binary/executable detection in candidate repos
+
+```yaml
+id: R-2026-07-15-001
+rejected_at: 2026-07-15T00:00:00Z
+run_id: manual-research-session-2026-07-15
+source_step: feature-gap
+category: direction
+title: Add bundled-executable/binary detection to scan_repo.mjs and security-auditor.md so a candidate repo smuggling a compiled binary isn't silently missed by text-based content review
+```
+
+Premise (from HN "Cursor 0day: When Full Disclosure Becomes the Only Protection Left", https://mindgard.ai/blog/cursor-0day-when-full-disclosure-becomes-the-only-protection-left, 348 pts): Cursor IDE auto-executes a malicious `git.exe` planted at a workspace root with zero user interaction (CWE-426/427). By analogy, a candidate repo audited by iEvo could smuggle a compiled binary that `security-auditor`'s text-based LLM review can't meaningfully inspect, then have it executed downstream. Disproved by direct re-read of `/tmp/skills/plugins/ievo/skills/init/SKILL.md:58`: iEvo's install step explicitly copies files via the **Write tool** ("project-scope..., **copy** files via Write tool (NOT symlink...)"), not filesystem `cp`/`git clone` of the raw candidate into the install target. The Write tool requires the model to emit text content — it structurally cannot faithfully reproduce arbitrary binary bytes, so a smuggled compiled executable cannot survive from the scanned candidate repo into the installed `.claude/agents/`/`.claude/skills/` location this way. Distinct from Cursor's bug: Cursor auto-*discovers and executes* a binary already present in an opened workspace as part of its own Git integration; iEvo has no equivalent "search candidate repo for an executable and run it" step anywhere in the pipeline (`scan_repo.mjs` only reads text/frontmatter; `security-auditor` only reads and reports). No matching exploit chain exists in the current codebase — premise does not hold.
+
