@@ -63,9 +63,14 @@
 #     judgment call here to guard against; capping just paces recovery across
 #     runs if an unusually large batch is found).
 #   - Live dispatch is double-gated (mirrors eva-queue.yml): NOT dry_run AND
-#     `vars.EVA_CONFLICT_SCAN_ENABLED`. Manual workflow_dispatch defaults
-#     dry_run=true for a safe first look; the schedule stays report-only
-#     until the operator flips the var after reviewing a manual run.
+#     `vars.EVA_CONFLICT_SCAN_ENABLED`. Both conditions gate EVERY trigger,
+#     manual or scheduled alike — the var is not a schedule-only switch.
+#     Merged dormant (var unset): the operator flips it to `true` to arm BOTH
+#     the next cron tick and any future manual dry_run=false dispatch,
+#     optionally running one such dispatch right away as a smoke test.
+#   - A close whose automatic re-queue can't be confirmed (issue missing/not
+#     open, or the `approved` re-label itself fails) falls back to
+#     `needs-operator` rather than silently reporting success.
 #   - All writes via the App token (`ievo-eva[bot]` attribution/auditability).
 
 name: "Eva: Conflict Scan"
@@ -117,7 +122,7 @@ jobs:
           #                         correctly falls through to close+re-approve)
           #   issues:write        — label create/edit + issue comments
           #                         (re-add `approved`, `needs-operator`)
-          #   pull-requests:write — `gh pr close` / `gh pr comment`
+          #   pull-requests:write — `gh pr close` / `gh pr edit` / `gh pr comment`
           #   metadata:read       — baseline `gh api` reads
           permission-contents: write
           permission-workflows: write
@@ -168,10 +173,12 @@ jobs:
           set -uo pipefail  # not -e: a single PR/repo failure must not abort the whole sweep
 
           # Double-gate (mirrors eva-queue.yml): live only when NOT dry_run
-          # AND the operator has flipped the var on. A scheduled run has no
-          # dry_run input (DRY_RUN='' -> falls to 'false' via the || above),
-          # so the schedule is gated purely by SCAN_ENABLED until the
-          # operator opts in after inspecting a manual dry_run=false test.
+          # AND the operator has flipped SCAN_ENABLED on — this gates EVERY
+          # trigger alike, so a manual dry_run=false dispatch is ALSO
+          # report-only until the var is set to true first. A scheduled run
+          # has no dry_run input (DRY_RUN='' -> falls to 'false' via the ||
+          # above), so once the var is on, both the cron and a manual
+          # dispatch go live identically.
           LIVE="false"
           if [ "$DRY_RUN" != "true" ] && [ "$SCAN_ENABLED" = "true" ]; then
             LIVE="true"
@@ -212,12 +219,15 @@ jobs:
             return 1
           }
 
-          TOTAL_FOUND=0; TOTAL_REBASED=0; TOTAL_REQUEUED=0; TOTAL_SKIPPED=0; ACTIONS=0
+          TOTAL_FOUND=0; TOTAL_REBASED=0; TOTAL_CLOSED_REQUEUED=0; TOTAL_CLOSED_NEEDS_OPERATOR=0; TOTAL_SKIPPED=0; ACTIONS=0
 
           for REPO in $WATCH_LIST; do
-            PRS=$(gh pr list --repo "$REPO" --state open --limit 100 \
+            if ! PRS=$(gh pr list --repo "$REPO" --state open --limit 100 \
               --json number,headRefName,author,mergeStateStatus,isDraft,closingIssuesReferences,url \
-              --jq '[.[] | select(.headRefName | startswith("eva-impl/"))]' 2>/dev/null || echo '[]')
+              --jq '[.[] | select(.headRefName | startswith("eva-impl/"))]' 2>/tmp/eva-cs-prlist.log); then
+              echo "  $REPO — gh pr list failed, skipping this repo this run:"; tail -5 /tmp/eva-cs-prlist.log
+              continue
+            fi
             COUNT=$(printf '%s' "$PRS" | jq 'length')
             [ "$COUNT" = "0" ] && continue
 
@@ -281,8 +291,15 @@ jobs:
                 gh label create needs-operator --repo "$REPO" \
                   --description "Pipeline blocked on the human operator to unblock" \
                   --color "e11d21" 2>/dev/null || true
-                echo "    closed (no linked issue found to re-queue)"
-                TOTAL_REQUEUED=$(( TOTAL_REQUEUED + 1 ))
+                # Labelled on the (now closed) PR itself — best-effort
+                # breadcrumb only. NOTE this does NOT surface in the
+                # operator's usual `gh search issues --label needs-operator`
+                # inbox sweep (that search excludes PRs by default), so a
+                # nonzero closed_needs_operator count in the digest below is
+                # the real signal to go check closed eva-impl/* PRs directly.
+                gh pr edit "$NUM" --repo "$REPO" --add-label needs-operator 2>/dev/null || true
+                echo "    closed (no linked issue found to re-queue) — flagged needs-operator on the PR"
+                TOTAL_CLOSED_NEEDS_OPERATOR=$(( TOTAL_CLOSED_NEEDS_OPERATOR + 1 ))
                 continue
               fi
 
@@ -290,28 +307,42 @@ jobs:
               gh pr close "$NUM" --repo "$REPO" --delete-branch --comment \
                 "Eva's conflict scan (eva#211): this PR is \`DIRTY\` — a clean rebase onto \`main\` was not possible (a real merge conflict, not just a stale base). No automation re-fires on a conflicting PR with no new push, so this would otherwise strand forever. Closing and re-queuing issue #$ISSUE_NUM (\`approved\`) for a fresh build off current \`main\`." || true
 
+              # Confirm the re-queue actually landed before counting it as
+              # such — an issue that's no longer OPEN, or a failed
+              # `--add-label approved` write (API hiccup, rate limit), must
+              # fall back to needs-operator rather than silently reporting
+              # success while the PR is already closed and gone.
+              REQUEUED=false
               if [ "$ISTATE" = "OPEN" ]; then
                 gh issue edit "$ISSUE_NUM" --repo "$REPO" --remove-label eva-implementing 2>/dev/null || true
-                gh issue edit "$ISSUE_NUM" --repo "$REPO" --add-label approved
-                gh issue comment "$ISSUE_NUM" --repo "$REPO" --body \
-                  "Eva's conflict scan (eva#211) closed stale PR $URL (\`DIRTY\`/merge-conflicting, stranded — no CI re-fires on a conflict with no new push) and re-added \`approved\` here for a fresh build off current \`main\`." || true
-                echo "    closed PR, re-approved issue #$ISSUE_NUM for a fresh build"
+                if gh issue edit "$ISSUE_NUM" --repo "$REPO" --add-label approved; then
+                  gh issue comment "$ISSUE_NUM" --repo "$REPO" --body \
+                    "Eva's conflict scan (eva#211) closed stale PR $URL (\`DIRTY\`/merge-conflicting, stranded — no CI re-fires on a conflict with no new push) and re-added \`approved\` here for a fresh build off current \`main\`." || true
+                  echo "    closed PR, re-approved issue #$ISSUE_NUM for a fresh build"
+                  REQUEUED=true
+                else
+                  echo "    closed PR, but re-adding 'approved' to issue #$ISSUE_NUM FAILED — falling back to needs-operator"
+                fi
+              fi
+
+              if [ "$REQUEUED" = "true" ]; then
+                TOTAL_CLOSED_REQUEUED=$(( TOTAL_CLOSED_REQUEUED + 1 ))
               else
                 gh label create needs-operator --repo "$REPO" \
                   --description "Pipeline blocked on the human operator to unblock" \
                   --color "e11d21" 2>/dev/null || true
                 gh issue edit "$ISSUE_NUM" --repo "$REPO" --add-label needs-operator 2>/dev/null || true
                 gh issue comment "$ISSUE_NUM" --repo "$REPO" --body \
-                  "Eva's conflict scan (eva#211) closed stale conflicting PR $URL, but this issue is already \`$ISTATE\` — not re-approving. Operator: check whether this work is still wanted." || true
-                echo "    closed PR, but linked issue #$ISSUE_NUM is $ISTATE — flagged needs-operator instead of re-approving"
+                  "Eva's conflict scan (eva#211) closed stale conflicting PR $URL but could not confirm the automatic re-queue (issue state=\`${ISTATE:-unknown}\`, or the \`approved\` re-label failed) — flagged \`needs-operator\`. Operator: check whether this work is still wanted." || true
+                echo "    closed PR, but could not confirm re-queue (issue state=${ISTATE:-unknown}) — flagged needs-operator"
+                TOTAL_CLOSED_NEEDS_OPERATOR=$(( TOTAL_CLOSED_NEEDS_OPERATOR + 1 ))
               fi
-              TOTAL_REQUEUED=$(( TOTAL_REQUEUED + 1 ))
             done
           done
 
           echo ""
-          echo "Conflict scan digest: found=$TOTAL_FOUND rebased=$TOTAL_REBASED requeued=$TOTAL_REQUEUED skipped=$TOTAL_SKIPPED (live=$LIVE, cap=$MAX_ACTIONS)"
+          echo "Conflict scan digest: found=$TOTAL_FOUND rebased=$TOTAL_REBASED closed_requeued=$TOTAL_CLOSED_REQUEUED closed_needs_operator=$TOTAL_CLOSED_NEEDS_OPERATOR skipped=$TOTAL_SKIPPED (live=$LIVE, cap=$MAX_ACTIONS)"
           if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
-            printf 'Conflict scan (eva#211): found=%s rebased=%s requeued=%s skipped=%s (live=%s)\n' \
-              "$TOTAL_FOUND" "$TOTAL_REBASED" "$TOTAL_REQUEUED" "$TOTAL_SKIPPED" "$LIVE" >> "$GITHUB_STEP_SUMMARY"
+            printf 'Conflict scan (eva#211): found=%s rebased=%s closed_requeued=%s closed_needs_operator=%s skipped=%s (live=%s)\n' \
+              "$TOTAL_FOUND" "$TOTAL_REBASED" "$TOTAL_CLOSED_REQUEUED" "$TOTAL_CLOSED_NEEDS_OPERATOR" "$TOTAL_SKIPPED" "$LIVE" >> "$GITHUB_STEP_SUMMARY"
           fi

@@ -172,7 +172,7 @@ the issue it closes for a fresh build. Bounded by
 |----------|--------|-------------|
 | `USE_GITHUB_APP` | `true` / `false` | Switch between GitHub App and PAT auth |
 | `EVA_CI_WATCHDOG_ENABLED` | `true` / `false` | Safety valve for `eva-ci-failure.yml` (eva#159) — merged dormant, the operator flips it after the acceptance smoke tests |
-| `EVA_CONFLICT_SCAN_ENABLED` | `true` / `false` | Safety valve for `eva-conflict-scan.yml`'s scheduled runs (eva#211) — merged dormant, flip after a manual `dry_run=false` test |
+| `EVA_CONFLICT_SCAN_ENABLED` | `true` / `false` | Safety valve for `eva-conflict-scan.yml` (eva#211) — gates BOTH the cron and a manual `dry_run=false` dispatch; merged dormant, flip to `true` to arm live runs (optionally smoke-test with one manual dispatch right after) |
 | `EVA_CONFLICT_SCAN_MAX_ACTIONS` | integer (default `7`) | Per-run cap on rebase/close actions in `eva-conflict-scan.yml` |
 
 #### Agent model + effort (per-flow, eva#161)
