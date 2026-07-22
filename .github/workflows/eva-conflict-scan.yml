@@ -1,0 +1,348 @@
+# Eva — Conflict Scan for eva-impl/* PRs (eva#211).
+#
+# THE GAP: once a PR's `mergeStateStatus` becomes `DIRTY` (a real merge
+# conflict — the merge commit cannot be cleanly created), GitHub does NOT
+# re-run `pull_request`-triggered workflows against it without a new push.
+# `eva-review-pr.yml` only fires on `workflow_run` (Tests completing),
+# `pull_request: ready_for_review`, or a `review-pr` dispatch — none of which
+# fire on a PR sitting DIRTY with no new push. `eva-fix-pr.yml` doesn't help
+# either: it is dispatched only by eva-review-pr posting REQUEST_CHANGES, i.e.
+# it fixes review findings, not merge conflicts, and eva-review-pr never even
+# runs on a DIRTY PR to post that REQUEST_CHANGES. Net effect: a conflicting
+# `eva-impl/*` PR can strand forever, invisible to every existing loop — the
+# issue it closes never gets `approved` restored either (eva-implement
+# releases `eva-implementing` on PR-open, eva#196/#198/#202), so
+# `eva-queue.yml`'s sweep (which requires `approved`) doesn't touch it.
+#
+# Live example: ievo-ai/skills#356 -> PR ievo-ai/skills#359 went DIRTY ~30s
+# after opening (touched marketplace.json/CHANGELOG.md/plugin.json — files
+# nearly every merged skills PR bumps) and sat for 6 days while main advanced
+# 19 commits. No workflow flagged it; the operator found it by chance and had
+# to manually close #359 + re-add `approved` to #356.
+#
+# THE FIX (this workflow) — deterministic, no LLM agent: unlike
+# eva-backlog-retriage's stale-issue judgment (which needs an LLM to
+# re-verify a natural-language premise), "is this conflict resolvable" is a
+# question git's own merge algorithm already answers mechanically. So for
+# every open `eva-impl/*` PR authored by `ievo-eva[bot]` whose
+# `mergeStateStatus` is `DIRTY`:
+#   (a) attempt a rebase onto the current `main` and force-push if git
+#       resolves it with ZERO manual conflicts. This is safe by construction
+#       — git only auto-resolves non-overlapping edits — and re-fires Tests
+#       (branch `synchronize`) -> eva-review-pr re-enters the review loop
+#       normally. No need to special-case "non-content" files: a real content
+#       conflict simply fails the rebase and falls to (b).
+#   (b) otherwise (a genuine conflict, or the clone/rebase/push failed) close
+#       the PR and re-add `approved` to the issue it closes, so eva-queue's
+#       sweep picks it up for a fresh build off current main — exactly what
+#       the operator did by hand for skills#356/#359.
+# Every action is posted as a comment explaining what happened and why (same
+# reversibility posture as eva-backlog-retriage.yml — a close here is never
+# silent, and the underlying work is never lost, only re-queued).
+#
+# Precedent for the shape: eva-backlog-retriage.yml (workflow_dispatch +
+# cron, deterministic `gh` queries, bounded/capped autonomous action, always
+# reversible) and eva-queue.yml (deterministic watch-list sweep, no LLM,
+# double-gated live rollout).
+#
+# Scope: ONLY `eva-impl/*` branches authored by `ievo-eva[bot]` — never a
+# human's PR, and never a PR outside Eva's own build convention (mirrors
+# eva-fix-pr.yml's condition 2b: humans fix/manage their own conflicts).
+#
+# Safety:
+#   - Rebase-and-push is safe by construction (git found zero conflicts) and
+#     re-enters the EXISTING review/merge chain unchanged — this workflow
+#     never merges anything itself.
+#   - Close+re-approve is exactly the operator's own precedent action, fully
+#     reversible (the underlying issue is simply re-queued for a fresh build;
+#     nothing is destroyed) and re-enters eva-queue's existing trust gate
+#     (eva#132) before any rebuild is dispatched.
+#   - Per-run action cap (`EVA_CONFLICT_SCAN_MAX_ACTIONS`, default 7) — a
+#     rate limiter/safety valve, not a judgment gate (unlike
+#     eva-backlog-retriage's mass-stale guard, there is no destructive
+#     judgment call here to guard against; capping just paces recovery across
+#     runs if an unusually large batch is found).
+#   - Live dispatch is double-gated (mirrors eva-queue.yml): NOT dry_run AND
+#     `vars.EVA_CONFLICT_SCAN_ENABLED`. Both conditions gate EVERY trigger,
+#     manual or scheduled alike — the var is not a schedule-only switch.
+#     Merged dormant (var unset): the operator flips it to `true` to arm BOTH
+#     the next cron tick and any future manual dry_run=false dispatch,
+#     optionally running one such dispatch right away as a smoke test.
+#   - A close whose automatic re-queue can't be confirmed (issue missing/not
+#     open, or the `approved` re-label itself fails) falls back to
+#     `needs-operator` rather than silently reporting success.
+#   - All writes via the App token (`ievo-eva[bot]` attribution/auditability).
+
+name: "Eva: Conflict Scan"
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Evaluate + report DIRTY eva-impl/* PRs but perform NO rebase/push/close/label writes"
+        type: boolean
+        default: true
+  schedule:
+    # Every 2 hours at :13 (offset from eva-scan 03:00, eva-research 06:00,
+    # eva-backlog-retriage Monday 05:00, eva-queue :07/:37 — avoids the
+    # top-of-hour pile-up GitHub deprioritizes). A conflict can strand within
+    # ~30s of a PR opening (the skills#359 precedent), so this cadence turns
+    # a multi-day silent stall into an at-most-2h one.
+    - cron: "13 */2 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eva-conflict-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    name: "Eva: scan eva-impl/* PRs for merge conflicts"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Generate App token
+        if: vars.USE_GITHUB_APP == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547  # v1.12.0
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ievo-ai
+          # Explicit list (eva#156 lesson — an App-token mint with ANY
+          # permission-* input carries ONLY the listed permissions, not the
+          # full installation set):
+          #   contents:write      — clone/rebase/force-push eva-impl/* branches
+          #   workflows:write     — rebase-push of a PR that touches
+          #                         .github/workflows/** (mirrors eva-fix-pr.yml;
+          #                         without it that push fails and the PR
+          #                         correctly falls through to close+re-approve)
+          #   issues:write        — label create/edit + issue comments
+          #                         (re-add `approved`, `needs-operator`)
+          #   pull-requests:write — `gh pr close` / `gh pr edit` / `gh pr comment`
+          #   metadata:read       — baseline `gh api` reads
+          permission-contents: write
+          permission-workflows: write
+          permission-issues: write
+          permission-pull-requests: write
+          permission-metadata: read
+
+      - name: Set auth token
+        id: auth
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          PAT_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+        run: |
+          if [ -n "$APP_TOKEN" ]; then
+            echo "token=$APP_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "Using App token — rebases/closes/labels attributed to ievo-eva[bot]"
+          else
+            echo "token=$PAT_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "Using PAT fallback (USE_GITHUB_APP != true)"
+          fi
+
+      - name: Configure git identity + credentials
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          git config --global user.name "iEVO Eva"
+          git config --global user.email "noreply@ievo.ai"
+          gh auth setup-git
+
+      - name: Scan + recover conflicting eva-impl/* PRs
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          # Same watch-list as eva-queue.yml (D-004 repos except godfather).
+          WATCH_LIST: >-
+            ievo-ai/eva
+            ievo-ai/cli
+            ievo-ai/marketplace
+            ievo-ai/curator
+            ievo-ai/sdk
+            ievo-ai/skills
+            ievo-ai/agents
+            ievo-ai/cortex
+            ievo-ai/ievo.ai
+          MAX_ACTIONS: ${{ vars.EVA_CONFLICT_SCAN_MAX_ACTIONS || '7' }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+          SCAN_ENABLED: ${{ vars.EVA_CONFLICT_SCAN_ENABLED }}
+        run: |
+          set -uo pipefail  # not -e: a single PR/repo failure must not abort the whole sweep
+
+          # Double-gate (mirrors eva-queue.yml): live only when NOT dry_run
+          # AND the operator has flipped SCAN_ENABLED on — this gates EVERY
+          # trigger alike, so a manual dry_run=false dispatch is ALSO
+          # report-only until the var is set to true first. A scheduled run
+          # has no dry_run input (DRY_RUN='' -> falls to 'false' via the ||
+          # above), so once the var is on, both the cron and a manual
+          # dispatch go live identically.
+          LIVE="false"
+          if [ "$DRY_RUN" != "true" ] && [ "$SCAN_ENABLED" = "true" ]; then
+            LIVE="true"
+          fi
+          echo "Mode: $([ "$LIVE" = "true" ] && echo 'LIVE' || echo 'DRY RUN (report only)') (max actions/run: $MAX_ACTIONS)"
+
+          # Attempt a clean rebase of $2 (head branch) in $1 (repo) onto the
+          # repo's current origin/main and force-push. Returns 0 only when
+          # git resolved the rebase with ZERO manual conflicts AND the push
+          # succeeded (guards a concurrent-push race via --force-with-lease).
+          # Any failure at any step is treated uniformly as "not a trivial
+          # conflict" by the caller — deliberately not fine-grained, since the
+          # only safe autonomous outcomes are "cleanly rebased" or "not
+          # touched here, defer to close+re-approve".
+          try_rebase_and_push() {
+            local repo="$1" head_ref="$2"
+            local workdir
+            workdir=$(mktemp -d)
+            if ! git clone --quiet "https://github.com/$repo.git" "$workdir" >/tmp/eva-cs-clone.log 2>&1; then
+              echo "      clone failed:"; tail -5 /tmp/eva-cs-clone.log
+              rm -rf "$workdir"; return 1
+            fi
+            if ! git -C "$workdir" checkout --quiet -B "$head_ref" "origin/$head_ref" >/tmp/eva-cs-checkout.log 2>&1; then
+              echo "      checkout of origin/$head_ref failed:"; tail -5 /tmp/eva-cs-checkout.log
+              rm -rf "$workdir"; return 1
+            fi
+            local base
+            base=$(git -C "$workdir" merge-base HEAD "origin/main")
+            if git -C "$workdir" rebase --quiet --onto "origin/main" "$base" HEAD >/tmp/eva-cs-rebase.log 2>&1 \
+               && git -C "$workdir" push --quiet --force-with-lease origin "HEAD:$head_ref" >/tmp/eva-cs-push.log 2>&1; then
+              rm -rf "$workdir"
+              return 0
+            fi
+            echo "      rebase/push did not complete cleanly (real conflict or race):"
+            tail -10 /tmp/eva-cs-rebase.log /tmp/eva-cs-push.log 2>/dev/null
+            git -C "$workdir" rebase --abort >/dev/null 2>&1 || true
+            rm -rf "$workdir"
+            return 1
+          }
+
+          TOTAL_FOUND=0; TOTAL_REBASED=0; TOTAL_CLOSED_REQUEUED=0; TOTAL_CLOSED_NEEDS_OPERATOR=0; TOTAL_SKIPPED=0; ACTIONS=0
+
+          for REPO in $WATCH_LIST; do
+            if ! PRS=$(gh pr list --repo "$REPO" --state open --limit 100 \
+              --json number,headRefName,author,mergeStateStatus,isDraft,closingIssuesReferences,url \
+              --jq '[.[] | select(.headRefName | startswith("eva-impl/"))]' 2>/tmp/eva-cs-prlist.log); then
+              echo "  $REPO — gh pr list failed, skipping this repo this run:"; tail -5 /tmp/eva-cs-prlist.log
+              continue
+            fi
+            COUNT=$(printf '%s' "$PRS" | jq 'length')
+            [ "$COUNT" = "0" ] && continue
+
+            for i in $(seq 0 $((COUNT - 1))); do
+              PR=$(printf '%s' "$PRS" | jq ".[$i]")
+              NUM=$(printf '%s' "$PR" | jq -r '.number')
+              HEAD_REF=$(printf '%s' "$PR" | jq -r '.headRefName')
+              AUTHOR=$(printf '%s' "$PR" | jq -r '.author.login')
+              STATUS=$(printf '%s' "$PR" | jq -r '.mergeStateStatus')
+              IS_DRAFT=$(printf '%s' "$PR" | jq -r '.isDraft')
+              ISSUE_NUM=$(printf '%s' "$PR" | jq -r '.closingIssuesReferences[0].number // ""')
+              URL=$(printf '%s' "$PR" | jq -r '.url')
+
+              # Scope: only Eva's own ready (non-draft) PRs — humans manage
+              # their own conflicts (mirrors eva-fix-pr.yml condition 2b).
+              if [ "$AUTHOR" != "ievo-eva[bot]" ] || [ "$IS_DRAFT" = "true" ]; then
+                continue
+              fi
+
+              # DIRTY is the ONLY MergeStateStatus value meaning "the merge
+              # commit cannot be cleanly created" (verified against GitHub's
+              # GraphQL enum docs — BEHIND/BLOCKED/CLEAN/DRAFT/HAS_HOOKS/
+              # UNSTABLE are not conflicts and are already handled by
+              # eva-review-pr's existing `gh pr merge --auto` fallback once a
+              # review fires). UNKNOWN means GitHub hasn't finished computing
+              # it yet (async) — skip and let the next scheduled run re-check
+              # rather than guessing.
+              if [ "$STATUS" != "DIRTY" ]; then
+                continue
+              fi
+
+              TOTAL_FOUND=$(( TOTAL_FOUND + 1 ))
+              echo "  $REPO#$NUM ($HEAD_REF) — DIRTY, linked issue=#${ISSUE_NUM:-none}"
+
+              if [ "$ACTIONS" -ge "$MAX_ACTIONS" ]; then
+                echo "    action cap reached ($MAX_ACTIONS/run) — deferring to next scan"
+                TOTAL_SKIPPED=$(( TOTAL_SKIPPED + 1 )); continue
+              fi
+
+              if [ "$LIVE" != "true" ]; then
+                echo "    DRY RUN — would attempt a clean rebase-and-push, falling back to close+re-approve #${ISSUE_NUM:-none} if it conflicts for real"
+                ACTIONS=$(( ACTIONS + 1 )); continue
+              fi
+
+              ACTIONS=$(( ACTIONS + 1 ))
+
+              if try_rebase_and_push "$REPO" "$HEAD_REF"; then
+                echo "    rebased cleanly onto current main and pushed — Tests will re-run, eva-review-pr re-enters the loop"
+                gh pr comment "$NUM" --repo "$REPO" --body \
+                  "Eva's conflict scan (eva#211) found this PR marked \`DIRTY\` (merge-conflicting — no automation re-fires on a conflict with no new push). Rebased cleanly onto the current \`main\` with zero manual conflicts and pushed; this re-triggers Tests and eva-review-pr will re-review normally." || true
+                TOTAL_REBASED=$(( TOTAL_REBASED + 1 ))
+                continue
+              fi
+
+              # Real conflict (or clone/rebase/push failed) — close and
+              # re-queue the originating issue, exactly the operator's own
+              # skills#356/#359 recovery.
+              if [ -z "$ISSUE_NUM" ]; then
+                gh pr close "$NUM" --repo "$REPO" --delete-branch --comment \
+                  "Eva's conflict scan (eva#211): this PR is \`DIRTY\` and a clean rebase onto \`main\` was not possible (a real merge conflict). No linked issue (\`Closes #N\`) was found to re-queue for a fresh build. Closing; operator should re-open the underlying work manually if it is still wanted." || true
+                gh label create needs-operator --repo "$REPO" \
+                  --description "Pipeline blocked on the human operator to unblock" \
+                  --color "e11d21" 2>/dev/null || true
+                # Labelled on the (now closed) PR itself — best-effort
+                # breadcrumb only. NOTE this does NOT surface in the
+                # operator's usual `gh search issues --label needs-operator`
+                # inbox sweep (that search excludes PRs by default), so a
+                # nonzero closed_needs_operator count in the digest below is
+                # the real signal to go check closed eva-impl/* PRs directly.
+                gh pr edit "$NUM" --repo "$REPO" --add-label needs-operator 2>/dev/null || true
+                echo "    closed (no linked issue found to re-queue) — flagged needs-operator on the PR"
+                TOTAL_CLOSED_NEEDS_OPERATOR=$(( TOTAL_CLOSED_NEEDS_OPERATOR + 1 ))
+                continue
+              fi
+
+              ISTATE=$(gh issue view "$ISSUE_NUM" --repo "$REPO" --json state --jq '.state' 2>/dev/null || echo "")
+              gh pr close "$NUM" --repo "$REPO" --delete-branch --comment \
+                "Eva's conflict scan (eva#211): this PR is \`DIRTY\` — a clean rebase onto \`main\` was not possible (a real merge conflict, not just a stale base). No automation re-fires on a conflicting PR with no new push, so this would otherwise strand forever. Closing and re-queuing issue #$ISSUE_NUM (\`approved\`) for a fresh build off current \`main\`." || true
+
+              # Confirm the re-queue actually landed before counting it as
+              # such — an issue that's no longer OPEN, or a failed
+              # `--add-label approved` write (API hiccup, rate limit), must
+              # fall back to needs-operator rather than silently reporting
+              # success while the PR is already closed and gone.
+              REQUEUED=false
+              if [ "$ISTATE" = "OPEN" ]; then
+                gh issue edit "$ISSUE_NUM" --repo "$REPO" --remove-label eva-implementing 2>/dev/null || true
+                if gh issue edit "$ISSUE_NUM" --repo "$REPO" --add-label approved; then
+                  gh issue comment "$ISSUE_NUM" --repo "$REPO" --body \
+                    "Eva's conflict scan (eva#211) closed stale PR $URL (\`DIRTY\`/merge-conflicting, stranded — no CI re-fires on a conflict with no new push) and re-added \`approved\` here for a fresh build off current \`main\`." || true
+                  echo "    closed PR, re-approved issue #$ISSUE_NUM for a fresh build"
+                  REQUEUED=true
+                else
+                  echo "    closed PR, but re-adding 'approved' to issue #$ISSUE_NUM FAILED — falling back to needs-operator"
+                fi
+              fi
+
+              if [ "$REQUEUED" = "true" ]; then
+                TOTAL_CLOSED_REQUEUED=$(( TOTAL_CLOSED_REQUEUED + 1 ))
+              else
+                gh label create needs-operator --repo "$REPO" \
+                  --description "Pipeline blocked on the human operator to unblock" \
+                  --color "e11d21" 2>/dev/null || true
+                gh issue edit "$ISSUE_NUM" --repo "$REPO" --add-label needs-operator 2>/dev/null || true
+                gh issue comment "$ISSUE_NUM" --repo "$REPO" --body \
+                  "Eva's conflict scan (eva#211) closed stale conflicting PR $URL but could not confirm the automatic re-queue (issue state=\`${ISTATE:-unknown}\`, or the \`approved\` re-label failed) — flagged \`needs-operator\`. Operator: check whether this work is still wanted." || true
+                echo "    closed PR, but could not confirm re-queue (issue state=${ISTATE:-unknown}) — flagged needs-operator"
+                TOTAL_CLOSED_NEEDS_OPERATOR=$(( TOTAL_CLOSED_NEEDS_OPERATOR + 1 ))
+              fi
+            done
+          done
+
+          echo ""
+          echo "Conflict scan digest: found=$TOTAL_FOUND rebased=$TOTAL_REBASED closed_requeued=$TOTAL_CLOSED_REQUEUED closed_needs_operator=$TOTAL_CLOSED_NEEDS_OPERATOR skipped=$TOTAL_SKIPPED (live=$LIVE, cap=$MAX_ACTIONS)"
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            printf 'Conflict scan (eva#211): found=%s rebased=%s closed_requeued=%s closed_needs_operator=%s skipped=%s (live=%s)\n' \
+              "$TOTAL_FOUND" "$TOTAL_REBASED" "$TOTAL_CLOSED_REQUEUED" "$TOTAL_CLOSED_NEEDS_OPERATOR" "$TOTAL_SKIPPED" "$LIVE" >> "$GITHUB_STEP_SUMMARY"
+          fi

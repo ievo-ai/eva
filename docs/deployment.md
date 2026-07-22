@@ -13,6 +13,7 @@ Zero infrastructure needed. Eva runs on GitHub's runners.
 | **Eva Scan** | `eva-scan.yml` | Cron (every 6h) + manual | Scheduled full pipeline scan |
 | **Eva on Issue** | `eva-on-issue.yml` | New issue + `repository_dispatch` | Reactive scan when issues are opened |
 | **Eva CI Failure Watchdog** | `eva-ci-failure.yml` | `repository_dispatch: ci-failure` + own `workflow_run` failures | Main-branch CI failure triage: supersede/dedup/rate-cap gates → transient re-run (once) or structured App-authored issue (eva#159) |
+| **Eva Conflict Scan** | `eva-conflict-scan.yml` | Cron (every 2h) + manual | Recovers `eva-impl/*` PRs stranded `DIRTY` (merge-conflicting, invisible to every other trigger) — rebases cleanly onto `main` and pushes, or closes + re-queues the issue for a fresh build (eva#211) |
 | **Tests** | `tests.yml` | Push / PR | CI: ruff lint + pytest on Python 3.10/3.11/3.12 |
 
 ### How the Scan Works
@@ -141,6 +142,21 @@ NOT yet verified whether `workflow_run` events fire for the GitHub-managed
 `pages-build-deployment` workflow — verify before wiring that repo, don't
 assume.
 
+#### Conflict scan (eva#211)
+
+`eva-review-pr.yml` only fires on Tests completing, `ready_for_review`, or a
+dispatch — none of which re-fire on a PR that goes `DIRTY` (a real merge
+conflict) with no new push, so a stranded `eva-impl/*` PR was previously
+invisible to every automation loop. `eva-conflict-scan.yml` sweeps the same
+watch-list as `eva-queue.yml` on a 2h cron (deterministic `gh`/`git` queries,
+no LLM agent — resolving a merge conflict is a mechanical git question, not a
+judgment call) and for each `DIRTY` `eva-impl/*` PR either rebases it cleanly
+onto current `main` and pushes (re-entering the normal review chain), or —
+when git itself can't resolve it — closes the PR and re-adds `approved` to
+the issue it closes for a fresh build. Bounded by
+`EVA_CONFLICT_SCAN_MAX_ACTIONS` per run and double-gated live like
+`eva-queue.yml` (dry_run + `EVA_CONFLICT_SCAN_ENABLED`).
+
 ### Required Secrets
 
 | Secret | Required | Description |
@@ -156,6 +172,8 @@ assume.
 |----------|--------|-------------|
 | `USE_GITHUB_APP` | `true` / `false` | Switch between GitHub App and PAT auth |
 | `EVA_CI_WATCHDOG_ENABLED` | `true` / `false` | Safety valve for `eva-ci-failure.yml` (eva#159) — merged dormant, the operator flips it after the acceptance smoke tests |
+| `EVA_CONFLICT_SCAN_ENABLED` | `true` / `false` | Safety valve for `eva-conflict-scan.yml` (eva#211) — gates BOTH the cron and a manual `dry_run=false` dispatch; merged dormant, flip to `true` to arm live runs (optionally smoke-test with one manual dispatch right after) |
+| `EVA_CONFLICT_SCAN_MAX_ACTIONS` | integer (default `7`) | Per-run cap on rebase/close actions in `eva-conflict-scan.yml` |
 
 #### Agent model + effort (per-flow, eva#161)
 
