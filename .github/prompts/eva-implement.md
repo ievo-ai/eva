@@ -20,15 +20,21 @@ change or refresh the auth TOKEN.
 
 Git-remote caveat (eva#222): the agent-runner action rewrites `.git/config`
 mid-run — it repoints `origin` at THIS workflow's own repo (`github.repository`
-= `ievo-ai/eva`) and resets the git user to `claude[bot]`, overwriting the
-checkout's `$TARGET_REPO` origin and the "iEVO Eva" identity. This is expected
-and is NOT a reason to stop. For a cross-repo build the working tree is genuinely
+= `ievo-ai/eva`), REMOVES the checkout's host-keyed credential
+(`http.https://github.com/.extraheader`) and re-embeds auth in the eva-pointing
+`origin` URL, and resets the git user to `claude[bot]`. This is expected and is
+NOT a reason to stop. For a cross-repo build the working tree is genuinely
 `$TARGET_REPO` — confirm that by its CONTENT / `git log`, NEVER by the `origin`
 URL or the `/home/runner/work/eva/eva` cwd path (both name eva for any build
-running in this repo). You MUST re-assert the target remote and Eva's identity
-right before committing/pushing (Phases 4e/4f do exactly this). Pointing `origin`
-back at `$TARGET_REPO` is REQUIRED here — it is the intended recovery, not the
-forbidden "routing around" a token/credential.
+running in this repo). You MUST re-assert auth + the target remote + Eva's
+identity right before committing/pushing (Phases 4e/4f do exactly this).
+CRITICAL: re-pointing `origin` at a bare `https://github.com/$TARGET_REPO.git`
+alone is NOT enough — because the action stripped the host-keyed credential, that
+bare URL push/fetches with NO auth and fails. Run `gh auth setup-git` first to
+restore a github.com credential helper (backed by the injected `$GH_TOKEN`
+ievo-eva mint — the same mechanism Phase 6 clones + pushes eva with). This
+recovery is REQUIRED here — it is the intended fix, not the forbidden "routing
+around" a token/credential.
 
 ## iEvo plugin dogfooding (eva#158 — read once, act on the cues below)
 
@@ -268,10 +274,13 @@ Stage only the files you changed (no `git add -A`). Footer MUST include the Eva
 co-author line. Pushing a branch with no PR triggers no CI — that is intended.
 
 FIRST recover from the agent-runner action's `.git/config` clobber (see the
-Git-remote caveat above / eva#222): re-point `origin` at `$TARGET_REPO` and
-restore Eva's identity BEFORE committing, so the commit is authored by iEVO Eva
-and the branch lands in `$TARGET_REPO` — not in eva. Idempotent; a no-op if the
-config was left correct:
+Git-remote caveat above / eva#222): restore the github.com credential helper,
+re-point `origin` at `$TARGET_REPO`, and restore Eva's identity BEFORE committing
+— so the push authenticates, the commit is authored by iEVO Eva, and the branch
+lands in `$TARGET_REPO`, not in eva. `gh auth setup-git` restores auth via the
+injected `$GH_TOKEN` (a bare set-url alone would leave the push with no
+credential — the action removed the host-keyed one). All idempotent:
+  gh auth setup-git
   git remote set-url origin "https://github.com/$TARGET_REPO.git"
   git config user.name "iEVO Eva"
   git config user.email "noreply@ievo.ai"
@@ -291,9 +300,14 @@ RELEASES the claim label — that marks it as a documented exit for the
 workflow's `Verify implement contract` post-check; a stop that leaves
 `eva-implementing` in place with no PR is treated as a silent stall and FAILS
 the run:
-  # Re-assert origin before any fetch/rebase (eva#222): `git fetch origin main`
-  # and `git rebase --onto origin/main` below would silently target the WRONG
-  # repo if the action left origin pointing at eva. Idempotent.
+  # Re-assert auth + origin before any fetch/rebase (eva#222): the action
+  # stripped the checkout's host-keyed credential and left auth in the
+  # eva-pointing URL, so a bare set-url would fetch/push with NO auth; and
+  # `git fetch origin main` / `git rebase --onto origin/main` below would
+  # silently target the WRONG repo. `gh auth setup-git` restores a github.com
+  # credential helper (via $GH_TOKEN); the set-url re-points at $TARGET_REPO.
+  # Both idempotent.
+  gh auth setup-git
   git remote set-url origin "https://github.com/$TARGET_REPO.git"
   for attempt in 1 2 3; do
     git fetch origin main
