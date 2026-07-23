@@ -16,7 +16,19 @@ Auth: `gh` and `git` are authenticated as the `ievo-eva` App, so the PR you open
 is authored by `ievo-eva[bot]`. eva-review-pr reviews it on the `workflow_run`
 path; because the App can't approve its own PR, it posts the APPROVE via the PAT
 (a different principal) so required-review is satisfied, then auto-merges. Do NOT
-attempt to change tokens or git remotes.
+change or refresh the auth TOKEN.
+
+Git-remote caveat (eva#222): the agent-runner action rewrites `.git/config`
+mid-run — it repoints `origin` at THIS workflow's own repo (`github.repository`
+= `ievo-ai/eva`) and resets the git user to `claude[bot]`, overwriting the
+checkout's `$TARGET_REPO` origin and the "iEVO Eva" identity. This is expected
+and is NOT a reason to stop. For a cross-repo build the working tree is genuinely
+`$TARGET_REPO` — confirm that by its CONTENT / `git log`, NEVER by the `origin`
+URL or the `/home/runner/work/eva/eva` cwd path (both name eva for any build
+running in this repo). You MUST re-assert the target remote and Eva's identity
+right before committing/pushing (Phases 4e/4f do exactly this). Pointing `origin`
+back at `$TARGET_REPO` is REQUIRED here — it is the intended recovery, not the
+forbidden "routing around" a token/credential.
 
 ## iEvo plugin dogfooding (eva#158 — read once, act on the cues below)
 
@@ -253,7 +265,16 @@ entry above (`EVA_EVOLUTION_CAPTURE` file has content), append it to
 ### 4e. Commit + push the branch (NO PR yet)
 
 Stage only the files you changed (no `git add -A`). Footer MUST include the Eva
-co-author line. Pushing a branch with no PR triggers no CI — that is intended:
+co-author line. Pushing a branch with no PR triggers no CI — that is intended.
+
+FIRST recover from the agent-runner action's `.git/config` clobber (see the
+Git-remote caveat above / eva#222): re-point `origin` at `$TARGET_REPO` and
+restore Eva's identity BEFORE committing, so the commit is authored by iEVO Eva
+and the branch lands in `$TARGET_REPO` — not in eva. Idempotent; a no-op if the
+config was left correct:
+  git remote set-url origin "https://github.com/$TARGET_REPO.git"
+  git config user.name "iEVO Eva"
+  git config user.email "noreply@ievo.ai"
   git add <specific files>
   git commit -m "<type>: <description>
 
@@ -270,6 +291,10 @@ RELEASES the claim label — that marks it as a documented exit for the
 workflow's `Verify implement contract` post-check; a stop that leaves
 `eva-implementing` in place with no PR is treated as a silent stall and FAILS
 the run:
+  # Re-assert origin before any fetch/rebase (eva#222): `git fetch origin main`
+  # and `git rebase --onto origin/main` below would silently target the WRONG
+  # repo if the action left origin pointing at eva. Idempotent.
+  git remote set-url origin "https://github.com/$TARGET_REPO.git"
   for attempt in 1 2 3; do
     git fetch origin main
     BEHIND=$(git rev-list --count HEAD..origin/main)
@@ -548,6 +573,9 @@ Co-Authored-By: iEVO Eva <noreply@ievo.ai>"
 - Do NOT create issues in other repos.
 - If you become unsure mid-build, post a comment on the issue asking for
   clarification and stop WITHOUT opening the PR (push the branch if useful) —
-  do not guess.
+  do not guess. This does NOT cover the `origin`-points-at-eva / cwd-is-`eva/eva`
+  condition (eva#222): that is a KNOWN, expected artifact of the runner action,
+  with a defined recovery (re-assert the target remote in Phases 4e/4f) — apply
+  the recovery and proceed; do not treat it as an "unsure" reason to stop.
 - Per `agent/ROLE.md`: never fabricate identifiers (usernames, paths, branches) —
   look them up. Verify tool/library behavior against docs before relying on it.
