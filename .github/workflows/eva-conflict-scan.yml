@@ -292,7 +292,12 @@ jobs:
 
             # Re-derive NN for each added block against the FRESH main content,
             # allocating in the order the blocks appear in this branch's diff.
-            local renumbered="" date rest max_nn cur next skip_block=0
+            # skip_block starts at 1, not 0: everything before the FIRST kept
+            # heading is diff noise (Phase 6's leading separator blank) — kept,
+            # it makes $renumbered whitespace-only in the all-deduped case and
+            # defeats the empty-bail below. The rebuild's own printf re-adds
+            # the separator, so dropping it here loses nothing.
+            local renumbered="" date rest max_nn cur next skip_block=1
             local -A seen_nn
             while IFS= read -r line; do
               if printf '%s' "$line" | grep -qE '^## L-[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]+ '; then
@@ -324,8 +329,9 @@ jobs:
             # Every block deduped away → nothing left to deliver. Returning 1
             # routes the caller to the close path (the content already reached
             # main via siblings) instead of force-pushing a whitespace-only
-            # rebuild that re-enters review as an empty PR.
-            if [ -z "$renumbered" ]; then
+            # rebuild that re-enters review as an empty PR. Whitespace-stripped
+            # check, not bare -z: any stray blank kept above must not defeat it.
+            if [ -z "$(printf '%s' "$renumbered" | tr -d '[:space:]')" ]; then
               echo "      every added lesson already exists on main — nothing to rebuild, handing back to the close path"
               rm -rf "$workdir"; return 1
             fi
