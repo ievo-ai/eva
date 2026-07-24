@@ -62,18 +62,38 @@ build — the read is best-effort.
    - **Cross-repo run** (building/fixing any other repo — cli, skills,
      marketplace, sdk, ievo.ai): lessons must not land in the target repo
      (operator's #158 Q1 answer), so the agent instead clones `ievo-ai/eva`,
-     dedups against the current `lessons.md`, and — only if there is new
-     content — opens a small append-only PR on an `evolution/consolidate-*`
+     dedups against the current `lessons.md`, re-derives each new entry's `NN`
+     against that fresh clone (eva#250 — see point 4), and — only if there is
+     new content — opens a small append-only PR on an `evolution/consolidate-*`
      branch touching nothing but `agent/memory/evolution/lessons.md`.
      `eva-review-pr.yml`'s sensitive-path gate carries a narrow carve-out for
      exactly that branch-prefix + path-scope combination (mirroring the
      existing `research/audit-*` exception), so it auto-merges without
      operator involvement — the human gate on the REST of `agent/memory/`
      (`ROLE.md`, sessions, anything else shaping Eva's identity) is unchanged.
-4. **Dedup**: an entry is skipped (not appended, no PR opened) when a section
-   with the exact same `## L-YYYY-MM-DD-NN — <title>` line already exists in
-   `lessons.md`. An empty capture (the gate passed on the first attempt, so
-   there is no lesson) produces no commit and no PR on either path.
+     If a review still blocks it (a rarer, narrower NN collision that slipped
+     past the fresh re-derivation — e.g. two parallel runs racing the same
+     window) or the PR goes `DIRTY` (a sibling merged first), `eva-fix-pr.yml`
+     and `eva-conflict-scan.yml` respectively self-heal it: both renumber the
+     colliding entries against CURRENT `main` and rebuild the branch, never
+     touching an entry's body or any other file. A `evolution/consolidate-*`
+     PR carries no linked issue, so if that recovery itself fails the PR is
+     simply closed and flagged for the operator — a logged, accepted loss of
+     that one batch of captured lessons (eva#169), not a build failure.
+4. **Dedup + renumber**: an entry is skipped entirely (not appended, no PR
+   opened) when a section with the same title TEXT (the part after the
+   `## L-YYYY-MM-DD-NN ` prefix) already exists in `lessons.md` — matched
+   regardless of `NN`, since renumbering guarantees sibling copies of the
+   same lesson carry different numbers and a full-line match could never
+   fire. Otherwise, before appending, each new
+   entry's `NN` is re-derived as `max(existing same-date NN already in
+   lessons.md) + 1` (eva#250) — the ID is picked against whatever's on disk
+   at write time, not whatever was loaded at run start, so two runs that
+   started from the same stale snapshot don't collide on the same `NN`. This
+   matters because the ID is both the dedup key above AND the `[[L-...]]`
+   cross-ref anchor other entries may link to — a collision makes both
+   entries ambiguous. An empty capture (the gate passed on the first attempt,
+   so there is no lesson) produces no commit and no PR on either path.
 
 ## `lessons.md` entry format
 

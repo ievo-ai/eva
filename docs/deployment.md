@@ -13,7 +13,7 @@ Zero infrastructure needed. Eva runs on GitHub's runners.
 | **Eva Scan** | `eva-scan.yml` | Cron (every 6h) + manual | Scheduled full pipeline scan |
 | **Eva on Issue** | `eva-on-issue.yml` | New issue + `repository_dispatch` | Reactive scan when issues are opened |
 | **Eva CI Failure Watchdog** | `eva-ci-failure.yml` | `repository_dispatch: ci-failure` + own `workflow_run` failures | Main-branch CI failure triage: supersede/dedup/rate-cap gates → transient re-run (once) or structured App-authored issue (eva#159) |
-| **Eva Conflict Scan** | `eva-conflict-scan.yml` | Cron (every 2h) + manual | Recovers `eva-impl/*` PRs stranded `DIRTY` (merge-conflicting, invisible to every other trigger) — rebases cleanly onto `main` and pushes, or closes + re-queues the issue for a fresh build (eva#211) |
+| **Eva Conflict Scan** | `eva-conflict-scan.yml` | Cron (every 2h) + manual | Recovers `eva-impl/*` or `evolution/consolidate-*` PRs stranded `DIRTY` (merge-conflicting, invisible to every other trigger) — rebases `eva-impl/*` cleanly onto `main` and pushes, renumbers + rebuilds `evolution/consolidate-*` against current main (eva#250), or closes + re-queues the issue for a fresh build (eva#211) |
 | **Tests** | `tests.yml` | Push / PR | CI: ruff lint + pytest on Python 3.10/3.11/3.12 |
 
 ### How the Scan Works
@@ -150,11 +150,21 @@ conflict) with no new push, so a stranded `eva-impl/*` PR was previously
 invisible to every automation loop. `eva-conflict-scan.yml` sweeps the same
 watch-list as `eva-queue.yml` on a 2h cron (deterministic `gh`/`git` queries,
 no LLM agent — resolving a merge conflict is a mechanical git question, not a
-judgment call) and for each `DIRTY` `eva-impl/*` PR either rebases it cleanly
-onto current `main` and pushes (re-entering the normal review chain), or —
-when git itself can't resolve it — closes the PR and re-adds `approved` to
-the issue it closes for a fresh build. Bounded by
-`EVA_CONFLICT_SCAN_MAX_ACTIONS` per run and double-gated live like
+judgment call) and for each `DIRTY` `eva-impl/*` or `evolution/consolidate-*`
+PR either recovers it in place and pushes (re-entering the normal review
+chain), or — when that isn't possible — closes the PR and re-adds `approved`
+to the issue it closes for a fresh build. The recovery differs by branch type:
+an `eva-impl/*` PR gets a plain rebase onto current `main`; an
+`evolution/consolidate-*` PR (eva#169's lesson-consolidator, eva#250) gets a
+narrower renumber-and-rebuild — its whole diff is an append to
+`agent/memory/evolution/lessons.md`, so a plain git rebase can misplace the
+content or leave a lesson-ID collision unresolved, so the recovery instead
+extracts the entries the branch itself added, re-derives their `## L-...` NN
+against the CURRENT `main`, and rebuilds the file on top of it before pushing.
+An `evolution/consolidate-*` PR never carries a linked issue, so a failed
+recovery there closes the PR and flags `needs-operator` rather than
+re-queuing — an accepted, logged loss of that one captured lesson (eva#169).
+Bounded by `EVA_CONFLICT_SCAN_MAX_ACTIONS` per run and double-gated live like
 `eva-queue.yml` (dry_run + `EVA_CONFLICT_SCAN_ENABLED`).
 
 #### Review watchdog (eva#230)

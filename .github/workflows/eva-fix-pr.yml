@@ -3,11 +3,13 @@
 # Restores, on the eva side, the auto-fix loop v1's `review-fixer.yml` (in
 # ievo-ai/skills) provided before skills#277 deleted it with the v1 cutover.
 # When eva-review-pr.yml posts REQUEST_CHANGES on an `ievo-eva[bot]`-authored PR
-# (branch `eva-impl/*`), it dispatches `fix-pr` here; this workflow checks out
-# the PR branch, reads Eva's own review findings, fixes them, runs the target
-# repo's local gate, and pushes a `[pr-fix-N]`-marked commit. The push re-fires
-# product gates → workflow_run → eva-review-pr re-reviews. The loop continues
-# until APPROVE or the budget (5 rounds) is spent.
+# (branch `eva-impl/*`, OR `evolution/consolidate-*` — eva#250, the lesson-
+# consolidator's own self-heal loop), it dispatches `fix-pr` here; this workflow
+# checks out the PR branch, reads Eva's own review findings, fixes them, runs the
+# target repo's local gate, and pushes a `[pr-fix-N]`-marked commit. The push
+# re-fires product gates → workflow_run → eva-review-pr re-reviews. The loop
+# continues until APPROVE or the budget (5 rounds for `eva-impl/*`, 3 for
+# `evolution/consolidate-*` — eva#250) is spent.
 #
 # WHY a dedicated workflow (not a job in eva-implement.yml — eva#135 operator
 # answer #1): distinct trigger (an INTERNAL `repository_dispatch: fix-pr` sent by
@@ -20,9 +22,10 @@
 #   1. Fired only by eva-review-pr's own dispatch. `repository_dispatch` can only
 #      be sent by a principal with repo write; the `fix-pr` event type is emitted
 #      ONLY by eva-review-pr. No external event type reaches this workflow.
-#   2. The target PR's head branch matches `eva-impl/*` AND the PR author is the
-#      ievo-eva App (`ievo-eva[bot]`) — NEVER a human PR (humans fix their own
-#      reviews; v1 rule kept).
+#   2. The target PR's head branch matches `eva-impl/*` or `evolution/consolidate-*`
+#      (exact prefixes only, eva#250) AND the PR author is the ievo-eva App
+#      (`ievo-eva[bot]`) — NEVER a human PR (humans fix their own reviews; v1
+#      rule kept).
 #   3. The payload carries the triggering review id; this workflow RE-FETCHES that
 #      review via the API and verifies its state is CHANGES_REQUESTED and it was
 #      posted by a trusted reviewer (the App, or a MEMBER/OWNER — eva-review-pr
@@ -32,12 +35,15 @@
 # The fixer's INPUT is Eva's OWN review text + an App-authored branch — no
 # third-party free text enters the loop.
 #
-# BUDGET (eva#135 operator answer #4): fully independent — 5 rounds per PR,
-# counted as `[pr-fix-N]` markers in THAT PR's branch history only (no sharing;
-# there is no issue-handler here, and there is no `/fix` extension command in v1
-# of the fixer). On exhaustion: comment + `eva-fix-budget-exhausted` label for the
-# operator, then stop. The terminal labels below block re-triggering until the
-# operator removes them.
+# BUDGET (eva#135 operator answer #4): fully independent per PR, counted as
+# `[pr-fix-N]` markers in THAT PR's branch history only (no sharing; there is no
+# issue-handler here, and there is no `/fix` extension command in v1 of the
+# fixer). Default 5 rounds (`EVA_FIX_BUDGET`); `evolution/consolidate-*` PRs get
+# a tighter 3-round cap (`EVA_FIX_BUDGET_CONSOLIDATE`, eva#250 operator answer
+# #3) since their fix is a narrow, mechanical ID-renumber, not an open-ended code
+# fix — mirrors eva#132's self-approve cap philosophy. On exhaustion: comment +
+# `eva-fix-budget-exhausted` label for the operator, then stop. The terminal
+# labels below block re-triggering until the operator removes them.
 #
 # WORKFLOW-FILE HAND-OFF (eva#135 operator answer #3): the ievo-eva App lacks the
 # `Workflows` permission (eva#132/#133 lesson), so a fix that would touch
@@ -162,12 +168,17 @@ jobs:
             echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
           fi
 
-          # Condition 2a: head branch must be eva-impl/*.
+          # Condition 2a: head branch must be eva-impl/* (code-fix PRs) or
+          # evolution/consolidate-* (eva#250 — the lesson-consolidator's own
+          # self-heal loop; eva-review-pr already dispatches fix-pr for both
+          # prefixes, but this gate previously swallowed the second one
+          # silently). Exact prefix only — no broader glob, so this can't be
+          # reused to re-enter an unrelated branch that happens to match.
           HEAD_REF=$(printf '%s' "$PR_JSON" | jq -r '.head.ref // empty')
           case "$HEAD_REF" in
-            eva-impl/*) : ;;
+            eva-impl/*|evolution/consolidate-*) : ;;
             *)
-              echo "Head branch '$HEAD_REF' is not eva-impl/* — refusing (fail-safe)."
+              echo "Head branch '$HEAD_REF' is not eva-impl/* or evolution/consolidate-* — refusing (fail-safe)."
               echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0 ;;
           esac
 
@@ -238,7 +249,11 @@ jobs:
       # --- HARD budget guard (review finding on eva#137): the 5-round budget is
       # primarily enforced by the fixer prompt, but an LLM miscount or ignored
       # instruction must not be able to loop. Count [pr-fix-N] markers in the
-      # branch history deterministically and stop BEFORE the agent runs. ---
+      # branch history deterministically and stop BEFORE the agent runs.
+      # eva#250: an evolution/consolidate-* PR's fix is a narrow, mechanical
+      # ID-renumber, not an open-ended code fix, so it gets a TIGHTER cap (3,
+      # mirrors eva#132's self-approve cap philosophy) than the default
+      # eva-impl/* budget (5). ---
       - name: Enforce fix budget (hard guard)
         id: budget
         if: steps.ctx.outputs.skip != 'true'
@@ -246,7 +261,7 @@ jobs:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           REPO: ${{ steps.ctx.outputs.repo }}
           PR_NUM: ${{ steps.ctx.outputs.pr_number }}
-          MAX_ROUNDS: ${{ vars.EVA_FIX_BUDGET || '5' }}
+          MAX_ROUNDS: ${{ startsWith(steps.ctx.outputs.head_ref, 'evolution/consolidate-') && (vars.EVA_FIX_BUDGET_CONSOLIDATE || '3') || (vars.EVA_FIX_BUDGET || '5') }}
         run: |
           # Same counting semantics as the fixer prompt (base ref + marker regex),
           # so the hard guard and the soft (prompt) budget can never diverge.
@@ -255,7 +270,13 @@ jobs:
           echo "Fix rounds already on this branch: $ROUNDS (max $MAX_ROUNDS, base $BASE)"
           # Pre-agent round count — `Verify fix contract` (eva#170) compares the
           # remote branch against this to detect whether a fix round was pushed.
-          echo "rounds=$ROUNDS" >> "$GITHUB_OUTPUT"
+          # max_rounds is re-exposed so downstream steps (agent settings, this
+          # step's own exhaustion message) use the SAME resolved cap, never a
+          # re-evaluated (and potentially different) expression.
+          {
+            echo "rounds=$ROUNDS"
+            echo "max_rounds=$MAX_ROUNDS"
+          } >> "$GITHUB_OUTPUT"
           if [ "$ROUNDS" -ge "$MAX_ROUNDS" ]; then
             # eva#146 — a spent fix budget is an operator-owned state; surface it
             # in the operator's cross-repo inbox alongside the specific terminal
@@ -481,7 +502,7 @@ jobs:
                 "TARGET_REPO": "${{ steps.ctx.outputs.repo }}",
                 "TARGET_PR": "${{ steps.ctx.outputs.pr_number }}",
                 "REVIEW_ID": "${{ steps.ctx.outputs.review_id }}",
-                "FIX_BUDGET": "${{ vars.EVA_FIX_BUDGET || '5' }}",
+                "FIX_BUDGET": "${{ steps.budget.outputs.max_rounds }}",
                 "EVA_IEVO_PLUGIN_READY": "${{ steps.ievo_plugin.outputs.ready }}",
                 "EVA_EVOLUTION_STORE": "${{ steps.evo_store.outputs.store }}",
                 "EVA_EVOLUTION_CAPTURE": "${{ steps.evo_store.outputs.capture }}"
