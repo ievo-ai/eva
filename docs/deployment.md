@@ -157,6 +157,28 @@ the issue it closes for a fresh build. Bounded by
 `EVA_CONFLICT_SCAN_MAX_ACTIONS` per run and double-gated live like
 `eva-queue.yml` (dry_run + `EVA_CONFLICT_SCAN_ENABLED`).
 
+#### Reaper (eva#231)
+
+`eva-implement.yml`'s `Verify implement contract` / `Release claim on failure`
+post-checks both skip when a run is cancelled (e.g. hitting the job's 50-minute
+`timeout-minutes` ceiling), so a cancelled build strands its issue in
+`eva-implementing` forever with no live run and no PR — `eva-queue.yml` never
+touches an issue that already carries that label, so the queue treats it as
+in-flight forever. `eva-reaper.yml` sweeps the same watch-list hourly
+(deterministic `gh`/`jq` queries, no LLM agent) and maps each claimed issue back
+to its backing `eva-implement.yml` run via `run-name` (`"Implement
+<repo>#<issue>"`, added to `eva-implement.yml` in the same change, since
+`display_title` otherwise defaults to the issue's own title or the bare
+`repository_dispatch` event name — neither a stable, collision-free
+identifier). If no live run backs the claim past a grace window
+(`EVA_REAPER_GRACE_MINUTES`), it releases `eva-implementing` — restoring
+`approved` for a fresh build, or leaving it released if a PR already closes the
+issue. Bounded by `EVA_REAPER_MAX_ACTIONS` per run and double-gated live like
+`eva-queue.yml` (dry_run + `EVA_REAPER_ENABLED`). The one API call needing
+`actions` scope (reading `eva-implement.yml`'s run history) goes through the
+PAT, not the App token — same reason and precedent as `eva-ci-failure.yml`
+(the App installation's `actions` grant is unconfirmed).
+
 ### Required Secrets
 
 | Secret | Required | Description |
@@ -174,6 +196,9 @@ the issue it closes for a fresh build. Bounded by
 | `EVA_CI_WATCHDOG_ENABLED` | `true` / `false` | Safety valve for `eva-ci-failure.yml` (eva#159) — merged dormant, the operator flips it after the acceptance smoke tests |
 | `EVA_CONFLICT_SCAN_ENABLED` | `true` / `false` | Safety valve for `eva-conflict-scan.yml` (eva#211) — gates BOTH the cron and a manual `dry_run=false` dispatch; merged dormant, flip to `true` to arm live runs (optionally smoke-test with one manual dispatch right after) |
 | `EVA_CONFLICT_SCAN_MAX_ACTIONS` | integer (default `7`) | Per-run cap on rebase/close actions in `eva-conflict-scan.yml` |
+| `EVA_REAPER_ENABLED` | `true` / `false` | Safety valve for `eva-reaper.yml` (eva#231) — gates BOTH the cron and a manual `dry_run=false` dispatch; merged dormant, flip to `true` to arm live runs (optionally smoke-test with one manual dispatch right after) |
+| `EVA_REAPER_GRACE_MINUTES` | integer (default `10`) | Minutes since a claim's backing run ended (or, absent a matching run, since the `eva-implementing` label was applied) before `eva-reaper.yml` will act on it |
+| `EVA_REAPER_MAX_ACTIONS` | integer (default `10`) | Per-run cap on release/restore actions in `eva-reaper.yml` |
 
 #### Agent model + effort (per-flow, eva#161)
 
