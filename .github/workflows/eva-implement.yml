@@ -351,11 +351,35 @@ jobs:
 
           # Best-effort rate-limit: cap concurrent in-flight builds. This issue
           # still carries `approved` (not yet swapped), so it is not self-counted.
-          INFLIGHT=$(gh issue list --repo "$REPO" --label eva-implementing \
-            --state open --json number --jq 'length')
+          #
+          # eva#240 — LABEL_INFLIGHT alone undercounts: eva#196 releases
+          # `eva-implementing` the INSTANT a build's PR opens (not on merge), so
+          # an `approved` label event landing while a same-repo `eva-impl/*` PR
+          # is still open would dispatch a second, concurrent build for the same
+          # repo — the exact race eva#229/PR #239 already fixed at the
+          # eva-queue.yml sweep call site. Fold open `eva-impl/*` PRs into the
+          # same inflight count here too, mirroring that fix's PR_INFLIGHT query.
+          # `isCrossRepository | not` excludes a fork PR merely NAMED eva-impl/* —
+          # only Eva's own same-repo pushes count. `--limit 100` on both queries
+          # matches #239 (gh's default page size of 30 could otherwise silently
+          # drop an older in-flight label/PR on a repo with heavy traffic).
+          #
+          # Deliberately NO `2>/dev/null || echo 0` fallback on either query
+          # (unlike eva-queue.yml's multi-repo sweep, where a per-repo lookup
+          # failure should skip only that repo, not abort the whole sweep). This
+          # mirrors the `EXISTING_OPEN_PR` anti-duplication guard just above:
+          # a rate-limit/dedup check that silently reads a transient `gh`
+          # failure as "0 in flight" and proceeds to claim anyway would defeat
+          # its own purpose — fail the step (the shell's default `-e`) instead.
+          LABEL_INFLIGHT=$(gh issue list --repo "$REPO" --label eva-implementing \
+            --state open --limit 100 --json number --jq 'length')
+          PR_INFLIGHT=$(gh pr list --repo "$REPO" --state open --limit 100 \
+            --json headRefName,isCrossRepository \
+            --jq '[.[] | select((.isCrossRepository | not) and (.headRefName | startswith("eva-impl/")))] | length')
+          INFLIGHT=$(( LABEL_INFLIGHT + PR_INFLIGHT ))
           if [ "$INFLIGHT" -ge "$MAX_INFLIGHT" ]; then
             gh issue comment "$ISSUE_NUM" --repo "$REPO" --body \
-              "Eva implement is rate-limited ($INFLIGHT builds in flight, max $MAX_INFLIGHT). Deferred — remove and re-add the \`approved\` label to retry once a slot frees (GitHub won't re-fire on an already-present label)."
+              "Eva implement is rate-limited ($INFLIGHT builds in flight: $LABEL_INFLIGHT labeled + $PR_INFLIGHT open \`eva-impl/*\` PR(s), max $MAX_INFLIGHT). Deferred — remove and re-add the \`approved\` label to retry once a slot frees (GitHub won't re-fire on an already-present label)."
             echo "Rate-limited ($INFLIGHT >= $MAX_INFLIGHT), skipping"
             echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
           fi
