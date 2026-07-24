@@ -300,7 +300,7 @@ Safety rules).
               MAX_NN=$(grep -oE "^## L-${DATE}-[0-9]+" "$LESSONS" | grep -oE '[0-9]+$' | sort -n | tail -1)
               MAX_NN=${MAX_NN:-0}
               CUR=${SEEN_NN[$DATE]:-$MAX_NN}
-              NEXT=$((CUR + 1))
+              NEXT=$((10#$CUR + 1))
               SEEN_NN[$DATE]=$NEXT
               LINE=$(printf '## L-%s-%02d %s' "$DATE" "$NEXT" "$REST")
             fi
