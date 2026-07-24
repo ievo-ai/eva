@@ -308,7 +308,10 @@ jobs:
                 # full `## L-...` line — a sibling merged the same lesson under
                 # a DIFFERENT NN, so a full-line match can never catch it):
                 # skip the whole block instead of re-appending it renumbered.
-                if grep -qF -- "$rest" "$workdir/.lessons.fresh"; then
+                # Anchored to heading lines only — an unanchored whole-file
+                # match would false-skip on a title merely QUOTED inside
+                # another entry's body, silently losing the lesson.
+                if grep -E '^## L-' "$workdir/.lessons.fresh" | grep -qF -- "$rest"; then
                   echo "      dedup: lesson titled \"$(printf '%.60s' "$rest")…\" already on main — skipping block"
                   skip_block=1
                   continue
