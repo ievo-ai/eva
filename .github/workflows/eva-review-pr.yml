@@ -575,6 +575,10 @@ jobs:
           # Each pattern checked as a Bash glob prefix / substring.
           SENSITIVE_PATTERNS=(
             ".github/workflows/"      # any workflow file change
+            ".github/prompts/"        # agent-controlling prompts (eva#222 lesson:
+                                      # a broken prompt fix auto-merged on green CI
+                                      # — static review can't catch runtime bugs in
+                                      # the build prompt; operator merges these)
             "agent/ROLE.md"           # Eva's identity
             "agent/memory/"           # Eva's memory store
             "CLAUDE.md"               # project rules
