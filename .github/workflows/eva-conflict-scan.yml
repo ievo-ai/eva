@@ -45,9 +45,17 @@
 # reversible) and eva-queue.yml (deterministic watch-list sweep, no LLM,
 # double-gated live rollout).
 #
-# Scope: ONLY `eva-impl/*` branches authored by `ievo-eva[bot]` — never a
-# human's PR, and never a PR outside Eva's own build convention (mirrors
-# eva-fix-pr.yml's condition 2b: humans fix/manage their own conflicts).
+# Scope: ONLY `eva-impl/*` or `evolution/consolidate-*` branches (eva#250 —
+# exact prefix, no broader glob) authored by `ievo-eva[bot]` — never a human's
+# PR, and never a PR outside Eva's own build convention (mirrors eva-fix-pr.yml's
+# condition 2b: humans fix/manage their own conflicts). A DIRTY
+# `evolution/consolidate-*` PR gets a DIFFERENT recovery than a code PR: since
+# its whole diff is an append to one file, a plain git-level rebase can land the
+# content in the wrong place (or merely relocate, not resolve, a lesson-ID
+# collision with whatever a sibling consolidation merged in the meantime) —
+# `try_renumber_and_rebuild()` below rebuilds the file against the CURRENT
+# `origin/main` and re-derives NN for the entries THIS branch added, instead of
+# trusting git's patch-context placement.
 #
 # Safety:
 #   - Rebase-and-push is safe by construction (git found zero conflicts) and
@@ -219,12 +227,127 @@ jobs:
             return 1
           }
 
-          TOTAL_FOUND=0; TOTAL_REBASED=0; TOTAL_CLOSED_REQUEUED=0; TOTAL_CLOSED_NEEDS_OPERATOR=0; TOTAL_SKIPPED=0; ACTIONS=0
+          # eva#250 — recovery for a DIRTY evolution/consolidate-* PR. A plain
+          # git rebase (try_rebase_and_push above) isn't the right tool here: the
+          # whole diff is an append to ONE file, so git's patch-context matching
+          # can land it in the wrong place, or "resolve" the git-level conflict
+          # while leaving a lesson-ID collision with whatever a sibling
+          # consolidation already merged — the underlying semantic problem this
+          # workflow needs to fix. Instead: extract the `## L-...` blocks THIS
+          # branch itself added (diff against its own merge-base — append-only,
+          # so that's exactly the tail beyond the merge-base), re-derive each
+          # block's NN against the FRESH origin/main content, then rebuild the
+          # file as (current main) + (renumbered blocks) and force-push. Refuses
+          # (returns 1, falls through to close+re-queue) if the branch touched
+          # anything besides the lessons file, or if there is nothing to do.
+          # Residual risk (accepted, same shape as eva#169's "missed learning
+          # opportunity" framing): this narrows the eva#250 race window down to
+          # "picked right before push, against a fresh fetch" but doesn't close
+          # it — two branches can still fetch main, compute the same NN, and
+          # push close together. The self-heal loop (this function + eva-fix-
+          # pr.yml) is what absorbs that residual collision when it happens.
+          try_renumber_and_rebuild() {
+            local repo="$1" head_ref="$2"
+            local lessons="agent/memory/evolution/lessons.md"
+            local workdir
+            workdir=$(mktemp -d)
+            if ! git clone --quiet "https://github.com/$repo.git" "$workdir" >/tmp/eva-cs-clone.log 2>&1; then
+              echo "      clone failed:"; tail -5 /tmp/eva-cs-clone.log
+              rm -rf "$workdir"; return 1
+            fi
+            if ! git -C "$workdir" checkout --quiet -B "$head_ref" "origin/$head_ref" >/tmp/eva-cs-checkout.log 2>&1; then
+              echo "      checkout of origin/$head_ref failed:"; tail -5 /tmp/eva-cs-checkout.log
+              rm -rf "$workdir"; return 1
+            fi
+
+            local merge_base
+            merge_base=$(git -C "$workdir" merge-base HEAD "origin/main")
+
+            # Refuse (fall through to close+re-queue) if this branch touched
+            # anything besides the lessons store — the narrow recipe never
+            # improvises a wider fix (mirrors the fixer prompt's own rule 3).
+            local other_files
+            other_files=$(git -C "$workdir" diff --name-only "$merge_base" HEAD | grep -v "^${lessons}\$" || true)
+            if [ -n "$other_files" ]; then
+              echo "      branch changed files besides $lessons ($other_files) — refusing the narrow recipe"
+              rm -rf "$workdir"; return 1
+            fi
+
+            local added
+            added=$(git -C "$workdir" diff "$merge_base" HEAD -- "$lessons" \
+              | grep -E '^\+' | grep -vE '^\+\+\+' | sed -E 's/^\+//')
+            if [ -z "$added" ]; then
+              echo "      no added $lessons content found between merge-base and HEAD — nothing to renumber"
+              rm -rf "$workdir"; return 1
+            fi
+
+            if ! git -C "$workdir" fetch --quiet origin main >/tmp/eva-cs-fetch.log 2>&1; then
+              echo "      fetch of origin/main failed:"; tail -5 /tmp/eva-cs-fetch.log
+              rm -rf "$workdir"; return 1
+            fi
+            if ! git -C "$workdir" show "origin/main:$lessons" > "$workdir/.lessons.fresh" 2>/tmp/eva-cs-show.log; then
+              echo "      could not read origin/main's $lessons:"; tail -5 /tmp/eva-cs-show.log
+              rm -rf "$workdir"; return 1
+            fi
+
+            # Re-derive NN for each added block against the FRESH main content,
+            # allocating in the order the blocks appear in this branch's diff.
+            local renumbered="" date rest max_nn cur next
+            local -A seen_nn
+            while IFS= read -r line; do
+              if printf '%s' "$line" | grep -qE '^## L-[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]+ '; then
+                date=$(printf '%s' "$line" | grep -oE '^## L-[0-9]{4}-[0-9]{2}-[0-9]{2}' | sed 's/^## L-//')
+                rest=$(printf '%s' "$line" | sed -E 's/^## L-[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]+ //')
+                max_nn=$(grep -oE "^## L-${date}-[0-9]+" "$workdir/.lessons.fresh" | grep -oE '[0-9]+$' | sort -n | tail -1)
+                max_nn=${max_nn:-0}
+                cur=${seen_nn[$date]:-$max_nn}
+                next=$((cur + 1))
+                seen_nn[$date]=$next
+                line=$(printf '## L-%s-%02d %s' "$date" "$next" "$rest")
+              fi
+              renumbered+="${line}"$'\n'
+            done <<< "$added"
+
+            # Reset the branch onto origin/main BEFORE touching the working
+            # tree — checkout refuses to switch refs over uncommitted changes
+            # to a tracked file, and doing this the other way round (write
+            # first) either aborts here with the branch left un-rebuilt, or
+            # — worse — silently commits the right CONTENT on top of the
+            # WRONG parent history, which still doesn't resolve DIRTY.
+            if ! git -C "$workdir" checkout --quiet -B "$head_ref" origin/main >/tmp/eva-cs-reset.log 2>&1; then
+              echo "      could not reset $head_ref onto origin/main:"; tail -5 /tmp/eva-cs-reset.log
+              rm -rf "$workdir"; return 1
+            fi
+            cp "$workdir/.lessons.fresh" "$workdir/$lessons"
+            printf '\n%s' "$renumbered" >> "$workdir/$lessons"
+            rm -f "$workdir/.lessons.fresh"
+
+            git -C "$workdir" add "$lessons"
+            if git -C "$workdir" diff --cached --quiet; then
+              echo "      renumbered content is identical to origin/main already — nothing to push"
+              rm -rf "$workdir"; return 1
+            fi
+            if ! git -C "$workdir" commit --quiet \
+                 -m "docs: renumber colliding lesson IDs (eva#250 self-heal)" \
+                 -m "Co-Authored-By: iEVO Eva <noreply@ievo.ai>" >/tmp/eva-cs-commit.log 2>&1; then
+              echo "      commit failed:"; tail -5 /tmp/eva-cs-commit.log
+              rm -rf "$workdir"; return 1
+            fi
+            if git -C "$workdir" push --quiet --force-with-lease origin "HEAD:$head_ref" >/tmp/eva-cs-push.log 2>&1; then
+              rm -rf "$workdir"
+              return 0
+            fi
+            echo "      push failed:"; tail -10 /tmp/eva-cs-push.log
+            rm -rf "$workdir"
+            return 1
+          }
+
+          TOTAL_FOUND=0; TOTAL_RECOVERED=0; TOTAL_CLOSED_REQUEUED=0; TOTAL_CLOSED_NEEDS_OPERATOR=0; TOTAL_SKIPPED=0; ACTIONS=0
 
           for REPO in $WATCH_LIST; do
             if ! PRS=$(gh pr list --repo "$REPO" --state open --limit 100 \
               --json number,headRefName,author,mergeStateStatus,isDraft,closingIssuesReferences,url \
-              --jq '[.[] | select(.headRefName | startswith("eva-impl/"))]' 2>/tmp/eva-cs-prlist.log); then
+              --jq '[.[] | select(.headRefName | startswith("eva-impl/") or startswith("evolution/consolidate-"))]' 2>/tmp/eva-cs-prlist.log); then
               echo "  $REPO — gh pr list failed, skipping this repo this run:"; tail -5 /tmp/eva-cs-prlist.log
               continue
             fi
@@ -267,27 +390,54 @@ jobs:
                 TOTAL_SKIPPED=$(( TOTAL_SKIPPED + 1 )); continue
               fi
 
+              case "$HEAD_REF" in
+                evolution/consolidate-*) IS_CONSOLIDATE=true ;;
+                *)                       IS_CONSOLIDATE=false ;;
+              esac
+
               if [ "$LIVE" != "true" ]; then
-                echo "    DRY RUN — would attempt a clean rebase-and-push, falling back to close+re-approve #${ISSUE_NUM:-none} if it conflicts for real"
+                if [ "$IS_CONSOLIDATE" = "true" ]; then
+                  echo "    DRY RUN — would attempt a renumber-and-rebuild (eva#250), falling back to close+re-approve #${ISSUE_NUM:-none} if that isn't possible"
+                else
+                  echo "    DRY RUN — would attempt a clean rebase-and-push, falling back to close+re-approve #${ISSUE_NUM:-none} if it conflicts for real"
+                fi
                 ACTIONS=$(( ACTIONS + 1 )); continue
               fi
 
               ACTIONS=$(( ACTIONS + 1 ))
 
-              if try_rebase_and_push "$REPO" "$HEAD_REF"; then
+              if [ "$IS_CONSOLIDATE" = "true" ]; then
+                if try_renumber_and_rebuild "$REPO" "$HEAD_REF"; then
+                  echo "    renumbered colliding lesson ID(s) against current main and pushed — Tests will re-run, eva-review-pr re-enters the loop"
+                  gh pr comment "$NUM" --repo "$REPO" --body \
+                    "Eva's conflict scan (eva#211/eva#250) found this lesson-consolidation PR marked \`DIRTY\`. Re-derived its lesson ID(s) against the current \`agent/memory/evolution/lessons.md\` on \`main\` and rebuilt the branch on top of it; this re-triggers Tests and eva-review-pr will re-review normally." || true
+                  TOTAL_RECOVERED=$(( TOTAL_RECOVERED + 1 ))
+                  continue
+                fi
+              elif try_rebase_and_push "$REPO" "$HEAD_REF"; then
                 echo "    rebased cleanly onto current main and pushed — Tests will re-run, eva-review-pr re-enters the loop"
                 gh pr comment "$NUM" --repo "$REPO" --body \
                   "Eva's conflict scan (eva#211) found this PR marked \`DIRTY\` (merge-conflicting — no automation re-fires on a conflict with no new push). Rebased cleanly onto the current \`main\` with zero manual conflicts and pushed; this re-triggers Tests and eva-review-pr will re-review normally." || true
-                TOTAL_REBASED=$(( TOTAL_REBASED + 1 ))
+                TOTAL_RECOVERED=$(( TOTAL_RECOVERED + 1 ))
                 continue
               fi
 
-              # Real conflict (or clone/rebase/push failed) — close and
-              # re-queue the originating issue, exactly the operator's own
-              # skills#356/#359 recovery.
+              # Real conflict (or clone/rebase/push failed, or the narrow
+              # renumber recipe refused/failed) — close and re-queue the
+              # originating issue, exactly the operator's own skills#356/#359
+              # recovery. evolution/consolidate-* PRs never carry a linked
+              # issue (Phase 6/3c open them without `Closes #N` — the lesson's
+              # source issue lives in a different repo), so they always take
+              # the no-linked-issue branch below: close + flag needs-operator.
+              # That's an accepted loss for this path (eva#169: "a missed
+              # learning opportunity, not a build failure").
               if [ -z "$ISSUE_NUM" ]; then
-                gh pr close "$NUM" --repo "$REPO" --delete-branch --comment \
-                  "Eva's conflict scan (eva#211): this PR is \`DIRTY\` and a clean rebase onto \`main\` was not possible (a real merge conflict). No linked issue (\`Closes #N\`) was found to re-queue for a fresh build. Closing; operator should re-open the underlying work manually if it is still wanted." || true
+                if [ "$IS_CONSOLIDATE" = "true" ]; then
+                  CLOSE_MSG="Eva's conflict scan (eva#211/eva#250): this lesson-consolidation PR is \`DIRTY\` and the renumber-and-rebuild recovery did not complete (see the run log). Closing — the captured lesson is lost from this batch, which eva#169 treats as a missed learning opportunity, not a build failure. Operator can inspect if the underlying lesson is still worth re-capturing."
+                else
+                  CLOSE_MSG="Eva's conflict scan (eva#211): this PR is \`DIRTY\` and a clean rebase onto \`main\` was not possible (a real merge conflict). No linked issue (\`Closes #N\`) was found to re-queue for a fresh build. Closing; operator should re-open the underlying work manually if it is still wanted."
+                fi
+                gh pr close "$NUM" --repo "$REPO" --delete-branch --comment "$CLOSE_MSG" || true
                 gh label create needs-operator --repo "$REPO" \
                   --description "Pipeline blocked on the human operator to unblock" \
                   --color "e11d21" 2>/dev/null || true
@@ -296,7 +446,8 @@ jobs:
                 # operator's usual `gh search issues --label needs-operator`
                 # inbox sweep (that search excludes PRs by default), so a
                 # nonzero closed_needs_operator count in the digest below is
-                # the real signal to go check closed eva-impl/* PRs directly.
+                # the real signal to go check closed eva-impl/* or
+                # evolution/consolidate-* PRs directly.
                 gh pr edit "$NUM" --repo "$REPO" --add-label needs-operator 2>/dev/null || true
                 echo "    closed (no linked issue found to re-queue) — flagged needs-operator on the PR"
                 TOTAL_CLOSED_NEEDS_OPERATOR=$(( TOTAL_CLOSED_NEEDS_OPERATOR + 1 ))
@@ -341,8 +492,8 @@ jobs:
           done
 
           echo ""
-          echo "Conflict scan digest: found=$TOTAL_FOUND rebased=$TOTAL_REBASED closed_requeued=$TOTAL_CLOSED_REQUEUED closed_needs_operator=$TOTAL_CLOSED_NEEDS_OPERATOR skipped=$TOTAL_SKIPPED (live=$LIVE, cap=$MAX_ACTIONS)"
+          echo "Conflict scan digest: found=$TOTAL_FOUND recovered=$TOTAL_RECOVERED closed_requeued=$TOTAL_CLOSED_REQUEUED closed_needs_operator=$TOTAL_CLOSED_NEEDS_OPERATOR skipped=$TOTAL_SKIPPED (live=$LIVE, cap=$MAX_ACTIONS)"
           if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
-            printf 'Conflict scan (eva#211): found=%s rebased=%s closed_requeued=%s closed_needs_operator=%s skipped=%s (live=%s)\n' \
-              "$TOTAL_FOUND" "$TOTAL_REBASED" "$TOTAL_CLOSED_REQUEUED" "$TOTAL_CLOSED_NEEDS_OPERATOR" "$TOTAL_SKIPPED" "$LIVE" >> "$GITHUB_STEP_SUMMARY"
+            printf 'Conflict scan (eva#211): found=%s recovered=%s closed_requeued=%s closed_needs_operator=%s skipped=%s (live=%s)\n' \
+              "$TOTAL_FOUND" "$TOTAL_RECOVERED" "$TOTAL_CLOSED_REQUEUED" "$TOTAL_CLOSED_NEEDS_OPERATOR" "$TOTAL_SKIPPED" "$LIVE" >> "$GITHUB_STEP_SUMMARY"
           fi

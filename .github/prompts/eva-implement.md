@@ -267,6 +267,15 @@ entry above (`EVA_EVOLUTION_CAPTURE` file has content), append it to
   separate PR for this on an eva-repo build (Phase 6 is cross-repo only).
 - Cross-repo builds skip this — see Phase 6 instead (lessons must not land in
   the target repo, operator's #158 Q1 answer).
+- Known residual risk (eva#250): unlike Phase 6's cross-repo consolidation PR,
+  this path does NOT re-derive `NN` against a fresh fetch of `origin/main`
+  immediately before appending — it dedups/appends against whatever this
+  branch's working-tree copy already has. Two eva-repo builds/fixes running
+  concurrently against `ievo-ai/eva` itself could in principle still pick the
+  same `NN` for the same date. Accepted as lower-frequency than the
+  cross-repo case (eva-repo builds are rarer, and `EVA_MAX_INFLIGHT` bounds
+  concurrency) — not fixed here to avoid restructuring this build's core
+  commit/rebase ordering (Phase 4d → 4e → 4f) for a narrow race window.
 
 ### 4e. Commit + push the branch (NO PR yet)
 
@@ -521,6 +530,36 @@ rule as Phase 4.5 — see Safety rules).
           { block = block $0 "\n" }
           END { if (block != "" && !(title in seen)) printf "%s", block }
         ' "$CAPTURE_FILE")
+
+        # Renumber (eva#250): the capture step picked NN against whatever
+        # lessons.md looked like at run START, but THIS clone is fresh right
+        # now — a parallel run that started from the same stale snapshot would
+        # pick the identical NN, and the ID is both the dedup key AND the
+        # `[[L-...]]` cross-ref anchor, so a collision makes both entries
+        # ambiguous and Eva's own review correctly blocks the PR. Re-derive
+        # each new block's NN as max(existing same-date NN in THIS lessons.md)
+        # + 1, allocating in the batch's own order (so two same-date entries
+        # in one capture get consecutive numbers). Only the header line
+        # changes — entry bodies are untouched.
+        if [ -n "$NEW_CONTENT" ]; then
+          declare -A SEEN_NN
+          RENUMBERED=""
+          while IFS= read -r LINE; do
+            if printf '%s' "$LINE" | grep -qE '^## L-[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]+ '; then
+              DATE=$(printf '%s' "$LINE" | grep -oE '^## L-[0-9]{4}-[0-9]{2}-[0-9]{2}' | sed 's/^## L-//')
+              REST=$(printf '%s' "$LINE" | sed -E 's/^## L-[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]+ //')
+              MAX_NN=$(grep -oE "^## L-${DATE}-[0-9]+" "$LESSONS" | grep -oE '[0-9]+$' | sort -n | tail -1)
+              MAX_NN=${MAX_NN:-0}
+              CUR=${SEEN_NN[$DATE]:-$MAX_NN}
+              NEXT=$((CUR + 1))
+              SEEN_NN[$DATE]=$NEXT
+              LINE=$(printf '## L-%s-%02d %s' "$DATE" "$NEXT" "$REST")
+            fi
+            RENUMBERED="${RENUMBERED}${LINE}
+"
+          done <<< "$NEW_CONTENT"
+          NEW_CONTENT="$RENUMBERED"
+        fi
 
         if [ -n "$NEW_CONTENT" ]; then
           printf '\n%s\n' "$NEW_CONTENT" >> "$LESSONS"
