@@ -286,20 +286,26 @@ jobs:
             posted after your most recent analysis comment.
 
             ### R4 — Re-judge with the answers folded in
-            Re-run the research + verdict judgment (Steps 2-4 below — read the actual
-            source files again; re-verify any external claim) but now treat the
-            trusted maintainer answers as authoritative input to the questions you
-            raised. Decide:
+            Re-run the research + verdict judgment (Steps 2-4 below, including the
+            Step 3.5 scope guard — read the actual source files again;
+            re-verify any external claim; re-estimate the implementation
+            surface) but now treat the trusted maintainer answers as
+            authoritative input to the questions you raised. Decide:
               - Do genuine open questions REMAIN (some unanswered, or the answers
                 raise new material ones)? → verdict stays `hold`.
-              - ZERO genuine open questions AND low-risk → the requirements are
-                clear; go to the trust matrix in R5 for the verdict.
+              - The Step 3.5 scope guard FIRES on the re-estimated surface? →
+                verdict stays `hold` (same as Step 4 condition 3 — answered
+                questions never waive the scope guard).
+              - ZERO genuine open questions AND low-risk AND the scope guard did
+                NOT fire → the requirements are clear; go to the trust matrix in
+                R5 for the verdict.
 
             ### R5 — Verdict + trust matrix (eva#132 — UNCHANGED by re-triage; operator constraint on #143)
             Re-triage resumes the DISCUSSION; it does NOT weaken the implement gate.
             Let AUTHOR = the ISSUE author's association (from R1), not the commenter.
-              - **Author is MEMBER/OWNER (trusted) + zero open questions + low-risk**
-                → verdict `implement`: the trusted author's issue may build.
+              - **Author is MEMBER/OWNER (trusted) + zero open questions + low-risk
+                + Step 3.5 scope guard did NOT fire** → verdict `implement`: the
+                trusted author's issue may build.
               - **Author is a non-member (external)** → even with zero open questions
                 and low risk, the verdict is NOT `implement`. A member's comment
                 resumes the discussion, but starting a build on an externally-
@@ -307,8 +313,8 @@ jobs:
                 low-risk path (eva#132 trust matrix, unchanged). Set the verdict to
                 `hold` and state in the analysis: "requirements are clear — awaiting
                 an explicit member `approved` to implement (external-authored)."
-              - **Any remaining/new open questions, OR not low-risk** → verdict
-                `hold` regardless of author.
+              - **Any remaining/new open questions, OR not low-risk, OR the Step
+                3.5 scope guard fired** → verdict `hold` regardless of author.
             DEFAULT TO `hold` when unsure — a wrong hold costs one operator click; a
             wrong implement spends a full build.
 
@@ -329,24 +335,42 @@ jobs:
                 --body-file /tmp/analysis.md
 
             ### R7 — Update lifecycle labels to match the verdict
-              - verdict `implement` (trusted author, clear, low-risk) → FIRST run
-                Step 6.5 (optional model escalation — it may add `model:fable`),
-                THEN add `approved` and remove BOTH `needs-discussion` and
-                `needs-operator` (default token — a member unlock, exactly as the
-                new-issue path applies `approved`). Applying `approved` is what
-                fires eva-implement, and that build reads the `model:*` label at
-                claim time — so any escalation label must already be on the issue
-                BEFORE `approved`, never after. Removing `needs-operator` here is
-                the unlock consuming the operator-blocked state (eva#146 — a
-                resolved issue must never keep it).
+              - verdict `implement` (trusted author, clear, low-risk, Step 3.5
+                scope guard did NOT fire) → FIRST run Step 6.5 (optional model
+                escalation — it may add `model:fable`), THEN add `approved` and
+                remove BOTH `needs-discussion` and `needs-operator` (default
+                token — a member unlock, exactly as the new-issue path applies
+                `approved`). Applying `approved` is what fires eva-implement,
+                and that build reads the `model:*` label at claim time — so any
+                escalation label must already be on the issue BEFORE `approved`,
+                never after. Removing `needs-operator` here is the unlock
+                consuming the operator-blocked state (eva#146 — a resolved issue
+                must never keep it).
                   gh issue edit "$TARGET_ISSUE" --repo "$TARGET_REPO" \
                     --add-label approved --remove-label needs-discussion
                   gh issue edit "$TARGET_ISSUE" --repo "$TARGET_REPO" \
                     --remove-label needs-operator 2>/dev/null || true
-              - verdict `hold` (questions remain, or external-author-awaiting-approval,
-                or not low-risk) → keep `needs-discussion` as-is; do NOT add
+              - verdict `hold`, open questions remain (or external-author-
+                awaiting-approval) → keep `needs-discussion` as-is; do NOT add
                 `approved`. Ensure `needs-operator` (eva#146) is present — it is
                 still blocked on the operator (create-if-missing, default token):
+                  gh label create needs-operator --repo "$TARGET_REPO" \
+                    --description "Pipeline blocked on the human operator to unblock" \
+                    --color "e11d21" 2>/dev/null || true
+                  gh issue edit "$TARGET_ISSUE" --repo "$TARGET_REPO" \
+                    --add-label needs-operator
+              - verdict `hold`, ZERO open questions remain but the Step 3.5
+                scope guard fired (mirrors Step 6's "no open questions but not
+                low-risk" bucket — a newly-reachable state on re-triage now that
+                answered questions no longer waive the scope guard) → swap the
+                label: remove `needs-discussion`, add `triage` instead; do NOT
+                add `approved`. Ensure `needs-operator` is present (same as
+                above):
+                  gh label create triage --repo "$TARGET_REPO" \
+                    --description "Eva lifecycle/classification" \
+                    --color "ededed" 2>/dev/null || true
+                  gh issue edit "$TARGET_ISSUE" --repo "$TARGET_REPO" \
+                    --add-label triage --remove-label needs-discussion
                   gh label create needs-operator --repo "$TARGET_REPO" \
                     --description "Pipeline blocked on the human operator to unblock" \
                     --color "e11d21" 2>/dev/null || true
@@ -552,14 +576,63 @@ jobs:
             Look for: same component, similar wording, evidence-URL overlap,
             sibling proposals that should bundle/sequence with this one.
 
+            ## Step 3.5 — Scope/size guard (eva#232)
+
+            Before deciding the verdict, estimate the issue's implementation
+            surface from what you found in Steps 1-3: how many DISTINCT files
+            would need to be created or modified to build this issue as scoped?
+            List them (even roughly) — you need the list for the analysis
+            comment either way.
+
+            The guard FIRES (forces a `hold`, regardless of how clear or
+            low-risk the issue otherwise looks) when EITHER:
+              (a) the estimated surface names or implies MORE THAN 4 distinct
+                  files to create or modify, OR
+              (b) the issue matches the qualitative pattern that caused the
+                  eva#159 timeout: a NEW script + its own test suite + 2 OR
+                  MORE further files (e.g. multi-skill wiring, generated
+                  artifacts) in one issue.
+            Both thresholds are the two tripwires the operator confirmed would
+            have caught the empirical incident (script + tests + two skills +
+            nudge → 50m22s, cancelled at eva-implement's 50-minute job
+            ceiling). Treat crossing EITHER as a real ceiling risk, not a soft
+            signal — this is deliberately conservative: a false-positive hold
+            costs one operator click, a false-negative costs a full burned
+            build.
+
+            If the guard fires:
+              - The verdict is `hold` (Step 4 below reflects this as condition 3).
+              - Under `### Approach` in the analysis comment (Step 5), list the
+                files/components you counted and state which tripwire fired.
+              - Add a `### Suggested split` section (Step 5's format below) with
+                a concrete 2-part split: part 1 = the new script + its own test
+                suite (or the core standalone piece), part 2 = the
+                wiring/integration files. Call out that they're version-coupled
+                and must build sequentially anyway, so splitting costs nothing
+                but one extra small PR.
+              - Route lifecycle labels through Step 6's "hold, no open questions
+                but not low-risk" bucket (`triage` + `needs-operator`) unless
+                open questions ALSO remain, in which case the open-questions
+                bucket (`needs-discussion` + `needs-operator`) applies instead.
+              - Do NOT auto-file the split as sub-issues — that is a
+                deliberately deferred v2 with its own issue-lifecycle trust
+                surface (operator answer on eva#232). The operator does the
+                actual split from your suggestion.
+
+            If the guard does NOT fire, proceed to Step 4 unaffected — this
+            guard only ever forces a `hold`; it never grants an `implement` the
+            issue wouldn't otherwise earn.
+
             ## Step 4 — Decide the routing verdict (before writing the comment)
 
-            Emit `implement` ONLY when BOTH hold:
+            Emit `implement` ONLY when ALL of:
               1. Requirements are CLEAR — zero genuine open questions (the
                  ### Questions section will be exactly "None — requirements are clear.").
               2. LOW RISK — scoped to safe paths, no workflow/CI/security/schema-
                  breaking change, small-to-moderate surface, no unresolved
                  conflicts, and any external claim is VERIFIED.
+              3. The Step 3.5 scope guard did NOT fire (the estimated surface
+                 fits the eva-implement job ceiling).
             Otherwise the verdict is `hold`. DEFAULT TO `hold` when unsure — a wrong
             hold costs one operator click; a wrong implement spends a full build.
 
@@ -575,13 +648,19 @@ jobs:
             Then the structured body (exact headings; write "None identified" for
             an empty section). Include the marker line <!-- ievo-open-questions -->
             on its own line IMMEDIATELY BEFORE `### Questions` ONLY when there ARE
-            real open questions:
+            real open questions. Include `### Suggested split` ONLY when the
+            Step 3.5 scope guard fired (omit the section entirely otherwise):
 
               ### Understanding
               <restate the ask in your words; call out ambiguity / assumptions>
 
               ### Approach
               <how you'd implement — specific files, change shape, order>
+
+              ### Suggested split
+              <ONLY when the Step 3.5 guard fired: the 2-part split — part 1,
+               part 2, and why they're version-coupled (must build sequentially
+               anyway, so splitting costs one extra small PR)>
 
               ### Questions
               <open questions blocking implementation, or exactly
@@ -618,8 +697,8 @@ jobs:
                 `approved` is applied
               - verdict `hold` with open questions → add `needs-discussion` AND
                 `needs-operator`
-              - verdict `hold`, no open questions but not low-risk → add `triage`
-                AND `needs-operator`
+              - verdict `hold`, no open questions but not low-risk OR the Step 3.5
+                scope guard fired → add `triage` AND `needs-operator`
 
             `needs-operator` (eva#146) is the operator's single cross-repo inbox
             filter — apply it on EVERY hold verdict (BOTH branches above), on top
