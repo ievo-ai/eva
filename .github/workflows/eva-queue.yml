@@ -31,6 +31,14 @@
 #     no-ops any duplicate vs the reactive path. The cap is best-effort (a
 #     simultaneous-dispatch race can leave a couple extra parallel builds — a
 #     resource cost, not a correctness/security one; no distributed lock).
+#   - In-flight count folds in BOTH the `eva-implementing` label AND any open
+#     `eva-impl/*` PR (eva#229) — eva#196 releases the label the instant a
+#     build's PR opens, so counting the label alone undercounts once a PR is
+#     open-but-unmerged, letting a second build start for the same repo while
+#     version-coupled files (e.g. skills' plugin.json / marketplace.json /
+#     CHANGELOG.md / a SCRIPT_VERSION carrier) are still in flux in the first
+#     PR — those conflict by construction (eva-conflict-scan, #211/#220,
+#     recovers the stranding reactively; this avoids creating it proactively).
 #   - Live dispatch is double-gated: NOT dry_run AND vars.EVA_QUEUE_ENABLED.
 #     Runs on a 30-min cron (live, flag-gated) + manual workflow_dispatch
 #     (dry_run default true for safe inspection). Validated end-to-end with
@@ -149,8 +157,28 @@ jobs:
               --limit 100 --json number --jq '.[].number' 2>/dev/null || true)
             [ -z "$APPROVED" ] && continue
 
-            INFLIGHT=$(gh issue list --repo "$REPO" --label eva-implementing \
-              --state open --json number --jq 'length' 2>/dev/null || echo 0)
+            LABEL_INFLIGHT=$(gh issue list --repo "$REPO" --label eva-implementing \
+              --state open --limit 100 --json number --jq 'length' 2>/dev/null || echo 0)
+
+            # eva#229: eva#196 releases `eva-implementing` the INSTANT a build's
+            # PR opens (the true freed-slot moment), so an open-but-unmerged
+            # `eva-impl/*` PR does NOT count toward LABEL_INFLIGHT above — a
+            # second build could dispatch for the same repo while the first PR
+            # is still open. Fold open `eva-impl/*` PRs into the SAME inflight
+            # count, exactly like a labeled issue — additive to the label
+            # check above, not a replacement (eva#196's early-release behavior
+            # for the label itself is untouched). `isCrossRepository | not`
+            # excludes a fork PR merely NAMED `eva-impl/*` — only Eva's own
+            # same-repo pushes should count. `--limit 100` matches the
+            # `APPROVED` query above and eva-reaper.yml's analogous PR list
+            # call — `gh`'s default page size (30) could otherwise silently
+            # drop an older in-flight PR on a repo with heavy PR traffic.
+            PR_INFLIGHT=$(gh pr list --repo "$REPO" --state open --limit 100 \
+              --json headRefName,isCrossRepository \
+              --jq '[.[] | select((.isCrossRepository | not) and (.headRefName | startswith("eva-impl/")))] | length' \
+              2>/dev/null || echo 0)
+
+            INFLIGHT=$(( LABEL_INFLIGHT + PR_INFLIGHT ))
             SLOTS=$(( MAX_INFLIGHT - INFLIGHT ))
 
             for N in $APPROVED; do
