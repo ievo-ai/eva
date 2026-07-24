@@ -1,0 +1,370 @@
+# Eva — Review Watchdog: detect gates-green-but-unreviewed PRs and re-dispatch
+# review (eva#230).
+#
+# THE GAP: a PR can sit with all product gates green and NO review dispatched.
+# Observed 2026-07-23 on a skills PR — the child-repo "Request Eva Review"
+# forwarder (`notify-eva.yml`) fires once per gate's completion, and on each
+# firing re-queries the check-runs API for BOTH gates before dispatching. Both
+# firings raced the API immediately after their own gate's completion (the
+# just-completed gate's own conclusion not yet visible to the OTHER gate's
+# firing, and vice versa), both saw only one gate green, both skipped, and no
+# dispatch ever happened. The PR sat unreviewed ~30 minutes until the operator
+# manually re-ran the forwarder. Nothing on Eva's side previously noticed
+# "reviewable but unreviewed" — eva-queue.yml only drains `approved` issues,
+# eva-reaper.yml only recovers stale `eva-implementing` claims, and
+# eva-conflict-scan.yml only recovers `DIRTY` merge conflicts; none of them
+# cover a perfectly clean, all-green PR that no trigger ever fired review for.
+#
+# THE FIX (this workflow) — deterministic, no LLM agent, same precedent shape
+# as eva-queue.yml / eva-reaper.yml / eva-conflict-scan.yml (cron +
+# workflow_dispatch, App-token reads/writes, dry-run + live double-gate,
+# per-run action cap):
+#   For every watch-list repo, for every open, non-draft, same-repo
+#   `eva-impl/*` PR:
+#     1. Gates green — prefer the checks branch protection marks REQUIRED
+#        (`gh pr checks --required`, what actually gates a merge); a repo with
+#        NO branch protection configured (e.g. skills — see that repo's own
+#        `notify-eva.yml` header) reports zero required checks, so fall back
+#        to every reported check. This generalizes across the heterogeneous
+#        watch-list without a hardcoded per-repo gate-workflow-name map, which
+#        would silently drift exactly like eva#230 Q1 flagged for the repo
+#        list itself (solved there by reusing eva-queue.yml's watch-list; here
+#        by asking GitHub which checks are required, or falling back to "all
+#        of them" when it doesn't know).
+#     2. Stalled long enough — the latest gate's `completedAt` must be more
+#        than `EVA_REVIEW_WATCHDOG_GRACE_MINUTES` (default 10) in the past.
+#        Guards against redispatching for a PR whose gates only *just* went
+#        green (the review may simply not have had time to fire yet).
+#     3. Not already reviewed for this HEAD — the latest PR review's
+#        `submittedAt` must be older than the HEAD commit's own committer
+#        timestamp (or no review exists at all). A PR already reviewed at the
+#        current HEAD is not stalled, whatever the review's verdict.
+#     4. Nothing already in flight:
+#        - Cross-repo PRs (the majority of traffic): match
+#          `eva-review-pr.yml`'s `run-name` (added in this same change) —
+#          those reviews are only ever `repository_dispatch`-triggered, whose
+#          title is deterministically "Review <repo>#<pr>".
+#        - `ievo-ai/eva`'s own PRs: title-matching is NOT reliable here. Eva's
+#          self-review can ALSO fire via `workflow_run` (Tests completing),
+#          and that path's title embeds `workflow_run.head_sha` — which, per
+#          `eva-review-pr.yml`'s own "Resolve PR context" step (a documented,
+#          empirically-hit GitHub quirk, PR #59 2026-05-23), is the
+#          *synthetic merge-commit SHA* for a pull_request-triggered run,
+#          never the PR's real head SHA. A title built from the real head SHA
+#          (what this workflow has) would therefore never match, permanently
+#          faking "nothing in flight" for eva's own workflow_run-triggered
+#          reviews. Instead of a broken title match, eva-repo candidates check
+#          for ANY non-completed eva-review-pr.yml run whose *triggering
+#          event* is `workflow_run` or `pull_request` (a self-review path, not
+#          a dispatch) — coarser (blocks re-dispatch for every eva-repo
+#          candidate this sweep if ANY eva PR is mid-review, not just the one
+#          under test) but correct; a false positive here just defers
+#          harmlessly to the next sweep.
+#        Any status other than `completed` counts as live, mirroring
+#        eva-reaper.yml's own run-history idiom.
+#   A PR meeting all four re-dispatches `review-pr` — the exact same
+#   `repository_dispatch` the child-repo forwarders send, verified live by
+#   eva-review-pr.yml's own `eva-impl/*` handling. Idempotent by construction:
+#   eva-review-pr.yml's `eva-review-${repo}-${pr}` concurrency group already
+#   dedups any overlapping cross-repo/dispatch re-dispatch keyed the same way;
+#   the operator's explicit fail-open preference (eva#230 Q2 answer) — "a
+#   redundant dispatch is harmless" — is why this workflow leans toward
+#   dispatching when in doubt rather than adding more precision-seeking
+#   conditions.
+#
+# SCOPE: watchdog-only, no review-logic duplication — this workflow never
+# reviews or merges anything itself, it only notices a missing dispatch and
+# re-fires the SAME one the forwarders already send. Root-cause hardening of
+# the forwarder itself (a brief retry on the gate-conclusion query) is an
+# explicitly deferred sibling fix, filed separately against `ievo-ai/skills`
+# per the operator (eva#230 is watchdog-only).
+#
+# DORMANT BY DEFAULT: merges inert. The operator flips
+# `EVA_REVIEW_WATCHDOG_ENABLED` after a deliberate dry-run smoke test (same
+# pattern as eva-queue.yml / eva-reaper.yml / eva-conflict-scan.yml).
+#
+# Safety:
+#   - Every action taken is a re-dispatch of the exact same `review-pr` event
+#     the child-repo forwarders send — never a label write, merge, or close.
+#     Fully reversible.
+#   - Per-run action cap (`EVA_REVIEW_WATCHDOG_MAX_ACTIONS`, default 10) paces
+#     recovery across runs if an unusually large batch is found.
+#   - Live dispatch is double-gated (mirrors eva-queue.yml / eva-reaper.yml /
+#     eva-conflict-scan.yml): NOT dry_run AND `vars.EVA_REVIEW_WATCHDOG_ENABLED`.
+#     Gates every trigger, manual or scheduled alike.
+#   - Every redispatch is also posted as a PR comment explaining why — never
+#     silent — mirroring eva-reaper.yml's "every action is a comment" norm.
+#   - `EVA_REVIEW_WATCHDOG_GRACE_MINUTES` is validated as a positive integer
+#     before use — an unparseable `date -d` argument would otherwise silently
+#     make every PR look "within the grace window" forever (a total, silent
+#     false negative), so this fails loudly instead.
+#   - The one API call needing `actions` scope (reading eva-review-pr.yml's own
+#     run history, to detect an in-flight review) goes through the PAT, not
+#     the App token — the App installation's `actions` grant is unconfirmed;
+#     same constraint and precedent as eva-reaper.yml / eva-ci-failure.yml.
+
+name: "Eva: Review Watchdog"
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Evaluate + report gates-green-but-unreviewed PRs but dispatch NO review-pr"
+        type: boolean
+        default: true
+  schedule:
+    # Every 30 min, offset from eva-queue.yml (:07/:37) and eva-reaper.yml
+    # (:23) — spreads API load across the watch-list instead of stacking every
+    # sweep on the same tick.
+    - cron: "15,45 * * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eva-review-watchdog
+  cancel-in-progress: false
+
+jobs:
+  watchdog:
+    name: "Eva: detect gates-green-but-unreviewed PRs"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Generate App token
+        if: vars.USE_GITHUB_APP == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547  # v1.12.0
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ievo-ai
+          # Explicit list (eva#156/#152 lesson — a permission-* mint carries
+          # ONLY the listed permissions, not the full installation set).
+          # `actions` is deliberately NOT requested: the App installation's
+          # `actions` grant is unconfirmed, and per eva#152 a mint requesting
+          # an ungranted permission fails LOUDLY at this step — the run-history
+          # read that needs it goes through the PAT below instead (see AUTH
+          # SPLIT), same as eva-reaper.yml / eva-ci-failure.yml.
+          #   contents:write      — `repository_dispatch` POST (re-firing
+          #                         `review-pr`); also covers the commits-API
+          #                         read for HEAD push timestamps
+          #   pull-requests:write — `gh pr comment` on redispatch; also covers
+          #                         `gh pr list` / `gh pr checks` / `gh pr view`
+          #   metadata:read       — baseline `gh api` reads
+          permission-contents: write
+          permission-pull-requests: write
+          permission-metadata: read
+
+      - name: Set auth token
+        id: auth
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          PAT_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+        run: |
+          if [ -n "$APP_TOKEN" ]; then
+            echo "token=$APP_TOKEN" >> "$GITHUB_OUTPUT"
+          else
+            echo "token=$PAT_TOKEN" >> "$GITHUB_OUTPUT"
+          fi
+
+      # AUTH SPLIT (see header): the App's `actions` grant is unconfirmed, so
+      # the one read that needs it goes through the PAT directly, exactly like
+      # eva-reaper.yml's "Fetch eva-implement run history" step.
+      - name: Fetch eva-review-pr run history
+        env:
+          GH_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+        run: |
+          if ! gh run list --repo ievo-ai/eva --workflow eva-review-pr.yml --limit 100 \
+               --json displayTitle,status,event \
+               > /tmp/eva-watchdog-review-runs.json 2>/tmp/eva-watchdog-review-runs.log; then
+            echo "::error::gh run list failed — cannot safely tell an in-flight review from a stalled PR this sweep, aborting"
+            cat /tmp/eva-watchdog-review-runs.log
+            exit 1
+          fi
+
+      - name: Detect gates-green-but-unreviewed PRs and re-dispatch review
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          # Same watch-list as eva-queue.yml / eva-reaper.yml / eva-conflict-
+          # scan.yml (D-004 repos except godfather) — single source of truth,
+          # no second hardcoded list to drift (eva#230 Q1 answer).
+          WATCH_LIST: >-
+            ievo-ai/eva
+            ievo-ai/cli
+            ievo-ai/marketplace
+            ievo-ai/curator
+            ievo-ai/sdk
+            ievo-ai/skills
+            ievo-ai/agents
+            ievo-ai/cortex
+            ievo-ai/ievo.ai
+          GRACE_MINUTES: ${{ vars.EVA_REVIEW_WATCHDOG_GRACE_MINUTES || '10' }}
+          MAX_ACTIONS: ${{ vars.EVA_REVIEW_WATCHDOG_MAX_ACTIONS || '10' }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+          WATCHDOG_ENABLED: ${{ vars.EVA_REVIEW_WATCHDOG_ENABLED }}
+        run: |
+          set -uo pipefail  # not -e: a single repo/PR failure must not abort the whole sweep
+
+          # Double-gate (mirrors eva-queue.yml / eva-reaper.yml / eva-conflict-
+          # scan.yml): live only when NOT dry_run AND the operator has flipped
+          # the var on. A scheduled run has no dry_run input (DRY_RUN=''), so
+          # falls through to 'false' via the env default above and is treated
+          # as live-eligible, gated solely on the var — same as its siblings.
+          LIVE="false"
+          if [ "$DRY_RUN" != "true" ] && [ "$WATCHDOG_ENABLED" = "true" ]; then
+            LIVE="true"
+          fi
+          echo "Mode: $([ "$LIVE" = "true" ] && echo 'LIVE dispatch' || echo 'DRY RUN (report only)') (grace=${GRACE_MINUTES}m, max actions/run: $MAX_ACTIONS)"
+
+          # Validate before use — an unparseable `date -d` argument would
+          # otherwise silently compute an empty CUTOFF, making every PR look
+          # "within the grace window" forever (a total, silent false negative
+          # across the whole watch-list). Fail loudly instead.
+          if ! [[ "$GRACE_MINUTES" =~ ^[0-9]+$ ]]; then
+            echo "::error::EVA_REVIEW_WATCHDOG_GRACE_MINUTES ('$GRACE_MINUTES') is not a positive integer — aborting rather than risking a silently-disabled sweep"
+            exit 1
+          fi
+
+          # ISO-8601 UTC "Z" timestamps compare correctly with plain string
+          # `<`/`>` (fixed-width, zero-padded fields) — same technique
+          # eva-reaper.yml uses for its grace window.
+          CUTOFF=$(date -u -d "-${GRACE_MINUTES} minutes" +%Y-%m-%dT%H:%M:%SZ)
+
+          TOTAL_SCANNED=0; TOTAL_NOT_GREEN=0; TOTAL_GRACE=0; TOTAL_REVIEWED=0
+          TOTAL_INFLIGHT=0; TOTAL_STALLED=0; TOTAL_CAPPED=0; ACTIONS=0
+
+          for REPO in $WATCH_LIST; do
+            if ! PRS=$(gh pr list --repo "$REPO" --state open --limit 100 \
+                 --json number,headRefName,isCrossRepository,isDraft,headRefOid \
+                 2>/tmp/eva-watchdog-prs.log); then
+              echo "  $REPO — gh pr list failed, skipping this repo this run:"; tail -5 /tmp/eva-watchdog-prs.log
+              continue
+            fi
+
+            CANDIDATES=$(printf '%s' "$PRS" | jq -c \
+              '[.[] | select((.isCrossRepository | not) and (.isDraft | not) and (.headRefName | startswith("eva-impl/")))]')
+            COUNT=$(printf '%s' "$CANDIDATES" | jq 'length')
+            [ "$COUNT" = "0" ] && continue
+
+            # In-flight, self-repo signal (see header point 4): computed ONCE
+            # per repo iteration, not per PR — any non-completed workflow_run/
+            # pull_request-triggered eva-review-pr.yml run blocks EVERY
+            # eva-repo candidate this sweep (coarse but correct; a
+            # false-positive here just defers to the next sweep).
+            EVA_SELF_REVIEW_INFLIGHT="false"
+            if [ "$REPO" = "ievo-ai/eva" ]; then
+              COUNT_SELF=$(jq \
+                '[.[] | select((.event == "workflow_run" or .event == "pull_request") and .status != "completed")] | length' \
+                /tmp/eva-watchdog-review-runs.json)
+              [ "$COUNT_SELF" -gt 0 ] && EVA_SELF_REVIEW_INFLIGHT="true"
+            fi
+
+            for i in $(seq 0 $((COUNT - 1))); do
+              PR=$(printf '%s' "$CANDIDATES" | jq ".[$i]")
+              N=$(printf '%s' "$PR" | jq -r '.number')
+              HEAD_SHA=$(printf '%s' "$PR" | jq -r '.headRefOid')
+              TOTAL_SCANNED=$(( TOTAL_SCANNED + 1 ))
+
+              # Gates green — required checks first, all-checks fallback (see
+              # header comment for why). stderr captured (not discarded) so a
+              # persistent API failure is distinguishable in the logs from a
+              # PR that genuinely has no checks yet.
+              : > /tmp/eva-watchdog-checks.log
+              REQUIRED=$(gh pr checks "$N" --repo "$REPO" --required \
+                --json bucket,completedAt 2>/tmp/eva-watchdog-checks.log || true)
+              [ -z "$REQUIRED" ] && REQUIRED='[]'
+              if [ "$(printf '%s' "$REQUIRED" | jq 'length' 2>/dev/null || echo 0)" -gt 0 ]; then
+                CHECKS="$REQUIRED"
+              else
+                CHECKS=$(gh pr checks "$N" --repo "$REPO" \
+                  --json bucket,completedAt 2>>/tmp/eva-watchdog-checks.log || true)
+                [ -z "$CHECKS" ] && CHECKS='[]'
+              fi
+
+              if [ "$(printf '%s' "$CHECKS" | jq 'length' 2>/dev/null || echo 0)" = "0" ]; then
+                echo "  $REPO#$N — no checks reported yet, skip"
+                [ -s /tmp/eva-watchdog-checks.log ] && echo "    (gh pr checks stderr: $(tail -1 /tmp/eva-watchdog-checks.log))"
+                TOTAL_NOT_GREEN=$(( TOTAL_NOT_GREEN + 1 )); continue
+              fi
+
+              ALL_GREEN=$(printf '%s' "$CHECKS" | jq '[.[].bucket] | all(. == "pass" or . == "skipping")')
+              if [ "$ALL_GREEN" != "true" ]; then
+                echo "  $REPO#$N — not all checks green yet, skip"
+                TOTAL_NOT_GREEN=$(( TOTAL_NOT_GREEN + 1 )); continue
+              fi
+
+              # A green check-run set with no discoverable completedAt at all
+              # (no timestamp to defer against) is treated as already past
+              # the grace window rather than deferred forever.
+              GATES_GREEN_AT=$(printf '%s' "$CHECKS" | jq -r '[.[].completedAt // empty] | max // empty')
+              if [ -n "$GATES_GREEN_AT" ] && [[ "$GATES_GREEN_AT" > "$CUTOFF" ]]; then
+                echo "  $REPO#$N — gates green but within the ${GRACE_MINUTES}m grace window, deferring to next sweep"
+                TOTAL_GRACE=$(( TOTAL_GRACE + 1 )); continue
+              fi
+
+              # Already reviewed for THIS head? A review submitted before HEAD
+              # last moved doesn't count — compare against the head commit's
+              # own committer timestamp (closest available proxy for "when
+              # this HEAD was pushed").
+              HEAD_PUSH_AT=$(gh api "repos/$REPO/commits/$HEAD_SHA" --jq '.commit.committer.date' 2>/dev/null || echo '')
+              REVIEWS=$(gh pr view "$N" --repo "$REPO" --json reviews --jq '.reviews' 2>/dev/null || echo '[]')
+              LAST_REVIEW_AT=$(printf '%s' "$REVIEWS" | jq -r '[.[].submittedAt // empty] | max // empty')
+              if [ -n "$LAST_REVIEW_AT" ] && [ -n "$HEAD_PUSH_AT" ] && [[ "$LAST_REVIEW_AT" > "$HEAD_PUSH_AT" ]]; then
+                echo "  $REPO#$N — already reviewed at $LAST_REVIEW_AT (after HEAD push $HEAD_PUSH_AT), skip"
+                TOTAL_REVIEWED=$(( TOTAL_REVIEWED + 1 )); continue
+              fi
+
+              # Nothing already in flight for THIS PR? See header point 4 for
+              # why eva's own repo uses a different (coarser but correct)
+              # signal than the cross-repo title match.
+              if [ "$REPO" = "ievo-ai/eva" ]; then
+                if [ "$EVA_SELF_REVIEW_INFLIGHT" = "true" ]; then
+                  echo "  $REPO#$N — an eva self-review is already in flight, skip"
+                  TOTAL_INFLIGHT=$(( TOTAL_INFLIGHT + 1 )); continue
+                fi
+              else
+                EXPECTED_TITLE="Review $REPO#$N"
+                INFLIGHT=$(jq --arg t "$EXPECTED_TITLE" \
+                  '[.[] | select(.displayTitle == $t and .status != "completed")] | length' \
+                  /tmp/eva-watchdog-review-runs.json)
+                if [ "$INFLIGHT" -gt 0 ]; then
+                  echo "  $REPO#$N — a review is already in flight ($EXPECTED_TITLE), skip"
+                  TOTAL_INFLIGHT=$(( TOTAL_INFLIGHT + 1 )); continue
+                fi
+              fi
+
+              echo "  $REPO#$N — gates green since $GATES_GREEN_AT, no review since HEAD $HEAD_SHA, nothing in flight — STALLED"
+              TOTAL_STALLED=$(( TOTAL_STALLED + 1 ))
+
+              if [ "$ACTIONS" -ge "$MAX_ACTIONS" ]; then
+                echo "    action cap reached ($MAX_ACTIONS/run) — deferring to next sweep"
+                TOTAL_CAPPED=$(( TOTAL_CAPPED + 1 )); continue
+              fi
+
+              if [ "$LIVE" != "true" ]; then
+                echo "    DRY RUN — would re-dispatch review-pr"
+                ACTIONS=$(( ACTIONS + 1 )); continue
+              fi
+
+              ACTIONS=$(( ACTIONS + 1 ))
+              if jq -nc \
+                   --arg repo "$REPO" --argjson num "$N" --arg sha "$HEAD_SHA" \
+                   '{event_type:"review-pr", client_payload:{repo:$repo, pr_number:$num, head_sha:$sha, triggered_by:"eva-review-watchdog"}}' \
+                   | gh api "repos/ievo-ai/eva/dispatches" --input -; then
+                gh pr comment "$N" --repo "$REPO" --body \
+                  "Eva's review watchdog (eva#230) found this PR's product gates green since \`$GATES_GREEN_AT\` with no review posted since HEAD moved to \`$HEAD_SHA\`, and no review currently in flight — re-dispatched \`review-pr\`. If this was a transient forwarder race, no further action is needed." 2>/dev/null || true
+                echo "    DISPATCHED review-pr"
+              else
+                echo "    dispatch FAILED — will retry next sweep"
+              fi
+            done
+          done
+
+          echo ""
+          echo "Watchdog digest: scanned=$TOTAL_SCANNED not_green=$TOTAL_NOT_GREEN grace=$TOTAL_GRACE reviewed=$TOTAL_REVIEWED inflight=$TOTAL_INFLIGHT stalled=$TOTAL_STALLED capped=$TOTAL_CAPPED dispatched=$ACTIONS (live=$LIVE)"
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            printf 'Review Watchdog (eva#230): scanned=%s not_green=%s grace=%s reviewed=%s inflight=%s stalled=%s capped=%s dispatched=%s (live=%s)\n' \
+              "$TOTAL_SCANNED" "$TOTAL_NOT_GREEN" "$TOTAL_GRACE" "$TOTAL_REVIEWED" "$TOTAL_INFLIGHT" "$TOTAL_STALLED" "$TOTAL_CAPPED" "$ACTIONS" "$LIVE" >> "$GITHUB_STEP_SUMMARY"
+          fi

@@ -8,6 +8,35 @@
 
 name: "Eva: Review PR"
 
+# `run-name` (eva#230): gives every run a stable, parseable identifier —
+# "Review <repo>#<pr>" — the same technique eva-implement.yml uses
+# ("Implement <repo>#<issue>", eva#231) so eva-reaper.yml can map a claim back
+# to its backing run. eva-review-watchdog.yml (eva#230) is the analogous
+# consumer here for CROSS-REPO PRs: before re-dispatching `review-pr` for a PR
+# whose product gates look stalled-green-but-unreviewed, it checks for a
+# non-completed run with this exact title to avoid redundantly restarting a
+# review that is already in flight for that PR. (`ievo-ai/eva`'s own PRs use a
+# different, coarser signal instead — see that workflow's header — because the
+# workflow_run path below embeds a synthetic merge-commit SHA that a title
+# match can't reliably reproduce; this run-name is still added for readability
+# and for the pull_request/repository_dispatch paths' own matching.) Evaluated
+# before any step runs (only the `github` context is available), so no
+# `steps.*` lookup is possible — mirrors eva-implement.yml's own
+# event_name-gated ternary chain, extended to three trigger paths:
+#   - repository_dispatch (cross-repo forwarders + the watchdog): pr_number is
+#     in the client_payload.
+#   - pull_request (draft -> ready_for_review, self-repo only): pr_number is
+#     on the event directly.
+#   - workflow_run (Tests completing, self-repo only): the event's
+#     `pull_requests[]` array can legitimately be empty (a known GitHub quirk
+#     this workflow's own "Resolve PR context" step already works around with
+#     a jq `// empty` fallback) and indexing it directly here risks a hard
+#     expression error with no step to fall back through — so this path uses
+#     `head_sha` instead, which is always present, though note it is the
+#     *synthetic merge-commit SHA* for a pull_request-triggered run, not the
+#     PR's real head SHA (see "Resolve PR context" below, PR #59 2026-05-23).
+run-name: "Review ${{ github.event_name == 'repository_dispatch' && github.event.client_payload.repo || github.repository }}#${{ github.event_name == 'repository_dispatch' && github.event.client_payload.pr_number || github.event_name == 'pull_request' && github.event.pull_request.number || github.event.workflow_run.head_sha }}"
+
 on:
   # Cross-repo: child repos dispatch here when tests pass
   repository_dispatch:
