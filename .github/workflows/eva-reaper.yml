@@ -266,21 +266,38 @@ jobs:
 
               # Exact match to eva-implement.yml's `run-name:` expression.
               EXPECTED_TITLE="Implement $REPO#$N"
+
+              # Operator review fix (eva#236): under a duplicate dispatch two
+              # runs share this run-name (observed live 2026-07-24 on this
+              # very issue's build: 30090789731 in_progress + 30090800237
+              # pending). A fast claim-skip duplicate COMPLETES while the
+              # older run keeps building — so "latest match is completed"
+              # does NOT mean no build is live. ANY non-completed matching
+              # run marks the claim live; only when every match is completed
+              # may the latest one serve as the grace-window reference.
+              LIVE_MATCH=$(jq --arg t "$EXPECTED_TITLE" \
+                '([.[] | select(.displayTitle == $t and .status != "completed")] | sort_by(.createdAt) | last) // empty' \
+                /tmp/eva-reaper-runs.json)
+              if [ -n "$LIVE_MATCH" ]; then
+                LSTATUS=$(printf '%s' "$LIVE_MATCH" | jq -r '.status')
+                LURL=$(printf '%s' "$LIVE_MATCH" | jq -r '.url')
+                echo "  $REPO#$N — backing run still $LSTATUS ($LURL), not a stall"
+                TOTAL_LIVE=$(( TOTAL_LIVE + 1 )); continue
+              fi
+
               MATCH=$(jq --arg t "$EXPECTED_TITLE" \
                 '([.[] | select(.displayTitle == $t)] | sort_by(.createdAt) | last) // empty' \
                 /tmp/eva-reaper-runs.json)
 
               RUN_NOTE=""
               if [ -n "$MATCH" ]; then
-                MSTATUS=$(printf '%s' "$MATCH" | jq -r '.status')
+                # Every match is completed here (the LIVE_MATCH guard above
+                # already bailed otherwise), so this is the latest FINISHED
+                # attempt — the grace-window reference timestamp.
                 MUPDATED=$(printf '%s' "$MATCH" | jq -r '.updatedAt')
                 MURL=$(printf '%s' "$MATCH" | jq -r '.url')
                 MCONCLUSION=$(printf '%s' "$MATCH" | jq -r '.conclusion')
 
-                if [ "$MSTATUS" != "completed" ]; then
-                  echo "  $REPO#$N — backing run still $MSTATUS ($MURL), not a stall"
-                  TOTAL_LIVE=$(( TOTAL_LIVE + 1 )); continue
-                fi
                 if [[ "$MUPDATED" > "$CUTOFF" ]]; then
                   echo "  $REPO#$N — backing run ended $MUPDATED (within the ${GRACE_MINUTES}m grace window), deferring to next sweep"
                   TOTAL_GRACE=$(( TOTAL_GRACE + 1 )); continue
