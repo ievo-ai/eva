@@ -321,6 +321,15 @@ jobs:
               renumbered+="${line}"$'\n'
             done <<< "$added"
 
+            # Every block deduped away → nothing left to deliver. Returning 1
+            # routes the caller to the close path (the content already reached
+            # main via siblings) instead of force-pushing a whitespace-only
+            # rebuild that re-enters review as an empty PR.
+            if [ -z "$renumbered" ]; then
+              echo "      every added lesson already exists on main — nothing to rebuild, handing back to the close path"
+              rm -rf "$workdir"; return 1
+            fi
+
             # Reset the branch onto origin/main BEFORE touching the working
             # tree — checkout refuses to switch refs over uncommitted changes
             # to a tracked file, and doing this the other way round (write
