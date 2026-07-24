@@ -45,14 +45,18 @@
 # `in-progress`, which the router reserves as operator-only).
 #
 # eva#196: the agent itself clears `eva-implementing` as soon as its PR opens
-# (`eva-implement.md` Phase 5) — NOT on merge — so MAX_INFLIGHT measures actual
-# concurrent builds, not however long the resulting PR then sits on review.
-# (Previously a single workflow-touching PR awaiting the operator's human-only
-# merge held the sole slot for the entire review window, deferring every other
-# approved issue behind it — issue #190/PR #193, 2026-07-06/07.) Because the
-# label no longer covers the "PR open, awaiting review" window, duplicate-build
-# protection for that window is NOT the label — the Claim step below checks
-# directly for an existing open `eva-impl/*` PR referencing the issue.
+# (`eva-implement.md` Phase 5) — NOT on merge. eva#229/#240 then deliberately
+# folded open same-repo `eva-impl/*` PRs back into the in-flight count (queue
+# path in #239, reactive path in this file): sibling builds in one repo are
+# version-coupled (plugin.json / changelog / release slots), so an open PR
+# holds a slot until it merges — including a workflow-touching PR awaiting
+# merge for its review window. That reverses the earlier #190/#193 stance
+# ("MAX_INFLIGHT measures actual concurrent builds only", 2026-07-06/07),
+# which optimized throughput but let parallel lanes race the same version
+# slot. The reaper releases stale `eva-implementing` LABELS only — it never
+# force-releases the slot an open PR holds. Duplicate-build protection for
+# the "PR open" window is likewise NOT the label — the Claim step below
+# checks directly for an existing open `eva-impl/*` PR referencing the issue.
 #
 # Security: untrusted issue title/body never reach `run:` blocks via ${{ }}
 # interpolation — the Claude action receives them via `gh issue view` inside the
