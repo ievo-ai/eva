@@ -426,7 +426,11 @@ jobs:
             evidence is INVALID → downgrade to `hold`. This kills "plausible but
             unverified" self-approvals.
 
-            ### Daily self-approve cap (stateless — 3 per repo per 24h, eva#132 answer #1)
+            ### Daily self-approve cap (stateless — 9 per repo per 24h; raised from 3
+            ### by operator decision 2026-07-24: the 3-cap stalled a verified
+            ### security batch — skills#377 HOLD'd on cap while every refutation
+            ### attempt had failed. Class-tiering considered and declined in favor
+            ### of a simple raise. Original rationale: eva#132 answer #1.)
             Before self-approving, count how many bot-authored issues in
             $TARGET_REPO received an `approved` label FROM the Eva App within the
             last 24h, using label-event timestamps (NO counter store):
@@ -438,7 +442,7 @@ jobs:
                     --jq '.[] | select(.event=="labeled" and .label.name=="approved"
                                        and .actor.login=="ievo-eva[bot]") | .created_at'
                 and count those within the last 24h.
-              - If that count is >= 3 → HOLD (cap exhausted) instead of approving.
+              - If that count is >= 9 → HOLD (cap exhausted) instead of approving.
             FAIL-SAFE: if the query errors or you cannot determine the count,
             treat the cap as EXHAUSTED → HOLD. NEVER self-approve on an unknown count.
 
