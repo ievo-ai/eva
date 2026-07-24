@@ -140,6 +140,22 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: ievo-ai
+          # Explicit list (eva#156/#152 lesson — a permission-* mint carries
+          # ONLY the listed permissions, not the full installation set).
+          # `actions` is deliberately NOT requested: the App installation's
+          # `actions` grant is unconfirmed, and per eva#152 a mint requesting
+          # an ungranted permission fails LOUDLY at this step — the run-history
+          # read that needs it goes through the PAT below instead (see AUTH
+          # SPLIT), same as eva-reaper.yml / eva-ci-failure.yml.
+          #   contents:write      — `repository_dispatch` POST (re-firing
+          #                         `review-pr`); also covers the commits-API
+          #                         read for HEAD push timestamps
+          #   pull-requests:write — `gh pr comment` on redispatch; also covers
+          #                         `gh pr list` / `gh pr checks` / `gh pr view`
+          #   metadata:read       — baseline `gh api` reads
+          permission-contents: write
+          permission-pull-requests: write
+          permission-metadata: read
 
       - name: Set auth token
         id: auth
