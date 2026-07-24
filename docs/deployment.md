@@ -157,6 +157,31 @@ the issue it closes for a fresh build. Bounded by
 `EVA_CONFLICT_SCAN_MAX_ACTIONS` per run and double-gated live like
 `eva-queue.yml` (dry_run + `EVA_CONFLICT_SCAN_ENABLED`).
 
+#### Review watchdog (eva#230)
+
+A PR can sit with all product gates green and no review dispatched — observed
+2026-07-23 on a skills PR: the child-repo "Request Eva Review" forwarder fires
+once per gate's completion and re-verifies both gates before dispatching, but
+both firings raced the check-runs API right after their own gate's completion
+and each saw only one gate green, so neither dispatched. `eva-review-watchdog.yml`
+sweeps the same watch-list every 30 min (deterministic `gh`/`jq` queries, no
+LLM agent) and for each open, non-draft `eva-impl/*` PR whose gates are green
+(preferring branch-protection REQUIRED checks, falling back to every reported
+check for a repo with no branch protection, e.g. skills), have been green past
+`EVA_REVIEW_WATCHDOG_GRACE_MINUTES`, have no review posted since HEAD last
+moved, and have no review already in flight, re-dispatches `review-pr` — the
+same `repository_dispatch` the child-repo forwarders send. Cross-repo in-flight
+detection matches `eva-review-pr.yml`'s own `run-name` (`"Review <repo>#<pr>"`,
+added to that workflow in the same change, for the same reason `eva-reaper.yml`
+needed `eva-implement.yml`'s `run-name`); `ievo-ai/eva`'s own PRs instead check
+for any non-completed self-triggered (`workflow_run`/`pull_request`) review
+run, since that path's title embeds a synthetic merge-commit SHA a title match
+can't reliably reproduce. Bounded by `EVA_REVIEW_WATCHDOG_MAX_ACTIONS`
+per run and double-gated live like its siblings (dry_run +
+`EVA_REVIEW_WATCHDOG_ENABLED`). Watchdog-only by design — it never reviews or
+merges, only re-fires a missing dispatch; forwarder-side hardening (a retry on
+the gate-conclusion query) is a separate, deferred fix against `ievo-ai/skills`.
+
 #### Reaper (eva#231)
 
 `eva-implement.yml`'s `Verify implement contract` / `Release claim on failure`
@@ -199,6 +224,9 @@ PAT, not the App token — same reason and precedent as `eva-ci-failure.yml`
 | `EVA_REAPER_ENABLED` | `true` / `false` | Safety valve for `eva-reaper.yml` (eva#231) — gates BOTH the cron and a manual `dry_run=false` dispatch; merged dormant, flip to `true` to arm live runs (optionally smoke-test with one manual dispatch right after) |
 | `EVA_REAPER_GRACE_MINUTES` | integer (default `10`) | Minutes since a claim's backing run ended (or, absent a matching run, since the `eva-implementing` label was applied) before `eva-reaper.yml` will act on it |
 | `EVA_REAPER_MAX_ACTIONS` | integer (default `10`) | Per-run cap on release/restore actions in `eva-reaper.yml` |
+| `EVA_REVIEW_WATCHDOG_ENABLED` | `true` / `false` | Safety valve for `eva-review-watchdog.yml` (eva#230) — gates BOTH the cron and a manual `dry_run=false` dispatch; merged dormant, flip to `true` to arm live runs (optionally smoke-test with one manual dispatch right after) |
+| `EVA_REVIEW_WATCHDOG_GRACE_MINUTES` | integer (default `10`) | Minutes a PR's product gates must have been green, with no review since HEAD last moved, before `eva-review-watchdog.yml` will re-dispatch `review-pr` |
+| `EVA_REVIEW_WATCHDOG_MAX_ACTIONS` | integer (default `10`) | Per-run cap on re-dispatch actions in `eva-review-watchdog.yml` |
 
 #### Agent model + effort (per-flow, eva#161)
 
