@@ -520,12 +520,20 @@ rule as Phase 4.5 — see Safety rules).
         LESSONS=agent/memory/evolution/lessons.md
 
         # Dedup: append only capture entries (## L-... blocks) whose title
-        # line is not already present verbatim in lessons.md.
+        # TEXT is not already present in lessons.md. Keyed on the text after
+        # the `## L-YYYY-MM-DD-NN ` prefix, NOT the full heading line —
+        # renumbering guarantees siblings carry different NNs, so a full-line
+        # match can never fire and the same lesson would re-append as a
+        # duplicate body under a fresh NN (eva#250).
         NEW_CONTENT=$(awk -v lessons="$LESSONS" '
-          BEGIN { while ((getline line < lessons) > 0) seen[line] = 1 }
+          function title_text(s) { sub(/^## L-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-[0-9]+ /, "", s); return s }
+          BEGIN {
+            while ((getline line < lessons) > 0)
+              if (line ~ /^## L-[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-[0-9]+ /) seen[title_text(line)] = 1
+          }
           /^## / {
             if (block != "" && !(title in seen)) printf "%s", block
-            title = $0; block = $0 "\n"; next
+            title = title_text($0); block = $0 "\n"; next
           }
           { block = block $0 "\n" }
           END { if (block != "" && !(title in seen)) printf "%s", block }

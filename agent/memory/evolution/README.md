@@ -81,8 +81,11 @@ build — the read is best-effort.
      simply closed and flagged for the operator — a logged, accepted loss of
      that one batch of captured lessons (eva#169), not a build failure.
 4. **Dedup + renumber**: an entry is skipped entirely (not appended, no PR
-   opened) when a section with the exact same `## L-YYYY-MM-DD-NN — <title>`
-   line already exists in `lessons.md`. Otherwise, before appending, each new
+   opened) when a section with the same title TEXT (the part after the
+   `## L-YYYY-MM-DD-NN ` prefix) already exists in `lessons.md` — matched
+   regardless of `NN`, since renumbering guarantees sibling copies of the
+   same lesson carry different numbers and a full-line match could never
+   fire. Otherwise, before appending, each new
    entry's `NN` is re-derived as `max(existing same-date NN already in
    lessons.md) + 1` (eva#250) — the ID is picked against whatever's on disk
    at write time, not whatever was loaded at run start, so two runs that
