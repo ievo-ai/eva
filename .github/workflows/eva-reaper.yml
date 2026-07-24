@@ -57,9 +57,10 @@
 #        already covers the issue, re-queuing it would build it twice).
 #     6. Otherwise no PR ever materialized: release `eva-implementing` AND
 #        restore `approved`, so the next queue sweep drains it into a fresh
-#        build off current `main`. Falls back to `needs-operator` if the
-#        `approved` re-add itself fails (mirrors eva-conflict-scan.yml's
-#        `REQUEUED` confirm-before-reporting-success pattern).
+#        build off current `main`. Falls back to `needs-operator` if either
+#        write itself fails (mirrors eva-conflict-scan.yml's `REQUEUED`
+#        confirm-before-reporting-success pattern) — a failed write must never
+#        silently report success while the claim state is ambiguous.
 #   Every action is posted as an issue comment explaining what happened and
 #   why — a reap is never silent, and no underlying work is lost (worst case,
 #   a genuinely-still-useful branch just needs the operator to notice it
@@ -67,17 +68,18 @@
 #   edge the operator can always recover from manually, exactly as before this
 #   workflow existed).
 #
-# PREREQUISITE the operator must complete before enabling (EVA_REAPER_ENABLED):
-# the `ievo-eva` App's installation permissions do not currently include
-# "Actions: Read" (`docs/GITHUB_APP_SETUP.md` never lists it — the setup doc
-# predates this workflow and several other permissions already in live use;
-# not re-audited here, out of this issue's scope). Add it via the App's
-# settings page (GitHub re-prompts the org owner to accept new permissions)
-# before flipping the flag — same "operator adds a permission before enabling"
-# precedent as `workflows: write` (eva#152/#153). Requesting it explicitly
-# below (rather than relying on the installation's default full grant) makes
-# a missing grant FAIL LOUDLY at the mint step instead of silently at the
-# first `gh run list` call, mirroring eva#152's own stated rationale.
+# AUTH SPLIT (deep-review finding, eva#231): the App's installation permissions
+# do NOT confirm an `actions` grant (`docs/GITHUB_APP_SETUP.md` predates it) —
+# `eva-ci-failure.yml` already hit this identical constraint and resolved it by
+# reading run state via the PAT instead of the App token (per eva#152, a mint
+# requesting an ungranted permission fails LOUDLY at the mint step; since that
+# step runs unconditionally on every scheduled tick here, requesting
+# `actions:read` on the App token would break EVERY run, not just a
+# dormant/disabled one). Same fix here: `Fetch eva-implement run history` below
+# uses `secrets.EVA_PAT_GITHUB_TOKEN` directly for the one call that needs
+# `actions` scope; every other call (issue/PR reads+writes) uses the App token
+# via the `Set auth token` step as before. No operator App-permission change is
+# needed to enable this workflow.
 #
 # DORMANT BY DEFAULT: merges inert. The operator flips `EVA_REAPER_ENABLED`
 # after a deliberate dry-run smoke test (same pattern as conflict-scan/queue).
@@ -95,9 +97,11 @@
 #   - Live dispatch is double-gated (mirrors eva-queue.yml / eva-conflict-scan.
 #     yml): NOT dry_run AND `vars.EVA_REAPER_ENABLED`. Gates every trigger,
 #     manual or scheduled alike.
-#   - A restore whose `approved` re-add can't be confirmed falls back to
+#   - Every write (label release, label restore) is confirmed by exit code
+#     before being reported as success; any failure falls back to
 #     `needs-operator` rather than silently reporting success.
-#   - All writes via the App token (`ievo-eva[bot]` attribution/auditability).
+#   - All label/comment writes via the App token (`ievo-eva[bot]`
+#     attribution/auditability); only the run-history read uses the PAT.
 
 name: "Eva: Reaper"
 
@@ -139,18 +143,19 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: ievo-ai
           # Explicit list (eva#156/#152 lesson — a permission-* mint carries
-          # ONLY the listed permissions, not the full installation set; an
-          # explicit ask also fails loudly here if the App's installation
-          # lacks a grant, instead of silently at the first API call below):
-          #   actions:read        — `gh run list`/`gh api .../actions/runs` on
-          #                         ievo-ai/eva (read eva-implement's own run
-          #                         history to find the claim's backing run)
+          # ONLY the listed permissions, not the full installation set).
+          # `actions` is deliberately NOT requested here: the App installation's
+          # `actions` grant is unconfirmed, and per eva#152 a mint requesting an
+          # ungranted permission fails LOUDLY at this step — which runs
+          # unconditionally every scheduled tick, so that would break every
+          # run, not just a dormant one. `eva-ci-failure.yml` hit this same
+          # constraint and reads run state via the PAT instead; this workflow's
+          # `Fetch eva-implement run history` step below does the same.
           #   issues:write         — label create/edit + issue comments across
           #                         the watch-list repos
           #   pull-requests:read   — `gh pr list` (check for an eva-impl/* PR
           #                         that already closes the issue)
           #   metadata:read        — baseline `gh api` reads
-          permission-actions: read
           permission-issues: write
           permission-pull-requests: read
           permission-metadata: read
@@ -167,6 +172,31 @@ jobs:
           else
             echo "token=$PAT_TOKEN" >> "$GITHUB_OUTPUT"
             echo "Using PAT fallback (USE_GITHUB_APP != true)"
+          fi
+
+      # Separate step, PAT-authenticated (see "AUTH SPLIT" header comment): the
+      # App's `actions` grant is unconfirmed, so this one read — the only call
+      # in this workflow needing `actions` scope — goes through the PAT
+      # directly, exactly like eva-ci-failure.yml's `Verify the failure
+      # server-side` step. A failure here means we cannot safely tell a live
+      # build from a dead one for ANY issue this run — fail the job rather than
+      # risk reaping a live claim.
+      - name: Fetch eva-implement run history
+        env:
+          GH_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+        run: |
+          # Every child repo's eva-implement builds live here (this workflow
+          # only ever runs in ievo-ai/eva, whether triggered locally via
+          # `issues` or cross-repo via `repository_dispatch`). Bounded lookback
+          # (last 300) rather than exhaustive: a claim whose backing run fell
+          # out of this window would already have surfaced on an earlier
+          # hourly sweep.
+          if ! gh run list --repo ievo-ai/eva --workflow eva-implement.yml --limit 300 \
+               --json displayTitle,status,conclusion,createdAt,updatedAt,url \
+               > /tmp/eva-reaper-runs.json 2>/tmp/eva-reaper-runs.log; then
+            echo "::error::gh run list failed — cannot safely distinguish live from dead builds this sweep, aborting"
+            cat /tmp/eva-reaper-runs.log
+            exit 1
           fi
 
       - name: Reap stale eva-implementing claims
@@ -210,23 +240,7 @@ jobs:
           # zero-padded fields — so no epoch conversion is needed per-run.
           CUTOFF=$(date -u -d "-${GRACE_MINUTES} minutes" +%Y-%m-%dT%H:%M:%SZ)
 
-          # Fetch eva-implement.yml's recent run history ONCE — every child
-          # repo's builds live here (this workflow only ever runs in
-          # ievo-ai/eva, whether triggered locally via `issues` or cross-repo
-          # via `repository_dispatch`). Bounded lookback (last 300) rather than
-          # exhaustive: a claim whose backing run fell out of this window
-          # would already have surfaced on an earlier hourly sweep. A failure
-          # here means we cannot safely tell a live build from a dead one for
-          # ANY issue this run — abort rather than risk reaping a live claim.
-          if ! gh run list --repo ievo-ai/eva --workflow eva-implement.yml --limit 300 \
-               --json displayTitle,status,conclusion,createdAt,updatedAt,url \
-               > /tmp/eva-reaper-runs.json 2>/tmp/eva-reaper-runs.log; then
-            echo "::error::gh run list failed — cannot safely distinguish live from dead builds this sweep, aborting"
-            cat /tmp/eva-reaper-runs.log
-            exit 1
-          fi
-
-          TOTAL_FOUND=0; TOTAL_LIVE=0; TOTAL_GRACE=0; TOTAL_RELEASED=0; TOTAL_REQUEUED=0; TOTAL_SKIPPED=0; ACTIONS=0
+          TOTAL_FOUND=0; TOTAL_LIVE=0; TOTAL_GRACE=0; TOTAL_RELEASED=0; TOTAL_REQUEUED=0; TOTAL_NEEDS_OPERATOR=0; TOTAL_SKIPPED=0; ACTIONS=0
 
           for REPO in $WATCH_LIST; do
             if ! CLAIMED=$(gh issue list --repo "$REPO" --label eva-implementing --state open --limit 100 \
@@ -326,21 +340,36 @@ jobs:
 
               if [ "$PR_COUNT" -gt 0 ]; then
                 PR_URL=$(printf '%s' "$PR_MATCH" | jq -r '.[0].url')
-                gh issue edit "$N" --repo "$REPO" --remove-label eva-implementing 2>/dev/null || true
-                gh issue comment "$N" --repo "$REPO" --body \
-                  "Eva's reaper (eva#231) found this issue's build already produced $PR_URL, but the \`eva-implementing\` claim was left in place — $RUN_NOTE (contract-verify skips on cancellation, eva#170). Released the stale claim; no further action needed, the PR speaks for itself." || true
-                echo "    released eva-implementing only (PR $PR_URL already closes this issue)"
-                TOTAL_RELEASED=$(( TOTAL_RELEASED + 1 ))
+                # Confirm the release itself lands before reporting success
+                # (same confirm-before-success discipline as the restore
+                # branch below) — a failed removal must fall back to
+                # needs-operator, not silently claim resolution while the
+                # claim label is still actually present.
+                if gh issue edit "$N" --repo "$REPO" --remove-label eva-implementing; then
+                  gh issue comment "$N" --repo "$REPO" --body \
+                    "Eva's reaper (eva#231) found this issue's build already produced $PR_URL, but the \`eva-implementing\` claim was left in place — $RUN_NOTE (contract-verify skips on cancellation, eva#170). Released the stale claim; no further action needed, the PR speaks for itself." || true
+                  echo "    released eva-implementing only (PR $PR_URL already closes this issue)"
+                  TOTAL_RELEASED=$(( TOTAL_RELEASED + 1 ))
+                else
+                  gh label create needs-operator --repo "$REPO" \
+                    --description "Pipeline blocked on the human operator to unblock" \
+                    --color "e11d21" 2>/dev/null || true
+                  gh issue edit "$N" --repo "$REPO" --add-label needs-operator 2>/dev/null || true
+                  gh issue comment "$N" --repo "$REPO" --body \
+                    "Eva's reaper (eva#231) found this issue's build already produced $PR_URL, but could not release the stale \`eva-implementing\` claim — flagged \`needs-operator\`. Operator: remove \`eva-implementing\` manually, the PR already covers this issue." || true
+                  echo "    found PR $PR_URL, but releasing eva-implementing FAILED — flagged needs-operator"
+                  TOTAL_NEEDS_OPERATOR=$(( TOTAL_NEEDS_OPERATOR + 1 ))
+                fi
                 continue
               fi
 
               # Confirm the restore actually lands before counting it a
               # success (mirrors eva-conflict-scan.yml's REQUEUED pattern) —
-              # a failed `--add-label approved` must fall back to
-              # needs-operator, not silently report success while the claim
-              # is already released.
-              gh issue edit "$N" --repo "$REPO" --remove-label eva-implementing 2>/dev/null || true
-              if gh issue edit "$N" --repo "$REPO" --add-label approved; then
+              # a failed removal OR a failed `--add-label approved` must fall
+              # back to needs-operator, not silently report success while the
+              # claim state is ambiguous.
+              if gh issue edit "$N" --repo "$REPO" --remove-label eva-implementing \
+                 && gh issue edit "$N" --repo "$REPO" --add-label approved; then
                 gh issue comment "$N" --repo "$REPO" --body \
                   "Eva's reaper (eva#231) released a stale \`eva-implementing\` claim — $RUN_NOTE, and no open/merged PR closes this issue, so the pipeline was treating it as in-flight forever with no live build backing it. Restored \`approved\`; the next queue sweep will pick it up for a fresh build." || true
                 echo "    released eva-implementing, restored approved"
@@ -349,18 +378,18 @@ jobs:
                 gh label create needs-operator --repo "$REPO" \
                   --description "Pipeline blocked on the human operator to unblock" \
                   --color "e11d21" 2>/dev/null || true
-                gh issue edit "$N" --repo "$REPO" --add-label needs-operator 2>/dev/null || true
+                gh issue edit "$N" --repo "$REPO" --remove-label eva-implementing --add-label needs-operator 2>/dev/null || true
                 gh issue comment "$N" --repo "$REPO" --body \
-                  "Eva's reaper (eva#231) released the stale \`eva-implementing\` claim ($RUN_NOTE) but could not confirm restoring \`approved\` — flagged \`needs-operator\`. Operator: re-add \`approved\` manually to retry." || true
-                echo "    released eva-implementing, but restoring approved FAILED — flagged needs-operator"
-                TOTAL_REQUEUED=$(( TOTAL_REQUEUED + 1 ))
+                  "Eva's reaper (eva#231) tried to release the stale \`eva-implementing\` claim ($RUN_NOTE) but a write failed partway — flagged \`needs-operator\`. Operator: confirm \`eva-implementing\` is removed and re-add \`approved\` manually to retry." || true
+                echo "    releasing/restoring FAILED partway — flagged needs-operator"
+                TOTAL_NEEDS_OPERATOR=$(( TOTAL_NEEDS_OPERATOR + 1 ))
               fi
             done
           done
 
           echo ""
-          echo "Reaper digest: found=$TOTAL_FOUND live=$TOTAL_LIVE grace=$TOTAL_GRACE released_only=$TOTAL_RELEASED requeued=$TOTAL_REQUEUED skipped=$TOTAL_SKIPPED (live=$LIVE, grace_window=${GRACE_MINUTES}m, cap=$MAX_ACTIONS)"
+          echo "Reaper digest: found=$TOTAL_FOUND live=$TOTAL_LIVE grace=$TOTAL_GRACE released_only=$TOTAL_RELEASED requeued=$TOTAL_REQUEUED needs_operator=$TOTAL_NEEDS_OPERATOR skipped=$TOTAL_SKIPPED (live=$LIVE, grace_window=${GRACE_MINUTES}m, cap=$MAX_ACTIONS)"
           if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
-            printf 'Reaper (eva#231): found=%s live=%s grace=%s released_only=%s requeued=%s skipped=%s (live=%s)\n' \
-              "$TOTAL_FOUND" "$TOTAL_LIVE" "$TOTAL_GRACE" "$TOTAL_RELEASED" "$TOTAL_REQUEUED" "$TOTAL_SKIPPED" "$LIVE" >> "$GITHUB_STEP_SUMMARY"
+            printf 'Reaper (eva#231): found=%s live=%s grace=%s released_only=%s requeued=%s needs_operator=%s skipped=%s (live=%s)\n' \
+              "$TOTAL_FOUND" "$TOTAL_LIVE" "$TOTAL_GRACE" "$TOTAL_RELEASED" "$TOTAL_REQUEUED" "$TOTAL_NEEDS_OPERATOR" "$TOTAL_SKIPPED" "$LIVE" >> "$GITHUB_STEP_SUMMARY"
           fi
