@@ -57,6 +57,26 @@ jobs:
           ./actionlint -color
         shell: bash
 
+      # eva#266: `.gitattributes`' `merge=union` for this file resolves the
+      # common git-level conflict (non-overlapping trailing appends) but does
+      # nothing about a *semantic* collision — two different lesson bodies
+      # landing under the same `## L-YYYY-MM-DD-NN` header when two branches
+      # race to append on the same date. `uniq -d` on the sorted ID list
+      # surfaces exactly that; a clean file yields an empty `$duplicates` and
+      # the step passes. `|| true` on the grep guards the legitimate
+      # zero-match case (an empty lessons.md, which the store's own README
+      # documents as fine) from tripping bash's `pipefail` before the `-n`
+      # check below ever runs.
+      - name: Check for duplicate evolution lesson IDs
+        run: |
+          duplicates=$(grep -oE '^## L-[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]+' agent/memory/evolution/lessons.md | sort | uniq -d || true)
+          if [ -n "$duplicates" ]; then
+            echo "Duplicate lesson IDs found in agent/memory/evolution/lessons.md:"
+            echo "$duplicates"
+            exit 1
+          fi
+        shell: bash
+
       - name: Set up Python 3.13
         uses: actions/setup-python@v5
         with:
