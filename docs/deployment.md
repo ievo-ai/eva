@@ -254,13 +254,19 @@ path-named/zero-job run has no logs or diff for a triage step to add value on),
 keeps those whose `conclusion` is `failure` **or** `startup_failure` — matched
 client-side, because the runs endpoint's `status=` filter has no
 `startup_failure` member and so cannot express the very conclusion a
-parse-broken run carries — flags any whose `name` looks like a `.github/workflows/**` path
-or whose job count is 0, and — deduped one issue per `workflow_id` and
-rate-capped at 2 filings per 24h, both reusing `eva-ci-failure.yml`'s existing
-marker + rate-cap pattern verbatim — files directly with `bug` +
-`needs-operator` + a dedicated `workflow-integrity` label, bypassing the normal
-Issue Router entirely. Double-gated live like its siblings (dry_run +
-`EVA_WORKFLOW_INTEGRITY_SWEEP_ENABLED`). The one API surface needing `actions`
+parse-broken run carries — collapses those matches to the NEWEST run per
+`workflow_id` (`eva-ci-failure.yml`'s newest-run-only supersede policy applied
+in-sweep; it is also what keeps the once-per-sweep dedup query correct, since a
+parse-broken file re-fails on every trigger and would otherwise appear as
+several runs of one workflow racing the same marker), flags any whose `name`
+looks like a `.github/workflows/**` path or whose job count is 0, and — deduped
+one issue per `workflow_id` and rate-capped at 2 filings per 24h, both reusing
+`eva-ci-failure.yml`'s existing marker + rate-cap pattern verbatim — files
+directly with `bug` + `needs-operator` + a dedicated `workflow-integrity` label
+(titled and triaged as a confirmed parse failure only on the path-named
+signature; the zero-job fallback proves a startup-level fault, not which one),
+bypassing the normal Issue Router entirely. Double-gated live like its siblings
+(dry_run + `EVA_WORKFLOW_INTEGRITY_SWEEP_ENABLED`). The one API surface needing `actions`
 scope (the runs/jobs read) goes through the PAT, not the App token — same
 constraint and precedent as `eva-ci-failure.yml` / `eva-reaper.yml` (the App
 installation's `actions` grant is unconfirmed); only the final label/issue

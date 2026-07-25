@@ -21,7 +21,9 @@
 #      `conclusion` is `failure` OR `startup_failure` — matched client-side,
 #      because the endpoint's `status=` filter cannot express
 #      `startup_failure` at all (see the step comment; that is precisely the
-#      conclusion a parse-broken run carries).
+#      conclusion a parse-broken run carries) — then collapse to the NEWEST
+#      such run per `workflow_id`, so the loop below runs at most once per
+#      workflow (the granularity the dedup marker in 3 is keyed on).
 #   2. Flag any whose `name` looks like a `.github/workflows/**` path (the
 #      parse-broken signature) OR, when it doesn't, whose job count is 0
 #      (fallback — that path-as-name behavior is observed, not a documented
@@ -29,7 +31,11 @@
 #      stops naming the run after the file path).
 #   3. Dedup — at most one open issue per workflow_id (marker
 #      `<!-- eva-workflow-integrity: <repo>#<workflow_id> -->`, same idiom as
-#      eva-ci-failure.yml's `<!-- eva-ci-failure: ... -->`), and rate-cap at
+#      eva-ci-failure.yml's `<!-- eva-ci-failure: ... -->`; the open-issue
+#      list backing it is fetched ONCE per sweep, which is why step 1
+#      collapses the run list to one run per workflow — otherwise a second
+#      run of the same workflow later in the loop would test its marker
+#      against that now-stale list and file a duplicate), and rate-cap at
 #      2 filed issues per rolling 24h (fails CLOSED on a query error — same
 #      as eva-ci-failure: a real recurring break re-signals on the next
 #      sweep, spam does not un-spam itself).
@@ -175,15 +181,36 @@ jobs:
           # failures — hours of wall-clock rather than months. Ample for an
           # hourly sweep, and a parse-broken file keeps re-failing on every
           # later trigger, so it stays inside the window until someone fixes it.
+          #
+          # `group_by(.workflow_id) | map(max_by(.run_number))` then collapses
+          # the matches to the NEWEST failing run per workflow. Two reasons,
+          # and the first is a correctness requirement, not a nicety:
+          #   - The dedup marker below is keyed on `workflow_id`, but the
+          #     open-issue list it tests against (`TRACKED`) is fetched ONCE
+          #     for the whole sweep. Because a parse-broken file re-fails on
+          #     EVERY later trigger (see this file's header), several runs in
+          #     the 100-run window routinely share one `workflow_id` — so
+          #     without this collapse the first such run files an issue while
+          #     the second still sees the pre-file `TRACKED`, files a
+          #     DUPLICATE, and burns the 2/24h cap that a genuinely distinct
+          #     second breakage would need. One iteration per workflow makes
+          #     the loop's granularity match the marker's by construction.
+          #   - It matches eva-ci-failure.yml's established newest-run-only
+          #     supersede policy (an older failure of a workflow that has
+          #     since re-run is stale news), applied in-sweep. `run_number`
+          #     is the same ordering key that workflow's supersede check
+          #     compares on, and is monotonic within one workflow.
           if ! gh api "repos/$REPO/actions/runs?branch=main&per_page=100" \
-              --jq '[ .workflow_runs[] | select(.conclusion == "failure" or .conclusion == "startup_failure") ]' \
+              --jq '[ .workflow_runs[]
+                      | select(.conclusion == "failure" or .conclusion == "startup_failure") ]
+                    | group_by(.workflow_id) | map(max_by(.run_number))' \
               > /tmp/wis-runs.json 2>/tmp/wis-runs.log; then
             echo "::error::gh api actions/runs failed — cannot sweep this run"
             cat /tmp/wis-runs.log
             exit 1
           fi
           COUNT=$(jq 'length' /tmp/wis-runs.json)
-          echo "Fetched $COUNT failed/startup-failed run(s) on main to inspect."
+          echo "Inspecting $COUNT workflow(s) whose newest run on main failed/startup-failed."
 
           # --- Dedup + rate-cap context, fetched once for the whole sweep -
           # Fail CLOSED on either query: an error here must not risk filing
@@ -225,13 +252,21 @@ jobs:
             ATTEMPT=$(printf '%s' "$RUN" | jq -r '.run_attempt')
             FOUND=$(( FOUND + 1 ))
 
-            REASON=""
+            # REASON/TITLE/TRIAGE are set together, per detection path: the
+            # path-as-name signature IS a parse failure, but the zero-job
+            # fallback only proves a startup-level fault, so it must not be
+            # titled or triaged as a confirmed parse failure.
+            REASON=""; TITLE=""; TRIAGE=""
             if printf '%s' "$NAME" | grep -qE '^\.github/workflows/.*\.ya?ml$'; then
               REASON="the run's name is a workflow file path (\`$NAME\`) rather than a declared name — the parse-broken signature"
+              TITLE="Workflow parse failure: $NAME"
+              TRIAGE="This run's file failed GitHub Actions' expression-expansion parse (see eva#257, eva#258, eva#259) — it never started any job, so there is no log and no diff for an LLM triage step to add value on. A human needs to open the run directly and find the workflow file whose most recent change on main broke parsing."
             else
               JOBS=$(gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" --jq '.total_count' 2>/dev/null || true)
               if [ "$JOBS" = "0" ]; then
                 REASON="the run has zero jobs (job-count fallback check)"
+                TITLE="Workflow run produced zero jobs: $NAME"
+                TRIAGE="This run failed without starting a single job, so something went wrong at STARTUP — but its name is a declared workflow name rather than a file path, so the parse-broken signature (eva#257, eva#258, eva#259) is NOT confirmed here, only a startup-level fault is. Candidate causes: an expression-expansion parse failure that GitHub no longer names after the file path, invalid workflow YAML, an unresolvable \`needs:\` graph, or a reusable-workflow \`uses:\` reference that cannot be resolved. Either way no job ran, so there is no job log and no diff for an LLM triage step to add value on. A human needs to open the run directly, read the startup error GitHub reports on the run page, and find the workflow file whose most recent change on main caused it."
               fi
             fi
             [ -z "$REASON" ] && continue
@@ -260,7 +295,7 @@ jobs:
             fi
 
             if [ "$LIVE" != "true" ]; then
-              echo "  DRY RUN — would file a new workflow-integrity issue"
+              echo "  DRY RUN — would file a new workflow-integrity issue titled \"$TITLE\""
               FILED=$(( FILED + 1 ))
               continue
             fi
@@ -285,17 +320,13 @@ jobs:
           $REASON
 
           ## Triage
-          This run's file failed GitHub Actions' expression-expansion parse
-          (see eva#257, eva#258, eva#259) — it never started any job, so
-          there is no log and no diff for an LLM triage step to add value
-          on. A human needs to open the run directly and find the workflow
-          file whose most recent change on main broke parsing.
+          $TRIAGE
 
           Filed by Eva's Workflow Integrity Sweep (eva-workflow-integrity-sweep.yml, eva#261).
           ISSUEEOF
 
             if GH_TOKEN="$WRITE_TOKEN" gh issue create --repo "$REPO" \
-                --title "Workflow parse failure: $NAME" \
+                --title "$TITLE" \
                 --label bug --label needs-operator --label workflow-integrity \
                 --body-file /tmp/wis-issue.md; then
               echo "  filed a new workflow-integrity issue"
