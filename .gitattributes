@@ -1,2 +1,13 @@
 # Normalize all text files to LF in the repo
 * text=auto eol=lf
+
+# eva#266: two independent writers (eva-implement/eva-fix-pr's own Phase 4d/6
+# capture, and the cross-repo evolution/consolidate-* flow) both append near
+# the end of this file, so a rebase/merge touching only non-overlapping
+# trailing appends should resolve automatically rather than going
+# mergeStateStatus: DIRTY. `union` keeps lines from both sides instead of
+# leaving conflict markers, but can reorder the merged lines non-deterministically
+# — acceptable here since lessons are cross-referenced by `[[L-...]]` ID anchors,
+# not file position. It does not catch a semantic `## L-YYYY-MM-DD-NN` ID
+# collision between the two sides; the CI check in tests.yml (Lint & Test) does.
+agent/memory/evolution/lessons.md merge=union
