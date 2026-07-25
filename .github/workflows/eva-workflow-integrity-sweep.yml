@@ -41,9 +41,21 @@
 #      sweep, spam does not un-spam itself).
 #   4. File directly with `bug` + `needs-operator` + a dedicated
 #      `workflow-integrity` label (the label used to scope the dedup/
-#      rate-cap query) — bypassing the normal Issue Router entirely: a
-#      path-named, zero-job run has no logs and no diff for an LLM triage
-#      step to add value on, since nothing ever ran.
+#      rate-cap query, AND the Router-exemption key below).
+#
+# ROUTER EXEMPTION (eva#261 review finding): filing an issue is NOT by itself
+# a Router bypass — eva-on-issue.yml subscribes to `issues: opened` and its
+# trust gate deliberately admits `ievo-eva[bot]` authors (eva#132 self-triage),
+# so an issue filed here would otherwise be routed like any other. That would
+# be actively harmful, not merely wasteful: on a self-authored issue in
+# ievo-ai/eva the Router runs the adversarial skeptic path, whose default
+# verdict is REJECT — it CLOSES the issue and strips `needs-operator` — while
+# the dedup query in 3 only counts OPEN issues, so the sweep would re-file
+# every hour and burn the 2/24h cap on a workflow it had already reported. The
+# bypass is therefore IMPLEMENTED, not assumed: eva-on-issue.yml's "Resolve
+# issue context" step skips any issue labelled `workflow-integrity`. A
+# path-named, zero-job run has no logs and no diff for an LLM triage step to
+# add value on (nothing ever ran), so the exemption costs no signal.
 #
 # AUTH SPLIT (same constraint eva-ci-failure.yml / eva-reaper.yml already hit
 # and resolved): the App installation's `actions` permission is NOT confirmed
@@ -300,6 +312,15 @@ jobs:
               continue
             fi
 
+            # All three labels the `gh issue create` below applies are created
+            # defensively — `gh issue create --label` fails outright on a label
+            # that does not exist, and `bug` is no more guaranteed to be present
+            # in an arbitrary repo state than the other two (it is a GitHub
+            # default label, but defaults are deletable). Idempotent: create is
+            # a no-op error on an existing label, swallowed by `|| true`.
+            GH_TOKEN="$WRITE_TOKEN" gh label create bug --repo "$REPO" \
+              --description "Something isn't working" \
+              --color "d73a4a" 2>/dev/null || true
             GH_TOKEN="$WRITE_TOKEN" gh label create workflow-integrity --repo "$REPO" \
               --description "Path-named/zero-job failed workflow run — filed by Eva's integrity sweep" \
               --color "d73a4a" 2>/dev/null || true

@@ -264,8 +264,14 @@ one issue per `workflow_id` and rate-capped at 2 filings per 24h, both reusing
 `eva-ci-failure.yml`'s existing marker + rate-cap pattern verbatim — files
 directly with `bug` + `needs-operator` + a dedicated `workflow-integrity` label
 (titled and triaged as a confirmed parse failure only on the path-named
-signature; the zero-job fallback proves a startup-level fault, not which one),
-bypassing the normal Issue Router entirely. Double-gated live like its siblings
+signature; the zero-job fallback proves a startup-level fault, not which one).
+Those issues bypass the normal Issue Router — not implicitly (`eva-on-issue.yml`
+subscribes to `issues: opened` and admits `ievo-eva[bot]` authors, so a filed
+issue would otherwise be routed onto the adversarial skeptic path, whose default
+REJECT would close it and strip `needs-operator` while the sweep's dedup query
+counts only OPEN issues, making it re-file hourly and burn its own cap) but
+explicitly: `eva-on-issue.yml` skips any issue labelled `workflow-integrity`.
+Double-gated live like its siblings
 (dry_run + `EVA_WORKFLOW_INTEGRITY_SWEEP_ENABLED`). The one API surface needing `actions`
 scope (the runs/jobs read) goes through the PAT, not the App token — same
 constraint and precedent as `eva-ci-failure.yml` / `eva-reaper.yml` (the App
