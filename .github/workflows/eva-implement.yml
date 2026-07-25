@@ -662,6 +662,10 @@ jobs:
             gh issue comment "$TARGET_ISSUE_FOR_MARKER" --repo "$TARGET_REPO_FOR_MARKER" \
               --body "canary-prompt-ref-resolved: $PROMPT_REF" || true
           fi
+          # PROMPT_REPO is a distinct env var (from the step's env: block,
+          # github.repository) and is not a typo of PROMPT_REF; shellcheck's
+          # misspelling heuristic can't see the YAML env: declaration.
+          # shellcheck disable=SC2153
           PROMPT=$(gh api \
             "repos/$PROMPT_REPO/contents/.github/prompts/eva-implement.md?ref=$PROMPT_REF" \
             --jq '.content' | base64 -d)

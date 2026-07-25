@@ -383,7 +383,7 @@ jobs:
           # code.claude.com/docs/en/model-config#adjust-effort-level); `high` is
           # also the current model-default effort for opus (Opus 4.8), so the
           # effort default is behavior-preserving, not a silent uplift.
-          REVIEW=$(cat /tmp/prompt.txt | claude -p --model "${{ vars.EVA_MODEL_REVIEW || 'opus' }}" --effort "${{ vars.EVA_EFFORT_REVIEW || 'high' }}" --allowedTools "Bash(read-only),Read,Glob,Grep") || true
+          REVIEW=$(claude -p --model "${{ vars.EVA_MODEL_REVIEW || 'opus' }}" --effort "${{ vars.EVA_EFFORT_REVIEW || 'high' }}" --allowedTools "Bash(read-only),Read,Glob,Grep" < /tmp/prompt.txt) || true
 
           # SAFETY (2026-05-23): on CLI failure, default to REQUEST_CHANGES
           # — operator decides. Previously defaulted to APPROVE which let
