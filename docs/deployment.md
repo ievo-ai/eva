@@ -249,9 +249,12 @@ itself is prevented from reaching that state by an `actionlint` gate added to
 `tests.yml` in eva#259 (Part 1 — prevention); `eva-workflow-integrity-sweep.yml`
 is Part 2 — a backstop that catches anything that slips past the gate anyway
 (a hotfix pushed with `--no-verify`, or a pre-gate-merge regression). It sweeps
-recent failed runs on `main` hourly (deterministic `gh`/`jq` queries, no LLM
-agent — a path-named/zero-job run has no logs or diff for a triage step to
-add value on), flags any whose `name` looks like a `.github/workflows/**` path
+recent `main` runs hourly (deterministic `gh`/`jq` queries, no LLM agent — a
+path-named/zero-job run has no logs or diff for a triage step to add value on),
+keeps those whose `conclusion` is `failure` **or** `startup_failure` — matched
+client-side, because the runs endpoint's `status=` filter has no
+`startup_failure` member and so cannot express the very conclusion a
+parse-broken run carries — flags any whose `name` looks like a `.github/workflows/**` path
 or whose job count is 0, and — deduped one issue per `workflow_id` and
 rate-capped at 2 filings per 24h, both reusing `eva-ci-failure.yml`'s existing
 marker + rate-cap pattern verbatim — files directly with `bug` +

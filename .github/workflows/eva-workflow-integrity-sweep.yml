@@ -17,7 +17,11 @@
 # THE FIX — deterministic, no LLM agent, same shape as eva-reaper.yml /
 # eva-conflict-scan.yml (cron + workflow_dispatch, App-token issue writes,
 # dry-run + live double-gate):
-#   1. List recent failed runs on main via the Actions API.
+#   1. List recent runs on main via the Actions API and keep the ones whose
+#      `conclusion` is `failure` OR `startup_failure` — matched client-side,
+#      because the endpoint's `status=` filter cannot express
+#      `startup_failure` at all (see the step comment; that is precisely the
+#      conclusion a parse-broken run carries).
 #   2. Flag any whose `name` looks like a `.github/workflows/**` path (the
 #      parse-broken signature) OR, when it doesn't, whose job count is 0
 #      (fallback — that path-as-name behavior is observed, not a documented
@@ -150,15 +154,36 @@ jobs:
           fi
           echo "Mode: $([ "$LIVE" = "true" ] && echo 'LIVE' || echo 'DRY RUN (report only)')"
 
-          # --- Fetch recent failed runs on main ---------------------------
-          if ! gh api "repos/$REPO/actions/runs?status=failure&branch=main&per_page=50" \
-              --jq '.workflow_runs' > /tmp/wis-runs.json 2>/tmp/wis-runs.log; then
+          # --- Fetch recent runs on main, keep the failed ones -------------
+          # NO `status=` filter, deliberately. The documented enum for that
+          # parameter is completed/action_required/cancelled/failure/neutral/
+          # skipped/stale/success/timed_out/in_progress/queued/requested/
+          # waiting/pending — it has NO `startup_failure` member, so
+          # `status=failure` narrows to `conclusion == failure` and
+          # structurally EXCLUDES the one class this sweep exists to detect:
+          # a parse-broken run concludes `startup_failure`. Nor can that be
+          # patched by asking for it — `status=startup_failure` is undocumented
+          # and returns 200 with an empty list rather than 422, so it cannot be
+          # shown to filter on anything. Both conclusions are therefore matched
+          # here off the run object's own `conclusion` field, the only surface
+          # documented to carry `startup_failure` (the run `status` enum has no
+          # such value; a terminal run is `completed`). Runs still executing
+          # (`conclusion == null`) drop out of the select for free.
+          #
+          # Cost of dropping the filter: the window becomes the 100 most recent
+          # runs on main (the API's per_page max) instead of 50 already-filtered
+          # failures — hours of wall-clock rather than months. Ample for an
+          # hourly sweep, and a parse-broken file keeps re-failing on every
+          # later trigger, so it stays inside the window until someone fixes it.
+          if ! gh api "repos/$REPO/actions/runs?branch=main&per_page=100" \
+              --jq '[ .workflow_runs[] | select(.conclusion == "failure" or .conclusion == "startup_failure") ]' \
+              > /tmp/wis-runs.json 2>/tmp/wis-runs.log; then
             echo "::error::gh api actions/runs failed — cannot sweep this run"
             cat /tmp/wis-runs.log
             exit 1
           fi
           COUNT=$(jq 'length' /tmp/wis-runs.json)
-          echo "Fetched $COUNT failed run(s) on main to inspect."
+          echo "Fetched $COUNT failed/startup-failed run(s) on main to inspect."
 
           # --- Dedup + rate-cap context, fetched once for the whole sweep -
           # Fail CLOSED on either query: an error here must not risk filing
