@@ -632,8 +632,36 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           PROMPT_REPO: ${{ github.repository }}
-          PROMPT_REF: ${{ (github.event.client_payload.triggered_by == 'ievo-eva-canary' && github.event.client_payload.prompt_ref) || github.sha }}
+          PROMPT_REF_DEFAULT: ${{ github.sha }}
+          TRIGGERED_BY: ${{ github.event.client_payload.triggered_by || '' }}
+          CANARY_PROMPT_REF: ${{ github.event.client_payload.prompt_ref || '' }}
+          TARGET_REPO_FOR_MARKER: ${{ github.event.client_payload.repo || '' }}
+          TARGET_ISSUE_FOR_MARKER: ${{ github.event.client_payload.issue_number || '' }}
         run: |
+          # Resolved in bash, NOT a ${{ && || }} expression: the expression
+          # form silently fell back to main's prompt on an empty/absent
+          # prompt_ref, letting the canary certify the WRONG prompt with a
+          # green status (review finding on eva#235's PR). A canary dispatch
+          # without a ref is a hard error, never a fallback.
+          if [ "$TRIGGERED_BY" = "ievo-eva-canary" ]; then
+            if [ -z "$CANARY_PROMPT_REF" ]; then
+              echo "::error::canary dispatch without prompt_ref — refusing to silently certify current main's prompt"
+              exit 1
+            fi
+            PROMPT_REF="$CANARY_PROMPT_REF"
+          else
+            PROMPT_REF="$PROMPT_REF_DEFAULT"
+          fi
+          echo "prompt-ref-resolved: $PROMPT_REF"
+          # Verifiable certification channel: post the resolved ref on the
+          # canary issue so eva-canary.yml can ASSERT the build really used
+          # the PR-head prompt before certifying. Comment failure is not
+          # swallowed into a pass — the canary simply never sees the marker
+          # and fails closed.
+          if [ "$TRIGGERED_BY" = "ievo-eva-canary" ] && [ -n "$TARGET_REPO_FOR_MARKER" ] && [ -n "$TARGET_ISSUE_FOR_MARKER" ]; then
+            gh issue comment "$TARGET_ISSUE_FOR_MARKER" --repo "$TARGET_REPO_FOR_MARKER" \
+              --body "canary-prompt-ref-resolved: $PROMPT_REF" || true
+          fi
           PROMPT=$(gh api \
             "repos/$PROMPT_REPO/contents/.github/prompts/eva-implement.md?ref=$PROMPT_REF" \
             --jq '.content' | base64 -d)

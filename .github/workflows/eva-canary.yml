@@ -83,11 +83,10 @@ on:
     paths:
       - ".github/prompts/eva-implement.md"
 
-permissions:
-  contents: write
-  issues: write
-  pull-requests: write
-  statuses: write
+# All GitHub writes below go through the PAT (steps.auth), never the
+# workflow's own GITHUB_TOKEN, and there is no checkout — so the ambient
+# token needs no grants at all (review nit on eva#235's PR).
+permissions: {}
 
 # Queued, not cancelled: a mid-poll cancellation would skip this job's own
 # cleanup of the sdk sandbox issue/PR it created for the SUPERSEDED push
@@ -234,8 +233,20 @@ jobs:
                  | .number] | first // empty' /tmp/eva-canary-prs.json)
               if [ -n "$MATCH" ]; then
                 PR_NUMBER="$MATCH"
-                VERDICT="pass"
-                echo "Canary PASS — ievo-ai/sdk#$PR_NUMBER references canary issue #$ISSUE_NUM"
+                # A PR alone proves a build ran — NOT that it ran with THIS
+                # PR's prompt. Certify only when the implement run posted the
+                # resolved-ref marker for our head SHA (review finding: the
+                # silent prompt_ref fallback could otherwise green-light main's
+                # prompt as if it were the candidate's).
+                EXPECTED_MARKER="canary-prompt-ref-resolved: ${{ github.event.pull_request.head.sha }}"
+                if gh issue view "$ISSUE_NUM" --repo ievo-ai/sdk --json comments \
+                     --jq '.comments[].body' 2>/dev/null | grep -qxF "$EXPECTED_MARKER"; then
+                  VERDICT="pass"
+                  echo "Canary PASS — ievo-ai/sdk#$PR_NUMBER references canary issue #$ISSUE_NUM and the build attested prompt ref ${{ github.event.pull_request.head.sha }}"
+                else
+                  VERDICT="fail"
+                  echo "Canary FAIL — ievo-ai/sdk#$PR_NUMBER exists but the build never attested loading the prompt at ${{ github.event.pull_request.head.sha }} (marker comment missing/mismatched) — refusing to certify."
+                fi
                 break
               fi
             fi
@@ -284,6 +295,21 @@ jobs:
           ISSUE_NUM: ${{ steps.canary_issue.outputs.issue_number }}
           PR_NUM: ${{ steps.poll.outputs.pr_number }}
         run: |
+          # Late-PR sweep (review nit): a queued implement run can outlive
+          # the 55m poll and open its PR after the poll gave up — the poll's
+          # pr_number is then empty and the orphan would survive. Re-run the
+          # same reference-match here so an in-window late arrival is still
+          # closed. (A PR landing after THIS step references a closed issue
+          # titled "do not merge" — visible and inert, accepted residual.)
+          if [ -z "$PR_NUM" ]; then
+            PR_NUM=$(gh pr list --repo ievo-ai/sdk --state open --limit 100 \
+              --json number,headRefName,title,body,isCrossRepository 2>/dev/null | \
+              jq --arg n "$ISSUE_NUM" \
+                '[.[] | select((.isCrossRepository | not)
+                               and (.headRefName | startswith("eva-impl/"))
+                               and (((.title // "") + " " + (.body // "")) | test("(^|[^\\w#])#\($n)([^0-9]|$)")))
+                 | .number] | first // empty' || true)
+          fi
           if [ -n "$PR_NUM" ]; then
             gh pr close "$PR_NUM" --repo ievo-ai/sdk --delete-branch --comment \
               "Closing — automated iEvo canary probe (ievo-ai/eva#235), not a real change. Never intended to merge." \
