@@ -672,12 +672,69 @@ jobs:
             done <<< "$CHANGED"
           fi
 
+          # Canary-verified exception (operator decision, eva#235): a green
+          # `eva-canary` commit status for THIS EXACT head SHA vouches for a
+          # PR whose entire diff is the single file
+          # `.github/prompts/eva-implement.md` — see eva-canary.yml, added in
+          # the same PR as this carve-out. SHA-pinned by construction (the
+          # status lives on the commit, not the PR): a push AFTER a green
+          # canary gets a fresh SHA with no status yet, so a stale verdict can
+          # never carry over to new content — `IS_CANARY_VERIFIED` correctly
+          # comes back false and this branch falls through to the operator-
+          # merge default below. Scoped to a SINGLE-file diff (not merely "no
+          # OTHER sensitive file"): a PR that also touches an unrelated
+          # sensitive path never qualifies, even if that other path happens to
+          # be non-sensitive-but-riding-along — the canary only certifies the
+          # prompt file's own runtime behavior. Dormant-by-default: while
+          # `EVA_CANARY_ENABLED` is off, eva-canary.yml never runs and never
+          # posts a status, so `CANARY_STATE` stays "none" and this branch
+          # never engages — behavior is byte-for-byte unchanged.
+          #
+          # Creator-pinned (deep-review finding, eva#235): the commit-status
+          # API accepts a status from ANY actor with write access to this
+          # repo — it is not restricted to eva-canary.yml's own identity. Only
+          # trusting `.state == "success"` would let a single spoofed API call
+          # forge the exact signal this whole feature exists to require (the
+          # real end-to-end sandbox build), a cheaper bypass than the eva#222
+          # incident this gate protects against. Require the status's
+          # `.creator.login` to match one of eva-canary.yml's own possible
+          # auth identities — `rotnov` (what `EVA_PAT_GITHUB_TOKEN`
+          # empirically authenticates as today, per CLAUDE.md's Identity
+          # model) or `ievo-eva[bot]` (the App, should eva-canary.yml ever
+          # move off the PAT). Same "pin the EXACT identity, never a general
+          # relaxation" principle eva-implement.yml's own trust gate already
+          # documents for the analogous bot-self-approve check.
+          IS_CANARY_ELIGIBLE=false
+          if [ "$CHANGED" = ".github/prompts/eva-implement.md" ]; then
+            IS_CANARY_ELIGIBLE=true
+          fi
+
+          IS_CANARY_VERIFIED=false
+          if [ "$IS_CANARY_ELIGIBLE" = "true" ]; then
+            PR_HEAD_SHA=$(gh api "repos/$REPO/pulls/$PR_NUM" --jq '.head.sha')
+            CANARY_JSON=$(gh api "repos/$REPO/commits/$PR_HEAD_SHA/status" \
+              --jq '[.statuses[] | select(.context == "eva-canary")] | sort_by(.updated_at) | last | {state: (.state // "none"), creator: (.creator.login // "none")}' \
+              2>/dev/null)
+            [ -z "$CANARY_JSON" ] && CANARY_JSON='{"state":"none","creator":"none"}'
+            CANARY_STATE=$(printf '%s' "$CANARY_JSON" | jq -r '.state')
+            CANARY_CREATOR=$(printf '%s' "$CANARY_JSON" | jq -r '.creator')
+            if [ "$CANARY_STATE" = "success" ]; then
+              case "$CANARY_CREATOR" in
+                rotnov|"ievo-eva[bot]") IS_CANARY_VERIFIED=true ;;
+                *) echo "eva-canary status is success but posted by untrusted identity '$CANARY_CREATOR' -- ignoring, not verified." ;;
+              esac
+            fi
+          fi
+
           if [ "$IS_AUDIT" = "true" ]; then
             echo "is_sensitive=false" >> "$GITHUB_OUTPUT"
             echo "Routine research-audit PR ($HEAD_REF; all files under researches/) — auto-merge allowed despite researches/ being in the sensitive list"
           elif [ "$IS_EVOLUTION_CONSOLIDATE" = "true" ]; then
             echo "is_sensitive=false" >> "$GITHUB_OUTPUT"
             echo "Routine evolution-consolidation PR ($HEAD_REF; all files under agent/memory/evolution/) — auto-merge allowed despite agent/memory/ being in the sensitive list"
+          elif [ "$IS_CANARY_VERIFIED" = "true" ]; then
+            echo "is_sensitive=false" >> "$GITHUB_OUTPUT"
+            echo "Canary-verified prompt-only PR (single file: .github/prompts/eva-implement.md; eva-canary green on head $PR_HEAD_SHA, posted by $CANARY_CREATOR) — auto-merge allowed despite .github/prompts/ being in the sensitive list"
           elif [ -n "$SENSITIVE_HITS" ]; then
             echo "is_sensitive=true" >> "$GITHUB_OUTPUT"
             echo "Sensitive paths touched — operator must manually merge:"

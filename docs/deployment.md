@@ -167,6 +167,29 @@ re-queuing — an accepted, logged loss of that one captured lesson (eva#169).
 Bounded by `EVA_CONFLICT_SCAN_MAX_ACTIONS` per run and double-gated live like
 `eva-queue.yml` (dry_run + `EVA_CONFLICT_SCAN_ENABLED`).
 
+#### Canary (eva#235)
+
+`.github/prompts/eva-implement.md` changes are in `SENSITIVE_PATTERNS` (eva#234)
+so they always require an operator merge — static review and Lint & Test can't
+catch a runtime bug in a build PROMPT (eva#222/#223: a prompt fix auto-merged
+green and shipped a token-less-origin auth bug). `eva-canary.yml` is the
+durable fix: on a PR touching that one file, it dispatches the REAL
+`eva-implement.yml` (via its `repository_dispatch:[implement-issue]` seam,
+using the new `client_payload.prompt_ref` field to fetch the PR's own version
+of the prompt instead of current main) against a throwaway issue in
+`ievo-ai/sdk` (the designated low-stakes sandbox, already on the App
+installation), waits for a verifying `eva-impl/*` PR there, cleans up
+(closes the sdk PR/issue without merging), and posts the verdict as a
+`eva-canary` commit status on the original PR's head SHA. `eva-review-pr.yml`'s
+sensitive-path check consults that status (SHA-pinned, so a later push can
+never reuse a stale green verdict) and relaxes the operator-merge requirement
+only for a single-file PR whose entire diff is that one prompt file — a green
+canary re-dispatches `review-pr` itself so the relaxed gate takes effect
+without waiting on an unrelated future event. Double-gated like its siblings:
+dormant until `EVA_CANARY_ENABLED=true`, and PAT-only auth (not the App) since
+it is `pull_request`-triggered against a `.github/`-scoped PR, mirroring
+`eva-review-pr.yml`'s own conservative choice for that same condition.
+
 #### Review watchdog (eva#230)
 
 A PR can sit with all product gates green and no review dispatched — observed
@@ -228,6 +251,7 @@ PAT, not the App token — same reason and precedent as `eva-ci-failure.yml`
 | Variable | Values | Description |
 |----------|--------|-------------|
 | `USE_GITHUB_APP` | `true` / `false` | Switch between GitHub App and PAT auth |
+| `EVA_CANARY_ENABLED` | `true` / `false` | Safety valve for `eva-canary.yml` (eva#235) — merged dormant, the operator flips it after a deliberate smoke test (a PR touching `.github/prompts/eva-implement.md`) |
 | `EVA_CI_WATCHDOG_ENABLED` | `true` / `false` | Safety valve for `eva-ci-failure.yml` (eva#159) — merged dormant, the operator flips it after the acceptance smoke tests |
 | `EVA_CONFLICT_SCAN_ENABLED` | `true` / `false` | Safety valve for `eva-conflict-scan.yml` (eva#211) — gates BOTH the cron and a manual `dry_run=false` dispatch; merged dormant, flip to `true` to arm live runs (optionally smoke-test with one manual dispatch right after) |
 | `EVA_CONFLICT_SCAN_MAX_ACTIONS` | integer (default `7`) | Per-run cap on rebase/close actions in `eva-conflict-scan.yml` |
