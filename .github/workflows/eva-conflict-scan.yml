@@ -397,8 +397,18 @@ jobs:
 
               # Scope: only Eva's own ready (non-draft) PRs — humans manage
               # their own conflicts (mirrors eva-fix-pr.yml condition 2b).
-              if [ "$AUTHOR" != "ievo-eva[bot]" ] || [ "$IS_DRAFT" = "true" ]; then
-                continue
+              # AUTHOR is sourced from `gh pr list --json author` (GraphQL),
+              # where an App-authored PR's login is `app/ievo-eva` — NOT the
+              # REST-style `ievo-eva[bot]` that eva-fix-pr.yml compares against
+              # (it reads `gh api .../pulls/N` instead). Accept both spellings
+              # defensively across gh/API versions (eva#256).
+              case "$AUTHOR" in
+                ievo-eva\[bot\]|app/ievo-eva) : ;;
+                *)
+                  TOTAL_SKIPPED=$(( TOTAL_SKIPPED + 1 )); continue ;;
+              esac
+              if [ "$IS_DRAFT" = "true" ]; then
+                TOTAL_SKIPPED=$(( TOTAL_SKIPPED + 1 )); continue
               fi
 
               # DIRTY is the ONLY MergeStateStatus value meaning "the merge
