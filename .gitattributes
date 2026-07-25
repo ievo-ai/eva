@@ -1,13 +1,15 @@
 # Normalize all text files to LF in the repo
 * text=auto eol=lf
 
-# eva#266: two independent writers (eva-implement/eva-fix-pr's own Phase 4d/6
-# capture, and the cross-repo evolution/consolidate-* flow) both append near
-# the end of this file, so a rebase/merge touching only non-overlapping
-# trailing appends should resolve automatically rather than going
-# mergeStateStatus: DIRTY. `union` keeps lines from both sides instead of
-# leaving conflict markers, but can reorder the merged lines non-deterministically
-# — acceptable here since lessons are cross-referenced by `[[L-...]]` ID anchors,
-# not file position. It does not catch a semantic `## L-YYYY-MM-DD-NN` ID
-# collision between the two sides; the CI check in tests.yml (Lint & Test) does.
-agent/memory/evolution/lessons.md merge=union
+# eva#266: `agent/memory/evolution/lessons.md` deliberately declares NO merge
+# driver. `merge=union` was proposed (and tried) to auto-resolve the common
+# case — two independent writers appending near the file's end — but it removes
+# the `mergeStateStatus: DIRTY` signal, and DIRTY is the ONLY trigger for
+# eva-conflict-scan.yml's `try_renumber_and_rebuild` self-heal, which exists
+# precisely because a textual resolve can leave a duplicate `## L-YYYY-MM-DD-NN`
+# ID behind. Union-merging that case yields a clean merge carrying a colliding
+# ID: the Lint & Test duplicate-ID gate turns red, and nothing heals it
+# (eva-review-pr only fires on `workflow_run.conclusion == 'success'`,
+# eva-fix-pr needs a review, eva-ci-failure skips non-`main` branches). Leaving
+# the file conflict-prone keeps the recoverable path; the CI gate in tests.yml
+# covers the semantic collision a git-level resolve can't see.
