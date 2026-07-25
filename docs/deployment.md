@@ -14,6 +14,7 @@ Zero infrastructure needed. Eva runs on GitHub's runners.
 | **Eva on Issue** | `eva-on-issue.yml` | New issue + `repository_dispatch` | Reactive scan when issues are opened |
 | **Eva CI Failure Watchdog** | `eva-ci-failure.yml` | `repository_dispatch: ci-failure` + own `workflow_run` failures | Main-branch CI failure triage: supersede/dedup/rate-cap gates → transient re-run (once) or structured App-authored issue (eva#159) |
 | **Eva Conflict Scan** | `eva-conflict-scan.yml` | Cron (every 2h) + manual | Recovers `eva-impl/*` or `evolution/consolidate-*` PRs stranded `DIRTY` (merge-conflicting, invisible to every other trigger) — rebases `eva-impl/*` cleanly onto `main` and pushes, renumbers + rebuilds `evolution/consolidate-*` against current main (eva#250), or closes + re-queues the issue for a fresh build (eva#211) |
+| **Eva Workflow Integrity Sweep** | `eva-workflow-integrity-sweep.yml` | Cron (hourly) + manual | Backstop detection for a workflow FILE that fails GitHub Actions' `${{ }}`-expansion parse — publishes under its file path as the run "name" with zero jobs, invisible to `eva-ci-failure.yml`'s exact-name subscription. Flags failed main-branch runs by path-named `name` or zero job count and files a `bug` + `needs-operator` issue directly, bypassing the Router (eva#261, Part 2 of the eva#259 split) |
 | **Tests** | `tests.yml` | Push / PR | CI: ruff lint + pytest on Python 3.10/3.11/3.12 |
 
 ### How the Scan Works
@@ -237,6 +238,31 @@ issue. Bounded by `EVA_REAPER_MAX_ACTIONS` per run and double-gated live like
 PAT, not the App token — same reason and precedent as `eva-ci-failure.yml`
 (the App installation's `actions` grant is unconfirmed).
 
+#### Workflow integrity sweep (eva#261)
+
+`eva-ci-failure.yml`'s `workflow_run` subscription only matches a workflow's
+*declared* `name:` — but a workflow FILE that fails GitHub Actions'
+`${{ }}`-expansion parse publishes its run under the file PATH as the "name"
+instead, with zero jobs (the verified eva#257/eva#258/eva#259 incident
+writeup), so it matches nothing eva-ci-failure watches for. `eva-ci-failure.yml`
+itself is prevented from reaching that state by an `actionlint` gate added to
+`tests.yml` in eva#259 (Part 1 — prevention); `eva-workflow-integrity-sweep.yml`
+is Part 2 — a backstop that catches anything that slips past the gate anyway
+(a hotfix pushed with `--no-verify`, or a pre-gate-merge regression). It sweeps
+recent failed runs on `main` hourly (deterministic `gh`/`jq` queries, no LLM
+agent — a path-named/zero-job run has no logs or diff for a triage step to
+add value on), flags any whose `name` looks like a `.github/workflows/**` path
+or whose job count is 0, and — deduped one issue per `workflow_id` and
+rate-capped at 2 filings per 24h, both reusing `eva-ci-failure.yml`'s existing
+marker + rate-cap pattern verbatim — files directly with `bug` +
+`needs-operator` + a dedicated `workflow-integrity` label, bypassing the normal
+Issue Router entirely. Double-gated live like its siblings (dry_run +
+`EVA_WORKFLOW_INTEGRITY_SWEEP_ENABLED`). The one API surface needing `actions`
+scope (the runs/jobs read) goes through the PAT, not the App token — same
+constraint and precedent as `eva-ci-failure.yml` / `eva-reaper.yml` (the App
+installation's `actions` grant is unconfirmed); only the final label/issue
+create uses the App token, scoped to this repo only.
+
 ### Required Secrets
 
 | Secret | Required | Description |
@@ -261,6 +287,7 @@ PAT, not the App token — same reason and precedent as `eva-ci-failure.yml`
 | `EVA_REVIEW_WATCHDOG_ENABLED` | `true` / `false` | Safety valve for `eva-review-watchdog.yml` (eva#230) — gates BOTH the cron and a manual `dry_run=false` dispatch; merged dormant, flip to `true` to arm live runs (optionally smoke-test with one manual dispatch right after) |
 | `EVA_REVIEW_WATCHDOG_GRACE_MINUTES` | integer (default `10`) | Minutes a PR's product gates must have been green, with no review since HEAD last moved, before `eva-review-watchdog.yml` will re-dispatch `review-pr` |
 | `EVA_REVIEW_WATCHDOG_MAX_ACTIONS` | integer (default `10`) | Per-run cap on re-dispatch actions in `eva-review-watchdog.yml` |
+| `EVA_WORKFLOW_INTEGRITY_SWEEP_ENABLED` | `true` / `false` | Safety valve for `eva-workflow-integrity-sweep.yml` (eva#261) — gates BOTH the cron and a manual `dry_run=false` dispatch; merged dormant, flip to `true` to arm live runs (optionally smoke-test with one manual dispatch right after) |
 
 #### Agent model + effort (per-flow, eva#161)
 
