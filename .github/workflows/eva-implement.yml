@@ -638,7 +638,7 @@ jobs:
           TARGET_REPO_FOR_MARKER: ${{ github.event.client_payload.repo || '' }}
           TARGET_ISSUE_FOR_MARKER: ${{ github.event.client_payload.issue_number || '' }}
         run: |
-          # Resolved in bash, NOT a ${{ && || }} expression: the expression
+          # Resolved in bash, NOT a GitHub-expressions and/or construct: that
           # form silently fell back to main's prompt on an empty/absent
           # prompt_ref, letting the canary certify the WRONG prompt with a
           # green status (review finding on eva#235's PR). A canary dispatch
