@@ -21,7 +21,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # persist-credentials: false — no step in this job needs repo write
+      # access (lint + test only), so the checkout token is not left in
+      # .git/config where any later step (or a downloaded tool) could read it.
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # Pinned to v1.7.7 to match .pre-commit-config.yaml's `rev: v1.7.7` for
+      # the local actionlint hook — same version locally and in CI, no drift.
+      # eva#259: prevents an unparseable/invalid workflow file (see eva#258,
+      # where an Actions expression syntax mistake inside a run-block
+      # comment broke workflow parsing) from reaching main undetected.
+      #
+      # The release tarball is downloaded and checksum-verified rather than
+      # piped through the upstream installer script (`bash <(curl …)`): this
+      # job IS main's required branch-protection check, so a remote script
+      # fetched at run time must not execute unverified here. ACTIONLINT_SHA256
+      # is the published SHA256 of the v1.7.7 linux/amd64 asset, confirmed
+      # against a locally computed hash of the downloaded tarball.
+      #
+      # No file arguments: bare `actionlint` locates `.github/workflows` itself
+      # and checks BOTH `.yml` and `.yaml`. A `*.yml` glob would silently skip
+      # any future `.yaml` workflow (verified: the glob exits 0 on a workflow
+      # file that bare `actionlint` fails).
+      - name: Lint workflows (actionlint)
+        env:
+          ACTIONLINT_VERSION: "1.7.7"
+          ACTIONLINT_SHA256: "023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757"
+        run: |
+          curl -sSfLo actionlint.tar.gz \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "${ACTIONLINT_SHA256}  actionlint.tar.gz" | sha256sum -c -
+          tar -xzf actionlint.tar.gz actionlint
+          ./actionlint -color
+        shell: bash
 
       - name: Set up Python 3.13
         uses: actions/setup-python@v5

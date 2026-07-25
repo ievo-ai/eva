@@ -143,6 +143,9 @@ jobs:
             --description "Router/operator cleared this issue for autonomous build" \
             --color "0e8a16" 2>/dev/null || true
 
+          # Backticks below are intentional literal markdown code-formatting
+          # in the issue body text, not attempted command substitution.
+          # shellcheck disable=SC2016
           printf '%s\n' \
             '## Task' \
             '' \
