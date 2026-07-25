@@ -1,0 +1,347 @@
+# Eva — Canary: certify a build-prompt change before it can auto-merge (eva#235).
+#
+# THE GAP (eva#222/#223, 2026-07-23): a fix to `.github/prompts/eva-implement.md`
+# auto-merged green on Lint & Test alone and shipped a token-less-origin auth
+# bug that would have broken every subsequent cross-repo push — static review
+# and unit tests cannot catch a runtime bug in a BUILD PROMPT, because nothing
+# in the merge gate ever actually RUNS the new prompt end-to-end. The stopgap
+# (`.github/prompts/` added to `SENSITIVE_PATTERNS` in eva-review-pr.yml,
+# eva#234) forces an operator to manually merge every prompt change — safe, but
+# it traded away Eva's autonomy for it. This workflow is the durable fix: prove
+# the PR's version of the prompt actually works before relaxing that gate.
+#
+# MECHANISM (operator decision, eva#235 — the router's `hold` verdict's open
+# questions, answered 2026-07-24T23:18Z):
+#   1. Sandbox target: a `canary/*`-style throwaway issue/PR pair in
+#      `ievo-ai/sdk` (the designated low-stakes dev-template repo, already on
+#      the cross-repo watch-list with the `ievo-eva` App installed) — zero new
+#      infrastructure, fully reversible (this job deletes what it creates).
+#   2. Canary build: the REAL `eva-implement.yml`, not a synthetic
+#      reimplementation (which would drift from the thing it certifies) —
+#      dispatched via its existing `repository_dispatch:[implement-issue]`
+#      cross-repo seam, with the new `client_payload.prompt_ref` field (added
+#      to `eva-implement.yml` in this same PR) pointed at THIS PR's head SHA
+#      instead of the default `github.sha` (current main).
+#   3. Gate: a SEPARATE workflow (this one) posts a `eva-canary` commit status
+#      on the original PR's head SHA; `eva-review-pr.yml`'s sensitive-path
+#      check consults that status (added in this same PR) rather than this
+#      workflow becoming a new required check or reaching into
+#      eva-review-pr.yml's own job. SHA-pinned by construction (a commit
+#      status lives on the commit, not the PR) — a new push gets a fresh SHA
+#      with no status yet, which correctly falls through to today's
+#      operator-merge default, never a stale reused verdict.
+#
+# DORMANT BY DEFAULT: gated on repo variable `EVA_CANARY_ENABLED == 'true'`,
+# the same safety-valve pattern as `EVA_IMPLEMENT_ENABLED`
+# (`eva-implement.yml` header) — this workflow merges as inert infrastructure;
+# the operator flips the flag after a deliberate smoke test. While dormant, no
+# status is ever posted, so `eva-review-pr.yml`'s sensitive-path check sees no
+# green canary and keeps today's operator-merge requirement for
+# `.github/prompts/eva-implement.md` — the safe, unchanged default.
+#
+# SCOPE (v1, per the issue): `.github/prompts/eva-implement.md` only. A PR
+# that ALSO touches any other sensitive path is deliberately NOT eligible for
+# the carve-out `eva-review-pr.yml` adds (see that workflow's
+# `IS_CANARY_ELIGIBLE` check) — this canary only certifies the prompt file's
+# runtime behavior, not unrelated sensitive changes riding in the same PR.
+#
+# KNOWN RESIDUAL RISK (documented, accepted for v1 — matches this codebase's
+# existing narrow-race precedent, e.g. eva#250's lesson-ID renumbering note):
+# the canary PR opened in `ievo-ai/sdk` is a REAL PR; sdk's own CI could, in
+# principle, carry it through its own review/auto-merge path before this job's
+# cleanup step closes it. This job closes the PR (unmerged) the moment it
+# observes the backing `eva-implement` run satisfy its contract — comfortably
+# before sdk's Tests + eva-review-pr round-trip could plausibly complete — but
+# that is a timing argument, not a hard guarantee. Not fully engineered away
+# for v1 (would need cross-repo review-skip plumbing in sdk itself, out of
+# this issue's `repos/eva`-only scope) per the operator's zero-new-infra
+# framing. If the race is ever lost, worst case is one harmless `CANARY.md`
+# line landing in sdk's main — reversible, not a security issue.
+#
+# AUTH: PAT only, never the App — this run is `pull_request`-triggered against
+# a PR that touches a path under `.github/`, the same condition under which
+# `eva-review-pr.yml`'s own "Set auth token" step forces the PAT to sidestep a
+# documented App-installation-token scope restriction on workflow-modifying
+# PRs (empirically confirmed PR #54, 2026-05-23 — 403 "Resource not
+# accessible by integration"). That finding was specific to
+# `.github/workflows/**`, not `.github/prompts/**`, but this workflow can't be
+# live-tested before merge, so it makes the same conservative choice rather
+# than assume the restriction is workflows-only. The CHILD `eva-implement` run
+# this workflow dispatches is `repository_dispatch`-triggered (not
+# `pull_request`), so it is unaffected and still authors its sdk-side PR as
+# the App (`ievo-eva[bot]`) normally — only this workflow's OWN bookkeeping
+# calls (canary issue, cleanup, commit status, review re-dispatch) run as the
+# PAT identity.
+
+name: "Eva: Canary (prompt safety gate)"
+
+run-name: "Canary ${{ github.repository }}#${{ github.event.pull_request.number }}"
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - ".github/prompts/eva-implement.md"
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  statuses: write
+
+# Queued, not cancelled: a mid-poll cancellation would skip this job's own
+# cleanup of the sdk sandbox issue/PR it created for the SUPERSEDED push
+# (`if: always()` steps get a grace period on cancellation, not a guarantee).
+# Mirrors eva-implement.yml's own "never cancel a build mid-flight" concurrency
+# choice — "one build per push" (the issue's own bound-cost requirement) is
+# satisfied by queuing, not by dropping in-flight probes.
+concurrency:
+  group: eva-canary-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  canary:
+    name: "Eva: Canary probe"
+    runs-on: ubuntu-latest
+    # Must clear eva-implement's own 50-minute job ceiling with room for this
+    # job's setup/cleanup/status steps either side of the poll loop.
+    timeout-minutes: 60
+
+    # DORMANT until EVA_CANARY_ENABLED=true (see header). Fork safety: only
+    # same-repo-owner PRs reach this job — a fork PR touching this path could
+    # otherwise trigger real cross-repo writes (sdk issue/PR creation, a real
+    # eva-implement dispatch) using this workflow's PAT-level trust. Same
+    # reasoning eva-review-pr.yml's own trust filter documents: a same-repo
+    # branch PR implicitly requires push access, which GitHub only grants to
+    # trusted accounts.
+    if: >
+      vars.EVA_CANARY_ENABLED == 'true' &&
+      github.event.pull_request.head.repo.owner.login == 'ievo-ai'
+
+    steps:
+      - name: Resolve auth token
+        id: auth
+        env:
+          PAT_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+        run: |
+          if [ -z "$PAT_TOKEN" ]; then
+            echo "::error::EVA_PAT_GITHUB_TOKEN is empty — eva-canary.yml has no auth token to use."
+            exit 1
+          fi
+          echo "token=$PAT_TOKEN" >> "$GITHUB_OUTPUT"
+
+      # Create the throwaway sandbox issue in ievo-ai/sdk. Deliberately fresh
+      # every run (no "standing" issue reused across runs): a fresh issue
+      # number can never collide with a prior/concurrent canary run's own
+      # displayTitle-based polling below, so no time-window bookkeeping is
+      # needed to disambiguate runs.
+      - name: Create canary issue in ievo-ai/sdk
+        id: canary_issue
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          gh label create approved --repo ievo-ai/sdk \
+            --description "Router/operator cleared this issue for autonomous build" \
+            --color "0e8a16" 2>/dev/null || true
+
+          printf '%s\n' \
+            '## Task' \
+            '' \
+            'Automated canary probe (ievo-ai/eva#235) — not a real feature request.' \
+            '' \
+            'Append exactly one line to `CANARY.md` at the repository root: a line of the form `- <current UTC ISO-8601 timestamp>`. Create the file with a single `# iEvo canary log` heading first if it does not already exist yet. Do not touch any other file.' \
+            '' \
+            "This validates that \`eva-implement.yml\`'s build prompt (fetched from an unmerged \`ievo-ai/eva\` pull request) still produces a working build. The resulting PR here in \`ievo-ai/sdk\` is closed automatically by the canary job within minutes and must NOT be merged." \
+            '' \
+            '## Repos' \
+            '' \
+            '`repos/sdk` (`ievo-ai/sdk`).' \
+            > /tmp/canary-body.md
+
+          ISSUE_URL=$(gh issue create --repo ievo-ai/sdk \
+            --title "iEvo canary probe — eva#235 (do not merge the resulting PR)" \
+            --body-file /tmp/canary-body.md \
+            --label approved)
+          ISSUE_NUM=$(printf '%s' "$ISSUE_URL" | grep -oE '[0-9]+$')
+          if [ -z "$ISSUE_NUM" ]; then
+            echo "::error::Could not create the canary issue in ievo-ai/sdk (empty issue number from: $ISSUE_URL)"
+            exit 1
+          fi
+          echo "Created canary issue ievo-ai/sdk#$ISSUE_NUM"
+          echo "issue_number=$ISSUE_NUM" >> "$GITHUB_OUTPUT"
+
+      # Dispatch the REAL eva-implement.yml at the PR's version of the prompt.
+      # Trust payload (eva#132 contract — see eva-implement.yml's job `if:`):
+      # self-declares the App bot-self-approve path (issue_author_login +
+      # approved_by_login = ievo-eva[bot]), which eva-implement.yml's trust
+      # gate allows for any repo EXCEPT ievo-ai/eva itself (Eva must never
+      # autonomously build her own automation, eva#132 answer #6) — the
+      # target here is ievo-ai/sdk, so self-approve is legitimate. This
+      # dispatch itself runs from a trusted context (this workflow, gated
+      # above on EVA_CANARY_ENABLED + same-org-owner PR), so declaring that
+      # payload here is not a forged trust claim.
+      - name: Dispatch canary implement build
+        id: dispatch
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          # `triggered_by: ievo-eva-canary` is what unlocks `prompt_ref` on the
+          # receiving end (eva-implement.yml's "Load implement prompt" step,
+          # eva#235 vuln-scan finding) -- without it that field is inert and
+          # this dispatch would silently certify the WRONG (main) prompt.
+          jq -nc \
+            --arg repo "ievo-ai/sdk" \
+            --argjson issue "${{ steps.canary_issue.outputs.issue_number }}" \
+            --arg prompt_ref "${{ github.event.pull_request.head.sha }}" \
+            '{event_type:"implement-issue", client_payload:{
+                repo:$repo,
+                issue_number:$issue,
+                prompt_ref:$prompt_ref,
+                issue_author_login:"ievo-eva[bot]",
+                approved_by_login:"ievo-eva[bot]",
+                triggered_by:"ievo-eva-canary"
+              }}' \
+            | gh api "repos/ievo-ai/eva/dispatches" --input -
+          echo "Dispatched implement-issue for ievo-ai/sdk#${{ steps.canary_issue.outputs.issue_number }} at prompt_ref ${{ github.event.pull_request.head.sha }}"
+
+      # Poll for the contract eva-implement.yml's own "Verify implement
+      # contract" step checks: an OPEN/MERGED, same-repo eva-impl/* PR
+      # referencing the canary issue. Identical anchored-match query, applied
+      # to the sandbox repo — deliberately NOT waiting for sdk's own Tests/
+      # review pipeline, since the auth/runtime-bug class this canary exists
+      # to catch (eva#222) already fails INSIDE eva-implement's own run, well
+      # before any PR would open.
+      - name: Wait for canary implement run + verify contract
+        id: poll
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          ISSUE_NUM: ${{ steps.canary_issue.outputs.issue_number }}
+        run: |
+          DEADLINE=$(( $(date -u +%s) + 55*60 ))
+          VERDICT="timeout"
+          PR_NUMBER=""
+          SEEN_CLAIMED="false"
+
+          while [ "$(date -u +%s)" -lt "$DEADLINE" ]; do
+            if gh pr list --repo ievo-ai/sdk --state all --limit 100 \
+                 --json number,state,headRefName,title,body,isCrossRepository \
+                 > /tmp/eva-canary-prs.json 2>/tmp/eva-canary-prs.log; then
+              MATCH=$(jq --arg n "$ISSUE_NUM" \
+                '[.[] | select((.state == "OPEN" or .state == "MERGED")
+                               and (.isCrossRepository | not)
+                               and (.headRefName | startswith("eva-impl/"))
+                               and (((.title // "") + " " + (.body // "")) | test("(^|[^\\w#])#\($n)([^0-9]|$)")))
+                 | .number] | first // empty' /tmp/eva-canary-prs.json)
+              if [ -n "$MATCH" ]; then
+                PR_NUMBER="$MATCH"
+                VERDICT="pass"
+                echo "Canary PASS — ievo-ai/sdk#$PR_NUMBER references canary issue #$ISSUE_NUM"
+                break
+              fi
+            fi
+
+            # Early-exit fail: only meaningful once we've actually observed
+            # the claim label present at least once — before that, its
+            # absence just means the dispatched run hasn't started yet (or
+            # was rate-limited), not that it gave up. A transient `gh`
+            # failure here is silently skipped (neither confirms nor denies
+            # the claim state), never treated as a false "released" signal.
+            if LABELS=$(gh issue view "$ISSUE_NUM" --repo ievo-ai/sdk --json labels \
+                 --jq '[.labels[].name] | join(" ")' 2>/dev/null); then
+              case " $LABELS " in
+                *" eva-implementing "*) SEEN_CLAIMED="true" ;;
+                *)
+                  if [ "$SEEN_CLAIMED" = "true" ]; then
+                    echo "Canary FAIL — claim label released with no PR (documented exit path)."
+                    VERDICT="fail"
+                    break
+                  fi
+                  ;;
+              esac
+            fi
+
+            sleep 20
+          done
+
+          if [ "$VERDICT" = "timeout" ]; then
+            echo "Canary FAIL — no verifying PR within the poll window (implement disabled, rate-limited, or genuinely still running)."
+          fi
+          {
+            echo "verdict=$VERDICT"
+            echo "pr_number=$PR_NUMBER"
+          } >> "$GITHUB_OUTPUT"
+
+      # Best-effort cleanup, always attempted — this must run even when the
+      # poll above timed out or failed, so a leaked canary issue is never
+      # left OPEN with `approved` (which eva-reaper.yml could otherwise
+      # restore on a stale claim, and eva-queue.yml would then redispatch).
+      # Closing the issue unconditionally at the end is the actual backstop
+      # against that: eva-queue.yml only ever sweeps OPEN issues.
+      - name: Clean up sandbox issue + PR (best-effort)
+        if: always() && steps.canary_issue.outputs.issue_number != ''
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          ISSUE_NUM: ${{ steps.canary_issue.outputs.issue_number }}
+          PR_NUM: ${{ steps.poll.outputs.pr_number }}
+        run: |
+          if [ -n "$PR_NUM" ]; then
+            gh pr close "$PR_NUM" --repo ievo-ai/sdk --delete-branch --comment \
+              "Closing — automated iEvo canary probe (ievo-ai/eva#235), not a real change. Never intended to merge." \
+              2>/dev/null || echo "Could not close canary PR #$PR_NUM (best-effort, may already be closed/merged)."
+          fi
+          gh issue edit "$ISSUE_NUM" --repo ievo-ai/sdk --remove-label eva-implementing 2>/dev/null || true
+          gh issue close "$ISSUE_NUM" --repo ievo-ai/sdk --reason "not planned" --comment \
+            "Closing — automated iEvo canary probe (ievo-ai/eva#235) finished." \
+            2>/dev/null || echo "Could not close canary issue #$ISSUE_NUM (best-effort)."
+
+      # Post the verdict as a commit status on the ORIGINAL PR's head SHA —
+      # SHA-pinned by construction, consulted by eva-review-pr.yml's
+      # sensitive-path check (added in this same PR).
+      - name: Post canary status on the original PR
+        if: always() && steps.poll.outputs.verdict != ''
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          VERDICT: ${{ steps.poll.outputs.verdict }}
+          PR_NUM: ${{ steps.poll.outputs.pr_number }}
+          CANARY_ISSUE: ${{ steps.canary_issue.outputs.issue_number }}
+        run: |
+          if [ "$VERDICT" = "pass" ]; then
+            STATE="success"
+            DESC="Canary build passed (sdk#$PR_NUM) - this prompt version produces a working eva-implement build."
+          else
+            STATE="failure"
+            DESC="Canary did not produce a verifying PR ($VERDICT) - see ievo-ai/sdk#$CANARY_ISSUE."
+          fi
+          # GitHub commit-status descriptions are capped at 140 chars.
+          DESC="${DESC:0:140}"
+          gh api "repos/${{ github.repository }}/statuses/$HEAD_SHA" \
+            --method POST \
+            -f state="$STATE" \
+            -f context="eva-canary" \
+            -f description="$DESC" \
+            -f target_url="https://github.com/ievo-ai/sdk/issues/$CANARY_ISSUE"
+          echo "Posted eva-canary status ($STATE) on $HEAD_SHA"
+
+      # A green canary is only useful if it actually triggers a fresh
+      # sensitive-path evaluation — eva-review-pr.yml's normal triggers
+      # (Tests completing, ready_for_review) almost always fire and resolve
+      # LONG before this job's poll loop can finish, so without this the
+      # relaxed gate would sit unused until some unrelated future event
+      # happened to re-run review. Mirrors the existing "Kick approved-queue
+      # drain" / "Dispatch fix-pr" dispatch pattern already in
+      # eva-review-pr.yml — same trust surface, no new one: eva-review-pr.yml
+      # re-verifies everything about the PR itself on receipt, it just trusts
+      # `triggered_by` for its own loop-prevention filter (set to a value
+      # that is neither `ievo-eva` nor `github-actions[bot]`, so it passes).
+      - name: Redispatch review for the original PR (canary passed)
+        if: steps.poll.outputs.verdict == 'pass'
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          jq -nc \
+            --arg repo "${{ github.repository }}" \
+            --argjson pr "${{ github.event.pull_request.number }}" \
+            '{event_type:"review-pr", client_payload:{repo:$repo, pr_number:$pr, triggered_by:"ievo-eva-canary"}}' \
+            | gh api "repos/ievo-ai/eva/dispatches" --input -
+          echo "Re-dispatched review-pr for ${{ github.repository }}#${{ github.event.pull_request.number }} now that the canary is green"

@@ -9,7 +9,10 @@
 # Trigger paths:
 #   - issues:[labeled] (label == approved)  — eva-local issues
 #   - repository_dispatch:[implement-issue]  — cross-repo (Phase 2 seam; the
-#     toolchain setup below is eva-specific Python/uv for now)
+#     toolchain setup below is eva-specific Python/uv for now). An optional
+#     `client_payload.prompt_ref` overrides which commit's eva-implement.md is
+#     used (default: `github.sha`, i.e. current main) — used by eva-canary.yml
+#     (eva#235) to certify an unmerged PR's version of this prompt.
 #
 # DORMANT BY DEFAULT: the job runs ONLY when repo variable
 # `EVA_IMPLEMENT_ENABLED == 'true'`. This lets the workflow merge as inert
@@ -598,12 +601,38 @@ jobs:
       # TARGET repo checkout (cross-repo build → the working tree is e.g. cli,
       # which has no eva prompt). Fetch the prompt from eva via the API at the
       # commit this workflow is running, NOT from the working tree.
+      #
+      # eva#235 — prompt_ref override: normally the prompt is read at
+      # `github.sha` (whatever commit triggered this run, i.e. current main).
+      # `eva-canary.yml` dispatches this workflow to certify an in-flight PR's
+      # UNMERGED version of eva-implement.md before that PR is allowed to
+      # auto-merge, so it needs to fetch the prompt at the PR's head SHA
+      # instead — it passes that via `client_payload.prompt_ref`. Every other
+      # caller (the `issues` path, and every existing `repository_dispatch`
+      # forwarder, none of which set this field) is unaffected: an absent
+      # `prompt_ref` falls back to `github.sha`, byte-for-byte today's behavior.
+      #
+      # Gated on `triggered_by == 'ievo-eva-canary'` (vuln-scan finding,
+      # eva#235): without this, ANY `repository_dispatch:implement-issue`
+      # caller -- any forwarder or credential already privileged enough to hit
+      # this endpoint -- could silently point the agent at an arbitrary,
+      # unreviewed, uncanaried `eva-implement.md` (the SAFETY RULES governing
+      # the agent's own behavior, not just its target/instructions), a strictly
+      # bigger foothold than the existing `repo`/`issue_number` fields already
+      # grant. This does not stop a caller who deliberately sets `triggered_by`
+      # to this exact string too (a self-declared field, like every other
+      # trust input a repository_dispatch payload already carries in this
+      # codebase -- see the Claim step's own `issue_author_login`/
+      # `approved_by_login` comment) -- that caller already needed a token as
+      # privileged as eva-canary.yml's own. What it DOES close is the
+      # realistic gap the scan flagged: an unrelated forwarder relaying a ref
+      # into this field without knowing it has this effect.
       - name: Load implement prompt
         if: steps.claim.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           PROMPT_REPO: ${{ github.repository }}
-          PROMPT_REF: ${{ github.sha }}
+          PROMPT_REF: ${{ (github.event.client_payload.triggered_by == 'ievo-eva-canary' && github.event.client_payload.prompt_ref) || github.sha }}
         run: |
           PROMPT=$(gh api \
             "repos/$PROMPT_REPO/contents/.github/prompts/eva-implement.md?ref=$PROMPT_REF" \
