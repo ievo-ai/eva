@@ -17,6 +17,11 @@
 # Scope (THIS workflow — router only):
 #   - POSTS a comment, applies classification + lifecycle labels
 #   - Does NOT auto-resolve / auto-close / open PRs / modify files / implement
+#   - EXEMPT: issues labelled `workflow-integrity` (filed by
+#     eva-workflow-integrity-sweep.yml, eva#261) are skipped entirely — a
+#     zero-job startup failure has no log and no diff to triage, and the
+#     skeptic path's default REJECT would close the issue out from under the
+#     sweep's open-issue dedup. See the "Resolve issue context" step.
 #
 # Re-triage (eva#143): a trusted human MEMBER/OWNER commenting on a still-held
 # (`needs-discussion`) issue re-opens the conversation. The skills forwarder
@@ -93,6 +98,7 @@ jobs:
       - name: Resolve issue context
         id: ctx
         env:
+          GH_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
           EVENT_NAME: ${{ github.event_name }}
           DISPATCH_REPO: ${{ github.event.client_payload.repo }}
           DISPATCH_ISSUE: ${{ github.event.client_payload.issue_number }}
@@ -108,6 +114,30 @@ jobs:
 
           if [ -z "$REPO" ] || [ -z "$ISSUE_NUM" ]; then
             echo "Missing repo or issue number, skipping"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Router exemption for the Workflow Integrity Sweep (eva#261). Issues
+          # carrying `workflow-integrity` are filed by
+          # eva-workflow-integrity-sweep.yml for a run that failed at STARTUP —
+          # zero jobs, so no log and no diff for the LLM triage step to add
+          # value on. Routing them is not merely useless, it is harmful: such an
+          # issue is App-authored in ievo-ai/eva, so it lands on the skeptic
+          # path, whose default verdict is REJECT — which CLOSES the issue and
+          # strips `needs-operator`, while the sweep's dedup query only counts
+          # OPEN issues. The sweep would then re-file every hour and burn its
+          # 2-per-24h cap, and the operator would never keep a durable signal
+          # for a genuinely broken workflow file.
+          # Read from the API rather than `github.event.issue.labels` so the
+          # check behaves identically on the `issues` and `repository_dispatch`
+          # paths and does not depend on webhook payload timing. Fail-OPEN: a
+          # query hiccup routes the issue as usual (a redundant triage is
+          # acceptable; a silently dropped one is not).
+          if gh api "repos/$REPO/issues/$ISSUE_NUM" \
+              --jq '[.labels[].name] | index("workflow-integrity") != null' \
+              2>/dev/null | grep -qx 'true'; then
+            echo "Issue carries \`workflow-integrity\` — Router-exempt by design (eva#261), skipping."
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi

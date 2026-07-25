@@ -1,0 +1,365 @@
+# Eva — Workflow Integrity Sweep (eva#261, backstop half of the eva#259 split)
+#
+# THE GAP: eva-ci-failure.yml (eva#159) watches main-branch CI health via an
+# exact-name `workflow_run.workflows` subscription — but a workflow FILE that
+# fails GitHub Actions' `${{ }}`-expansion parse never matches it. Such a run
+# publishes under the file PATH as its "name" (not the workflow's declared
+# `name:` key) and has ZERO jobs (the verified eva#257/eva#258/eva#259
+# incident writeup), so it satisfies neither an exact-name match nor a real
+# job failure eva-ci-failure could triage — it is structurally invisible to
+# every other watchdog in this repo. Part 1 of the split (eva#259, already
+# merged) is PREVENTION: an `actionlint` gate in `tests.yml` blocks a
+# parse-broken workflow file from reaching main via the normal PR path. This
+# workflow is Part 2, DETECTION — a backstop for anything that slips past
+# that gate anyway (a hotfix pushed with `--no-verify`, or a
+# pre-gate-merge regression).
+#
+# THE FIX — deterministic, no LLM agent, same shape as eva-reaper.yml /
+# eva-conflict-scan.yml (cron + workflow_dispatch, App-token issue writes,
+# dry-run + live double-gate):
+#   1. List recent runs on main via the Actions API and keep the ones whose
+#      `conclusion` is `failure` OR `startup_failure` — matched client-side,
+#      because the endpoint's `status=` filter cannot express
+#      `startup_failure` at all (see the step comment; that is precisely the
+#      conclusion a parse-broken run carries) — then collapse to the NEWEST
+#      such run per `workflow_id`, so the loop below runs at most once per
+#      workflow (the granularity the dedup marker in 3 is keyed on).
+#   2. Flag any whose `name` looks like a `.github/workflows/**` path (the
+#      parse-broken signature) OR, when it doesn't, whose job count is 0
+#      (fallback — that path-as-name behavior is observed, not a documented
+#      API contract, so a zero-job run is still flagged even if GitHub ever
+#      stops naming the run after the file path).
+#   3. Dedup — at most one open issue per workflow_id (marker
+#      `<!-- eva-workflow-integrity: <repo>#<workflow_id> -->`, same idiom as
+#      eva-ci-failure.yml's `<!-- eva-ci-failure: ... -->`; the open-issue
+#      list backing it is fetched ONCE per sweep, which is why step 1
+#      collapses the run list to one run per workflow — otherwise a second
+#      run of the same workflow later in the loop would test its marker
+#      against that now-stale list and file a duplicate), and rate-cap at
+#      2 filed issues per rolling 24h (fails CLOSED on a query error — same
+#      as eva-ci-failure: a real recurring break re-signals on the next
+#      sweep, spam does not un-spam itself).
+#   4. File directly with `bug` + `needs-operator` + a dedicated
+#      `workflow-integrity` label (the label used to scope the dedup/
+#      rate-cap query, AND the Router-exemption key below).
+#
+# ROUTER EXEMPTION (eva#261 review finding): filing an issue is NOT by itself
+# a Router bypass — eva-on-issue.yml subscribes to `issues: opened` and its
+# trust gate deliberately admits `ievo-eva[bot]` authors (eva#132 self-triage),
+# so an issue filed here would otherwise be routed like any other. That would
+# be actively harmful, not merely wasteful: on a self-authored issue in
+# ievo-ai/eva the Router runs the adversarial skeptic path, whose default
+# verdict is REJECT — it CLOSES the issue and strips `needs-operator` — while
+# the dedup query in 3 only counts OPEN issues, so the sweep would re-file
+# every hour and burn the 2/24h cap on a workflow it had already reported. The
+# bypass is therefore IMPLEMENTED, not assumed: eva-on-issue.yml's "Resolve
+# issue context" step skips any issue labelled `workflow-integrity`. A
+# path-named, zero-job run has no logs and no diff for an LLM triage step to
+# add value on (nothing ever ran), so the exemption costs no signal.
+#
+# AUTH SPLIT (same constraint eva-ci-failure.yml / eva-reaper.yml already hit
+# and resolved): the App installation's `actions` permission is NOT confirmed
+# granted, and per eva#152 a mint requesting an ungranted permission fails
+# LOUDLY at the mint step — which runs on every scheduled tick here, so
+# requesting `actions:read` on the App token would break every run, not just
+# a dormant one. All `actions` API reads (run list, per-run job count) and
+# the dedup/rate-cap `gh issue list` queries go through the PAT
+# (`EVA_PAT_GITHUB_TOKEN`), mirroring eva-ci-failure.yml's "Gates" step. Only
+# the final `gh label create` / `gh issue create` use the App token, so the
+# filed issue is App-authored (`ievo-eva[bot]`) — the existing bot-trust-
+# matrix path, same as every other Eva-filed issue (eva#159).
+#
+# DORMANT BY DEFAULT: merges inert. The operator flips
+# `EVA_WORKFLOW_INTEGRITY_SWEEP_ENABLED` after a deliberate dry-run smoke
+# test (same pattern as conflict-scan/reaper/review-watchdog).
+#
+# Safety:
+#   - Read-only detection; the only writes are a label create (idempotent)
+#     and an issue create — both fully reversible (a false positive is just
+#     a closed issue).
+#   - Live dispatch is double-gated (mirrors eva-reaper.yml / eva-conflict-
+#     scan.yml): NOT dry_run AND `vars.EVA_WORKFLOW_INTEGRITY_SWEEP_ENABLED`.
+#     Gates every trigger, manual or scheduled alike — a manual
+#     dry_run=false dispatch is ALSO report-only until the var is set.
+#   - Scoped to this repo only (`repositories: eva` on the App-token mint) —
+#     this sweep never touches any other repo.
+#   - Filed with the App token so the issue enters the bot-trust-matrix path
+#     like every other Eva-authored issue — no new trust surface.
+
+name: "Eva: Workflow Integrity Sweep"
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Evaluate + report path-named/zero-job failed runs but perform NO label/issue writes"
+        type: boolean
+        default: true
+  schedule:
+    # Hourly at :51 (offset from eva-queue :07/:37, eva-conflict-scan :13
+    # every 2h, eva-reaper :23, eva-review-watchdog :15/:45, eva-scan 03:00,
+    # eva-research 06:00, eva-backlog-retriage Monday 05:00) — a backstop
+    # sweep, not the primary net, so hourly is fine (eva#261).
+    - cron: "51 * * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eva-workflow-integrity-sweep
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    name: "Eva: sweep for path-named/zero-job failed workflow runs"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Generate App token
+        if: vars.USE_GITHUB_APP == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547  # v1.12.0
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ievo-ai
+          # Scoped to this repo only — this sweep never touches another repo.
+          repositories: eva
+          # Explicit list (eva#156/#152 lesson — a permission-* mint carries
+          # ONLY the listed permissions, not the full installation set).
+          # `actions` is deliberately NOT requested: unconfirmed on the
+          # installation, and an ungranted request fails the mint loudly on
+          # every scheduled tick (see AUTH SPLIT above). All `actions` reads
+          # go through the PAT instead.
+          #   issues:write   — `gh label create` + `gh issue create`
+          #   metadata:read  — implicit API base requirement
+          permission-issues: write
+          permission-metadata: read
+
+      - name: Set auth token
+        id: auth
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          PAT_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+        run: |
+          if [ -n "$APP_TOKEN" ]; then
+            echo "token=$APP_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "Using App token — issue/label writes attributed to ievo-eva[bot]"
+          else
+            echo "token=$PAT_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "Using PAT fallback (USE_GITHUB_APP != true)"
+          fi
+
+      - name: Sweep for path-named/zero-job failed runs
+        env:
+          GH_TOKEN: ${{ secrets.EVA_PAT_GITHUB_TOKEN }}
+          WRITE_TOKEN: ${{ steps.auth.outputs.token }}
+          REPO: ${{ github.repository }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+          SWEEP_ENABLED: ${{ vars.EVA_WORKFLOW_INTEGRITY_SWEEP_ENABLED }}
+        run: |
+          set -uo pipefail  # not -e: one bad run's lookup must not abort the whole sweep
+
+          # Double-gate (mirrors eva-reaper.yml / eva-conflict-scan.yml): live
+          # only when NOT dry_run AND the operator has flipped the var on. A
+          # scheduled run has no dry_run input (DRY_RUN='' -> 'false' via the
+          # || above), so once the var is on, both the cron and a manual
+          # dispatch go live identically.
+          LIVE="false"
+          if [ "$DRY_RUN" != "true" ] && [ "$SWEEP_ENABLED" = "true" ]; then
+            LIVE="true"
+          fi
+          echo "Mode: $([ "$LIVE" = "true" ] && echo 'LIVE' || echo 'DRY RUN (report only)')"
+
+          # --- Fetch recent runs on main, keep the failed ones -------------
+          # NO `status=` filter, deliberately. The documented enum for that
+          # parameter is completed/action_required/cancelled/failure/neutral/
+          # skipped/stale/success/timed_out/in_progress/queued/requested/
+          # waiting/pending — it has NO `startup_failure` member, so
+          # `status=failure` narrows to `conclusion == failure` and
+          # structurally EXCLUDES the one class this sweep exists to detect:
+          # a parse-broken run concludes `startup_failure`. Nor can that be
+          # patched by asking for it — `status=startup_failure` is undocumented
+          # and returns 200 with an empty list rather than 422, so it cannot be
+          # shown to filter on anything. Both conclusions are therefore matched
+          # here off the run object's own `conclusion` field, the only surface
+          # documented to carry `startup_failure` (the run `status` enum has no
+          # such value; a terminal run is `completed`). Runs still executing
+          # (`conclusion == null`) drop out of the select for free.
+          #
+          # Cost of dropping the filter: the window becomes the 100 most recent
+          # runs on main (the API's per_page max) instead of 50 already-filtered
+          # failures — hours of wall-clock rather than months. Ample for an
+          # hourly sweep, and a parse-broken file keeps re-failing on every
+          # later trigger, so it stays inside the window until someone fixes it.
+          #
+          # `group_by(.workflow_id) | map(max_by(.run_number))` then collapses
+          # the matches to the NEWEST failing run per workflow. Two reasons,
+          # and the first is a correctness requirement, not a nicety:
+          #   - The dedup marker below is keyed on `workflow_id`, but the
+          #     open-issue list it tests against (`TRACKED`) is fetched ONCE
+          #     for the whole sweep. Because a parse-broken file re-fails on
+          #     EVERY later trigger (see this file's header), several runs in
+          #     the 100-run window routinely share one `workflow_id` — so
+          #     without this collapse the first such run files an issue while
+          #     the second still sees the pre-file `TRACKED`, files a
+          #     DUPLICATE, and burns the 2/24h cap that a genuinely distinct
+          #     second breakage would need. One iteration per workflow makes
+          #     the loop's granularity match the marker's by construction.
+          #   - It matches eva-ci-failure.yml's established newest-run-only
+          #     supersede policy (an older failure of a workflow that has
+          #     since re-run is stale news), applied in-sweep. `run_number`
+          #     is the same ordering key that workflow's supersede check
+          #     compares on, and is monotonic within one workflow.
+          if ! gh api "repos/$REPO/actions/runs?branch=main&per_page=100" \
+              --jq '[ .workflow_runs[]
+                      | select(.conclusion == "failure" or .conclusion == "startup_failure") ]
+                    | group_by(.workflow_id) | map(max_by(.run_number))' \
+              > /tmp/wis-runs.json 2>/tmp/wis-runs.log; then
+            echo "::error::gh api actions/runs failed — cannot sweep this run"
+            cat /tmp/wis-runs.log
+            exit 1
+          fi
+          COUNT=$(jq 'length' /tmp/wis-runs.json)
+          echo "Inspecting $COUNT workflow(s) whose newest run on main failed/startup-failed."
+
+          # --- Dedup + rate-cap context, fetched once for the whole sweep -
+          # Fail CLOSED on either query: an error here must not risk filing
+          # a duplicate or busting the cap, so every suspect below is
+          # skipped for this sweep rather than acted on with stale/unknown
+          # state. A real recurring break simply re-signals next sweep.
+          GATE_ERROR="false"
+          if ! TRACKED=$(gh issue list --repo "$REPO" --label workflow-integrity --state open \
+              --json number,body --limit 100 2>/tmp/wis-tracked.log); then
+            echo "::warning::gh issue list (dedup query) failed — failing CLOSED, no issues will be filed this sweep"
+            cat /tmp/wis-tracked.log
+            TRACKED="[]"
+            GATE_ERROR="true"
+          fi
+
+          RECENT=0
+          if [ "$GATE_ERROR" != "true" ]; then
+            SINCE=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+            if ! RECENT=$(gh issue list --repo "$REPO" --label workflow-integrity --state all \
+                --json createdAt --limit 100 2>/tmp/wis-recent.log \
+                | jq --arg s "$SINCE" '[ .[] | select(.createdAt > $s) ] | length'); then
+              echo "::warning::rate-cap count query failed — failing CLOSED, no issues will be filed this sweep"
+              cat /tmp/wis-recent.log
+              GATE_ERROR="true"
+              RECENT=0
+            fi
+          fi
+
+          FOUND=0; SUSPECTS=0; FILED=0; SKIPPED_DEDUP=0; SKIPPED_CAP=0; SKIPPED_GATE_ERROR=0
+
+          for i in $(seq 0 $((COUNT - 1))); do
+            RUN=$(jq ".[$i]" /tmp/wis-runs.json)
+            RUN_ID=$(printf '%s' "$RUN" | jq -r '.id')
+            NAME=$(printf '%s' "$RUN" | jq -r '.name')
+            WF_ID=$(printf '%s' "$RUN" | jq -r '.workflow_id')
+            URL=$(printf '%s' "$RUN" | jq -r '.html_url')
+            EVENT=$(printf '%s' "$RUN" | jq -r '.event')
+            SHA=$(printf '%s' "$RUN" | jq -r '.head_sha')
+            ATTEMPT=$(printf '%s' "$RUN" | jq -r '.run_attempt')
+            FOUND=$(( FOUND + 1 ))
+
+            # REASON/TITLE/TRIAGE are set together, per detection path: the
+            # path-as-name signature IS a parse failure, but the zero-job
+            # fallback only proves a startup-level fault, so it must not be
+            # titled or triaged as a confirmed parse failure.
+            REASON=""; TITLE=""; TRIAGE=""
+            if printf '%s' "$NAME" | grep -qE '^\.github/workflows/.*\.ya?ml$'; then
+              REASON="the run's name is a workflow file path (\`$NAME\`) rather than a declared name — the parse-broken signature"
+              TITLE="Workflow parse failure: $NAME"
+              TRIAGE="This run's file failed GitHub Actions' expression-expansion parse (see eva#257, eva#258, eva#259) — it never started any job, so there is no log and no diff for an LLM triage step to add value on. A human needs to open the run directly and find the workflow file whose most recent change on main broke parsing."
+            else
+              JOBS=$(gh api "repos/$REPO/actions/runs/$RUN_ID/jobs" --jq '.total_count' 2>/dev/null || true)
+              if [ "$JOBS" = "0" ]; then
+                REASON="the run has zero jobs (job-count fallback check)"
+                TITLE="Workflow run produced zero jobs: $NAME"
+                TRIAGE="This run failed without starting a single job, so something went wrong at STARTUP — but its name is a declared workflow name rather than a file path, so the parse-broken signature (eva#257, eva#258, eva#259) is NOT confirmed here, only a startup-level fault is. Candidate causes: an expression-expansion parse failure that GitHub no longer names after the file path, invalid workflow YAML, an unresolvable \`needs:\` graph, or a reusable-workflow \`uses:\` reference that cannot be resolved. Either way no job ran, so there is no job log and no diff for an LLM triage step to add value on. A human needs to open the run directly, read the startup error GitHub reports on the run page, and find the workflow file whose most recent change on main caused it."
+              fi
+            fi
+            [ -z "$REASON" ] && continue
+
+            SUSPECTS=$(( SUSPECTS + 1 ))
+            echo "Suspect: run $RUN_ID (workflow $WF_ID, $URL) — $REASON"
+
+            MARKER="<!-- eva-workflow-integrity: ${REPO}#${WF_ID} -->"
+            DUP=$(printf '%s' "$TRACKED" | jq --arg m "$MARKER" '[ .[] | select((.body // "") | contains($m)) | .number ] | first')
+            if [ -n "$DUP" ] && [ "$DUP" != "null" ]; then
+              echo "  already tracked in #$DUP — skipping (dedup)"
+              SKIPPED_DEDUP=$(( SKIPPED_DEDUP + 1 ))
+              continue
+            fi
+
+            if [ "$GATE_ERROR" = "true" ]; then
+              echo "  dedup/rate-cap query failed earlier this sweep — failing CLOSED, skipping"
+              SKIPPED_GATE_ERROR=$(( SKIPPED_GATE_ERROR + 1 ))
+              continue
+            fi
+
+            if [ "$((RECENT + FILED))" -ge 2 ]; then
+              echo "  rate cap hit (2 workflow-integrity issues/24h) — skipping"
+              SKIPPED_CAP=$(( SKIPPED_CAP + 1 ))
+              continue
+            fi
+
+            if [ "$LIVE" != "true" ]; then
+              echo "  DRY RUN — would file a new workflow-integrity issue titled \"$TITLE\""
+              FILED=$(( FILED + 1 ))
+              continue
+            fi
+
+            # All three labels the `gh issue create` below applies are created
+            # defensively — `gh issue create --label` fails outright on a label
+            # that does not exist, and `bug` is no more guaranteed to be present
+            # in an arbitrary repo state than the other two (it is a GitHub
+            # default label, but defaults are deletable). Idempotent: create is
+            # a no-op error on an existing label, swallowed by `|| true`.
+            GH_TOKEN="$WRITE_TOKEN" gh label create bug --repo "$REPO" \
+              --description "Something isn't working" \
+              --color "d73a4a" 2>/dev/null || true
+            GH_TOKEN="$WRITE_TOKEN" gh label create workflow-integrity --repo "$REPO" \
+              --description "Path-named/zero-job failed workflow run — filed by Eva's integrity sweep" \
+              --color "d73a4a" 2>/dev/null || true
+            GH_TOKEN="$WRITE_TOKEN" gh label create needs-operator --repo "$REPO" \
+              --description "Pipeline blocked on the human operator to unblock" \
+              --color "e11d21" 2>/dev/null || true
+
+            cat > /tmp/wis-issue.md << ISSUEEOF
+          $MARKER
+
+          ## Failing run
+          - [$NAME]($URL)
+          - Run ID: $RUN_ID, attempt $ATTEMPT
+          - Head SHA: $SHA
+          - Trigger event: $EVENT
+
+          ## Detection
+          $REASON
+
+          ## Triage
+          $TRIAGE
+
+          Filed by Eva's Workflow Integrity Sweep (eva-workflow-integrity-sweep.yml, eva#261).
+          ISSUEEOF
+
+            if GH_TOKEN="$WRITE_TOKEN" gh issue create --repo "$REPO" \
+                --title "$TITLE" \
+                --label bug --label needs-operator --label workflow-integrity \
+                --body-file /tmp/wis-issue.md; then
+              echo "  filed a new workflow-integrity issue"
+              FILED=$(( FILED + 1 ))
+            else
+              echo "::warning::gh issue create failed for run $RUN_ID — will retry next sweep"
+            fi
+          done
+
+          echo ""
+          echo "Workflow Integrity Sweep digest: found=$FOUND suspects=$SUSPECTS filed=$FILED skipped_dedup=$SKIPPED_DEDUP skipped_cap=$SKIPPED_CAP skipped_gate_error=$SKIPPED_GATE_ERROR (live=$LIVE)"
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            printf 'Workflow Integrity Sweep (eva#261): found=%s suspects=%s filed=%s skipped_dedup=%s skipped_cap=%s skipped_gate_error=%s (live=%s)\n' \
+              "$FOUND" "$SUSPECTS" "$FILED" "$SKIPPED_DEDUP" "$SKIPPED_CAP" "$SKIPPED_GATE_ERROR" "$LIVE" >> "$GITHUB_STEP_SUMMARY"
+          fi
