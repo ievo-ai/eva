@@ -71,7 +71,12 @@ jobs:
   triage:
     name: "Eva: Issue Router"
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    # Was 8 — too tight for a long/detailed issue body (eva#289, 2026-07-26: the
+    # triage agent was still running a thorough recon-style issue at 8m07s and got
+    # killed mid-analysis, leaving the issue completely unlabeled with no verdict).
+    # 20 gives real headroom without approaching eva-implement.yml's 50-minute
+    # budget — Router only reads + labels, it never builds.
+    timeout-minutes: 20
 
     # Anti-recursion + trust gate. Historically this filtered out ALL bot-
     # triggered runs so Eva's own bot-filed issues never re-entered the loop. It
