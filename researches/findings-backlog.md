@@ -2159,5 +2159,70 @@ location: plugins/ievo/scripts/scan_repo.mjs:818,830
 
 Self-verified directly: line 818 only checks whether a file literally named `LICENSE`/`LICENSE.md`/`LICENSE.txt` exists (`fileExists`) — it never reads the file's content. Line 830 then unconditionally sets `license: licenseFileExists ? "MIT" : null` — a hardcoded SPDX identifier regardless of what the file actually says. This value flows straight into the public community index via `renderIndexMd` (`- **License:** ${data.license || "missing"}`) and the published JSON manifest entry that downstream tooling/UI consumes to help users decide whether it's safe to install/fork/redistribute a candidate. Any repo shipping a GPL, proprietary, or any non-MIT `LICENSE` file is falsely reported as MIT-licensed. This directly contradicts the repo's own stated security model (AGENTS.md § Security model: "No heuristic risk_tier in indices. `scan_repo.mjs` emits structural facts only.") — a hardcoded, content-unverified SPDX claim is not a structural fact. Confirmed not already tracked: `CHANGELOG.md`'s v0.52-era #365 entry notes `license`/`stars`/`created` were "intentionally left un-escaped" because `license` is "always a hardcoded MIT/null literal from a file-existence check (never file content)" — but that note addresses only the Markdown-injection/escaping question (a hardcoded literal needs no escaping), not the correctness/misrepresentation defect itself, which has no existing issue (`gh issue list --search "license"` returned no match on this specific gap).
 
+---
+
+## S-2026-07-27-001 — scrub.mjs's unquoted-value redaction stops at the first whitespace, leaking the remainder of multi-word secrets
+
+```yaml
+id: S-2026-07-27-001
+discovered_at: 2026-07-27T10:30:00Z
+run_id: 30256167694
+target_repo: ievo-ai/skills
+title: scrub.mjs's ASSIGNMENT_RE unquoted-value alternative only redacts up to the first whitespace/comma/semicolon, leaking the rest of a multi-word secret
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/493
+cwe: CWE-200
+confidence: high
+location: plugins/ievo/scripts/scrub.mjs:101 (ASSIGNMENT_RE), redactNamedSecrets (~line 105)
+```
+
+`/ievo:vuln-scan --module` dogfooding (eva#165), independently re-verified by direct read before filing. `scrub.mjs` is the pure stdin→stdout privacy scrub piped into by the evo-auto failure-capture hook (`PostToolUseFailure`/`PermissionDenied` events) before a captured record is persisted to `.ievo/evolution-candidates/<session-id>.jsonl` — its own header states the contract that a persisted record "can never carry a live secret." `ASSIGNMENT_RE`'s unquoted-value alternative is `([^\s,;"'\r\n]+)` (line 101) — this stops matching at the FIRST whitespace character. For an unquoted secret-shaped assignment whose value itself contains a space (e.g. a captured tool failure that echoed `PASSWORD=my secret pass` or `DB_PASSWORD=correct horse battery staple`), only the leading token (`my` / `correct`) is matched and replaced with `[REDACTED]`; every subsequent token in the value is copied through untouched. The persisted JSONL record — read later by `/ievo:evo` analysis or a human reviewing `pending.md` — retains the tail of the real secret in cleartext, defeating the script's sole stated guarantee. Not a duplicate of any existing finding: `scrub.mjs` was added in v0.55.0 (#423) and has never been vuln-scanned before this run.
+
+**Recommendation**: make the unquoted-value alternative greedy to end-of-line (trim trailing punctuation after), or redact the entire remainder of the matched line once a secret-shaped assignment name is detected, rather than stopping at the first whitespace. Add a regression test asserting `PASSWORD=my secret pass` fully redacts to `PASSWORD=[REDACTED]` with no plaintext remainder.
+
+---
+
+## S-2026-07-27-002 — feedback/SKILL.md's Flow B rejection-reasons template embeds untrusted `<owner/repo@skill>` identifiers unescaped into a public GitHub issue body
+
+```yaml
+id: S-2026-07-27-002
+discovered_at: 2026-07-27T10:30:00Z
+run_id: 30256167694
+target_repo: ievo-ai/skills
+title: feedback/SKILL.md Flow B embeds attacker-controlled owner/repo@skill identifiers unescaped in a public issue, enabling live markdown-image/link injection
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/494
+cwe: CWE-79
+confidence: high
+location: plugins/ievo/skills/feedback/SKILL.md:239-244 (Flow B template, "Installed"/"Skipped with reasons" lists)
+```
+
+`/ievo:vuln-scan --module` dogfooding (eva#165), independently re-verified by direct read before filing. A malicious skill/agent/plugin candidate (discoverable via `discover.mjs`/skills.sh or `index-repos`) can declare a `name` in its own frontmatter crafted to contain GitHub-Flavored-Markdown image/link syntax, e.g. `foo) ![beacon](https://attacker.example/x.png?d=1`. `init/SKILL.md` Step 13 ("Invite feedback, especially on skips") routinely offers to share rejection reasons, which routes into `feedback/SKILL.md` Flow B. That flow's issue-body template (lines 239-244, confirmed by direct read) embeds the raw `<owner/repo@skill>` identifier with zero escaping in both the "Installed" and "Skipped with reasons" bullet lists — no inline code span, no backtick wrapping — unlike the excerpt-containment rule this same repo already enforces for `security-check/SKILL.md`'s `report_template.body` field and `vuln-scan`'s own finding fields (per #402/#405). `Step 6: Submit via gh CLI` then files this body verbatim as a public issue in `ievo-ai/skills` via `gh issue create --body-file`. The moment anyone opens the filed issue, GitHub's Markdown renderer executes the embedded `![...](...)`/`[...](...)` live — an unauthenticated beaconing/spoofed-link injection into a public, trusted-looking security-tooling repo, fired with zero further victim action. Not a duplicate: distinct call site from every previously-fixed instance of this repo's excerpt-containment work (#402/#405 covered `vuln-scanner.md`/`vuln-scan.md`; this is `feedback/SKILL.md`'s own template, never covered).
+
+**Recommendation**: wrap every `<owner/repo@skill>` value in an inline code span before interpolating it into the Flow B body template (lines 239-244) — using a backtick run one character longer than any backtick run already present in the identifier — mirroring `security-check/SKILL.md`'s existing "Excerpt containment" rule for `report_template.body`.
+
+---
+
+## S-2026-07-27-003 — validate_skills.mjs / validate_agents.mjs print untrusted file paths to CI logs without the control-character stripping applied to frontmatter values
+
+```yaml
+id: S-2026-07-27-003
+discovered_at: 2026-07-27T10:30:00Z
+run_id: 30256167694
+target_repo: ievo-ai/skills
+title: validate_skills.mjs and validate_agents.mjs interpolate PR-controlled file paths into log() calls without the CONTROL_CHAR_RE strip already applied to frontmatter values, reopening ANSI/control-sequence CI-log injection
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/495
+cwe: CWE-150
+confidence: high
+location: "plugins/ievo/scripts/validate_skills.mjs:351,371,374 (main, `rel`); plugins/ievo/scripts/validate_agents.mjs:249,266,269 (main, `rel`)"
+```
+
+`/ievo:vuln-scan --module` dogfooding (eva#165), independently re-verified by direct read before filing. Both validators define `CONTROL_CHAR_RE` (`validate_skills.mjs:70`, `validate_agents.mjs:76`) specifically — per each file's own header comment — because "a raw ESC byte (0x1B) in a crafted frontmatter value survives untouched otherwise and can inject ANSI/control sequences into a CI log or terminal viewer," and applies it to parsed `name`/`model`/`effort` frontmatter values before they reach a violation message. Neither script applies the same guard to the file path itself: `main()` in both files computes `const rel = relative(process.cwd(), filePath)` (`validate_skills.mjs:351`, `validate_agents.mjs:249`) directly from the (potentially PR-diff-supplied) file path and prints it unmodified via `log(\`✓ ${rel}\`)` / `log(\`✗ ${rel}\`)` (`validate_skills.mjs:371,374`; `validate_agents.mjs:266,269`) — confirmed by direct read, `rel` never passes through `CONTROL_CHAR_RE` in either file. A git tree entry name may contain arbitrary bytes other than `/` and NUL, so a PR that adds/renames a SKILL.md directory or agent file with embedded ANSI escape bytes in its path gets that path echoed live into the GitHub Actions log viewer (which interprets ANSI color/cursor codes) — letting a malicious PR visually spoof CI output, e.g. hiding a real violation behind a fabricated passing line. Same root cause, same fix pattern already shipped for frontmatter values in #378/v0.54.10 — just never extended to the path-echoing call sites in either sibling validator.
+
+**Recommendation**: apply `CONTROL_CHAR_RE.replace()` to `rel` (and `validate_skills.mjs`'s `parentDirName`, used in its `name-dir-mismatch` message) before interpolating into any `log()` call, in both files.
+
+---
+
 
 
