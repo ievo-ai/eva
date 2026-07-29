@@ -36,14 +36,15 @@ run_id: <GitHub Actions run ID or null>
 ## https://www.anthropic.com/news
 
 ```yaml
-last_scan: 2026-07-27T10:30:00Z
+last_scan: 2026-07-29T00:00:00Z
 status: changed
-run_id: 30256167694
+run_id: 30436866647
 ```
 
-**Summary:** Claude Opus 5 announced July 24 (already cross-confirmed via Claude Code v2.1.219, which made `claude-opus-5` the default Opus model, 1M context) — model release, no Claude Code API or skill-format change. July 22 "Ask Claude about the Anthropic Economic Index" item is non-technical/marketing.
+**Summary:** July 27 items ("Our position on open-weights models", Cognizant partnership expansion) are non-technical/policy/enterprise-partnership — no Claude Code API or skill-format change. Claude Opus 5 (Jul 24) remains the newest model-relevant item.
 
 History:
+- 2026-07-29T00:00:00Z — changed: Jul 27 items (open-weights-models position statement, Cognizant enterprise partnership) — both non-technical, no iEvo action
 - 2026-07-27T10:30:00Z — changed: Claude Opus 5 (Jul 24) — new default Opus model, 1M context; no CC-specific or skill-format changes; no iEvo action
 - 2026-07-23T09:00:00Z — unchanged: re-fetched, no items newer than Jul 20 "AI for Science" grants; no iEvo action
 - 2026-07-22T00:00:00Z — changed: Jul 20 "AI for Science" rare-disease grants item; non-technical, no iEvo action; no items between Jul 14 and Jul 20
@@ -81,14 +82,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-07-27T10:30:00Z
-status: changed
-run_id: 30256167694
+last_scan: 2026-07-29T00:00:00Z
+status: unchanged
+run_id: 30436866647
 ```
 
-**Summary:** Latest release confirmed still v2.1.220 (July 25, `gh api`-verified — no release past this). v2.1.219 (Jul 24) raised default sub-agent nesting depth to 3 (`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1` to disable) — already independently documented in `ievo-ai/skills` AGENTS.md § Pipeline (verified 2026-07-26 per that file's own citation). skills.md frontmatter table is now **17 fields, not 16** — a `background` field exists (only applies with `context: fork`; default `true`; requires v2.1.218+) that documents the already-tracked v2.1.218 `context:fork`-backgrounds-by-default behavior but wasn't itself in the tracked field roster; adding it here for completeness. sub-agents.md table unchanged at 16 fields. No new iEvo-actionable frontmatter fields.
+**Summary:** Latest release confirmed still v2.1.220 (July 25, `gh api`-verified — no release since). No new release in the 4-day gap since the last audit.
 
 History:
+- 2026-07-29T00:00:00Z — unchanged: `gh api` confirms v2.1.220 (Jul 25) still latest; no new release since last scan
 - 2026-07-27T10:30:00Z — changed: confirmed still v2.1.220 (Jul 25) latest via gh api; v2.1.219 nesting-depth-3 default already tracked via skills' own AGENTS.md; skills.md table has a `background` field not previously itemized (17 fields total now) — behavior already known, just updating the field inventory; sub-agents.md still 16 fields; no new iEvo action
 - 2026-07-23T09:00:00Z — changed: v2.1.218 (Jul 22) — boolean frontmatter accepts yes/no/on/off/1/0, agent names reject `:`, context:fork backgrounds by default, agent-hook workspace-trust requirement, worktree-isolation mutation fix; v2.1.217 (Jul 21) — subagent concurrency cap 20 (CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS), nested-subagent-spawn now off by default (CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH to re-enable), --max-budget-usd fix for background subagents; no new SKILL.md/agent/sub-agent frontmatter fields (full field-by-field re-confirm, 16-field skills.md + 16-field sub-agents tables)
 - 2026-07-22T00:00:00Z — changed: v2.1.212-217 (Jul 17-21) — subagent spawn/concurrency caps, glob-permission-bypass fix, worktree/rewind symlink hardening, plugin-skill name-prefix fix, budget enforcement fix; Claude's own /verify+/code-review auto-invocation removed (not iEvo's skills); no new frontmatter fields (full re-confirm)
@@ -130,14 +132,15 @@ History:
 ## https://github.com/anthropics/claude-code-action/releases
 
 ```yaml
-last_scan: 2026-07-27T10:30:00Z
-status: changed
-run_id: 30256167694
+last_scan: 2026-07-29T00:00:00Z
+status: unchanged
+run_id: 30436866647
 ```
 
-**Summary:** v1.0.182 (July 24) + v1.0.183 (July 25) — both `gh api`-verified, release bodies are compare-link-only (no described content), no visible `action.yml` input schema changes. Re-confirmed the `v1` floating-tag date (2025-08-26, over a year old) is NOT a new release — a WebFetch pass this run fabricated a false "2026-08-26 v1 GA / breaking input rename" reading; flagging as a recurring WebFetch date-hallucination risk on this specific repo, verify via `gh api` not WebFetch summaries. eva#65 stays closed.
+**Summary:** v1.0.183 (July 25) still latest via `gh api` — no new release since last scan. eva#65 stays closed.
 
 History:
+- 2026-07-29T00:00:00Z — unchanged: `gh api` confirms v1.0.183 (Jul 25) still latest; no new release; eva#65 stays closed
 - 2026-07-27T10:30:00Z — changed: v1.0.182 (Jul 24) + v1.0.183 (Jul 25), both empty-body compare-link-only patches, gh api-verified; no input schema changes; WebFetch this run hallucinated a false Aug-2026 v1 GA date — corrected via gh api; eva#65 stays closed
 - 2026-07-23T09:00:00Z — changed: v1.0.181 (Jul 22) — credential-sharing fix for spawned processes; no input schema changes; eva#65 stays closed
 - 2026-07-22T00:00:00Z — changed: v1.0.176 through v1.0.180 (Jul 17-21), routine patches tracking claude-code's release cadence; no input schema changes visible; eva#65 stays closed
@@ -175,14 +178,15 @@ History:
 ## https://docs.anthropic.com/en/docs/claude-code/overview
 
 ```yaml
-last_scan: 2026-07-01T00:00:00Z
+last_scan: 2026-07-29T00:00:00Z
 status: unchanged
-run_id: 28450000000
+run_id: 30436866647
 ```
 
-**Summary:** Still 301-redirects to code.claude.com/docs/en/overview. Using more specific URLs (skills.md, routines.md, channels.md, sub-agents.md) for deeper tracking.
+**Summary:** Not re-fetched this run (low cadence, redirect-only source, no signal expected). Using more specific URLs (skills.md, routines.md, channels.md, sub-agents.md) for deeper tracking.
 
 History:
+- 2026-07-29T00:00:00Z — unchanged: not re-fetched (low cadence, redirect-only)
 - 2026-07-01T00:00:00Z — unchanged: still 301-redirects to code.claude.com/docs/en/overview
 - 2026-05-27T07:38:00Z — unchanged: redirects to code.claude.com; tracking sub-page URLs directly now
 - 2026-05-25T07:48:17Z — changed: Routines + Channels now documented; effort: frontmatter documented in skills.md
@@ -193,14 +197,15 @@ History:
 ## https://openai.com/index/news/
 
 ```yaml
-last_scan: 2026-07-01T00:00:00Z
+last_scan: 2026-07-29T00:00:00Z
 status: error
-run_id: 28450000000
+run_id: 30436866647
 ```
 
-**Summary:** Still consistently returns HTTP 403 to automated fetches. Use `github.com/openai/codex/releases` as the Codex signal source instead.
+**Summary:** Not re-fetched this run (persistent 403 to automated fetchers, no reason to expect a change). Use `github.com/openai/codex/releases` as the Codex signal source instead — that source delivered strong signal this run (see its entry).
 
 History:
+- 2026-07-29T00:00:00Z — error: not re-fetched (persistent 403, low cadence)
 - 2026-07-01T00:00:00Z — error: still HTTP 403 Forbidden
 - 2026-05-22T10:50:58Z — error: HTTP 403 Forbidden; blocked to automated fetchers
 
@@ -209,14 +214,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-07-27T10:30:00Z
-status: unchanged
-run_id: 30256167694
+last_scan: 2026-07-29T00:00:00Z
+status: changed
+run_id: 30436866647
 ```
 
-**Summary:** rust-v0.145.0 (July 21) still the latest STABLE release. Pre-release line advanced from alpha.4 (Jul 23) through alpha.12 (Jul 27) — all empty-body, no changelog content visible. No new stable release, no skill-format signal.
+**Summary:** **rust-v0.146.0 STABLE shipped today (2026-07-29)** — the significant item: Codex now recognizes a root-level `plugin.json` conforming to the new cross-platform **Agent Plugins 1.0.0 spec** (`https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`, governed by a Technical Steering Committee including Amazon, Cursor, Microsoft, OpenAI, and Vercel — verified via `agentplugins/agent-plugins-spec`, pushed 2026-07-27, 10 open issues), mapping its portable `skills/`+`mcp.json` into Codex's own manifest, with `.codex-plugin/plugin.json` retained as a Codex-specific overlay for non-portable settings (source: PR #35105, verified via direct read of `codex-rs/core-plugins/src/agent_plugin_manifest.rs` + `codex-rs/utils/plugins/src/plugin_namespace.rs`). Also ships: Codex now infers the bundled Claude Code plugin marketplace from `enabledPlugins` when no explicit source is known (PR #34979) and a dedicated Bedrock plugin marketplace (PR #34931); executor-provided skill discovery/resource-read hardening (PR #35184/#35198); skill-catalog-truncation warnings under tight context budgets (PR #34997/#34738); thread naming/pinning/forking (not skill-format relevant). This is the strongest capability-gap signal of this run — see Findings filed. Full CWE-relevant items: none (feature/UX release, not security-hardening this cycle for the skill-format surface).
 
 History:
+- 2026-07-29T00:00:00Z — changed: **rust-v0.146.0 STABLE (Jul 29)** — Agent Plugins 1.0.0 root plugin.json recognition (agent-plugins.org spec, TSC = Amazon/Cursor/Microsoft/OpenAI/Vercel), Claude Code plugin marketplace inference, Bedrock plugin marketplace, executor-skill resource reads, skill-catalog-truncation warnings — triggered F-2026-07-29-001
 - 2026-07-27T10:30:00Z — unchanged: still rust-v0.145.0 STABLE (Jul 21) as latest; 0.146.0-alpha.5 through alpha.12 (Jul 24-27), all empty-body; no skill-format signal
 - 2026-07-23T09:00:00Z — unchanged: still rust-v0.145.0 STABLE (Jul 21) as latest; pre-release line at 0.146.0-alpha.4 (Jul 23), no notes published; no skill-format signal
 - 2026-07-22T00:00:00Z — changed: rust-v0.145.0 STABLE (Jul 21) — permission-hook/MCP-OAuth-serialization/multi-agent-v2 model-override hardening, Windows sandbox fixes; no skill-format signal; 0.146.0-alpha.1-2 (Jul 22) already started; skills#170 still unconfirmed
@@ -258,14 +264,15 @@ History:
 ## https://blog.google/technology/google-deepmind/
 
 ```yaml
-last_scan: 2026-07-01T00:00:00Z
+last_scan: 2026-07-29T00:00:00Z
 status: unchanged
-run_id: 28450000000
+run_id: 30436866647
 ```
 
-**Summary:** No posts relevant to AI agent frameworks, MCP, tool use, or agent skill specifications. Page shows only a "Gemini for Science" feature, unrelated to agent tooling.
+**Summary:** Not re-fetched this run (low cadence, no history of agent-tooling-relevant posts). Page shows only a "Gemini for Science" feature as of last read, unrelated to agent tooling.
 
 History:
+- 2026-07-29T00:00:00Z — unchanged: not re-fetched (low cadence)
 - 2026-07-01T00:00:00Z — unchanged: only "Gemini for Science" visible; no agent tooling posts
 - 2026-06-30T00:00:00Z — unchanged: no relevant agent tooling posts in June 2026
 - 2026-06-01T08:08:22Z — unchanged: no new agent tooling posts relevant to skills repo
@@ -279,14 +286,15 @@ History:
 ## https://agentskills.io/specification
 
 ```yaml
-last_scan: 2026-07-27T10:30:00Z
+last_scan: 2026-07-29T00:00:00Z
 status: unchanged
-run_id: 30256167694
+run_id: 30436866647
 ```
 
-**Summary:** Full re-fetch this run — same 6 fields (name, description, license, compatibility, metadata, allowed-tools, still marked Experimental), same constraints. No new fields.
+**Summary:** No new merges to `agentskills/agentskills` since last scan (see that entry below) — spec assumed stable, not deep-re-fetched (low cadence, 2-day gap since last full re-read). Noting a related-but-distinct new signal this run: `agent-plugins.org`'s Agent Plugins 1.0.0 spec explicitly wraps Agent Skills as one component type inside a broader plugin package format (see `github.com/openai/codex/releases` entry) — this is a sibling/superset spec, not a change to agentskills.io itself.
 
 History:
+- 2026-07-29T00:00:00Z — unchanged: no new merges to agentskills/agentskills since last scan; not deep-re-fetched (2-day gap, low cadence); noted a new sibling spec (agent-plugins.org) discovered via today's Codex release, tracked separately
 - 2026-07-27T10:30:00Z — unchanged: full spec re-read, same 6 fields; still Experimental
 - 2026-07-23T09:00:00Z — unchanged: full spec re-read, same 6 fields; #254/#380/#386/#345 all still open+unmerged
 - 2026-07-22T00:00:00Z — unchanged: full spec re-read, same 6 fields; new open PR #254 (`.well-known` distribution spec, companion to #380) noted but unmerged — watch alongside #380/#386/#345
@@ -322,14 +330,15 @@ History:
 ## https://github.com/agentskills/agentskills
 
 ```yaml
-last_scan: 2026-07-27T10:30:00Z
+last_scan: 2026-07-29T00:00:00Z
 status: unchanged
-run_id: 30256167694
+run_id: 30436866647
 ```
 
-**Summary:** All recent merges since last scan are cosmetic client-showcase/docs additions (Pulumi Neo, ZeroClaw, Deep Code, README fleshing, digit-range doc fix) — nothing spec-relevant. New open PR #469 "Initial commit" (0 additions/deletions, empty body — looks like spam, not a real contribution). #380/#386/#345 still open+unmerged.
+**Summary:** Direct `gh api` PR check: no new merges since #447 (Pulumi Neo, Jul 10) — all newest open PRs (#472 MCP Toplist badge, #470 cpanel-navigator, #469 spam, #465, #449) are cosmetic client-showcase/ecosystem-listing/docs, no spec impact. #380/#386/#345/#254 still open+unmerged.
 
 History:
+- 2026-07-29T00:00:00Z — unchanged: `gh api` PR check — no new merges since #447; new open PRs (#472, #470, #465-showcase area, #449) all cosmetic listing/docs; #380/#386/#345/#254 confirmed still open+unmerged
 - 2026-07-27T10:30:00Z — unchanged: recent merges all cosmetic (client showcase/docs); new open PR #469 "Initial commit" appears to be spam (0 files changed); #380/#386/#345 confirmed still open
 - 2026-07-23T09:00:00Z — unchanged: direct `gh api` PR check — no new merges since #461; #465 (client showcase, Jul 22) new open PR, listing-only; #380/#386/#345/#254 confirmed still open
 - 2026-07-22T00:00:00Z — changed: #461 (client showcase) merged since #457 — listing-only, no spec impact; #380/#386/#345 confirmed still open; #254 new open PR noted
@@ -363,14 +372,15 @@ History:
 ## https://www.cursor.com/changelog
 
 ```yaml
-last_scan: 2026-07-27T10:30:00Z
-status: unchanged
-run_id: 30256167694
+last_scan: 2026-07-29T00:00:00Z
+status: changed
+run_id: 30436866647
 ```
 
-**Summary:** Still "Cursor Router" (July 22) as newest entry; no new entries visible on the fetched page since last scan.
+**Summary:** "Cursor Start" (July 28) — a new low-cost (₹649/mo) pricing tier for Indian developers bundling a fixed-model/effort plan plus "Plugins, MCP servers, hooks, and skills to extend Cursor across your workflows." Pricing/regional-tier announcement; the plugin/MCP/skills mention is positioning language for an existing capability, not a new one — no new API surface documented. Not iEvo-actionable.
 
 History:
+- 2026-07-29T00:00:00Z — changed: "Cursor Start" (Jul 28) — new regional pricing tier; mentions existing plugins/MCP/skills/hooks bundling, no new capability; not iEvo-actionable
 - 2026-07-27T10:30:00Z — unchanged: re-fetched, still "Cursor Router" (Jul 22) as newest; no new entries
 - 2026-07-23T09:00:00Z — changed: "Cursor Router" (Jul 22) — model routing feature (Intelligence/Balance/Cost modes); Cursor-client-only, not iEvo-actionable
 - 2026-07-22T00:00:00Z — unchanged: re-fetched, still v3.11 (July 10) as newest; no new entries
@@ -407,14 +417,15 @@ History:
 ## https://news.ycombinator.com
 
 ```yaml
-last_scan: 2026-07-27T10:30:00Z
+last_scan: 2026-07-29T00:00:00Z
 status: changed
-run_id: 30256167694
+run_id: 30436866647
 ```
 
-**Summary:** Front page led by non-agent items (Kimi K3, Postgres visualization, GrapheneOS wipe incident, TypeScript compiler, htmx). No Claude Code / Codex / MCP / agent-skill-security stories today. Nothing filed.
+**Summary:** Top story "Codex Security" (490 pts, links to `github.com/openai/codex-security`) — OpenAI's own new official CLI/SDK product (`@openai/codex-security`, repo created 2026-07-13) for scanning/tracking/fixing vulnerabilities in CI, a direct competitive-positioning parallel to iEvo's `/ievo:vuln-scan`+`/ievo:security-check`. Official-product announcement (no individual contributor to credit per CLAUDE.md's credit rule) — considered as a Step 4b candidate but too broad/architectural for an atomic finding (it implies iEvo ship a standalone non-agent CLI, a scope change far beyond a single-file/skill fix); noted here as competitive context, not filed. "Discovering Cryptographic Weaknesses with Claude" (215 pts) is Anthropic's own model-capability research post, no iEvo action. Kimi K3 architecture (410 pts) is a model-architecture writeup, not agent-skill-format actionable.
 
 History:
+- 2026-07-29T00:00:00Z — changed: "Codex Security" (490 pts, OpenAI's own new vuln-scan CLI product) — competitive context, not filed (too broad for an atomic finding); "Discovering Cryptographic Weaknesses with Claude" (215 pts, Anthropic model-capability research, no iEvo action); Kimi K3 (410 pts, model architecture, not actionable)
 - 2026-07-27T10:30:00Z — changed: Kimi K3 + Postgres visualization + GrapheneOS wipe incident + TypeScript compiler + htmx trending; no agent-skill-format actionable items; none filed
 - 2026-07-23T09:00:00Z — changed: Tao/ChatGPT math thread (852 pts) + Bento HTML-slideshow Show HN (816 pts) + Dvorak obituary (736 pts) + GigaToken fast-tokenization (490 pts); "ANSI escape injection in MCP servers" (8 pts) corroborates already-open #378, not a new finding; none filed
 - 2026-07-22T00:00:00Z — changed: OpenAI/HF security-incident story (1099 pts) + ChatGPT ads (716 pts) + Gemini 3.6 Flash (682 pts) + Kimi K3 (588 pts) + Anthropic book-settlement (334 pts); MCP-server-usability-grading post (7 pts) considered, not a skills-repo gap; none filed
@@ -445,14 +456,15 @@ History:
 ## https://github.com/DenisSergeevitch/agents-best-practices
 
 ```yaml
-last_scan: 2026-07-27T10:30:00Z
+last_scan: 2026-07-29T00:00:00Z
 status: unchanged
-run_id: 30256167694
+run_id: 30436866647
 ```
 
-**Summary:** Direct `gh api` commit check: latest commit still `b612ddbc` (June 29 21:15:08Z, the `evals.md` split) — now 28 days without activity.
+**Summary:** Direct `gh api` commit check: latest commit still `b612ddbc` (June 29 21:15:08Z, the `evals.md` split) — now 30 days without activity.
 
 History:
+- 2026-07-29T00:00:00Z — unchanged: direct `gh api` commit check — latest commit still `b612ddbc`; 30 days without activity
 - 2026-07-27T10:30:00Z — unchanged: direct `gh api` commit check — latest commit still `b612ddbc`; 28 days without activity
 - 2026-07-23T09:00:00Z — unchanged: direct `gh api` commit check — latest commit still `b612ddbc`; 24 days without activity
 - 2026-07-22T00:00:00Z — unchanged: direct `gh api` commit check — latest commit still `b612ddbc`; 23 days without activity
@@ -488,14 +500,15 @@ History:
 ## https://code.claude.com/docs/en/skills.md
 
 ```yaml
-last_scan: 2026-07-27T10:30:00Z
-status: changed
-run_id: 30256167694
+last_scan: 2026-07-29T00:00:00Z
+status: unchanged
+run_id: 30436866647
 ```
 
-**Summary:** Full re-fetch this run found the frontmatter table now documents **17 fields, not 16** — a `background` field ("only applies with `context: fork`... default `true`... requires v2.1.218+") was present but not previously itemized in this index's tracked roster; the underlying behavior (context:fork backgrounds by default) was already known/tracked via the v2.1.218 changelog entry, so this is a field-inventory correction, not a new capability. All other 16 fields unchanged.
+**Summary:** Not re-fetched this run (fully re-confirmed field-by-field just 2 days ago; no claude-code release since then — see that entry — so no reason to expect a field change). Full re-fetch on 2026-07-27 found the frontmatter table now documents **17 fields, not 16** — a `background` field ("only applies with `context: fork`... default `true`... requires v2.1.218+") was present but not previously itemized in this index's tracked roster; the underlying behavior (context:fork backgrounds by default) was already known/tracked via the v2.1.218 changelog entry, so this is a field-inventory correction, not a new capability. All other 16 fields unchanged.
 
 History:
+- 2026-07-29T00:00:00Z — unchanged: not re-fetched (2-day gap since full re-confirm, no claude-code release since then)
 - 2026-07-27T10:30:00Z — changed: field inventory correction — `background` field was always documented but not previously itemized (17 fields total now); underlying behavior already tracked; no new capability, no iEvo action
 - 2026-07-23T09:00:00Z — unchanged: full re-fetch (no truncation), same 16-field table re-confirmed field-by-field; no new fields
 - 2026-07-16T00:00:00Z — unchanged (fetch truncated before reaching the frontmatter table twice; inferred unchanged from v2.1.211 release notes showing no new fields — flag for retry next run if truncation recurs)
@@ -523,14 +536,15 @@ History:
 ## https://code.claude.com/docs/en/routines.md
 
 ```yaml
-last_scan: 2026-07-27T10:30:00Z
+last_scan: 2026-07-29T00:00:00Z
 status: unchanged
-run_id: 30256167694
+run_id: 30436866647
 ```
 
-**Summary:** Substantially expanded since the July 1 read. Routines are explicitly "research preview" now. CLI surface: creation is **conversational `/schedule`** (in-session slash command, optionally with a natural-language description); management via `/schedule list` / `/schedule update` / `/schedule run`. The docs describe **no `claude schedule create` shell subcommand** — but iEvo's `schedule/SKILL.md` Step 6 instructs exactly that (`claude schedule create --name ... --schedule ... --prompt-file ...`) and Step 1 probes availability with `claude schedule list`; likely broken primary path → **triggered F-2026-07-04-001**. Other new/clarified surface: one-off runs (`/schedule tomorrow at 9am, ...`, auto-disable after firing, exempt from daily routine cap); custom cron via `/schedule update` with a **1-hour minimum interval**; connectors (claude.ai MCP integrations) included by default per routine; cloud environments with Trusted-network default allowlist; GitHub trigger PR filters (author/title/body/branches/labels/draft/merged with regex-matches-whole-value semantics); API `/fire` endpoint gated behind `experimental-cc-routine-2026-04-01` beta header; `claude/`-prefixed branch push restriction by default; Team/Enterprise org-level Routines disable toggle. Plan gating unchanged (Pro/Max/Team/Enterprise + Claude Code on the web enabled; API-key auth still unsupported — now documented in a troubleshooting section listing telemetry env vars that also hide `/schedule`).
+**Summary:** Not re-fetched this run (low cadence, no claude-code release since last check). Substantially expanded since the July 1 read. Routines are explicitly "research preview" now. CLI surface: creation is **conversational `/schedule`** (in-session slash command, optionally with a natural-language description); management via `/schedule list` / `/schedule update` / `/schedule run`. The docs describe **no `claude schedule create` shell subcommand** — but iEvo's `schedule/SKILL.md` Step 6 instructs exactly that (`claude schedule create --name ... --schedule ... --prompt-file ...`) and Step 1 probes availability with `claude schedule list`; likely broken primary path → **triggered F-2026-07-04-001**. Other new/clarified surface: one-off runs (`/schedule tomorrow at 9am, ...`, auto-disable after firing, exempt from daily routine cap); custom cron via `/schedule update` with a **1-hour minimum interval**; connectors (claude.ai MCP integrations) included by default per routine; cloud environments with Trusted-network default allowlist; GitHub trigger PR filters (author/title/body/branches/labels/draft/merged with regex-matches-whole-value semantics); API `/fire` endpoint gated behind `experimental-cc-routine-2026-04-01` beta header; `claude/`-prefixed branch push restriction by default; Team/Enterprise org-level Routines disable toggle. Plan gating unchanged (Pro/Max/Team/Enterprise + Claude Code on the web enabled; API-key auth still unsupported — now documented in a troubleshooting section listing telemetry env vars that also hide `/schedule`).
 
 History:
+- 2026-07-29T00:00:00Z — unchanged: not re-fetched (low cadence, no new claude-code release)
 - 2026-07-27T10:30:00Z — unchanged: quick check only (low cadence source), still "research preview," content reflects features already known as of Jul 22; no new dated capabilities
 - 2026-07-12T08:26:18Z — unchanged: full re-read against the July 4 baseline (schedule list/update/run, one-off runs, 1h cron minimum, connectors/environments, GitHub trigger filters, /fire beta header) — no new or changed content
 - 2026-07-04T08:49:33Z — changed: major doc expansion — /schedule list/update/run subcommands, one-off runs, 1h cron minimum, connectors/environments, GitHub trigger filters, /fire beta header; no `claude schedule create` CLI documented → schedule/SKILL.md drift, triggered F-2026-07-04-001
@@ -547,14 +561,15 @@ History:
 ## https://code.claude.com/docs/en/channels.md
 
 ```yaml
-last_scan: 2026-07-27T10:30:00Z
+last_scan: 2026-07-29T00:00:00Z
 status: unchanged
-run_id: 30256167694
+run_id: 30436866647
 ```
 
-**Summary:** Claude Code Channels — push events from Telegram/Discord/iMessage into Claude Code sessions. Still research preview (requires v2.1.80+, Bun, not on Bedrock/Vertex/Foundry). Plugin-based (`/plugin install telegram@claude-plugins-official`), then `claude --channels plugin:...`. Enterprise: `channelsEnabled` + `allowedChannelPlugins` managed settings. No GA timeline visible; not actionable for iEvo yet.
+**Summary:** Not re-fetched this run (low cadence, no claude-code release since last check). Claude Code Channels — push events from Telegram/Discord/iMessage into Claude Code sessions. Still research preview (requires v2.1.80+, Bun, not on Bedrock/Vertex/Foundry). Plugin-based (`/plugin install telegram@claude-plugins-official`), then `claude --channels plugin:...`. Enterprise: `channelsEnabled` + `allowedChannelPlugins` managed settings. No GA timeline visible; not actionable for iEvo yet.
 
 History:
+- 2026-07-29T00:00:00Z — unchanged: not re-fetched (low cadence, no new claude-code release)
 - 2026-07-27T10:30:00Z — unchanged: quick check only (low cadence source), still "research preview," still Telegram/Discord/iMessage/fakechat plugin set; no GA, not iEvo-actionable
 - 2026-07-04T08:49:33Z — unchanged: still research preview (v2.1.80+, Bun, allowlist-gated plugins); docs expanded with fakechat demo channel, permission-relay capability note, and `allowedChannelPlugins` enterprise allowlist detail; no GA, not iEvo-actionable
 - 2026-07-01T00:00:00Z — unchanged: full re-read, still research preview; no GA announcement; not actionable
@@ -570,14 +585,15 @@ History:
 ## https://code.claude.com/docs/en/sub-agents
 
 ```yaml
-last_scan: 2026-07-27T10:30:00Z
+last_scan: 2026-07-29T00:00:00Z
 status: unchanged
-run_id: 30256167694
+run_id: 30436866647
 ```
 
-**Summary:** Full re-fetch this run — same 16-field table (name, description, tools, disallowedTools, model, permissionMode, maxTurns, skills, mcpServers, hooks, memory, background, effort, isolation, color, initialPrompt), field-by-field re-confirmed. `permissionMode`/`mcpServers`/`hooks` still explicitly "Ignored for plugin subagents". No new fields.
+**Summary:** Not re-fetched this run (fully re-confirmed field-by-field 2 days ago, no claude-code release since then). Same 16-field table (name, description, tools, disallowedTools, model, permissionMode, maxTurns, skills, mcpServers, hooks, memory, background, effort, isolation, color, initialPrompt), field-by-field re-confirmed. `permissionMode`/`mcpServers`/`hooks` still explicitly "Ignored for plugin subagents". No new fields.
 
 History:
+- 2026-07-29T00:00:00Z — unchanged: not re-fetched (2-day gap, no new claude-code release)
 - 2026-07-27T10:30:00Z — unchanged: full re-fetch, same 16-field table re-confirmed field-by-field; no new fields
 - 2026-07-23T09:00:00Z — unchanged: full re-fetch, same 16-field table re-confirmed field-by-field; no new fields
 - 2026-07-22T00:00:00Z — unchanged: full re-fetch, same 16-field table re-confirmed field-by-field; no new fields
@@ -626,3 +642,18 @@ History:
 - 2026-06-01T08:08:22Z — first-scan: sub-agent model resolution order documented; agent: settings.json field identified as new bypass vector → triggered F-2026-06-01-003
 - 2026-05-30T07:15:49Z — first-scan: sub-agent model resolution order documented; context:fork frontmatter; settings.json agent field; CLAUDE_CODE_SUBAGENT_MODEL precedence confirmed
 - 2026-05-27T07:38:00Z — first-scan: confirmed CLAUDE_CODE_SUBAGENT_MODEL resolution order; disallowedTools and isolation: worktree documented; model resolution security note in AGENTS.md is accurate
+
+---
+
+## https://agent-plugins.org
+
+```yaml
+last_scan: 2026-07-29T00:00:00Z
+status: first-scan
+run_id: 30436866647
+```
+
+**Summary:** New source, discovered via today's `github.com/openai/codex/releases` scan (rust-v0.146.0 recognizing a root `plugin.json` under this spec). Agent Plugins is "an open, vendor-neutral specification for packaging reusable components into portable plugins" — a superset package format that wraps Agent Skills (per the agentskills.io spec) plus MCP server configs under one root `plugin.json` (schema at `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`). Governed by a Technical Steering Committee with representatives from **Amazon, Cursor, Microsoft, OpenAI, and Vercel** (spec repo: `agentplugins/agent-plugins-spec`, 56 stars, created 2026-04-03, pushed 2026-07-27 — actively maintained, 10 open issues). Required fields: `$schema`, `name` only; optional: `version`, `description`, `author`, `homepage`, `repository`, `license`, `keywords`, `extensions` (namespaced per-client overlay, e.g. Codex's own settings live under `extensions["com.openai"]`). Current adoption: Codex (rust-v0.146.0, 2026-07-29) is the first confirmed consumer; Cursor is a TSC member but no confirmed shipped support yet; no Anthropic/Claude Code representation on the TSC or confirmed support as of this scan. Triggered F-2026-07-29-001.
+
+History:
+- 2026-07-29T00:00:00Z — first-scan: Agent Plugins 1.0.0 spec discovered via Codex rust-v0.146.0's new root plugin.json support; TSC = Amazon/Cursor/Microsoft/OpenAI/Vercel; triggered F-2026-07-29-001
