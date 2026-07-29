@@ -2224,5 +2224,153 @@ location: "plugins/ievo/scripts/validate_skills.mjs:351,371,374 (main, `rel`); p
 
 ---
 
+## F-2026-07-29-001 — Add a root Agent Plugins 1.0.0 `plugin.json` for cross-platform manifest portability
+
+```yaml
+id: F-2026-07-29-001
+discovered_at: 2026-07-29T00:00:00Z
+run_id: 30436866647
+target_repo: ievo-ai/skills
+title: Add a root-level plugin.json conforming to the Agent Plugins 1.0.0 spec (agent-plugins.org) alongside the existing Claude Code / Codex manifests
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/501
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/openai/codex/releases/tag/rust-v0.146.0 (2026-07-29): Codex now recognizes a root `plugin.json` conforming to the Agent Plugins 1.0.0 spec, mapping its portable `skills/`+`mcp.json` into Codex's own plugin manifest, with `.codex-plugin/plugin.json` retained only as a Codex-specific overlay (verified directly against `codex-rs/core-plugins/src/agent_plugin_manifest.rs` and `codex-rs/utils/plugins/src/plugin_namespace.rs` source, not just the release notes)
+  - https://agent-plugins.org and https://github.com/agentplugins/agent-plugins-spec (spec repo, 56 stars, created 2026-04-03, pushed 2026-07-27): "an open, vendor-neutral specification for packaging reusable components into portable plugins," explicitly built to wrap Agent Skills (the agentskills.io spec iEvo already targets) plus MCP server configs under one manifest; Technical Steering Committee confirmed via direct read of the repo's own MAINTAINERS.md — Clare Liguori (Amazon), Roshan Sadanani (Cursor), Harald Kirschner (Microsoft), Gav Verma (OpenAI), Jonathan Hefner (Vercel)
+```
+
+## Summary
+
+Codex (rust-v0.146.0, shipped today) is the first confirmed platform to consume a root-level `plugin.json` under the new Agent Plugins 1.0.0 specification — a vendor-neutral manifest format governed by a cross-vendor Technical Steering Committee (Amazon, Cursor, Microsoft, OpenAI, Vercel) explicitly designed to describe a plugin's portable metadata plus its `skills/` (agentskills.io-compliant) and MCP server config in one place, with client-specific overrides namespaced under `extensions["<reverse-domain>"]`. iEvo ships separate `.claude-plugin/plugin.json` (Claude Code) and `.codex-plugin/marketplace.json` (Codex) manifests today, with no root Agent Plugins manifest — meaning iEvo doesn't yet expose the one shared surface a growing, multi-vendor-backed spec is standardizing around.
+
+## Problem / Capability gap
+
+AGENTS.md states iEvo's positioning explicitly: "Universal via the agentskills.io standard... Not a Claude Code-only plugin." That promise is currently backed by SKILL.md-per-skill portability, but the plugin-level manifest (name, version, description, author, license — the metadata a marketplace or discovery UI reads before ever loading a skill) is NOT unified: `plugins/ievo/.claude-plugin/plugin.json` is Claude-Code-specific schema, `.codex-plugin/marketplace.json` is Codex-specific schema, and there is no manifest a third platform (or a future agent-plugins.org-native client) could read without iEvo-specific knowledge. As of today, Codex itself prefers a root Agent Plugins manifest when present (falling back to its own `.codex-plugin/plugin.json` only for Codex-specific `extensions["com.openai"]` settings) — so iEvo is now missing the primary manifest path on the platform whose support just shipped, and is one step behind wherever Cursor (a TSC member) ships support next.
+
+## Evidence
+
+- https://github.com/openai/codex/releases/tag/rust-v0.146.0: "Support Agent Plugins manifests... Recognize root `plugin.json` files using the Agent Plugins 1.0 schema and map their portable metadata, `skills/`, and `mcp.json` into Codex plugin manifests... Preserve legacy manifest precedence when a root `plugin.json` is unrelated" (PR #35105 body, `gh api` verified)
+- https://github.com/agentplugins/agent-plugins-spec: schema requires only `$schema` + `name`; optional `version`/`description`/`author`/`homepage`/`repository`/`license`/`keywords`/`extensions` — directly re-read from `schemas/1.0.0/plugin.schema.json` and `agent_plugin_manifest.rs`'s own `AGENT_PLUGIN_FIELDS` allowlist (both consulted independently, not just the spec's own README)
+
+## Proposed solution
+
+Add `plugin.json` at the repo root (sibling to `AGENTS.md`/`README.md`, per the spec's own Quick Start layout) with:
+
+```json
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "ievo",
+  "version": "<current plugin.json version>",
+  "description": "<short universal description, matching plugin.json's existing description>",
+  "homepage": "https://github.com/ievo-ai/skills",
+  "repository": "https://github.com/ievo-ai/skills",
+  "license": "<current license>",
+  "keywords": ["self-evolving", "agent-skills", "security-scan", "claude-code", "codex"]
+}
+```
+
+No `extensions` block needed initially — `plugins/ievo/.claude-plugin/plugin.json` and `.codex-plugin/marketplace.json` continue to carry all Claude-Code-specific and Codex-specific settings unchanged (the spec explicitly preserves legacy-manifest precedence when the root manifest doesn't declare an extension for that client, per the PR body). This is additive-only: no existing manifest is modified, no pipeline behavior changes, only a new discovery surface is added.
+
+## Files affected
+
+| File | Change | Notes |
+|------|--------|-------|
+| `plugin.json` (repo root) | new | Root Agent Plugins 1.0.0 manifest, additive only |
+| `AGENTS.md` | modified | Document the new root manifest in the "What this repo ships" tree + note its purpose/relationship to the two existing platform-specific manifests |
+| `CHANGELOG.md` | modified | New `## vX.Y.Z` entry per AGENTS.md's version-bump convention |
+
+## API / UX surface
+
+No new user-facing command. A Codex user with rust-v0.146.0+ (and any future agent-plugins.org-native client) gets richer plugin metadata (name/version/description/homepage/license) surfaced through its own native plugin UI/discovery path without iEvo-specific integration work on that client's side.
+
+## Acceptance criteria
+
+- [ ] Root `plugin.json` validates against `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json` (required fields present, no extra top-level fields beyond the schema's allowlist)
+- [ ] `name` field passes the spec's own naming constraint (lowercase alphanumeric + dots/hyphens, 1-64 chars)
+- [ ] Existing `.claude-plugin/plugin.json` and `.codex-plugin/marketplace.json` are unmodified — this is purely additive
+- [ ] AGENTS.md's "What this repo ships" tree and version-bump file list updated to include the new manifest
+
+## Effort estimate
+
+- Scope: single-file (plus the two doc/version-bump touches AGENTS.md's own convention requires)
+- Effort: low (~30 min) — the manifest is ~10 lines of JSON, values already exist in the other two manifests
+- Risk: low — purely additive, no existing behavior changes; the spec's own root-manifest-precedence design means a client that already handles the platform-specific manifests keeps working exactly as before
+
+## Open questions for the operator
+
+- Whether to also declare a `keywords` list optimized for a future agent-plugins.org-native discovery/search surface (no such surface exists yet, so this is speculative — the acceptance criteria above don't require it)
+- Whether AGENTS.md's version-bump table (§ "Version bumping — in every PR") should add this new root `plugin.json` as a 5th coupled file requiring the same version value, or leave it as a documentation-only manifest that's updated opportunistically (the spec doesn't require version to track a specific client build, unlike `plugin.json`'s Claude-Code-specific version field)
+
+## Related
+
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/30436866647
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: F-2026-07-29-001`
+
+---
+
+## S-2026-07-29-001 — deep-reviewer.md's leaked-secrets check has no redaction rule, re-emitting the real secret
+
+```yaml
+id: S-2026-07-29-001
+discovered_at: 2026-07-29T00:00:00Z
+run_id: 30436866647
+target_repo: ievo-ai/skills
+title: deep-reviewer.md's Point 11 (leaked secrets in the diff) instructs flagging a matched secret but never instructs redacting the matched value before quoting it in the report
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/498
+cwe: CWE-532
+confidence: high
+location: "plugins/ievo/agents/deep-reviewer.md (Point 11, and the Step 3 report template's Issue/Suggestion fields)"
+```
+
+`/ievo:vuln-scan --module` dogfooding (eva#165), independently re-verified by direct read before filing (`sed -n` of the Point 11 block). Point 11 instructs the agent to flag any diff line matching a credential pattern (API-key prefixes, private-key material, credential assignments with a real value) as a **blocker**, and the Step 3 report template requires every finding's `Issue` field to state a "concrete description" — the natural way to do that for a leaked secret is to quote the matching line, which is the secret itself. No instruction anywhere in the file redacts the matched value first. This is a direct parity gap with the sibling `vuln-scanner.md` agent in the same `plugins/ievo/agents/` directory, which carries an explicit "Never echo raw secret values" rule for exactly this scenario (shipped v0.74.0). Not a duplicate of any prior finding — a new agent/file never previously scanned for this exact gap.
+
+**Recommendation**: add a redaction rule to `deep-reviewer.md` mirroring `vuln-scanner.md`'s rule — describe the credential's handling pattern and redact the value (`sk-****`, `AKIA****`) rather than quoting it live, while still citing file+line as evidence.
+
+---
+
+## S-2026-07-29-002 — consolidate/extract-best-practices-authored skills skip the security-auditor re-audit gate
+
+```yaml
+id: S-2026-07-29-002
+discovered_at: 2026-07-29T00:00:00Z
+run_id: 30436866647
+target_repo: ievo-ai/skills
+title: Skills/agents synthesized by /ievo:consolidate (entry-cluster mode Step 8) and /ievo:extract-best-practices (Phase 4 Step 5) never get a security-auditor re-audit before being written to the trusted directory, unlike every other content-vendoring path
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/499
+cwe: CWE-829
+confidence: medium
+location: "plugins/ievo/skills/consolidate/references/package-authoring.md (§ Validation before CHECKPOINT 2); called from consolidate/SKILL.md Step 8 and extract-best-practices/SKILL.md Phase 4 Step 5"
+```
+
+`/ievo:vuln-scan --module` dogfooding (eva#165), independently re-verified by direct read before filing — confirmed `package-authoring.md`'s "Validation before CHECKPOINT 2" section checks only `name` pattern/length/dir-match, `description` presence/length, and `model:` alias validity; confirmed neither `consolidate/SKILL.md` nor `extract-best-practices/SKILL.md` mentions `security-auditor`/`security-check` anywhere near their Step 8 / Phase 4 Step 5 write paths (grep across both files). Content the agent reads from an untrusted third party (a malicious skill's SKILL.md, a crafted PR reviewed via `/ievo:deep-review`) can be engineered to be captured as an evolution lesson or session-mined pattern; once clustered and approved at CHECKPOINT 1/2, it becomes the body of a brand-new, auto-loaded `SKILL.md`/agent `.md` — with zero security-content scan, unlike `evo/SKILL.md` Step 2.5's explicit re-audit requirement for vendored plugin content. This is a real gap in the "every path that writes new content to the trusted directory gets re-audited" invariant AGENTS.md's own security model documents for vendored content — this "synthesis, not vendoring" path was never covered.
+
+**Recommendation**: add a step mirroring `evo/SKILL.md` Step 2.5 to both callers' write step — dispatch `security-auditor` (or apply `security-check`'s methodology inline) against the drafted body content before CHECKPOINT 2, with the same YELLOW/RED "apply anyway" override.
+
+---
+
+## S-2026-07-29-003 — install-protocol.md never validates a vendor candidate's name before using it as the local install path
+
+```yaml
+id: S-2026-07-29-003
+discovered_at: 2026-07-29T00:00:00Z
+run_id: 30436866647
+target_repo: ievo-ai/skills
+title: install-protocol.md §9a validates <owner>/<repo>/<ref> against safe-slug patterns before any use, but never validates the candidate's own <name> before using it as the local Write-tool destination path
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/500
+cwe: CWE-22
+confidence: medium
+location: "plugins/ievo/skills/init/references/install-protocol.md (§9a, \"How to fetch the tree\", steps 2 and 4)"
+```
+
+`/ievo:vuln-scan --module` dogfooding (eva#165), independently re-verified by direct read before filing — confirmed `install-protocol.md` validates `<owner>` (`^[A-Za-z0-9][A-Za-z0-9-]{0,38}$`), `<repo>` (`^[A-Za-z0-9._-]{1,100}$`), and the resolved commit SHA (`^[0-9a-f]{7,40}$`) before any use, explicitly to prevent shell command-injection via `gh api` — but grep across this file and `init/SKILL.md` confirms zero occurrence of an equivalent safe-slug check on the candidate's own `<name>` field, which becomes the local Write-tool destination `.claude/skills/<name>/` or `.claude/agents/<name>.md`. A candidate named with `../` segments (from any repo `discover.mjs`/`index-repos` can index) could direct the Write tool to a path outside the intended vendor root if the Write tool itself doesn't sandbox destination paths (unverified from the skill files alone — the reason this is medium, not high, confidence). `security-auditor`'s content-scan doesn't cover this either — it audits file content for threats, not whether `name` is a safe path component.
+
+**Recommendation**: validate the candidate's `<name>` against the same safe-slug pattern already used for authored packages (`package-authoring.md`'s `^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`) before any Write call in §9a, and verify each Glob-enumerated relative path resolves inside the intended vendor-root prefix (reject `..`/absolute paths) before writing.
+
+---
 
 
