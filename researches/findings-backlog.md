@@ -2487,4 +2487,61 @@ location: "plugins/ievo/skills/init/references/install-protocol.md (§9a, \"How 
 
 ---
 
+## S-2026-08-01-001 — scrub.mjs's redaction regexes miss PEM private-key blocks and URL-embedded credentials
+
+```yaml
+id: S-2026-08-01-001
+discovered_at: 2026-08-01T08:32:39Z
+run_id: 30691757532
+target_repo: ievo-ai/skills
+title: scrub.mjs's redaction regexes miss PEM private-key blocks and URL-embedded credentials
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/530
+cwe: CWE-200
+confidence: high
+location: plugins/ievo/scripts/scrub.mjs:66 (PROVIDER_SECRET_RE), scrub.mjs:98 (ASSIGNMENT_RE)
+```
+
+`scrub()`'s two redaction passes (`redactProviderSecrets` — provider-prefixed tokens only; `redactNamedSecrets` — only fires on a `NAME=value`/`NAME: value` assignment) miss PEM-armored private-key blocks and URL-embedded (userinfo) credentials — neither shape matches either regex. Both pass through unredacted into `.ievo/evolution-candidates/<session-id>.jsonl`, contradicting scrub.mjs's own stated "can never carry a live secret" contract. Full detail in the filed issue.
+
+---
+
+## S-2026-08-01-002 — inspect/SKILL.md renders untrusted repo frontmatter/README with no excerpt-containment rule
+
+```yaml
+id: S-2026-08-01-002
+discovered_at: 2026-08-01T08:32:39Z
+run_id: 30691757532
+target_repo: ievo-ai/skills
+title: inspect/SKILL.md renders untrusted repo frontmatter/README with no excerpt-containment rule
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/531
+cwe: CWE-79
+confidence: high
+location: plugins/ievo/skills/inspect/SKILL.md Step 5 (~line 173)
+```
+
+`/ievo:inspect <owner>/<repo>` is the first look at an unvetted third-party repo, before any security scan runs. Step 5 embeds the candidate's own frontmatter/README fields verbatim into displayed Markdown with no backtick-fence containment — unlike every sibling skill that renders untrusted content (`deep-review`, `vuln-scan`, `security-check`, `feedback`). A crafted `description:` field renders a live image beacon or spoofed link the instant the summary is displayed. Full detail in the filed issue.
+
+---
+
+## S-2026-08-01-003 — commands/update.md uses predictable, non-mktemp /tmp staging paths (symlink pre-planting)
+
+```yaml
+id: S-2026-08-01-003
+discovered_at: 2026-08-01T08:32:39Z
+run_id: 30691757532
+target_repo: ievo-ai/skills
+title: commands/update.md uses predictable, non-mktemp /tmp staging paths (symlink pre-planting)
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/532
+cwe: CWE-59
+confidence: medium
+location: plugins/ievo/commands/update.md Step 2 (~line 63), Step 2.5 (~line 80)
+```
+
+Unlike this same step's own `CHECKOUT_DIR=$(mktemp -d)` two paragraphs earlier, the staging (`/tmp/ievo-update-staged-<name>*`) and re-audit scratch (`/tmp/ievo-update-localcopy-<name>*`) paths use fixed, guessable names. A local co-resident attacker can pre-plant a symlink at a predicted path pointing at a victim-writable file; the unguarded `cp`/`>` redirect writes through the symlink before the Step 2.5 re-audit gate ever runs. Independently re-confirmed across 2+ consecutive audit runs (first noted 2026-07-23) without being filed until now. Full detail in the filed issue.
+
+---
+
 
