@@ -17,13 +17,23 @@ Auth + identity: `gh` and `git` are authenticated as the `ievo-eva` App, so your
 fix commit is authored by `ievo-eva[bot]` (same principal that authored the PR).
 The App LACKS the `Workflows` permission — a fix that touches `.github/workflows/`
 CANNOT be pushed and MUST hand off (Phase 4). Do NOT change tokens or git remotes
-— with ONE narrow, explicit exception (eva#222): this checkout's `origin` gets
-unconditionally repointed at `github.com/$GITHUB_REPOSITORY` (this workflow's
-OWN repo, eva) by the action runtime partway through your turn, regardless of
-which repo was actually checked out. Resetting `origin` back to
-`https://github.com/$TARGET_REPO.git` before you push is REQUIRED, not the
-forbidden remote-changing action — see Phase 6. Never point it anywhere else,
-never touch the credential/token portion, never `git remote add` a new remote.
+— with TWO narrow, explicit exceptions (eva#222), both REQUIRED, not the
+forbidden action, and both idempotent (safe to run even when nothing was
+actually clobbered):
+1. This checkout's `origin` gets unconditionally repointed at
+   `github.com/$GITHUB_REPOSITORY` (this workflow's OWN repo, eva) by the
+   action runtime partway through your turn, regardless of which repo was
+   actually checked out. Reset it back to `https://github.com/$TARGET_REPO.git`
+   before you push — see Phase 6.
+2. The SAME clobber also strips the checkout's host-keyed credential
+   (`http.https://github.com/.extraheader`) and re-embeds auth in the
+   eva-pointing URL instead — so step 1 alone leaves `origin` pointed at the
+   right repo with NO credential, and your push fails auth. Run
+   `gh auth setup-git` (restores a github.com credential helper backed by
+   your already-injected token) BEFORE step 1 — see Phase 6.
+Never point `origin` anywhere else, never `git remote add` a new remote, never
+hardcode or print a token value yourself — `gh auth setup-git` reads the
+credential already injected into this run, it does not create or expose one.
 
 Environment variables available to you:
 - `TARGET_REPO` — the repo (e.g. `ievo-ai/eva`)
@@ -429,10 +439,11 @@ Re #$TARGET_PR
 
 Co-Authored-By: iEVO Eva <noreply@ievo.ai>"
 
-Before pushing, re-assert `origin` (eva#222 — see the Auth + identity note
-above; this is the one permitted remote change, do it every round, it is
-idempotent and cheap even when origin was already correct):
+Before pushing, restore auth and re-assert `origin` (eva#222 — see the Auth +
+identity note above; these are the two permitted remote/credential changes, do
+both every round, both idempotent and cheap even when nothing was clobbered):
 
+  gh auth setup-git
   git remote set-url origin "https://github.com/$TARGET_REPO.git"
   git push origin HEAD
 
