@@ -38,7 +38,7 @@ run_id: <GitHub Actions run ID or null>
 ```yaml
 last_scan: 2026-07-31T00:00:00Z
 status: unchanged
-run_id: 30518214210
+run_id: 30617989251
 ```
 
 **Summary:** Re-fetched: Jul 24 "Introducing Claude Opus 5", Jul 22 "Anthropic Economic Index Connector", Jul 6 "The Making of Claude Code" remain the newest visible items — no new item since Jul 27's scan. (A related HN front-page item, "Investigating three real-world incidents in our cybersecurity evaluations", did not appear in this page's own visible listing when fetched directly — noted under the news.ycombinator.com entry instead rather than guessing this page's exact article URL.)
@@ -85,7 +85,7 @@ History:
 ```yaml
 last_scan: 2026-07-31T00:00:00Z
 status: unchanged
-run_id: 30518214210
+run_id: 30617989251
 ```
 
 **Summary:** Latest release confirmed still v2.1.220 (July 25, `gh api`-verified — no release since). No new release in the 6-day gap since the last audit.
@@ -136,7 +136,7 @@ History:
 ```yaml
 last_scan: 2026-07-31T00:00:00Z
 status: unchanged
-run_id: 30518214210
+run_id: 30617989251
 ```
 
 **Summary:** v1.0.183 (July 25) still latest via `gh api` (excluding the floating, non-dated-signal `v1` major tag — see prior scans) — no new release since last scan. eva#65 stays closed.
@@ -183,7 +183,7 @@ History:
 ```yaml
 last_scan: 2026-07-31T00:00:00Z
 status: unchanged
-run_id: 30518214210
+run_id: 30617989251
 ```
 
 **Summary:** Not re-fetched this run (low cadence, redirect-only source, no signal expected).
@@ -203,7 +203,7 @@ History:
 ```yaml
 last_scan: 2026-07-31T00:00:00Z
 status: error
-run_id: 30518214210
+run_id: 30617989251
 ```
 
 **Summary:** Not re-fetched this run (persistent 403 to automated fetchers, no reason to expect a change). Use `github.com/openai/codex/releases` as the Codex signal source instead.
@@ -221,7 +221,7 @@ History:
 ```yaml
 last_scan: 2026-07-31T00:00:00Z
 status: unchanged
-run_id: 30518214210
+run_id: 30617989251
 ```
 
 **Summary:** Still rust-v0.146.0 STABLE (Jul 29) as latest stable release; pre-release line advanced to rust-v0.147.0-alpha.2 (Jul 30), no changelog content — no new skill-format signal since last scan.
@@ -272,7 +272,7 @@ History:
 ```yaml
 last_scan: 2026-07-31T00:00:00Z
 status: unchanged
-run_id: 30518214210
+run_id: 30617989251
 ```
 
 **Summary:** Not re-fetched this run (low cadence, no history of agent-tooling-relevant posts).
@@ -295,7 +295,7 @@ History:
 ```yaml
 last_scan: 2026-07-31T00:00:00Z
 status: unchanged
-run_id: 30518214210
+run_id: 30617989251
 ```
 
 **Summary:** No new merges to `agentskills/agentskills` since last scan (still #447, Jul 10 — see that entry below) — spec assumed stable, not deep-re-fetched (low cadence).
@@ -340,7 +340,7 @@ History:
 ```yaml
 last_scan: 2026-07-31T00:00:00Z
 status: unchanged
-run_id: 30518214210
+run_id: 30617989251
 ```
 
 **Summary:** Direct `gh api` PR check: no new merges since #447 (Pulumi Neo, Jul 10); 22 open PRs, no spec-impacting merges since last scan.
@@ -383,7 +383,7 @@ History:
 ```yaml
 last_scan: 2026-07-31T00:00:00Z
 status: changed
-run_id: 30518214210
+run_id: 30617989251
 ```
 
 **Summary:** "Cursor, now on iPad" (July 29) — iPad app availability across paid plans, full PR-review surface + inbox organization. Client-availability announcement only, no new plugin/MCP/skill/hook API surface. Not iEvo-actionable.
@@ -429,7 +429,7 @@ History:
 ```yaml
 last_scan: 2026-07-31T00:00:00Z
 status: changed
-run_id: 30518214210
+run_id: 30617989251
 ```
 
 **Summary:** Front page led by "GCC steering committee announces AI policy" (289 pts, AI-generated-code-contribution governance, not skill-format actionable) and "Investigating three real-world incidents in our cybersecurity evaluations" (178 pts, Anthropic's own post on real-world red-team/cybersecurity-eval incidents — official Anthropic research post, no individual contributor to credit; skimmed for iEvo-relevant lessons but the visible HN discussion didn't surface anything specific to agent-skill supply-chain review beyond what security-auditor/vuln-scan already model — not actionable this scan). "Show HN: What should the GUI for AI agents look like?" (44 pts) is a UI-design exploration, not a skills-repo gap. Neither filed.
@@ -469,7 +469,7 @@ History:
 ```yaml
 last_scan: 2026-07-31T00:00:00Z
 status: unchanged
-run_id: 30518214210
+run_id: 30617989251
 ```
 
 **Summary:** Direct `gh api` commit check: latest commit still `b612ddbc` (June 29 21:15:08Z, the `evals.md` split) — now 32 days without activity.
@@ -514,7 +514,7 @@ History:
 ```yaml
 last_scan: 2026-07-31T00:00:00Z
 status: unchanged
-run_id: 30518214210
+run_id: 30617989251
 ```
 
 **Summary:** Not re-fetched this run (no claude-code release since the last full re-confirm — see that entry — so no reason to expect a field change). Still 17 fields as of the 2026-07-27 full re-fetch.
@@ -551,7 +551,7 @@ History:
 ```yaml
 last_scan: 2026-07-31T00:00:00Z
 status: unchanged
-run_id: 30518214210
+run_id: 30617989251
 ```
 
 **Summary:** Not re-fetched this run (low cadence, no claude-code release since last check). Substantially expanded since the July 1 read. Routines are explicitly "research preview" now. CLI surface: creation is **conversational `/schedule`** (in-session slash command, optionally with a natural-language description); management via `/schedule list` / `/schedule update` / `/schedule run`. The docs describe **no `claude schedule create` shell subcommand** — but iEvo's `schedule/SKILL.md` Step 6 instructs exactly that (`claude schedule create --name ... --schedule ... --prompt-file ...`) and Step 1 probes availability with `claude schedule list`; likely broken primary path → **triggered F-2026-07-04-001**. Other new/clarified surface: one-off runs (`/schedule tomorrow at 9am, ...`, auto-disable after firing, exempt from daily routine cap); custom cron via `/schedule update` with a **1-hour minimum interval**; connectors (claude.ai MCP integrations) included by default per routine; cloud environments with Trusted-network default allowlist; GitHub trigger PR filters (author/title/body/branches/labels/draft/merged with regex-matches-whole-value semantics); API `/fire` endpoint gated behind `experimental-cc-routine-2026-04-01` beta header; `claude/`-prefixed branch push restriction by default; Team/Enterprise org-level Routines disable toggle. Plan gating unchanged (Pro/Max/Team/Enterprise + Claude Code on the web enabled; API-key auth still unsupported — now documented in a troubleshooting section listing telemetry env vars that also hide `/schedule`).
@@ -577,7 +577,7 @@ History:
 ```yaml
 last_scan: 2026-07-31T00:00:00Z
 status: unchanged
-run_id: 30518214210
+run_id: 30617989251
 ```
 
 **Summary:** Not re-fetched this run (low cadence, no claude-code release since last check). Still research preview.
@@ -602,7 +602,7 @@ History:
 ```yaml
 last_scan: 2026-07-31T00:00:00Z
 status: unchanged
-run_id: 30518214210
+run_id: 30617989251
 ```
 
 **Summary:** Not re-fetched this run (no claude-code release since the last full re-confirm). Same 16-field table as of last full read.
@@ -666,7 +666,7 @@ History:
 ```yaml
 last_scan: 2026-07-31T00:00:00Z
 status: unchanged
-run_id: 30518214210
+run_id: 30617989251
 ```
 
 **Summary:** Spec repo (`agentplugins/agent-plugins-spec`) activity since last scan is governance-only: PR #32 (remove DCO sign-off requirement), PR #33 (publish 1.0.0, already tracked), PR #34 (record Jonathan Hefner as Lead Core Maintainer in `MAINTAINERS.md`) — no schema change, 58 stars, 9 open issues. iEvo's own `plugin.json` (added skills#501, F-2026-07-29-001) is unaffected. No new confirmed consumer beyond Codex as of this scan.
