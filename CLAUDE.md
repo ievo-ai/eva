@@ -257,6 +257,45 @@ Author-choice rationale (for future changes):
   attributes Eva's autonomous code to the operator (the #101 migration moved
   automation OFF that). Fallback only.
 
+**Same-principal overwrite hazard + guard (eva#237, observed 2026-07-24 on
+PR #236, fixed 2026-08-01):** because the PAT authenticates as `rotnov`, a
+PAT-posted cross-principal APPROVE and the operator's own manual review share
+the SAME reviewer login. GitHub keeps only ONE *live* review per login —
+posting a fresh review under that login silently REPLACES the prior one, no
+dismissal action, no visible signal. On PR #236 the operator's
+`CHANGES_REQUESTED` at 12:27:04Z (a real finding — double-dispatch false-reap
+window) was overwritten by eva-review-pr's cross-principal `APPROVE` at
+12:28:26Z, 82 seconds later; `mergeStateStatus` went CLEAN over a standing
+human objection. Only PR #236 also touching a sensitive path stopped an
+auto-merge — luck of the path, not a guarantee.
+
+Guard (`eva-review-pr.yml`'s "Check standing operator block" step): before
+posting a PAT-based cross-principal APPROVE (i.e. whenever `steps.reviewtok.
+outputs.is_pat == 'true'` and Eva's own verdict is APPROVE), resolve the exact
+login the review token authenticates as (`gh api user`) — NOT an
+`author_association` filter. `is_pat` is emitted by "Select review token" and
+is true whenever the token it selected actually equals the PAT — NOT the same
+as `PR_AUTHOR == 'ievo-eva[bot]'`: "Set auth token" also forces the token to
+the PAT for every `pull_request`-triggered run regardless of author, so a
+human PR reaching this workflow via `pull_request: ready_for_review` is
+reviewed with the PAT too. An earlier version of this guard gated on the
+author check alone and missed that case — a standing human CHANGES_REQUESTED
+on a human's own PR could be silently overwritten by their own PAT-posted
+APPROVE under the same login. This file's own "Resolve PR context" precedent already showed
+`author_association` is computed per-PR, not per role (the repo owner showed
+up as CONTRIBUTOR on PR #47), so filtering "human reviews" by MEMBER/OWNER
+would silently inherit that false negative and defeat the guard on exactly the
+review it exists to catch. Take that resolved login's latest review that does
+NOT carry Eva's own "Reviewed by Eva (meta-evolution agent)" footer — excluding
+Eva's own reviews is required, since Eva's prior REQUEST_CHANGES from an
+earlier eva-fix-pr round (eva#135) on this same PR posts under that SAME
+`rotnov` login and must not be mistaken for a human block. If that latest
+review is `CHANGES_REQUESTED`, the APPROVE is held: Eva posts her verdict as a
+plain `COMMENT` instead (never touches review state), applies `needs-operator`,
+and skips the sensitive-path/auto-merge steps entirely — deferring to the
+operator the same way the sensitive-path route already does. When no such
+block exists, the cross-principal APPROVE path is unchanged.
+
 ## Env vars
 
 - `EVA_GITHUB_TOKEN` — GitHub API access (issues, PRs, reviews, evolutions)

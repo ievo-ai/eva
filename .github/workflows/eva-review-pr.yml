@@ -471,10 +471,190 @@ jobs:
               exit 1
             fi
             echo "token=$PAT_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "is_pat=true" >> "$GITHUB_OUTPUT"
             echo "Review will be posted via the PAT (App-authored PR — cross-principal approve)"
           else
             echo "token=$AUTH_TOKEN" >> "$GITHUB_OUTPUT"
-            echo "Review will be posted via the default auth token (author != App)"
+            # "Set auth token" (above) already forces AUTH_TOKEN to the PAT for
+            # every `pull_request`-triggered run (App-token scope gets restricted
+            # on workflow-modifying PRs — see that step's own comment), regardless
+            # of who authored the PR. So a HUMAN PR that reaches this workflow via
+            # `pull_request: ready_for_review` is ALSO reviewed with the PAT, not
+            # just App-authored ones — compare token VALUES (the ground truth),
+            # not just PR_AUTHOR, so the eva#237 guard below gates on every case
+            # that actually uses the PAT.
+            if [ -n "$PAT_TOKEN" ] && [ "$AUTH_TOKEN" = "$PAT_TOKEN" ]; then
+              echo "is_pat=true" >> "$GITHUB_OUTPUT"
+              echo "Review will be posted via the default auth token, which resolves to the PAT this run (pull_request-triggered event forced it upstream in 'Set auth token')"
+            else
+              echo "is_pat=false" >> "$GITHUB_OUTPUT"
+              echo "Review will be posted via the default auth token (App token in use)"
+            fi
+          fi
+
+      # --- Guard: standing operator CHANGES_REQUESTED block (eva#237) ---
+      # A PAT-posted cross-principal APPROVE (needed because the App can't
+      # approve its own PR — see "Select review token" above) authenticates as
+      # the SAME login the human operator uses (`rotnov` — see CLAUDE.md's
+      # Identity model). GitHub keeps only ONE live review per reviewer login,
+      # so posting the PAT's APPROVE would silently REPLACE a standing
+      # operator CHANGES_REQUESTED under that login — no dismissal action, no
+      # visible signal — flipping mergeStateStatus to CLEAN over an explicit
+      # human objection. Observed live on PR #236 (2026-07-24): the operator's
+      # 12:27:04Z CHANGES_REQUESTED (a real finding) was overwritten by
+      # eva-review-pr's 12:28:26Z cross-principal APPROVE 82s later; only PR
+      # #236 also touching a sensitive path stopped auto-merge — luck of the
+      # path, not a guarantee.
+      #
+      # Scoped to steps.reviewtok.outputs.is_pat == 'true' — exactly the runs
+      # that actually post with the PAT, per "Select review token" above —
+      # and to Eva's own verdict being APPROVE; a REQUEST_CHANGES verdict
+      # never overwrites a block with an approval, so it needs no guard.
+      # NOT scoped to pr_author == 'ievo-eva[bot]' (an earlier version of
+      # this guard was, and missed a real case): "Set auth token" forces the
+      # PAT for every `pull_request`-triggered run regardless of author, so a
+      # HUMAN PR reaching this workflow via `pull_request: ready_for_review`
+      # is also reviewed with the PAT — a standing human CHANGES_REQUESTED on
+      # THEIR OWN PR could be overwritten by their own PAT-posted APPROVE
+      # under the same login, then auto-merged, with no author-based check to
+      # catch it.
+      #
+      # A genuine human CHANGES_REQUESTED must be told apart from Eva's OWN
+      # prior CHANGES_REQUESTED from an earlier review cycle on this same PR
+      # (eva#135's fix-pr loop) — both post under the SAME `rotnov` login
+      # since the PAT authenticates as the operator. Every review Eva posts
+      # (App or PAT) carries the "Reviewed by Eva (meta-evolution agent)"
+      # footer built below in "Post review" — excluding reviews with that
+      # marker leaves only genuine human-authored reviews.
+      #
+      # Identify "the operator's login" by RESOLVING the token's own identity
+      # (`gh api user`), not by filtering on `author_association` (deep-review
+      # finding, eva#237). This file already documents, in "Resolve PR
+      # context" above, that `author_association` is computed per-PR, not per
+      # role — the repo owner (`rotnov`) showed up as CONTRIBUTOR on PR #47,
+      # and even the broader MEMBER|OWNER|COLLABORATOR filter that was tried
+      # and removed there still missed it. A MEMBER/OWNER filter here would
+      # silently inherit that exact false negative and defeat this guard on
+      # the one review it exists to catch. Since the PAT and the operator are
+      # the SAME login by construction, asking "what login does this token
+      # resolve to" is an exact key, not a role guess. This also avoids a
+      # DIFFERENT hazard that dropping the association filter with no
+      # replacement would open on this PUBLIC repo: GitHub lets ANY user post
+      # a PR review regardless of write access, so matching "any non-Eva
+      # review" would let a random drive-by account hold every future
+      # cross-principal APPROVE hostage on a PR.
+      #
+      # Reuses steps.reviewtok's already-selected token (not a fresh
+      # secrets.EVA_PAT_GITHUB_TOKEN read): this step's own `if` requires
+      # is_pat == 'true', so by construction steps.reviewtok.outputs.token IS
+      # the PAT whenever this step runs — `gh api user` below correctly
+      # resolves the operator's login in every case that reaches here.
+      # (Gating on is_pat rather than running unconditionally matters here
+      # too: `gh api user` errors on an App installation token, which would
+      # fail-closed and hold every PR reviewed with the App token instead of
+      # only the PAT-reviewed ones this guard exists for.)
+      #
+      # Known limitation (accepted, fail-closed direction): this reads the
+      # review HISTORY, not live review state. If one of Eva's own later
+      # REQUEST_CHANGES rounds (eva#135) already superseded an operator block
+      # under the same login, the superseded CHANGES_REQUESTED still appears
+      # in the listing and holds every future APPROVE until it is explicitly
+      # dismissed. The held-comment body below already tells the operator to
+      # dismiss/resolve, so this errs toward holding — never toward a silent
+      # overwrite.
+      - name: Check standing operator block
+        id: opblock
+        if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large != 'true' && steps.review.outputs.decision == 'APPROVE' && steps.reviewtok.outputs.is_pat == 'true'
+        env:
+          GH_TOKEN: ${{ steps.reviewtok.outputs.token }}
+          REPO: ${{ steps.ctx.outputs.repo }}
+          PR_NUM: ${{ steps.ctx.outputs.pr_number }}
+        run: |
+          # This workflow sets no `defaults.run.shell` and this step sets no
+          # `shell:`, so GitHub runs it as `bash -e {0}` — `-e` ONLY, no
+          # `pipefail` (the `-eo pipefail` form applies just to an EXPLICIT
+          # `shell: bash`). Without this line a pipeline's status is its LAST
+          # command's, so a 5xx/rate-limited `gh api` below would still exit 0
+          # through `jq -s` — which yields `null` on empty stdin → STATE
+          # "none" → blocked=false → the cross-principal APPROVE silently
+          # overwrites the very operator block this step exists to protect.
+          # The deciding lookup must fail in the SAME direction as the login
+          # lookup right below it.
+          set -o pipefail
+
+          PAT_LOGIN=$(gh api user --jq '.login' 2>/dev/null || true)
+          if [ -z "$PAT_LOGIN" ]; then
+            # Can't verify there ISN'T a standing block — fail closed (treat
+            # as blocked) rather than risk silently overwriting one. This
+            # only degrades to a held COMMENT + needs-operator, never a
+            # silent APPROVE, so it's the safe direction to fail in.
+            echo "::warning::Could not resolve the review token's own login via 'gh api user' — failing closed on the eva#237 guard (treating as blocked)."
+            echo "blocked=true" >> "$GITHUB_OUTPUT"
+            echo "blocking_logins=unknown (login lookup failed)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Per-page --jq (not a single re-parsed blob) mirrors the
+          # sensitive-path check's own --paginate usage above — --paginate
+          # concatenates each page's filtered stream, which a plain `jq`
+          # re-parse of the raw multi-page output cannot reliably slurp.
+          # Login filtering happens in the second (plain jq) stage via --arg,
+          # not interpolated into the --jq expression string.
+          #
+          # Wrapped in `if !` (a condition context, so `set -e` doesn't abort
+          # the step and skip "Post review" entirely) and combined with the
+          # `pipefail` above: a failed listing now lands on the SAME held
+          # COMMENT + needs-operator degradation as a failed login lookup,
+          # never a silent APPROVE.
+          # GitHub only lets APPROVED/CHANGES_REQUESTED change a reviewer's
+          # LIVE state on a PR (a DISMISSED review's own state flips to
+          # "DISMISSED" in the API response, so it drops out here for free).
+          # A COMMENTED review does neither — it posts without touching
+          # whatever CHANGES_REQUESTED/APPROVED state the reviewer already
+          # has standing. Sorting across every state and taking the latest
+          # by timestamp treated a later COMMENTED review as if it recorded
+          # the reviewer's current verdict: operator blocks with
+          # CHANGES_REQUESTED, later posts an unrelated COMMENTED review →
+          # STATE becomes "comment" → falls through to blocked=false → the
+          # cross-principal APPROVE overwrites the still-live block (eva#236
+          # again, via a different trigger than the original fail-open).
+          # Filter to only the two states that can actually BE the
+          # reviewer's live verdict before picking the latest one.
+          if ! LATEST=$(gh api "repos/$REPO/pulls/$PR_NUM/reviews" --paginate \
+            --jq '.[] | {login: .user.login, state: .state, submitted_at: .submitted_at, body: (.body // "")}' \
+            | jq -s --arg login "$PAT_LOGIN" '
+                map(select(.login == $login))
+                | map(select((.body | contains("Reviewed by Eva (meta-evolution agent)")) | not))
+                | map(select(.state == "CHANGES_REQUESTED" or .state == "APPROVED"))
+                | sort_by(.submitted_at)
+                | last
+              '); then
+            echo "::warning::Could not list reviews for $REPO#$PR_NUM (API error or unparseable response) — failing closed on the eva#237 guard (treating as blocked)."
+            echo "blocked=true" >> "$GITHUB_OUTPUT"
+            echo "blocking_logins=unknown (review listing failed)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # `.state // "none"` yields "none" for BOTH `null` (no qualifying
+          # review — the legitimate not-blocked case) and a stateless object,
+          # so an empty STATE can only mean jq itself failed. Fail closed on
+          # that too, for the same reason: this is the deciding read.
+          STATE=$(printf '%s' "$LATEST" | jq -r '.state // "none"' 2>/dev/null || true)
+          if [ -z "$STATE" ]; then
+            echo "::warning::Could not parse the latest $PAT_LOGIN review state — failing closed on the eva#237 guard (treating as blocked)."
+            echo "blocked=true" >> "$GITHUB_OUTPUT"
+            echo "blocking_logins=unknown (review state parse failed)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$STATE" = "CHANGES_REQUESTED" ]; then
+            echo "blocked=true" >> "$GITHUB_OUTPUT"
+            echo "blocking_logins=$PAT_LOGIN" >> "$GITHUB_OUTPUT"
+            echo "Standing CHANGES_REQUESTED from $PAT_LOGIN (the review token's own login) — will NOT post the cross-principal APPROVE (would silently overwrite it)."
+          else
+            echo "blocked=false" >> "$GITHUB_OUTPUT"
+            echo "blocking_logins=" >> "$GITHUB_OUTPUT"
+            echo "No standing human CHANGES_REQUESTED from $PAT_LOGIN — cross-principal APPROVE proceeds normally."
           fi
 
       # --- Post review to PR ---
@@ -487,16 +667,28 @@ jobs:
           PR_NUM: ${{ steps.ctx.outputs.pr_number }}
           DECISION: ${{ steps.review.outputs.decision }}
           COMMENT: ${{ steps.review.outputs.comment }}
+          BLOCKED: ${{ steps.opblock.outputs.blocked }}
+          BLOCKING_LOGINS: ${{ steps.opblock.outputs.blocking_logins }}
         run: |
-          if [ "$DECISION" = "APPROVE" ]; then
+          if [ "$BLOCKED" = "true" ]; then
+            # eva#237: a standing human CHANGES_REQUESTED exists under the
+            # same login the PAT would post as. Post the verdict as a plain
+            # COMMENT (never touches review state) instead of overwriting the
+            # existing review, and hold for the operator — same downstream
+            # effect as the sensitive-path route (see "Flag standing operator
+            # block" below, and its gate on Sensitive-path check/Auto-merge).
+            EVENT="COMMENT"
+            BODY=$(printf '**Eva** reviewed this PR — verdict would be APPROVE.\n\n%s\n\n---\n⚠️ Held as a comment, not posted as a review: %s already has a standing **CHANGES_REQUESTED** from %s. A cross-principal APPROVE would silently replace that review under the same login instead of resolving it (eva#237). Operator: dismiss/resolve the existing review if this verdict addresses it, then re-run the review manually.\n\n> Reviewed by Eva (meta-evolution agent)' "$COMMENT" "$REPO#$PR_NUM" "$BLOCKING_LOGINS")
+          elif [ "$DECISION" = "APPROVE" ]; then
             EVENT="APPROVE"
+            BODY=$(printf '**Eva** reviewed this PR.\n\n%s\n\n---\n> Reviewed by Eva (meta-evolution agent)' "$COMMENT")
           else
             EVENT="REQUEST_CHANGES"
+            BODY=$(printf '**Eva** reviewed this PR.\n\n%s\n\n---\n> Reviewed by Eva (meta-evolution agent)' "$COMMENT")
           fi
 
-          BODY=$(printf '**Eva** reviewed this PR.\n\n%s\n\n---\n> Reviewed by Eva (meta-evolution agent)' "$COMMENT")
-
-          # Post review — fall back to COMMENT if APPROVE fails (e.g. own PR).
+          # Post review — fall back to COMMENT if the requested event fails
+          # (e.g. own PR, or the eva#237 guard already chose COMMENT above).
           # With cross-principal token selection above this fallback should no
           # longer trigger for App-authored PRs; it stays as defense in depth.
           # Capture the response so the REQUEST_CHANGES review id can drive the
@@ -513,6 +705,19 @@ jobs:
 
           REVIEW_ID=$(printf '%s' "$RESP" | jq -r '.id // empty' 2>/dev/null || true)
           echo "review_id=$REVIEW_ID" >> "$GITHUB_OUTPUT"
+
+      # --- Flag standing operator block for the operator (eva#237) ---
+      - name: Flag standing operator block
+        if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large != 'true' && steps.opblock.outputs.blocked == 'true'
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          REPO: ${{ steps.ctx.outputs.repo }}
+          PR_NUM: ${{ steps.ctx.outputs.pr_number }}
+        run: |
+          gh label create needs-operator --repo "$REPO" \
+            --description "Pipeline blocked on the human operator to unblock" \
+            --color "e11d21" 2>/dev/null || true
+          gh pr edit "$PR_NUM" --repo "$REPO" --add-label needs-operator
 
       # --- Dispatch the review-fix loop (eva#135) ---
       # When Eva REQUEST_CHANGES her OWN implement PR (App-authored, eva-impl/*
@@ -590,7 +795,7 @@ jobs:
       # changes need a human in the loop.
       - name: Sensitive-path check
         id: sensitive
-        if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large != 'true' && steps.review.outputs.decision == 'APPROVE'
+        if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large != 'true' && steps.review.outputs.decision == 'APPROVE' && steps.opblock.outputs.blocked != 'true'
         env:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           REPO: ${{ steps.ctx.outputs.repo }}
@@ -752,7 +957,7 @@ jobs:
       # --- Auto-merge on approval (only if not sensitive) ---
       - name: Auto-merge
         id: merge
-        if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large != 'true' && steps.review.outputs.decision == 'APPROVE' && steps.sensitive.outputs.is_sensitive == 'false'
+        if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large != 'true' && steps.review.outputs.decision == 'APPROVE' && steps.opblock.outputs.blocked != 'true' && steps.sensitive.outputs.is_sensitive == 'false'
         env:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           REPO: ${{ steps.ctx.outputs.repo }}
