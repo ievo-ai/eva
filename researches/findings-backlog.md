@@ -2224,6 +2224,63 @@ location: "plugins/ievo/scripts/validate_skills.mjs:351,371,374 (main, `rel`); p
 
 ---
 
+## S-2026-07-30-001 — deep-reviewer.md's Step 3 report template has no excerpt-containment rule for quoted diff content, unlike its sibling security agents
+
+```yaml
+id: S-2026-07-30-001
+discovered_at: 2026-07-30T08:45:00Z
+run_id: 30527156765
+target_repo: ievo-ai/skills
+title: deep-reviewer.md's Issue/Suggestion report fields quote diff content verbatim with no excerpt-containment fencing, unlike security-auditor.md/vuln-scanner.md
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/505
+cwe: CWE-79
+confidence: high
+location: plugins/ievo/agents/deep-reviewer.md:182-183 (Step 3 report template)
+```
+
+Carried forward from the 2026-07-29 audit's Deferred findings (companion gap to filed S-2026-07-29-001/#498, same file). `/ievo:deep-review`'s report template renders each finding as `- **Issue:** <...>` / `- **Suggestion:** <...>` with no instruction to wrap a quoted source excerpt in a code span — unlike `security-auditor.md`'s `report_template.body` and `vuln-scanner.md`'s `title`/`exploit_chain.*`/`recommendation`, both of which carry an explicit "Excerpt containment" rule for exactly this reason (ported once via #350/#402, never to deep-reviewer.md across #243/#405/#483). Deep-reviewer's own "cite specifically" rule (`## Rules`) plus the orchestrating `deep-review/SKILL.md` Step 5's "present it to the user as-is" instruction mean a crafted `![x](https://attacker.example/beacon.png)` in a reviewed file, if quoted verbatim in a finding, live-renders as an exfiltration beacon or spoofed link in the Claude Code chat UI the moment the review report is displayed.
+
+---
+
+## S-2026-07-30-002 — `.github/scripts/validators/_safe-read.mjs` has no file-size cap despite `lstatSync` already returning `.size` at no extra cost
+
+```yaml
+id: S-2026-07-30-002
+discovered_at: 2026-07-30T08:45:00Z
+run_id: 30527156765
+target_repo: ievo-ai/skills
+title: safeReadFileSync() never checks lstatSync's own .size before readFileSync, letting an oversized fork-PR file OOM/hang all six pre-commit validators
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/506
+cwe: CWE-770
+confidence: high
+location: .github/scripts/validators/_safe-read.mjs:37 (safeReadFileSync)
+```
+
+Carried forward as "next-priority" from the 2026-07-27 and 2026-07-29 audit reports. `safeReadFileSync()` calls `lstatSync(path)` to guard against symlinks (closing #364) but never reads `st.size` before calling `readFileSync(path, options)` unconditionally. A fork-PR contributor can commit an oversized file (tens of MB+) matching any of the six validators' `files:` glob in `.pre-commit-config.yaml`; each validator that processes it buffers the full content (plus, for `crlf-frontmatter.mjs`/`yaml-frontmatter.mjs`, a second full-size copy from line-splitting), risking OOM-kill of the CI job or a hung `pre-commit run --all-files` — availability-only DoS against the pre-commit gate, cheaply repeatable across PRs.
+
+---
+
+## S-2026-07-30-003 — scrub.mjs's `NAME_ALT` regex requires secret-shaped names to start with a letter, so digit-leading names bypass redaction entirely
+
+```yaml
+id: S-2026-07-30-003
+discovered_at: 2026-07-30T08:45:00Z
+run_id: 30527156765
+target_repo: ievo-ai/skills
+title: scrub.mjs's redactNamedSecrets() never matches a digit-leading secret-shaped name (e.g. 2FA_TOKEN=), so the value is persisted completely unredacted
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/507
+cwe: CWE-532
+confidence: high
+location: plugins/ievo/scripts/scrub.mjs:91 (NAME_ALT / ASSIGNMENT_RE)
+```
+
+Carried forward as "next-priority" from the 2026-07-27 and 2026-07-29 audit reports — companion gap to the still-open #493 (same file, different root cause: #493 is a whitespace-truncation gap on an already-matched name, this is a total match failure on the name itself). `NAME_ALT`'s suffix alternative requires the identifier's first character to be `[A-Za-z]`; `ASSIGNMENT_RE` anchors with `\b(${NAME_ALT})\b`, and `\b` never fires between two word characters (digit→letter is word-to-word), so a name like `2FA_TOKEN=` or `1PASSWORD_TOKEN=` (mirroring the real 1Password CLI env-var convention) is not matched anywhere in the string — `redactNamedSecrets` returns the text completely unmodified, and the secret value survives verbatim into `.ievo/evolution-candidates/<session-id>.jsonl`, from which it can propagate into `/ievo:evo` analysis and `eva publish --live`'s public GitHub issue / Telegram feed.
+
+---
+
 ## S-2026-07-31-001 — scan_repo.mjs's enumerateHooks/enumerateMcp crash on null entries in an attacker-controlled repo's hooks.json/.mcp.json
 
 ```yaml
