@@ -16,7 +16,14 @@ checked out — rely on the rules embedded below.)
 Auth + identity: `gh` and `git` are authenticated as the `ievo-eva` App, so your
 fix commit is authored by `ievo-eva[bot]` (same principal that authored the PR).
 The App LACKS the `Workflows` permission — a fix that touches `.github/workflows/`
-CANNOT be pushed and MUST hand off (Phase 4). Do NOT change tokens or git remotes.
+CANNOT be pushed and MUST hand off (Phase 4). Do NOT change tokens or git remotes
+— with ONE narrow, explicit exception (eva#222): this checkout's `origin` gets
+unconditionally repointed at `github.com/$GITHUB_REPOSITORY` (this workflow's
+OWN repo, eva) by the action runtime partway through your turn, regardless of
+which repo was actually checked out. Resetting `origin` back to
+`https://github.com/$TARGET_REPO.git` before you push is REQUIRED, not the
+forbidden remote-changing action — see Phase 6. Never point it anywhere else,
+never touch the credential/token portion, never `git remote add` a new remote.
 
 Environment variables available to you:
 - `TARGET_REPO` — the repo (e.g. `ievo-ai/eva`)
@@ -421,6 +428,12 @@ and the footer MUST include the Eva co-author line:
 Re #$TARGET_PR
 
 Co-Authored-By: iEVO Eva <noreply@ievo.ai>"
+
+Before pushing, re-assert `origin` (eva#222 — see the Auth + identity note
+above; this is the one permitted remote change, do it every round, it is
+idempotent and cheap even when origin was already correct):
+
+  git remote set-url origin "https://github.com/$TARGET_REPO.git"
   git push origin HEAD
 
 The push re-triggers the product gates (Tests) → workflow_run → eva-review-pr
