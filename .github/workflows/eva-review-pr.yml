@@ -579,11 +579,26 @@ jobs:
           # `pipefail` above: a failed listing now lands on the SAME held
           # COMMENT + needs-operator degradation as a failed login lookup,
           # never a silent APPROVE.
+          # GitHub only lets APPROVED/CHANGES_REQUESTED change a reviewer's
+          # LIVE state on a PR (a DISMISSED review's own state flips to
+          # "DISMISSED" in the API response, so it drops out here for free).
+          # A COMMENTED review does neither — it posts without touching
+          # whatever CHANGES_REQUESTED/APPROVED state the reviewer already
+          # has standing. Sorting across every state and taking the latest
+          # by timestamp treated a later COMMENTED review as if it recorded
+          # the reviewer's current verdict: operator blocks with
+          # CHANGES_REQUESTED, later posts an unrelated COMMENTED review →
+          # STATE becomes "comment" → falls through to blocked=false → the
+          # cross-principal APPROVE overwrites the still-live block (eva#236
+          # again, via a different trigger than the original fail-open).
+          # Filter to only the two states that can actually BE the
+          # reviewer's live verdict before picking the latest one.
           if ! LATEST=$(gh api "repos/$REPO/pulls/$PR_NUM/reviews" --paginate \
             --jq '.[] | {login: .user.login, state: .state, submitted_at: .submitted_at, body: (.body // "")}' \
             | jq -s --arg login "$PAT_LOGIN" '
                 map(select(.login == $login))
                 | map(select((.body | contains("Reviewed by Eva (meta-evolution agent)")) | not))
+                | map(select(.state == "CHANGES_REQUESTED" or .state == "APPROVED"))
                 | sort_by(.submitted_at)
                 | last
               '); then
