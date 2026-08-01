@@ -90,10 +90,10 @@ status: unchanged
 run_id: 30691757532
 ```
 
-**Summary:** Latest release confirmed still v2.1.220 (July 25, `gh api`-verified — no release since). No new release in the 7-day gap since the last audit.
+**Summary:** Latest release confirmed still v2.1.220 (July 25, `gh api`-verified — no release since). No new release in the 3-day gap since the last audit.
 
 History:
-- 2026-08-01T08:32:39Z — unchanged: `gh api` confirms v2.1.220 (Jul 25) still latest; no new release in the 7-day gap since the last audit run (2026-07-29)
+- 2026-08-01T08:32:39Z — unchanged: `gh api` confirms v2.1.220 (Jul 25) still latest; no new release in the 3-day gap since the last audit run (2026-07-29)
 - 2026-07-31T00:00:00Z — unchanged: `gh api` confirms v2.1.220 (Jul 25) still latest; no new release since last scan (6-day gap)
 - 2026-07-30T08:45:00Z — unchanged: `gh api` confirms v2.1.220 (Jul 25) still latest; no new release since last scan
 - 2026-07-29T00:00:00Z — unchanged: `gh api` confirms v2.1.220 (Jul 25) still latest; no new release since last scan
@@ -143,7 +143,7 @@ status: unchanged
 run_id: 30691757532
 ```
 
-**Summary:** v1.0.183 (July 25) still latest via `gh api` — no new release in the 7-day gap since the last audit. eva#65 stays closed.
+**Summary:** v1.0.183 (July 25) still latest via `gh api` — no new release in the 3-day gap since the last audit. eva#65 stays closed.
 
 History:
 - 2026-08-01T08:32:39Z — unchanged: `gh api` confirms v1.0.183 (Jul 25) still latest; no new release; eva#65 stays closed
