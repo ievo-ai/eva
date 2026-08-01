@@ -526,6 +526,15 @@ jobs:
       # pr_author == 'ievo-eva[bot]', the exact condition under which
       # "Select review token" above resolves to the PAT — so by construction
       # steps.reviewtok.outputs.token IS the PAT whenever this step runs.
+      #
+      # Known limitation (accepted, fail-closed direction): this reads the
+      # review HISTORY, not live review state. If one of Eva's own later
+      # REQUEST_CHANGES rounds (eva#135) already superseded an operator block
+      # under the same login, the superseded CHANGES_REQUESTED still appears
+      # in the listing and holds every future APPROVE until it is explicitly
+      # dismissed. The held-comment body below already tells the operator to
+      # dismiss/resolve, so this errs toward holding — never toward a silent
+      # overwrite.
       - name: Check standing operator block
         id: opblock
         if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large != 'true' && steps.review.outputs.decision == 'APPROVE' && steps.ctx.outputs.pr_author == 'ievo-eva[bot]'
@@ -534,6 +543,18 @@ jobs:
           REPO: ${{ steps.ctx.outputs.repo }}
           PR_NUM: ${{ steps.ctx.outputs.pr_number }}
         run: |
+          # This workflow sets no `defaults.run.shell` and this step sets no
+          # `shell:`, so GitHub runs it as `bash -e {0}` — `-e` ONLY, no
+          # `pipefail` (the `-eo pipefail` form applies just to an EXPLICIT
+          # `shell: bash`). Without this line a pipeline's status is its LAST
+          # command's, so a 5xx/rate-limited `gh api` below would still exit 0
+          # through `jq -s` — which yields `null` on empty stdin → STATE
+          # "none" → blocked=false → the cross-principal APPROVE silently
+          # overwrites the very operator block this step exists to protect.
+          # The deciding lookup must fail in the SAME direction as the login
+          # lookup right below it.
+          set -o pipefail
+
           PAT_LOGIN=$(gh api user --jq '.login' 2>/dev/null || true)
           if [ -z "$PAT_LOGIN" ]; then
             # Can't verify there ISN'T a standing block — fail closed (treat
@@ -552,16 +573,38 @@ jobs:
           # re-parse of the raw multi-page output cannot reliably slurp.
           # Login filtering happens in the second (plain jq) stage via --arg,
           # not interpolated into the --jq expression string.
-          LATEST=$(gh api "repos/$REPO/pulls/$PR_NUM/reviews" --paginate \
+          #
+          # Wrapped in `if !` (a condition context, so `set -e` doesn't abort
+          # the step and skip "Post review" entirely) and combined with the
+          # `pipefail` above: a failed listing now lands on the SAME held
+          # COMMENT + needs-operator degradation as a failed login lookup,
+          # never a silent APPROVE.
+          if ! LATEST=$(gh api "repos/$REPO/pulls/$PR_NUM/reviews" --paginate \
             --jq '.[] | {login: .user.login, state: .state, submitted_at: .submitted_at, body: (.body // "")}' \
             | jq -s --arg login "$PAT_LOGIN" '
                 map(select(.login == $login))
                 | map(select((.body | contains("Reviewed by Eva (meta-evolution agent)")) | not))
                 | sort_by(.submitted_at)
                 | last
-              ')
+              '); then
+            echo "::warning::Could not list reviews for $REPO#$PR_NUM (API error or unparseable response) — failing closed on the eva#237 guard (treating as blocked)."
+            echo "blocked=true" >> "$GITHUB_OUTPUT"
+            echo "blocking_logins=unknown (review listing failed)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
-          STATE=$(printf '%s' "$LATEST" | jq -r '.state // "none"')
+          # `.state // "none"` yields "none" for BOTH `null` (no qualifying
+          # review — the legitimate not-blocked case) and a stateless object,
+          # so an empty STATE can only mean jq itself failed. Fail closed on
+          # that too, for the same reason: this is the deciding read.
+          STATE=$(printf '%s' "$LATEST" | jq -r '.state // "none"' 2>/dev/null || true)
+          if [ -z "$STATE" ]; then
+            echo "::warning::Could not parse the latest $PAT_LOGIN review state — failing closed on the eva#237 guard (treating as blocked)."
+            echo "blocked=true" >> "$GITHUB_OUTPUT"
+            echo "blocking_logins=unknown (review state parse failed)" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           if [ "$STATE" = "CHANGES_REQUESTED" ]; then
             echo "blocked=true" >> "$GITHUB_OUTPUT"
             echo "blocking_logins=$PAT_LOGIN" >> "$GITHUB_OUTPUT"
