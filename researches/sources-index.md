@@ -362,7 +362,7 @@ run_id: 30691757532
 **Summary:** Direct `gh api` PR check: no new merges since #447 (Pulumi Neo, Jul 10) — newest open PRs (#473 AgentUse showcase, #472 MCP Toplist badge, #470 cpanel-navigator, #469 spam, #465, #449) are all cosmetic client-showcase/ecosystem-listing/docs, no spec impact. #380/#386/#345/#254 still open+unmerged.
 
 History:
-- 2026-08-01T08:32:39Z — unchanged: `gh api` PR check — no new merges since #447; one new open PR since last scan (#473, AgentUse client showcase, Jul 29) — cosmetic listing only; #380/#386/#345/#254 confirmed still open+unmerged
+- 2026-08-01T08:32:39Z — unchanged: `gh api` PR check — no new merges since #447; #473 (AgentUse client showcase, Jul 29, already logged as new on the Jul 30 line below) still open, cosmetic listing only; #380/#386/#345/#254 confirmed still open+unmerged
 - 2026-07-31T00:00:00Z — unchanged: `gh api` PR check — no new merges since #447; 22 open PRs (unchanged count from spec-impact perspective)
 - 2026-07-30T08:45:00Z — unchanged: `gh api` PR check — no new merges since #447; new open PR #473 (client showcase, cosmetic); #380/#386/#345/#254 confirmed still open+unmerged
 - 2026-07-29T00:00:00Z — unchanged: `gh api` PR check — no new merges since #447; new open PRs (#472, #470, #465-showcase area, #449) all cosmetic listing/docs; #380/#386/#345/#254 confirmed still open+unmerged
@@ -697,14 +697,14 @@ History:
 
 ```yaml
 last_scan: 2026-08-01T08:32:39Z
-status: changed
+status: unchanged
 run_id: 30691757532
 ```
 
-**Summary:** F-2026-07-29-001/skills#501 (root Agent Plugins 1.0.0 `plugin.json`) shipped and is now documented directly in `ievo-ai/skills` AGENTS.md's own "What this repo ships" section, plus two new caveat paragraphs on component-discovery scope and the current Codex install-path precedence. Spec-repo activity since last scan: one new merged PR (#34, "Record Lead Core Maintainer selection", 2026-07-31) — pure governance/maintainer-ledger, not a schema or spec-content change. No new adopting platform beyond Codex confirmed this scan.
+**Summary:** F-2026-07-29-001/skills#501 (root Agent Plugins 1.0.0 `plugin.json`) shipped and is now documented directly in `ievo-ai/skills` AGENTS.md's own "What this repo ships" section, plus two new caveat paragraphs on component-discovery scope and the current Codex install-path precedence. No new spec-repo activity since last scan (2026-07-31) — the "Record Lead Core Maintainer selection" PR (2026-07-31) was already logged then as governance-only. No new adopting platform beyond Codex confirmed this scan.
 
 History:
-- 2026-08-01T08:32:39Z — changed: spec repo gained 1 new commit (Lead Core Maintainer governance record, 2026-07-31) — administrative only, no schema change; iEvo's own root `plugin.json` (F-2026-07-29-001/skills#501) has shipped and is now AGENTS.md-documented with two follow-up caveat paragraphs
+- 2026-08-01T08:32:39Z — unchanged: re-fetched; the Lead Core Maintainer governance record (2026-07-31) was already logged as governance-only activity on the Jul 31 line below — no new spec-repo activity since then; iEvo's own root `plugin.json` (F-2026-07-29-001/skills#501) has shipped and is now AGENTS.md-documented with two follow-up caveat paragraphs
 - 2026-07-31T00:00:00Z — unchanged: spec repo governance-only activity (DCO removal, maintainer selection) since Jul 29; no schema change; no new confirmed consumer
 - 2026-07-30T08:45:00Z — unchanged: `gh api` commit check on agentplugins/agent-plugins-spec — latest commit still 2026-07-27 push, no new activity; no new consumer-adoption signal
 - 2026-07-29T00:00:00Z — first-scan: Agent Plugins 1.0.0 spec discovered via Codex rust-v0.146.0's new root plugin.json support; TSC = Amazon/Cursor/Microsoft/OpenAI/Vercel; triggered F-2026-07-29-001
