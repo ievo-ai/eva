@@ -550,6 +550,26 @@ jobs:
           # count. Any push WITHOUT the marker deliberately does not count — an
           # unmarked push would dodge the budget counter, which is operator-
           # attention-worthy in itself.
+          #
+          # Defensive re-assert (eva#222): claude-code-action's agent-mode git
+          # setup unconditionally repoints `origin` at GITHUB_REPOSITORY (this
+          # workflow's OWN repo, eva) during the "Run Fix agent" step above —
+          # it derives the remote from the Actions runner's own env var, not
+          # from this job's `repository:` checkout input. It ALSO removes the
+          # checkout's host-keyed credential (`http.https://github.com/
+          # .extraheader`) and re-embeds auth in the eva-pointing URL instead,
+          # so a bare `set-url` alone leaves `origin` pointed at the right repo
+          # but with NO credential — the fetch below would fail auth, not
+          # merely fetch the wrong content. `gh auth setup-git` restores a
+          # github.com credential helper backed by this step's own `GH_TOKEN`
+          # first; the fixer prompt now does the identical two-line recovery
+          # before its own push (Phase 6). Reset `origin` back to the real
+          # target before trusting `git fetch origin`; the bare-set-url version
+          # of this fix was observed producing a false "no fix pushed" contract
+          # failure on a push that had actually succeeded (skills#535,
+          # skills#528, 2026-08-01).
+          gh auth setup-git
+          git remote set-url origin "https://github.com/$REPO.git"
           BASE=$(gh api "repos/$REPO/pulls/$PR_NUM" --jq '.base.ref' 2>/dev/null || echo "main")
           git fetch origin "$BASE" "$HEAD_REF"
           NEW_ROUNDS=$(git log --format='%s' "origin/$BASE..origin/$HEAD_REF" 2>/dev/null | grep -cE '\[pr-fix-[0-9]+\]' || true)

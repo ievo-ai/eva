@@ -16,7 +16,28 @@ checked out — rely on the rules embedded below.)
 Auth + identity: `gh` and `git` are authenticated as the `ievo-eva` App, so your
 fix commit is authored by `ievo-eva[bot]` (same principal that authored the PR).
 The App LACKS the `Workflows` permission — a fix that touches `.github/workflows/`
-CANNOT be pushed and MUST hand off (Phase 4). Do NOT change tokens or git remotes.
+CANNOT be pushed and MUST hand off (Phase 4). Do NOT change tokens or git remotes
+— with THREE narrow, explicit exceptions (eva#222), all REQUIRED, not the
+forbidden action, and all idempotent (safe to run even when nothing was
+actually clobbered). The agent-runner action rewrites `.git/config` partway
+through your turn — it repoints `origin` at `github.com/$GITHUB_REPOSITORY`
+(this workflow's OWN repo, eva, regardless of which repo was actually checked
+out), strips the checkout's host-keyed credential
+(`http.https://github.com/.extraheader`) and re-embeds auth in that
+eva-pointing URL instead, and resets the git user to `claude[bot]`. Recover
+all three, in this order, right before committing/pushing — see Phase 6:
+1. `gh auth setup-git` — restores a github.com credential helper backed by
+   your already-injected token. Skipping this and only doing step 2 leaves
+   `origin` pointed at the right repo with NO credential, so your push fails
+   auth outright.
+2. `git remote set-url origin "https://github.com/$TARGET_REPO.git"` — resets
+   the remote itself.
+3. `git config user.name "iEVO Eva"` / `git config user.email
+   "noreply@ievo.ai"` — restores Eva's identity, so the `[pr-fix-N]` commit is
+   authored correctly instead of misattributed to `claude[bot]`.
+Never point `origin` anywhere else, never `git remote add` a new remote, never
+hardcode or print a token value yourself — `gh auth setup-git` reads the
+credential already injected into this run, it does not create or expose one.
 
 Environment variables available to you:
 - `TARGET_REPO` — the repo (e.g. `ievo-ai/eva`)
@@ -410,6 +431,19 @@ post-check), and stop (the operator decides). A red push just burns a budget
 slot.
 
 ## Phase 6 — Commit + push the fix (the ONLY push)
+
+FIRST recover from the agent-runner action's `.git/config` clobber (eva#222 —
+see the Auth + identity note above): restore the github.com credential helper,
+re-point `origin` at `$TARGET_REPO`, and restore Eva's identity BEFORE
+committing — so the commit is authored by iEVO Eva (not `claude[bot]`, which
+the same clobber resets it to) and the push authenticates against the right
+repo. All three are idempotent, cheap even when nothing was actually
+clobbered, and mirror eva-implement.md's identical recovery verbatim:
+
+  gh auth setup-git
+  git remote set-url origin "https://github.com/$TARGET_REPO.git"
+  git config user.name "iEVO Eva"
+  git config user.email "noreply@ievo.ai"
 
 Stage only the files you changed (no blanket `git add -A` for the commit). The
 commit subject MUST carry the `[pr-fix-N]` marker (this is the budget counter)
