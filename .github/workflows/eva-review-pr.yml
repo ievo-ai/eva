@@ -471,10 +471,25 @@ jobs:
               exit 1
             fi
             echo "token=$PAT_TOKEN" >> "$GITHUB_OUTPUT"
+            echo "is_pat=true" >> "$GITHUB_OUTPUT"
             echo "Review will be posted via the PAT (App-authored PR — cross-principal approve)"
           else
             echo "token=$AUTH_TOKEN" >> "$GITHUB_OUTPUT"
-            echo "Review will be posted via the default auth token (author != App)"
+            # "Set auth token" (above) already forces AUTH_TOKEN to the PAT for
+            # every `pull_request`-triggered run (App-token scope gets restricted
+            # on workflow-modifying PRs — see that step's own comment), regardless
+            # of who authored the PR. So a HUMAN PR that reaches this workflow via
+            # `pull_request: ready_for_review` is ALSO reviewed with the PAT, not
+            # just App-authored ones — compare token VALUES (the ground truth),
+            # not just PR_AUTHOR, so the eva#237 guard below gates on every case
+            # that actually uses the PAT.
+            if [ -n "$PAT_TOKEN" ] && [ "$AUTH_TOKEN" = "$PAT_TOKEN" ]; then
+              echo "is_pat=true" >> "$GITHUB_OUTPUT"
+              echo "Review will be posted via the default auth token, which resolves to the PAT this run (pull_request-triggered event forced it upstream in 'Set auth token')"
+            else
+              echo "is_pat=false" >> "$GITHUB_OUTPUT"
+              echo "Review will be posted via the default auth token (App token in use)"
+            fi
           fi
 
       # --- Guard: standing operator CHANGES_REQUESTED block (eva#237) ---
@@ -491,10 +506,18 @@ jobs:
       # #236 also touching a sensitive path stopped auto-merge — luck of the
       # path, not a guarantee.
       #
-      # Scoped to exactly the condition that picks the PAT in "Select review
-      # token" above (PR_AUTHOR == 'ievo-eva[bot]'), and to Eva's own verdict
-      # being APPROVE — a REQUEST_CHANGES verdict never overwrites a block
-      # with an approval, so it needs no guard.
+      # Scoped to steps.reviewtok.outputs.is_pat == 'true' — exactly the runs
+      # that actually post with the PAT, per "Select review token" above —
+      # and to Eva's own verdict being APPROVE; a REQUEST_CHANGES verdict
+      # never overwrites a block with an approval, so it needs no guard.
+      # NOT scoped to pr_author == 'ievo-eva[bot]' (an earlier version of
+      # this guard was, and missed a real case): "Set auth token" forces the
+      # PAT for every `pull_request`-triggered run regardless of author, so a
+      # HUMAN PR reaching this workflow via `pull_request: ready_for_review`
+      # is also reviewed with the PAT — a standing human CHANGES_REQUESTED on
+      # THEIR OWN PR could be overwritten by their own PAT-posted APPROVE
+      # under the same login, then auto-merged, with no author-based check to
+      # catch it.
       #
       # A genuine human CHANGES_REQUESTED must be told apart from Eva's OWN
       # prior CHANGES_REQUESTED from an earlier review cycle on this same PR
@@ -523,9 +546,13 @@ jobs:
       #
       # Reuses steps.reviewtok's already-selected token (not a fresh
       # secrets.EVA_PAT_GITHUB_TOKEN read): this step's own `if` requires
-      # pr_author == 'ievo-eva[bot]', the exact condition under which
-      # "Select review token" above resolves to the PAT — so by construction
-      # steps.reviewtok.outputs.token IS the PAT whenever this step runs.
+      # is_pat == 'true', so by construction steps.reviewtok.outputs.token IS
+      # the PAT whenever this step runs — `gh api user` below correctly
+      # resolves the operator's login in every case that reaches here.
+      # (Gating on is_pat rather than running unconditionally matters here
+      # too: `gh api user` errors on an App installation token, which would
+      # fail-closed and hold every PR reviewed with the App token instead of
+      # only the PAT-reviewed ones this guard exists for.)
       #
       # Known limitation (accepted, fail-closed direction): this reads the
       # review HISTORY, not live review state. If one of Eva's own later
@@ -537,7 +564,7 @@ jobs:
       # overwrite.
       - name: Check standing operator block
         id: opblock
-        if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large != 'true' && steps.review.outputs.decision == 'APPROVE' && steps.ctx.outputs.pr_author == 'ievo-eva[bot]'
+        if: steps.ctx.outputs.skip != 'true' && steps.pr.outputs.large != 'true' && steps.review.outputs.decision == 'APPROVE' && steps.reviewtok.outputs.is_pat == 'true'
         env:
           GH_TOKEN: ${{ steps.reviewtok.outputs.token }}
           REPO: ${{ steps.ctx.outputs.repo }}
