@@ -270,10 +270,18 @@ human objection. Only PR #236 also touching a sensitive path stopped an
 auto-merge — luck of the path, not a guarantee.
 
 Guard (`eva-review-pr.yml`'s "Check standing operator block" step): before
-posting a PAT-based cross-principal APPROVE (i.e. whenever `PR_AUTHOR ==
-'ievo-eva[bot]'` and Eva's own verdict is APPROVE), resolve the exact login the
-review token authenticates as (`gh api user`) — NOT an `author_association`
-filter. This file's own "Resolve PR context" precedent already showed
+posting a PAT-based cross-principal APPROVE (i.e. whenever `steps.reviewtok.
+outputs.is_pat == 'true'` and Eva's own verdict is APPROVE), resolve the exact
+login the review token authenticates as (`gh api user`) — NOT an
+`author_association` filter. `is_pat` is emitted by "Select review token" and
+is true whenever the token it selected actually equals the PAT — NOT the same
+as `PR_AUTHOR == 'ievo-eva[bot]'`: "Set auth token" also forces the token to
+the PAT for every `pull_request`-triggered run regardless of author, so a
+human PR reaching this workflow via `pull_request: ready_for_review` is
+reviewed with the PAT too. An earlier version of this guard gated on the
+author check alone and missed that case — a standing human CHANGES_REQUESTED
+on a human's own PR could be silently overwritten by their own PAT-posted
+APPROVE under the same login. This file's own "Resolve PR context" precedent already showed
 `author_association` is computed per-PR, not per role (the repo owner showed
 up as CONTRIBUTOR on PR #47), so filtering "human reviews" by MEMBER/OWNER
 would silently inherit that false negative and defeat the guard on exactly the
