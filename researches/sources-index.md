@@ -404,7 +404,7 @@ status: unchanged
 run_id: 30691757532
 ```
 
-**Summary:** Still "Cursor Start" (July 28, Cursor for iPad v3.11 entry) as the newest changelog item — no new plugin/MCP/hooks/skills capability shipped since. The July 10 cloud agent hooks (beforeSubmitPrompt/afterAgentResponse/afterAgentThought/stop/subagentStart) remain the last substantive extensibility change, already documented via F-2026-07-12-001/skills#367.
+**Summary:** Still "Cursor, now on iPad" (July 29, Cursor for iPad v3.11 client-availability entry) as the newest changelog item, with "Cursor Start" (July 28, regional pricing tier) just before it — no new plugin/MCP/hooks/skills capability shipped since. The July 10 cloud agent hooks (beforeSubmitPrompt/afterAgentResponse/afterAgentThought/stop/subagentStart) remain the last substantive extensibility change, already documented via F-2026-07-12-001/skills#367.
 
 History:
 - 2026-08-01T08:32:39Z — unchanged: re-fetched, still "Cursor Start"/Cursor for iPad (Jul 29 entry) as newest; no new plugin/MCP/skills capability shipped since
