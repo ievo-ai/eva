@@ -2544,4 +2544,61 @@ Unlike this same step's own `CHECKOUT_DIR=$(mktemp -d)` two paragraphs earlier, 
 
 ---
 
+## S-2026-08-02-001 — discover.mjs's --stack-file reads and echoes any filesystem path, no containment or size cap
+
+```yaml
+id: S-2026-08-02-001
+discovered_at: 2026-08-02T08:50:05Z
+run_id: 30739855161
+target_repo: ievo-ai/skills
+title: discover.mjs's --stack-file reads and echoes any filesystem path, no containment or size cap
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/543
+cwe: CWE-73
+confidence: medium
+location: plugins/ievo/scripts/discover.mjs:568 (readFileSync), :577 (raw echo on parse failure), :517/:604 (full stack_input echo to stdout)
+```
+
+`discover.mjs --stack-file <path>` reads any filesystem path with no containment check (unlike `scan_repo.mjs`'s `assertContained`) and no size cap (unlike `evolution_candidates.mjs`'s `MAX_TEXT_FILE_BYTES` — the exact fix already landed for the sibling `--text-file` flag as #523). A non-JSON target's first 200 chars are echoed to stderr; a JSON target's full content is echoed to stdout via `stack_input`. Independently identified as a next-priority candidate in the prior audit run (2026-08-01) before this run confirmed and filed it. Full detail in the filed issue.
+
+---
+
+## S-2026-08-02-002 — scrub.mjs never redacts Authorization/Cookie HTTP-header credential values
+
+```yaml
+id: S-2026-08-02-002
+discovered_at: 2026-08-02T08:50:05Z
+run_id: 30739855161
+target_repo: ievo-ai/skills
+title: scrub.mjs never redacts Authorization/Cookie HTTP-header credential values
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/544
+cwe: CWE-200
+confidence: medium
+location: plugins/ievo/scripts/scrub.mjs:143 (PROVIDER_SECRET_RE), :175 (NAME_ALT), :434 (scrub() pipeline)
+```
+
+`scrub()`'s redaction pipeline (`redactPemBlocks` → `redactProviderSecrets` → `redactNamedSecrets` → `redactUrlCredentials`) has no pass for the `Authorization: Bearer/Basic <token>` or `Cookie:`/`Set-Cookie:` header shape — `NAME_ALT`'s identifier list (`*_TOKEN/_KEY/_SECRET/_PASSWORD/_ID`, bare `PASSWORD|SECRET|TOKEN|APIKEY|API_KEY`) never matches the literal name `Authorization` or `Cookie`, and `PROVIDER_SECRET_RE` only catches the value if it happens to be independently provider-prefixed. A live bearer token, Basic-auth blob, or session cookie captured from a failed/denied tool call's `tool_input` (opt-in `evo-auto-enable` failure-capture hook) can reach `.ievo/evolution-candidates/<session-id>.jsonl` in cleartext, contradicting scrub.mjs's own "can never carry a live secret" header contract. Full detail in the filed issue.
+
+---
+
+## S-2026-08-02-003 — evolution.md's Step 5 SKIPPED report has no excerpt-containment guard, unlike its 4 siblings
+
+```yaml
+id: S-2026-08-02-003
+discovered_at: 2026-08-02T08:50:05Z
+run_id: 30739855161
+target_repo: ievo-ai/skills
+title: evolution.md's Step 5 SKIPPED report has no excerpt-containment guard, unlike its 4 siblings
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/545
+cwe: CWE-79
+confidence: medium
+location: plugins/ievo/agents/evolution.md Step 5 (~line 405)
+```
+
+`agents/evolution.md` Step 5's `SKIPPED` report interpolates a security-check-synthesized "top 1-2 flags" explanation — derived from freshly-fetched, potentially adversarial vendored content (Step 2.5's re-audit) — directly into the agent's final output, with no backtick-fence containment. All 4 sibling report-emitting agents in the same module (`security-auditor.md`, `vuln-scanner.md`, `deep-reviewer.md`, `review-retrospective.md`) carry this exact guard for the identical situation (report prose characterizing untrusted source content); `evolution.md` is the one gap. Companion to already-fixed #531 (`inspect/SKILL.md`). Independently flagged as a cheap next-priority candidate in the prior audit run (2026-08-01) before this run confirmed and filed it. Full detail in the filed issue.
+
+---
+
 
