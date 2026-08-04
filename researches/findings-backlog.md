@@ -2597,6 +2597,142 @@ confidence: medium
 location: plugins/ievo/agents/evolution.md Step 5 (~line 405)
 ```
 
+---
+
+## S-2026-08-04-001 — security-auditor.md's Rules never instruct redacting a real secret before quoting it into a public RED-verdict issue
+
+```yaml
+id: S-2026-08-04-001
+discovered_at: 2026-08-04T08:57:02Z
+run_id: 30893205742
+target_repo: ievo-ai/skills
+title: security-auditor.md's Rules never instruct redacting a real secret before quoting it into a public RED-verdict issue
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/556
+cwe: CWE-200
+confidence: high
+location: plugins/ievo/agents/security-auditor.md `## Rules` (~line 283-294)
+```
+
+`security-auditor.md`'s `## Rules` section has a `Cite specifically. Every flag needs file + excerpt + explanation` bullet but no equivalent of the `**Never echo raw secret values**` rule that `deep-reviewer.md` (line 253) and `vuln-scanner.md` (line 190) both carry verbatim in their own `## Rules`. If a scanned candidate contains a real, non-placeholder credential, Step 3's threat-pattern reasoning (this agent's own `## Your domain expertise` names `Credential exfiltration` as a primary hunt target) flags it and, per the `Cite specifically` instruction, would include the raw value in `flags[].excerpt` — which flows into `report_template.body` on a RED verdict, filed as a public, permanently-archived GitHub issue in the candidate's own (often third-party) repo per this same file's own "Excerpt containment" note. The audit itself would amplify the exposure it exists to catch. Independently re-verified against current source: confirmed no "never echo raw secret" / "redact the value" language exists anywhere in `security-auditor.md`, while the identical rule is present verbatim in both sibling agent files. Recommendation: add a bullet to `## Rules` mirroring `deep-reviewer.md`/`vuln-scanner.md`'s language — any real credential/token/key value must never appear verbatim in `flags[].excerpt` or `report_template.body`; redact the value (`AKIA****`) before the existing excerpt-fencing step.
+
+---
+
+## S-2026-08-04-002 — scrub.mjs's named-secret redaction only matches snake_case identifiers, missing camelCase credential keys entirely
+
+```yaml
+id: S-2026-08-04-002
+discovered_at: 2026-08-04T08:57:02Z
+run_id: 30893205742
+target_repo: ievo-ai/skills
+title: scrub.mjs's named-secret redaction only matches snake_case identifiers, missing camelCase credential keys entirely
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/557
+cwe: CWE-522
+confidence: high
+location: plugins/ievo/scripts/scrub.mjs:177 (NAME_ALT), :344 (redactNamedSecrets)
+```
+
+`NAME_ALT` (scrub.mjs:177) is `[A-Za-z0-9][A-Za-z0-9_]*_(?:TOKEN|KEY|SECRET|PASSWORD|ID)|PASSWORD|SECRET|TOKEN|APIKEY|API_KEY` — the suffix alternative requires a literal underscore immediately before the secret-shaped keyword, and the bare alternative only matches a name that IS one of those keywords standalone. A camelCase identifier such as `accessToken`, `authToken`, `clientSecret`, `refreshToken`, `accessKeyId`, or `secretAccessKey` — a very common shape in JS/Node SDK error output (AWS SDK, Stripe, Twilio config dumps) — has no underscore boundary before the suffix and isn't a whole-word match either, so `ASSIGNMENT_RE`'s `\b(NAME_ALT)\b` never fires on it. Independently re-verified against current source at scrub.mjs:177 — confirmed the regex has no case-transition alternative, only the literal-underscore suffix form. Such a value passes through all five current redaction passes (`redactPemBlocks`, `redactProviderSecrets`, `redactNamedSecrets`, `redactHttpCredentialHeaders`, `redactUrlCredentials`) unredacted and is persisted in cleartext to `.ievo/evolution-candidates/<session-id>.jsonl` via the evo-auto failure-capture path, contradicting the file's own header contract. Recommendation: extend `NAME_ALT` to also match a lower→upper case-transition boundary before the secret-shaped suffix (e.g. `(?:_|(?<=[a-z0-9]))(?:Token|Key|Secret|Password|Id)\b` case-insensitive), matching `accessToken`/`clientSecret`/`accessKeyId`/`secretAccessKey` the same way the existing form matches `ACCESS_TOKEN`/`CLIENT_SECRET`. Add regression tests for at least one AWS-SDK-shaped and one generic camelCase example, mirroring this file's existing per-pattern test discipline (skills#507/#493).
+
+---
+
+## F-2026-08-04-001 — Document CC v2.1.221's file-level sandbox.credentials mask mode in security-check/vuln-scan's Sandbox hardening sections
+
+```yaml
+id: F-2026-08-04-001
+discovered_at: 2026-08-04T08:57:02Z
+run_id: 30893205742
+target_repo: ievo-ai/skills
+title: Document CC v2.1.221's file-level sandbox.credentials mask mode in security-check/vuln-scan's Sandbox hardening sections
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/559
+effort: low
+scope: multi-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases/tag/v2.1.221: 'Added `mode: "mask"` for sandbox credential files on Linux and WSL — sandboxed commands read a sentinel copy (the whole file, or just the spans captured by an `extract` regex) while the sandbox proxy substitutes the real value on egress; on macOS file masking falls back to `deny`'
+```
+
+# Proposal: Document file-level `sandbox.credentials` mask mode (CC v2.1.221) in the Sandbox hardening sections
+
+## Summary
+
+Claude Code v2.1.221 extended `sandbox.credentials`' `"mode": "mask"` option — previously documented (both in Claude Code's own docs and in this repo) as an `envVars`-only capability — to **file** entries on Linux/WSL. `security-check/SKILL.md`, `vuln-scan/SKILL.md`, and `AGENTS.md` § Security model all currently show `files: [{path, mode: "deny"}]` as the only file mode, with mask called out explicitly as an envVars-only alternative. That's now stale for operators on Linux/WSL.
+
+## Problem / Capability gap
+
+An operator running `/ievo:security-check` or `/ievo:vuln-scan` against an untrusted candidate wants the deep-scan sub-agent to be able to *use* a credential-bearing file that some legitimate step in the scan genuinely needs read access to (e.g. a scan step that shells out to a CLI which authenticates via a config file), while still preventing the sandboxed Bash command from ever seeing the real secret value. Before v2.1.221, the only file-level option was `"deny"` — an outright block, which is safe but can break a scan step that has a legitimate (if narrow) need to invoke a tool that reads that file to authenticate. `"mask"` for files (Linux/WSL) closes that gap: the sandboxed command gets a working sentinel substitute, the sandbox proxy swaps in the real value only on the way out to the legitimate destination, and the real secret is never exposed inside the sandboxed process's view of the filesystem. iEvo's own recommended operator config currently doesn't mention this option exists, so an operator reading `security-check/SKILL.md`'s "Sandbox hardening" section today would reach for the coarser `deny`-only file model and either over-block a legitimate scan step or not adopt `sandbox.credentials` for files at all where `mask` would have been the better fit.
+
+## Evidence
+
+- `https://github.com/anthropics/claude-code/releases/tag/v2.1.221`: "Added `mode: 'mask'` for sandbox credential files on Linux and WSL — sandboxed commands read a sentinel copy (the whole file, or just the spans captured by an `extract` regex) while the sandbox proxy substitutes the real value on egress; on macOS file masking falls back to `deny`."
+
+## Proposed solution
+
+Update three locations, each adding a short paragraph/bullet (no structural change):
+
+1. `plugins/ievo/skills/security-check/SKILL.md` § "Sandbox hardening" — "Credential reads" bullet (~line 44-52): after the existing `files: [{path, mode: "deny"}]` JSON example, add a note that Claude Code v2.1.221+ also supports `"mode": "mask"` for file entries on Linux/WSL (sandboxed commands get a sentinel copy, the real value is substituted only on egress by the sandbox proxy; macOS falls back to `deny` for files), mirroring the existing `envVars` mask-mode explanation already in this same section one paragraph below.
+2. `plugins/ievo/skills/vuln-scan/SKILL.md` — same "Credential reads" bullet, same addition (this file duplicates the security-check wording almost verbatim per the existing pattern).
+3. `AGENTS.md` § Security model's `sandbox.credentials` bullet (~line 295) — update the `{files: [{path, mode: "deny"}], envVars: [{name, mode: "deny"|"mask"}]}` shape description to `{files: [{path, mode: "deny"|"mask" (mask: Linux/WSL only, v2.1.221+)}], envVars: [{name, mode: "deny"|"mask"}]}`, and add one sentence noting the platform caveat (macOS file masking falls back to deny).
+
+No new commands, no new frontmatter, no behavior change to iEvo's own code — purely bringing the documented operator-configuration guidance current with the underlying platform capability, consistent with how this repo has handled every other `sandbox.credentials`-adjacent platform update (v2.1.187 initial mask-for-envVars documentation is the direct precedent for this exact pattern).
+
+## Files affected
+
+| File | Change | Notes |
+|------|--------|-------|
+| plugins/ievo/skills/security-check/SKILL.md | modified | Add file-level mask-mode note + platform caveat to "Credential reads" bullet |
+| plugins/ievo/skills/vuln-scan/SKILL.md | modified | Same addition, mirrors security-check's wording |
+| AGENTS.md | modified | Update `sandbox.credentials` bullet's JSON shape description + platform caveat |
+
+## API / UX surface
+
+None — pure documentation update to existing "Sandbox hardening" operator-configuration guidance sections. No new skill/command/flag.
+
+## Acceptance criteria
+
+- [ ] `security-check/SKILL.md`'s Credential reads bullet documents file-level `mode: "mask"` (Linux/WSL, v2.1.221+) alongside the existing `deny` option
+- [ ] `vuln-scan/SKILL.md`'s equivalent bullet carries the same addition
+- [ ] `AGENTS.md` § Security model's `sandbox.credentials` bullet reflects the updated shape and platform caveat
+- [ ] No version bump required beyond what AGENTS.md's own "infra-only PRs" rule would apply (this touches `plugins/ievo/**` — SKILL.md files — so it DOES need the standard version-bump treatment: verify against AGENTS.md § Version bumping before merging, this is a plugin-file change, not an infra-only one)
+
+## Effort estimate
+
+- Scope: multi-file
+- Effort: low (~20-30 min — two near-identical doc bullets + one AGENTS.md shape update)
+- Risk: low (pure documentation, no code path change)
+
+## Open questions for the operator
+
+- Should the `extract` regex sub-feature (masking only specific spans of a file rather than the whole file) be documented too, or is the whole-file mask-mode note sufficient for now? The release note mentions it but doesn't give a worked example — may be worth a follow-up once Claude Code's own docs page for `sandbox.credentials` is updated with the file-mask example (as of this scan, `code.claude.com/docs/en/sandboxing#protect-credentials` was not independently re-fetched this run; verify the docs page reflects v2.1.221 before writing the final wording).
+
+## Related
+
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/30893205742
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: F-2026-08-04-001`
+
+---
+Filed by Eva research run 30893205742 against `ievo-ai/eva` (research repo). Triage with `accepted` / `rejected` / `needs-discussion` labels.
+
+---
+
+## S-2026-08-04-003 — scrub.mjs's provider-secret patterns miss Stripe's underscore-delimited key formats (sk_live_/pk_live_/rk_live_)
+
+```yaml
+id: S-2026-08-04-003
+discovered_at: 2026-08-04T08:57:02Z
+run_id: 30893205742
+target_repo: ievo-ai/skills
+title: scrub.mjs's provider-secret patterns miss Stripe's underscore-delimited key formats (sk_live_/pk_live_/rk_live_)
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/558
+cwe: CWE-522
+confidence: high
+location: plugins/ievo/scripts/scrub.mjs:145 (PROVIDER_SECRET_RE), :157 (redactProviderSecrets)
+```
+
+`PROVIDER_SECRET_RE` (scrub.mjs:145-155) lists exactly six fixed alternatives: GitHub `gh[pousr]_`, `github_pat_`, OpenAI-style `sk-` (hyphen), Slack `xox[abprs]-`, AWS `AKIA`, and JWT `eyJ...`. Stripe secret/publishable/restricted keys use an underscore after `sk`/`pk`/`rk` (e.g. `sk_live_51H8xJ2...`), not the hyphen the OpenAI alternative requires, so the regex never matches them. Independently re-verified against current source at scrub.mjs:145-155 — confirmed the alternation list has no Stripe-shaped entry (and no npm `npm_`, Google `AIza`, SendGrid `SG.`, or Slack-webhook-URL entry either, though those are noted as lower-priority companions, not part of this finding's exploit chain). A bare mention of a Stripe key in captured failure text (e.g. `Stripe error: Invalid API Key provided: sk_live_51H8xJ2GZ...`) has no secret-shaped name preceding it and no URL/header context, so it also evades `redactNamedSecrets`/`redactHttpCredentialHeaders`/`redactUrlCredentials` — it survives the full pipeline unredacted and is persisted in cleartext to `.ievo/evolution-candidates/<session-id>.jsonl`. Recommendation: add Stripe-shaped alternatives to `PROVIDER_SECRET_RE` (`\b[sp]k_(?:live|test)_[A-Za-z0-9]{16,255}\b`, `\brk_live_[A-Za-z0-9]{16,255}\b`), each with its own regression test per the file's existing per-pattern discipline.
+
 `agents/evolution.md` Step 5's `SKIPPED` report interpolates a security-check-synthesized "top 1-2 flags" explanation — derived from freshly-fetched, potentially adversarial vendored content (Step 2.5's re-audit) — directly into the agent's final output, with no backtick-fence containment. All 4 sibling report-emitting agents in the same module (`security-auditor.md`, `vuln-scanner.md`, `deep-reviewer.md`, `review-retrospective.md`) carry this exact guard for the identical situation (report prose characterizing untrusted source content); `evolution.md` is the one gap. Companion to already-fixed #531 (`inspect/SKILL.md`). Independently flagged as a cheap next-priority candidate in the prior audit run (2026-08-01) before this run confirmed and filed it. Full detail in the filed issue.
 
 ---
