@@ -2601,4 +2601,61 @@ location: plugins/ievo/agents/evolution.md Step 5 (~line 405)
 
 ---
 
+## S-2026-08-05-001 — commands/vuln-scan.md's BASE_BRANCH resolution is interpolated unvalidated into a nested Bash command substitution
+
+```yaml
+id: S-2026-08-05-001
+discovered_at: 2026-08-05T09:00:00Z
+run_id: 30990090235
+target_repo: ievo-ai/skills
+title: commands/vuln-scan.md's diff-scope BASE_BRANCH resolution has no charset validation before being interpolated into git diff/git merge-base Bash commands
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/565
+cwe: CWE-78
+confidence: high
+location: plugins/ievo/commands/vuln-scan.md:34-42 (Scope determination — --diff default)
+```
+
+`--diff` scope resolution reads `BASE_BRANCH` from `git symbolic-ref refs/remotes/origin/HEAD` (falling back to `gh repo view --json defaultBranchRef`) — both ultimately sourced from the remote's own reported default-branch pointer, which an attacker controlling (or having compromised) the `origin` remote can set to a ref name containing shell metacharacters (git's ref-name grammar forbids only control chars/space/`~^:?*[\`/`..`/leading-trailing-`/`/trailing-`.lock` — backticks, `$()`, `;`, `&`, `|` are all legal). `BASE_BRANCH` is then interpolated, unvalidated, into `git diff --name-only "$(git merge-base HEAD "origin/$BASE_BRANCH")"..HEAD` with no allowlist check first. This is exactly the pattern four-plus sibling files in this same plugin (`evo/SKILL.md` Step 2, `security-check/SKILL.md` Step 2, `index-repos/SKILL.md` Step 2, `init/references/install-protocol.md`) already validate before interpolating a ref/owner/repo value into a Bash command — `commands/vuln-scan.md` is the one gap. Full exploit chain, preconditions, and recommendation in the filed issue.
+
+---
+
+## S-2026-08-05-002 — inspect/SKILL.md's Step 1 interpolates unvalidated `<owner>/<repo>` into the first `gh api` Bash call
+
+```yaml
+id: S-2026-08-05-002
+discovered_at: 2026-08-05T09:00:00Z
+run_id: 30990090235
+target_repo: ievo-ai/skills
+title: inspect/SKILL.md Step 1 has no charset validation on <owner>/<repo> before the first gh api Bash call
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/566
+cwe: CWE-78
+confidence: high
+location: plugins/ievo/skills/inspect/SKILL.md:43 (Step 1 — Resolve the repo and default ref)
+```
+
+Step 1 builds `gh api "repos/<owner>/<repo>" --jq '.default_branch'` from the raw user-supplied `<owner>/<repo>` argument — which this same file's own § Input section acknowledges may be "typed, or pasted from an untrusted README recommending a repo" (line 53) — with no charset check beforehand. The file's later `<ref>`/`<path>` values (Steps 1/4a-4e) ARE validated against `^[A-Za-z0-9._/-]+$` before Bash interpolation, and its own line 334 rationalizes skipping `<owner>/<repo>` validation on the premise "GitHub's own naming rules admit no Markdown metacharacter" — but that rationale only holds for an already-resolved, real repository; at Step 1 the argument hasn't been confirmed to correspond to a real repo yet; nothing stops a crafted string containing shell metacharacters from reaching the Bash command line before the `gh api` call can even reject it as a 404. Four-plus sibling files in this same plugin (`evo/SKILL.md`, `security-check/SKILL.md`, `index-repos/SKILL.md`, `init/references/install-protocol.md`) already validate `<owner>` against `^[A-Za-z0-9][A-Za-z0-9-]{0,38}$` and `<repo>` against `^[A-Za-z0-9._-]{1,100}$` before their own first `gh api` call for exactly this reason. Full exploit chain, preconditions, and recommendation in the filed issue.
+
+---
+
+## S-2026-08-05-003 — init/SKILL.md Step 5b embeds manifest-derived JSON directly inside a single-quoted echo argument
+
+```yaml
+id: S-2026-08-05-003
+discovered_at: 2026-08-05T09:00:00Z
+run_id: 30990090235
+target_repo: ievo-ai/skills
+title: init/SKILL.md Step 5b's discover.mjs invocation embeds untrusted manifest-derived JSON inside a single-quoted echo argument instead of passing it via a file
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/567
+cwe: CWE-78
+confidence: high
+location: plugins/ievo/skills/init/SKILL.md:500-503 (Step 5b — Invoke discover.mjs via Bash)
+```
+
+Step 5b runs `echo '<stack-input-json>' | node "${CLAUDE_PLUGIN_ROOT}/scripts/discover.mjs" --limit 50 --concurrency 8`, where `<stack-input-json>` is built in Step 5a from Step 4's manifest-derived `deps`/`categories`/`frameworks` values — extracted from the target project's own (potentially not-yet-vetted, since `/ievo:init` is explicitly the first-run setup flow) dependency manifest. Several supported manifest formats legitimately carry single quotes in a dependency line (e.g. `requirements.txt` PEP 508 environment markers like `numpy; python_version=='3.9'`). Unlike every other cross-repo-boundary fetch in this plugin — which route untrusted text through the Write tool + a fixed temp-file path rather than inline shell text (`feedback/SKILL.md` Step 6's explicit "Write the body via the Write tool, NOT via `--body \"...\"` inline" being the clearest precedent) — this invocation has no equivalent safe-passing instruction: the JSON is textually embedded into the single-quoted `echo` argument as the executing agent constructs the literal Bash command text. A single quote anywhere inside any `deps`/`categories`/`frameworks` string terminates the outer single-quoted string early, and this session's own Bash tool does not persist shell state between separate invocations, so the executing agent must re-embed the resolved literal JSON text (not a persisted shell variable) into this command — exactly the condition under which the embedded quote becomes live shell syntax. Full exploit chain, preconditions, and recommendation in the filed issue.
+
+---
+
 
