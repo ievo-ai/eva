@@ -2658,4 +2658,125 @@ Step 5b runs `echo '<stack-input-json>' | node "${CLAUDE_PLUGIN_ROOT}/scripts/di
 
 ---
 
+## F-2026-08-07-001 — Publish a git-free `archive`-source install path via cut-release.yml (Claude Code v2.1.224)
+
+```yaml
+id: F-2026-08-07-001
+discovered_at: 2026-08-07T07:35:16Z
+run_id: 31157354164
+target_repo: ievo-ai/skills
+title: Attach a zip archive + SHA-256 digest to each cut-release.yml release so iEvo can be installed via Claude Code's new archive plugin source, with no git/npm required on the user's machine
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/585
+effort: medium
+scope: multi-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.224 (2026-08-07) added an "archive" plugin source — "install plugins from a zip over HTTPS without git or npm, with optional SHA-256 pinning"
+  - https://code.claude.com/docs/en/plugin-marketplaces#zip-archives: full archive-source spec verified directly — marketplace entry fields are `{"source": "archive", "url": "<https-zip-url>", "sha256": "<64-hex-digest>"}`; Claude Code looks for `.claude-plugin/` at the archive's top level or one folder down; max 256 MiB; `url` must be HTTPS (rejects loopback/link-local/cloud-metadata hosts); a `sha256` mismatch fails the install with "Plugin archive integrity check failed"
+```
+
+iEvo's ONLY current Claude Code install path requires git — `.claude-plugin/marketplace.json`'s single plugin entry uses `"source": "./plugins/ievo"`, a relative path resolved against a git checkout of the marketplace repo. Every documented install method (README § Developer install, `/plugin marketplace add ievo-ai/skills`) assumes the user's machine has git available. Claude Code v2.1.224 shipped a new `archive` source type specifically for "installs work without git or npm on the user's machine" — hosting a zip on any static file server (or, for this repo, a GitHub Release asset, already served over HTTPS with a stable per-tag URL) with an optional `sha256` pin that Claude Code verifies before install, refusing on mismatch.
+
+`cut-release.yml` already builds a GitHub Release with a matching `vX.Y.Z` tag on every version bump (from the `CHANGELOG.md` section). Attaching a zip of `plugins/ievo/` (containing `.claude-plugin/plugin.json` at its top, or one folder down — both layouts are accepted per the docs) as a release asset, plus its SHA-256 digest recorded somewhere reproducible (release notes, or a companion `marketplace-archive.json` snippet), would let a user without git — a restricted corporate sandbox, an air-gapped-except-HTTPS environment, a CI runner with no git credential configured — install iEvo by pointing `/plugin marketplace add` (or a documented direct-archive command) at that release asset's URL, with SHA-256 supply-chain verification built into the platform rather than left to the user.
+
+### Proposed solution
+
+- Extend `cut-release.yml`'s release-cut job: after `gh release create`, `zip` the `plugins/ievo/` directory (preserving the `.claude-plugin/` top-level layout the docs describe) into `ievo-<version>.zip`, compute its SHA-256 (`sha256sum`), and `gh release upload` both the zip and a small text/JSON file recording the digest as release assets.
+- Document in README.md (§ "Keep iEvo up to date" is the existing home for alternate-install-method notes, per the Codex auto-upgrade precedent already there) a git-free install path: either a second `archive`-typed marketplace entry users can add via `extraKnownMarketplaces`, or the direct per-release archive URL + digest for a manual `/plugin install` invocation — exact UX is an open question below.
+- No plugin-file changes required — this is release-tooling + docs only, so per AGENTS.md's own "Infra-only PRs do NOT bump the version" rule this would ship without a version bump of its own (it rides along with whatever version bump triggered the release it's attached to).
+
+### Files affected
+
+| File | Change | Notes |
+|------|--------|-------|
+| `.github/workflows/cut-release.yml` | modified | Add zip-build + SHA-256 + `gh release upload` steps after the existing `gh release create` |
+| `README.md` | modified | Document the git-free archive install path |
+
+### API / UX surface
+
+A user without git runs something like `/plugin marketplace add https://github.com/ievo-ai/skills/releases/latest/download/marketplace-archive.json` (exact command shape depends on whether iEvo ships a second marketplace manifest or documents raw archive-source JSON for `extraKnownMarketplaces` — see open questions), instead of the current git-based `/plugin marketplace add ievo-ai/skills`.
+
+### Acceptance criteria
+
+- [ ] `cut-release.yml` attaches a zip of `plugins/ievo/` + its SHA-256 digest to every cut release
+- [ ] The zip's internal layout matches one of the two accepted archive layouts (verified against a real Claude Code v2.1.224+ install, not just the docs)
+- [ ] README documents the git-free install path with a concrete, copy-pasteable command
+- [ ] No regression to the existing git-based marketplace install path
+
+### Effort estimate
+
+- Scope: multi-file
+- Effort: medium (~2 hr — workflow scripting + a real install verification, not just docs)
+- Risk: low (additive; the existing git-based install path is untouched)
+
+### Open questions for the operator
+
+- Should this ship as a second entry in the SAME `marketplace.json` (git-based `ievo` + an `archive`-based sibling), or as an entirely separate archive-only marketplace manifest for users who explicitly want the git-free path?
+- Is a per-release SHA-256 pin worth the maintenance cost (every release needs its digest re-published), or would an unpinned `archive` entry (accept whatever bytes are currently at the URL, per the docs' "digest of the downloaded file when you set no pin" fallback) be an acceptable v1?
+- Does this warrant pointing at `releases/latest/download/<asset>` (always-current, but the docs note "changes when you change the pin" only applies WITH a pin — an unpinned latest-tracking URL means Claude Code updates whenever the hosted bytes change, worth confirming this is the intended semantics) vs. a version-pinned per-tag URL?
+
+### Related
+
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/31157354164
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: F-2026-08-07-001`
+
+---
+
+## S-2026-08-07-001 — evolution.md's agent/skill vendor-fetch (Glob+Read+Write) has no per-file symlink containment check
+
+```yaml
+id: S-2026-08-07-001
+discovered_at: 2026-08-07T00:00:00Z
+run_id: 31157354164
+target_repo: ievo-ai/skills
+title: evolution.md's Glob+Read+Write vendor path (Step 2 sub-step 5) never checks individual enumerated files for symlinks pointing outside $CHECKOUT_DIR before Reading/Writing them
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/582
+cwe: CWE-59
+confidence: medium
+location: plugins/ievo/agents/evolution.md:183 (Step 2 sub-step 5)
+```
+
+`/ievo:evolution` vendors an agent/skill via `git clone` into a fresh `mktemp -d` checkout, then enumerates a skill directory with Glob (`**/*`) and Reads each file. A malicious/compromised source repo can ship a symlinked file inside the skill directory resolving to a local secret (`~/.ssh/id_rsa`, `~/.aws/credentials`); nothing checks individual enumerated files for symlinks before Read/Write, so on a GREEN re-audit verdict the secret's content is written into the user's own project tree under an innocuous vendored filename. Same vulnerability class already fixed with `lstatSync` guards in `validate_skills.mjs`/`validate_agents.mjs`/`scan_repo.mjs`, never carried into this agent-instruction-driven vendor path. Companion to S-2026-08-07-002 (same root cause, `update.md`). Full exploit chain, preconditions, and recommendation in the filed issue.
+
+---
+
+## S-2026-08-07-002 — commands/update.md's containment check covers only the top-level source.path, not files nested inside it
+
+```yaml
+id: S-2026-08-07-002
+discovered_at: 2026-08-07T00:00:00Z
+run_id: 31157354164
+target_repo: ievo-ai/skills
+title: update.md's Step 2 sub-step 3 containment check validates only the top-level source.path directory, never re-checking individual files sub-step 5's Glob enumeration returns for symlinks
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/583
+cwe: CWE-59
+confidence: medium
+location: plugins/ievo/commands/update.md:67 (Step 2 sub-step 5)
+```
+
+`/ievo:update` validates that `$CHECKOUT_DIR/<source.path>` resolves inside `$CHECKOUT_DIR` once, at the directory level, before Glob-enumerating and Reading/Writing every file inside it. A symlink added inside that already-verified directory (by an attacker-controlled or later-compromised upstream) passes the existing gate untouched and gets its target content read/staged. Same root cause and fix pattern as S-2026-08-07-001 (`evolution.md`), which uses the identical Glob+Read+Write vendor pattern but lacks even the top-level check this file has. Full exploit chain, preconditions, and recommendation in the filed issue.
+
+---
+
+## S-2026-08-07-003 — check-coverage.mjs reads coverage.lcov with no symlink/size guard
+
+```yaml
+id: S-2026-08-07-003
+discovered_at: 2026-08-07T00:00:00Z
+run_id: 31157354164
+target_repo: ievo-ai/skills
+title: check-coverage.mjs's main() reads coverage.lcov via raw readFileSync, skipping the safeReadFileSync symlink+size guard every sibling PR-facing validator script uses
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/584
+cwe: CWE-59
+confidence: medium
+location: .github/scripts/check-coverage.mjs:115 (main)
+```
+
+`coverage-gate.yml` runs unconditionally on any fork PR. A fork PR can commit a git symlink at `coverage.lcov` pointing at an endless-read device (`/dev/zero`); `check-coverage.mjs`'s `main()` reads it with plain `readFileSync`, no `lstatSync` no-follow guard and no size cap — unlike every sibling script in the same directory (`validators/*.mjs`, `check-version-bump.mjs`), which all route reads through `safeReadFileSync` from `_safe-read.mjs` for exactly this reason. Buffering an unbounded read hangs the job until its 15-minute timeout — a zero-cost, review-gate-free DoS against the coverage gate, repeatable by any external contributor. Full exploit chain, preconditions, and recommendation in the filed issue.
+
+---
+
 
