@@ -2658,4 +2658,67 @@ Step 5b runs `echo '<stack-input-json>' | node "${CLAUDE_PLUGIN_ROOT}/scripts/di
 
 ---
 
+## S-2026-08-08-001 — scan_repo.mjs crashes uncaught on a zero-commit repo, unlike its sibling scripts' mainSafe() pattern
+
+```yaml
+id: S-2026-08-08-001
+discovered_at: 2026-08-08T07:15:17Z
+run_id: 31245137764
+target_repo: ievo-ai/skills
+title: getCommitSha/getLastCommitDate in scan_repo.mjs's main() throw uncaught on a zero-commit repo, with no top-level catch unlike sibling scripts
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/599
+cwe: CWE-20
+confidence: high
+location: plugins/ievo/scripts/scan_repo.mjs:840-841 (main, calls to getCommitSha/getLastCommitDate)
+```
+
+`/ievo:vuln-scan --module` dogfooding (eva#165), independently re-verified by direct read before filing (`sed -n '825,845p' plugins/ievo/scripts/scan_repo.mjs`). `main()`'s two preceding steps (`checkoutOrRefresh`, `assertCheckoutContained`) are each wrapped in their own try/catch with a graceful `errLog(...); return exit(2)` — but the immediately following calls, `getCommitSha(repo, execImpl)` and `getLastCommitDate(repo, execImpl)` (lines 840-841), run `git log`/`git rev-parse` with the module's default `run()` behavior of `check: true`, so a non-zero exit throws, and nothing catches it: `scan_repo.mjs`'s CLI entry guard is a bare `if (isCliEntry(...)) { main(); }` (confirmed via `grep -n "mainSafe\|isCliEntry("` — no `mainSafe` anywhere in this file), unlike `discover.mjs` and `evolution_candidates.mjs` in the same module, both of which wrap their entry point in an explicit `mainSafe()` catch-all built for exactly this kind of unanticipated throw. A public repository with zero commits (unborn HEAD) — or any other post-clone state where `git log -1`/`git rev-parse --short HEAD` fail — reaches this code path after a successful shallow clone, since `checkoutOrRefresh` only verifies the clone itself succeeded, not that the resulting repo has commit history.
+
+**Recommendation**: wrap the `getCommitSha`/`getLastCommitDate`/`getDefaultBranch`/`detectLayout` block (scan_repo.mjs:840-843) in the same try/catch + graceful `exit(2)` pattern already used two blocks above for `checkoutOrRefresh`/`assertCheckoutContained`, or add a `mainSafe()` wrapper mirroring `discover.mjs`/`evolution_candidates.mjs` and route the file's final `if (isCliEntry(...)) { main(); }` entry guard through it.
+
+---
+
+## S-2026-08-08-002 — CONTROL_CHAR_RE / escapeMdCell strip ASCII control bytes only, not Unicode bidi-override or zero-width characters
+
+```yaml
+id: S-2026-08-08-002
+discovered_at: 2026-08-08T07:15:17Z
+run_id: 31245137764
+target_repo: ievo-ai/skills
+title: CONTROL_CHAR_RE (validate_agents.mjs, validate_skills.mjs) and escapeMdCell (scan_repo.mjs) strip ASCII control bytes only, leaving Unicode bidi-override and zero-width characters unfiltered — Trojan-Source-style spoofing risk
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/600
+cwe: CWE-116
+confidence: medium
+location: plugins/ievo/scripts/scan_repo.mjs:316-327 (escapeMdCell), validate_agents.mjs:76 (CONTROL_CHAR_RE), validate_skills.mjs:70 (CONTROL_CHAR_RE)
+```
+
+`/ievo:vuln-scan --module` dogfooding (eva#165), independently re-verified by direct read before filing — confirmed all three definitions are the identical `/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g`, the ASCII C0 control range plus DEL only. None strip Unicode bidirectional-override characters (U+202E RIGHT-TO-LEFT OVERRIDE, U+2066-U+2069 isolates) or zero-width characters (U+200B/U+200C/U+200D/U+FEFF). A repository's skill/agent frontmatter (`name`, `description`, `author`, `license`) or `plugin.json` fields can carry these code points, which survive `parseFrontmatter()`/`escapeMdCell()` into the rendered community-index Markdown (`scan_repo.mjs`) or CI/pre-commit violation output (`validate_agents.mjs`/`validate_skills.mjs`) — a Trojan-Source-style spoof that can make a malicious hook command, MCP endpoint, or skill name visually reorder or hide in a way that reads as benign to the human reviewer, who `scan_repo.mjs`'s own header comment identifies as the actual security gate for community-index content (`security-auditor` reviews before install). This exact gap has recurred across 5+ consecutive audit runs since 2026-07-30 without being filed (most recently the Aug 5 report's own "Notes for next run"), consistently losing the security-finding cap to higher-blast-radius candidates.
+
+**Recommendation**: extend the `.replace()` chain in `scan_repo.mjs`'s `escapeMdCell` (line 319) and the `CONTROL_CHAR_RE` constants in `validate_agents.mjs`:76 / `validate_skills.mjs`:70 to also strip `/[​-‏‪-‮⁠-⁩﻿]/g`, keeping all three definitions in sync as they already are for the ASCII range.
+
+---
+
+## S-2026-08-08-003 — discover.mjs and scan_repo.mjs echo untrusted CLI input/stdin to stderr with no control-character stripping
+
+```yaml
+id: S-2026-08-08-003
+discovered_at: 2026-08-08T07:15:17Z
+run_id: 31245137764
+target_repo: ievo-ai/skills
+title: discover.mjs's --stack-file path/stdin content and scan_repo.mjs's invalid args.repo are echoed to stderr unstripped, unlike validate_agents.mjs/validate_skills.mjs's CONTROL_CHAR_RE-guarded log() calls
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/601
+cwe: CWE-117
+confidence: medium
+location: "discover.mjs:669 (stack-file read-failure message), :679 (stack-file parse-failure message), :693-694 (stdin parse-failure + first-200-chars echo); scan_repo.mjs:817 (invalid args.repo message)"
+```
+
+`/ievo:vuln-scan --module` dogfooding (eva#165), independently re-verified by direct read before filing. `discover.mjs`'s `main()` builds three error messages from attacker-influenceable input with no stripping: the `--stack-file` read-failure and parse-failure branches interpolate the raw `args.stackFile` CLI argument (line 669: `` `Error: cannot read stack file '${args.stackFile}': ...` ``; line 679 via `inputSource`), and the stdin parse-failure branch echoes up to 200 raw characters of `stdinText` (line 694: `` `First 200 chars: ${stdinText.slice(0, 200)}` ``) — the file's own header comment documents `--stack-file` as untrusted input reachable via a compromised/prompt-injected agent turn, and its `--help` text documents the stdin form as a supported invocation carrying manifest-derived `deps` content. Separately, `scan_repo.mjs`'s `main()` echoes the raw, already-known-invalid `args.repo` CLI argument unstripped on validation failure (line 817: `` `Error: repo must be in <owner>/<repo> format, got '${args.repo ?? ""}'` ``) — the value most likely to carry attacker-chosen characters, since it just failed the owner/repo charset check. None of the four sites apply the `CONTROL_CHAR_RE`-style filter `validate_agents.mjs`/`validate_skills.mjs` already use before their own `log()`/`console.error` calls in this same plugin.
+
+**Recommendation**: apply a `CONTROL_CHAR_RE`-style filter (`/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g`, extended per S-2026-08-08-002 above if that lands first) to `args.stackFile`, `stdinText`, and `args.repo` before interpolating them into the four `errLog()`/error-message call sites listed above.
+
+---
+
 
