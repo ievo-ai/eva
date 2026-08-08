@@ -36,14 +36,15 @@ run_id: <GitHub Actions run ID or null>
 ## https://www.anthropic.com/news
 
 ```yaml
-last_scan: 2026-08-05T09:05:00Z
-status: unchanged
-run_id: 30990090235
+last_scan: 2026-08-08T00:00:00Z
+status: changed
+run_id: 31245137764
 ```
 
-**Summary:** No items published after July 24, 2026 (Claude Opus 5) as of this scan. Still the newest model-relevant item; no Claude Code API or skill-format change.
+**Summary:** 3 new items since Jul 24 (Opus 5): Aug 7 "Improving Fable 5's biology safeguards" (safety post, non-technical), Aug 4 "Tino Cuéllar to join as Chief Global Affairs Officer" (org announcement), Jul 30 "Investigating three real-world incidents in our cybersecurity evaluations" (already logged on the Aug 1 scan line below). None are Claude Code API or skill-format changes.
 
 History:
+- 2026-08-08T00:00:00Z — changed: Aug 7 Fable 5 safeguards post, Aug 4 CGAO hire announcement — both non-technical, no iEvo action
 - 2026-08-05T09:05:00Z — unchanged: re-fetched, no items newer than Jul 24 (Opus 5); no iEvo action
 - 2026-08-02T08:50:05Z — unchanged: re-fetched, no items newer than Jul 24 (Opus 5); no iEvo action
 - 2026-08-01T08:32:39Z — unchanged: re-fetched, no items newer than Jul 27; no iEvo action
@@ -87,14 +88,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-08-05T09:05:00Z
+last_scan: 2026-08-08T00:00:00Z
 status: changed
-run_id: 30990090235
+run_id: 31245137764
 ```
 
-**Summary:** v2.1.222 (Aug 4) now latest — `gh api`-verified, two releases since v2.1.220 (v2.1.221 Aug 3, v2.1.222 Aug 4). v2.1.221 highlights: `sandbox.credentials` file-level `mode: "mask"` (Linux/WSL; macOS falls back to `deny`) — already the tracked open finding F-2026-08-0x/skills#559, no new action; zsh `[[ ]]` regex Bash-permission-bypass fix; PowerShell quoted-path permission-check fix; `claude-api` skill gained a `prompt-audit` subcommand. v2.1.222 highlights: worktree-isolation hardening for subagents' destructive git commands; PreToolUse auto-allow bypass fix in background agent tasks; org-restricted `model: opus`-style alias stepping down instead of dropping to parent model; removed the "ultraplan" feature. No new SKILL.md/agent frontmatter fields in either release (full skills.md re-fetch this run independently re-confirms the same 17-field table).
+**Summary:** v2.1.226 (Aug 7-8) now latest — 4 releases since v2.1.222 (v2.1.223 Bash-permission-bypass + tab/invisible-Unicode padding fix + `strictKnownMarketplaces`/`blockedMarketplaces` owner wildcards; v2.1.224 sandbox credential-masking extensions (`extract`, `decode: "jwt"` + `maskClaims`, AWS SigV4 re-signing), removed the 200-subagent-per-session lifetime spawn cap, added self-hosted-runner support; v2.1.225 gateway spend-limit warnings, MCP OAuth fixes; v2.1.226 reliability fixes). None introduce a new SKILL.md/agent frontmatter field or change subagent nesting-depth/concurrency defaults (still depth-3 / 20-concurrent per `code.claude.com/docs/en/sub-agents`, independently re-confirmed this run). v2.1.224's credential-masking extensions are an incremental widening of the `sandbox.credentials` mechanism AGENTS.md's § Security model already documents in depth (operator-configured, not an iEvo file's own behavior) — noted, not actionable as a capability gap.
 
 History:
+- 2026-08-08T00:00:00Z — changed: v2.1.223-226 (Aug 5-8) — Bash-permission-bypass fixes, sandbox credential-masking extensions (extract/jwt-decode/AWS SigV4), removed 200-subagent lifetime cap, self-hosted runners; no new frontmatter fields, no nesting-depth/concurrency default change
 - 2026-08-05T09:05:00Z — changed: v2.1.221 (Aug 3) + v2.1.222 (Aug 4) — sandbox.credentials file-level mask mode (already tracked via open skills#559), zsh/PowerShell permission-check fixes, worktree-isolation hardening, org-model-alias step-down fix; no new frontmatter fields
 - 2026-08-02T08:50:05Z — unchanged: `gh api` confirms v2.1.220 (Jul 25) still latest; no new release (8-day gap since it shipped)
 - 2026-08-01T08:32:39Z — unchanged: `gh api` confirms v2.1.220 (Jul 25) still latest; no new release in the 1-day gap since the last audit run (2026-07-31)
@@ -142,12 +144,15 @@ History:
 ## https://github.com/anthropics/claude-code-action/releases
 
 ```yaml
-last_scan: 2026-08-05T09:05:00Z
+last_scan: 2026-08-08T00:00:00Z
 status: changed
-run_id: 30990090235
+run_id: 31245137764
 ```
 
-**Summary:** v1.0.185 (Aug 4) now latest via `gh api` (excluding the floating `v1` tag) — v1.0.184 (Aug 4 earlier) + v1.0.185 shipped since v1.0.183: trigger-timestamp derivation for issue/PR events, bun-config pinning for MCP server processes, downloaded-image-to-source-URL matching by asset identifier, collaborator-permission check for `workflow_run` events. No input schema changes. eva#65 stays closed.
+**Summary:** v1.0.189 (Aug 8) now latest via `gh api` — 4 releases since v1.0.185 (v1.0.186 formatter-hook fix; v1.0.187 credential-redaction from published run output + config-snapshot scoping to working tree + checkout-auth cleanup on commit signing; v1.0.188 max-turn-limit enforcement + GraphQL null-files fix for large PRs + label-trigger case-insensitive match; v1.0.189 no notable change beyond the compare link). No input schema changes across any of the four. eva#65 stays closed.
+
+History:
+- 2026-08-08T00:00:00Z — changed: v1.0.186-189 (Aug 6-8) — credential redaction from published output, config-snapshot scoping, max-turn enforcement, GraphQL/label-trigger bug fixes; no input schema changes
 
 History:
 - 2026-08-05T09:05:00Z — changed: v1.0.184 + v1.0.185 (both Aug 4) — trigger-timestamp derivation, MCP bun-config pin, image-asset matching, workflow_run collaborator-permission check; no input schema changes; eva#65 stays closed
@@ -239,12 +244,12 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-08-05T09:05:00Z
-status: unchanged
-run_id: 30990090235
+last_scan: 2026-08-08T00:00:00Z
+status: changed
+run_id: 31245137764
 ```
 
-**Summary:** Still rust-v0.146.0 STABLE (Jul 29) as latest — `gh api` confirms no new stable release. Pre-release line now well past alpha.6/alpha.7 (Aug 4), still empty-body, no skill-format signal. F-2026-07-29-001/skills#501 remains the tracked open finding from the v0.146.0 signal.
+**Summary:** rust-v0.147.0 STABLE shipped 2026-08-07 (gap since v0.146.0/Jul 29) — `gh api` release-body verified. Highlights: "Install portable Agent Plugins and search across local, personal, workspace, and remote plugin catalogs" (extends the Agent Plugins support F-2026-07-29-001/skills#501 targets, no new manifest-schema requirement); MCP protocol upgrade to 2026-07-28 (paginated discovery, non-blocking server startup); security hardening (explicit trust for unfamiliar local projects, hardened plugin isolation, secret/bearer-token redaction from displayed commands). No change to the Agent Plugins 1.0.0 manifest schema itself or to `plugin_namespace.rs`'s legacy-manifest precedence (AGENTS.md's own documented caveat) — not independently re-verified against source this run, inferred from the release body's silence on manifest precedence. `v0.148.0-alpha` line already active (alpha.1-5, Aug 7-8), empty-body.
 
 History:
 - 2026-08-05T09:05:00Z — unchanged: `gh api` confirms rust-v0.146.0 still latest stable; pre-release line active through 0.147.0-alpha.6.x/alpha.7 (Aug 4), still empty-body, no skill-format signal
@@ -370,12 +375,12 @@ History:
 ## https://github.com/agentskills/agentskills
 
 ```yaml
-last_scan: 2026-08-05T09:05:00Z
+last_scan: 2026-08-08T00:00:00Z
 status: changed
-run_id: 30990090235
+run_id: 31245137764
 ```
 
-**Summary:** Direct `gh api` PR check: 5 new merges since #447 — #475 (agent guidance consolidation), #476 (square client logo balancing), #477 (client logo scaling guidance), #478 (ChatGPT/Codex client branding update), #479 (frontmatter `metadata` field clarification) — all Aug 3-4, all client-showcase/docs/branding, no schema/field impact. #380/#386/#345/#254 still open+unmerged, unchanged.
+**Summary:** Direct `gh api` search: 2 new merges since #479 — #479 itself ("Clarify `metadata` in the frontmatter overview") and #268 ("Clarify that optional directories are not an exhaustive list"), both merged since Aug 3 per `search/issues` `merged:>2026-08-03`, both wording clarifications only, no schema/field impact. #380/#386/#345/#254/#350/#254 (versioning, `--allow-field`, `.well-known` spec) still open+unmerged, unchanged.
 
 History:
 - 2026-08-05T09:05:00Z — changed: `gh api` PR check — 5 new merges since #447 (#475-479, Aug 3-4), all client-branding/docs-clarification (incl. a `metadata` frontmatter field clarification, #479 — wording only, not a new field); #380/#386/#345/#254 confirmed still open+unmerged
@@ -417,12 +422,15 @@ History:
 ## https://www.cursor.com/changelog
 
 ```yaml
-last_scan: 2026-08-05T09:05:00Z
-status: changed
-run_id: 30990090235
+last_scan: 2026-08-08T00:00:00Z
+status: unchanged
+run_id: 31245137764
 ```
 
-**Summary:** "Google Workspace Plugins" (Aug 3) — new Gmail/Drive/Calendar plugins in the Cursor Marketplace. This is a content-integration capability (agents get direct access to Gmail/Drive/Calendar), not a skill-packaging/discovery-format change — Cursor-client-only, not iEvo-actionable (no new plugin.json/marketplace schema field, no new extensibility primitive iEvo could adopt). The July 10 cloud agent hooks remain the last substantive extensibility-format change, already documented via F-2026-07-12-001/skills#367.
+**Summary:** Re-fetched — still "Google Workspace Plugins" (Aug 3) as the newest entry, no new changelog item since. That entry remains Cursor-client-only content-integration (Gmail/Drive/Calendar), not a skill-packaging/discovery-format change. The July 10 cloud agent hooks remain the last substantive extensibility-format change, already documented via F-2026-07-12-001/skills#367.
+
+History:
+- 2026-08-08T00:00:00Z — unchanged: re-fetched, still Google Workspace Plugins (Aug 3) as newest; no new entry
 
 History:
 - 2026-08-05T09:05:00Z — changed: "Google Workspace Plugins" (Aug 3) — new Gmail/Drive/Calendar integration plugins; content-integration capability, not a packaging/discovery-format change; not iEvo-actionable
@@ -467,14 +475,15 @@ History:
 ## https://news.ycombinator.com
 
 ```yaml
-last_scan: 2026-08-05T09:05:00Z
+last_scan: 2026-08-08T00:00:00Z
 status: changed
-run_id: 30990090235
+run_id: 31245137764
 ```
 
-**Summary:** "Stateless MCP has recaptured my interest" (Simon Willison, 173pts) — architectural discussion of stateless MCP transport, interesting but iEvo ships no MCP server of its own and no skill/agent in this plugin holds an MCP session, so no matching capability gap. "Zero-Mem: Zero-Token Memory Operations for LLM Agents" (arxiv, 30pts) — agent memory-efficiency research, not a skill-packaging/discovery/security signal. Neither filed; both evaluated and dropped as not skills-repo-actionable, same treatment as prior weeks' adjacent-but-not-actionable HN items.
+**Summary:** "Oracle bans AI-generated code from OpenJDK" (445pts) — an org-policy story about AI-code provenance/attribution, not a skill-packaging or discovery-format gap iEvo could close. "Managing AI Coding Costs at Scale" (215pts) — cost-management discussion, adjacent but not a capability gap. "Kitesurf: Agent-first browser that runs in V8 isolates" (185pts) — a standalone competing agent-execution-environment product, no discovery/vetting framework of its own to adopt from (same treatment as prior competing-platform items). None filed.
 
 History:
+- 2026-08-08T00:00:00Z — changed: "Oracle bans AI-generated code from OpenJDK" (445pts, provenance/policy, not actionable) + "Managing AI Coding Costs at Scale" (215pts, not a capability gap) + "Kitesurf" agent browser (185pts, competing product, no framework to adopt); none filed
 - 2026-08-05T09:05:00Z — changed: "Stateless MCP has recaptured my interest" (173pts, MCP transport architecture, not iEvo-actionable — no MCP server/session in this plugin) + "Zero-Mem: Zero-Token Memory Operations for LLM Agents" (30pts, arxiv, agent-memory research, not actionable); neither filed
 - 2026-08-02T08:50:05Z — changed: no agent-coding/Claude-Code/Codex/MCP/agent-skills/security items in today's top 15; quiet day, nothing filed
 - 2026-08-01T08:32:39Z — changed: "qm – Multiplayer agent harness for work" (554 pts, standalone competing agent-orchestration platform, not a skill-format/plugin-packaging signal) — competitive context, not filed; "Tailscale didn't stop the Hugging Face intrusion" (540 pts, network-security incident, not skills-repo actionable) — considered, not filed
@@ -511,12 +520,15 @@ History:
 ## https://github.com/DenisSergeevitch/agents-best-practices
 
 ```yaml
-last_scan: 2026-08-05T09:05:00Z
+last_scan: 2026-08-08T00:00:00Z
 status: unchanged
-run_id: 30990090235
+run_id: 31245137764
 ```
 
-**Summary:** Direct `gh api` commit check: latest commit still `b612ddbc` (June 29 21:15:08Z, the `evals.md` split) — now 37 days without activity.
+**Summary:** Direct `gh api` commit check: latest commit still `b612ddbc` (June 29 21:15:08Z, the `evals.md` split) — now 40 days without activity.
+
+History:
+- 2026-08-08T00:00:00Z — unchanged: `gh api` confirms still `b612ddbc`, 40 days stale
 
 History:
 - 2026-08-05T09:05:00Z — unchanged: direct `gh api` commit check — latest commit still `b612ddbc`; 37 days without activity
@@ -728,12 +740,15 @@ History:
 ## https://agent-plugins.org
 
 ```yaml
-last_scan: 2026-08-05T09:05:00Z
-status: unchanged
-run_id: 30990090235
+last_scan: 2026-08-08T00:00:00Z
+status: changed
+run_id: 31245137764
 ```
 
-**Summary:** No new spec-repo activity since the Lead Core Maintainer governance record (2026-07-31, `gh api` commit-verified). iEvo's own root `plugin.json` (F-2026-07-29-001/skills#501) remains shipped and AGENTS.md-documented. No new adopting platform beyond Codex confirmed this scan.
+**Summary:** New commit since Jul 31: "Describe Agent Plugins as an open standard" (PR #38, merged Aug 6) — positioning/governance wording change only (frames the spec as an open standard, per the project's own maturation), no schema-version bump, no new field. Codex rust-v0.147.0 (shipped Aug 7, see codex releases entry) references broader "portable Agent Plugins" catalog search but no change to the 1.0.0 schema itself. iEvo's own root `plugin.json` (F-2026-07-29-001/skills#501) remains shipped and AGENTS.md-documented. No new adopting platform beyond Codex confirmed this scan.
+
+History:
+- 2026-08-08T00:00:00Z — changed: "Describe Agent Plugins as an open standard" (Aug 6) — positioning wording only, no schema change
 
 History:
 - 2026-08-05T09:05:00Z — unchanged: `gh api` commit check on agentplugins/agent-plugins-spec — latest commit still the Jul 31 Lead Core Maintainer governance merge (`a8b0c5f9`); no new activity
