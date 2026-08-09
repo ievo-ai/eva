@@ -2658,4 +2658,57 @@ Step 5b runs `echo '<stack-input-json>' | node "${CLAUDE_PLUGIN_ROOT}/scripts/di
 
 ---
 
+## S-2026-08-09-001 — commands/vuln-scan.md's `--pr N` scope builds `gh pr diff <N>` with no numeric validation, unlike this same file's hardened `--diff` BASE_BRANCH handling
+
+```yaml
+id: S-2026-08-09-001
+discovered_at: 2026-08-09T07:07:40Z
+run_id: 31300213808
+target_repo: ievo-ai/skills
+title: commands/vuln-scan.md's --pr N scope interpolates the PR-number argument into `gh pr diff <N> --name-only` with no charset/numeric validation, unlike the file's own hardened BASE_BRANCH handling a few paragraphs above
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/606
+cwe: CWE-78
+confidence: medium
+location: plugins/ievo/commands/vuln-scan.md:83 (Scope determination — --pr N)
+```
+
+This same file's `--diff` scope resolution (lines 30-76) is exhaustively hardened: `BASE_BRANCH` is regex-validated (`^[A-Za-z0-9._/-]+$`, no leading `-`, no `..`/`@{`) before ever being interpolated into `"origin/$BASE_BRANCH"`, with an entire paragraph explaining why an unvalidated ref name is "live shell syntax" the moment it is embedded in a fresh Bash command (this session's own Bash tool does not persist shell state between separate tool invocations, so a resolved value must always be re-embedded as literal text). The sibling `**--pr N**:` block a few lines below builds `gh pr diff <N> --name-only` directly from `<N>` with no equivalent numeric or charset check stated anywhere in the file — most concerning when `<N>` is not typed directly by a human but constructed by an automation/scripted trigger from a less-trusted source (e.g. a PR number parsed out of an issue/comment body). If `<N>` is ever populated from a string containing shell metacharacters (backtick, `$()`, `;`, `|`), the literal Bash command line executes attacker-supplied commands in the environment running the scan. Recommendation: validate `<N>` against `^[0-9]+$` (a bare positive integer) and refuse/report otherwise, mirroring the `BASE_BRANCH` validation already present a few lines above in this same file.
+
+## S-2026-08-09-002 — scrub.mjs's `PROVIDER_SECRET_RE` covers only 8 hard-coded credential shapes, missing common cloud-provider key formats
+
+```yaml
+id: S-2026-08-09-002
+discovered_at: 2026-08-09T07:07:40Z
+run_id: 31300213808
+target_repo: ievo-ai/skills
+title: scrub.mjs's PROVIDER_SECRET_RE has no pattern for Google/GCP API keys, npm automation tokens, SendGrid keys, or Slack incoming-webhook URLs, so these bypass redaction entirely when they appear bare (no adjacent secret-shaped variable name)
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/607
+cwe: CWE-532
+confidence: medium
+location: plugins/ievo/scripts/scrub.mjs:146 (PROVIDER_SECRET_RE definition)
+```
+
+The evo-auto failure-capture hook pipes a `PostToolUseFailure`/`PermissionDenied` record — built from whatever the failing command printed, fully untrusted per the file's own header comment — through `node scrub.mjs` before it is appended to `.ievo/evolution-candidates/<session-id>.jsonl` via `evolution_candidates.mjs`'s `--text-file` path. A captured tool failure that surfaces a real credential in a shape `scrub()` does not recognize (e.g. a `gcloud`/Firebase/Google Maps SDK error echoing an invalid key like `invalid API key: AIzaSy...`, an npm publish failure echoing `npm_...`, or a leaked Slack incoming-webhook URL) is not touched by any of the four redaction passes: `redactPemBlocks` (no PEM armor), `redactProviderSecrets`'s `PROVIDER_SECRET_RE` (its 8 alternatives — `gh[pousr]_`, `github_pat_`, `sk-`, `xox[abprs]-`, `AKIA`, JWT `eyJ...`, Stripe `[sp]k_`/`rk_` — have no Google/npm/SendGrid/webhook-URL pattern), `redactNamedSecrets` (only fires when the value follows a `NAME_ALT`-matching identifier plus `:`/`=`; a credential embedded in free-form prose has no such prefix), or `redactUrlCredentials` (only fires on `scheme://user:pass@host` userinfo — a bare API key or a bearer-URL webhook has no `user:pass@` shape). The credential survives `scrub()`'s full pipeline untouched and is persisted verbatim (subject only to the final 500-code-point truncation) into the session's `.jsonl` accumulator, defeating the redaction guarantee `evolution_candidates.mjs`'s own header comment claims for `--text-file` content. Recommendation: extend `PROVIDER_SECRET_RE` with additional bounded, case-exact alternatives (`\bAIza[0-9A-Za-z_-]{35}\b` for Google/GCP/Firebase, `\bnpm_[A-Za-z0-9]{36}\b` for npm, `\bSG\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}\b` for SendGrid) and a separate pattern for Slack incoming-webhook URLs (`https://hooks\.slack\.com/services/[A-Za-z0-9/]+`), since `redactUrlCredentials` structurally cannot catch a bearer-URL secret with no `user:pass@` userinfo.
+
+## S-2026-08-09-003 — check-version-bump.mjs embeds unvalidated `plugin.json`/`marketplace.json` version strings into gate error output, forging GitHub Actions workflow commands
+
+```yaml
+id: S-2026-08-09-003
+discovered_at: 2026-08-09T07:07:40Z
+run_id: 31300213808
+target_repo: ievo-ai/skills
+title: check-version-bump.mjs's version-mismatch error messages embed an attacker-controlled plugin.json/marketplace.json version string with no newline stripping, letting a fork PR forge GitHub Actions ::error::/::add-mask:: workflow commands in the pre-commit-gate log
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/608
+cwe: CWE-117
+confidence: high
+location: .github/scripts/check-version-bump.mjs:199 (checkVersionBump — version-mismatch error construction) / main (sink via errLog/sanitizeForLog)
+```
+
+Any fork PR that touches `plugins/ievo/**` or `.claude-plugin/**` triggers `pre-commit-gate.yml`'s version-bump gate step, which runs `check-version-bump.mjs` against the PR's own fully attacker-controlled `plugin.json`/`marketplace.json` — no membership or review gate applies before this step executes. `checkVersionBump()` reads `plugin.json` via `JSON.parse` and assigns `.version` to `headVersion` with no format validation, unlike the sibling workflows `cut-release.yml`/`notify-release.yml`, which explicitly reject any version not matching `^[0-9]+\.[0-9]+\.[0-9]+$` before using it. Because the value is JSON-decoded, a version field such as `1.0.0\n::error::forged` legitimately decodes to a JS string containing a real newline byte. That raw `headVersion` is interpolated, on any mismatch, into an error string (`SCRIPT_VERSION ('${scriptVersion}') does not match plugin.json version ('${headVersion}')`) and the equivalent `marketplace.json` mismatch messages — trivially triggered since the attacker only needs one script's `SCRIPT_VERSION` to differ from their crafted value, true by default. `main()` prints every error via `errLog(sanitizeForLog(...))`, but `sanitizeForLog` (`.github/scripts/validators/_safe-read.mjs`) deliberately does NOT strip `\n`/`\t` ("preserves tab and newline so ordinary multi-line messages read naturally" per its own test comments), so the embedded newline survives to stderr and the forged `::error::...` text begins at column 0 of a fresh output line — which the GitHub Actions runner recognizes as a live workflow command regardless of which process wrote it. This lets an attacker forge `::error::`/`::warning::`/`::notice::` annotations (misleading a reviewer or an automated log-reading agent about where the real problem is) or invoke `::add-mask::`/`::stop-commands::` to suppress genuinely important subsequent log lines for the rest of the job — a log-integrity/reviewer-deception primitive, not a full gate bypass (the job's exit code is unaffected). Recommendation: validate `headVersion`/`baseVersion`/both `marketplace.json` version fields against the same semver allow-list already used in `cut-release.yml`/`notify-release.yml` before interpolating them into any error string, substituting a fixed `<invalid>` placeholder when the check fails — exactly as those two workflows already do for `old`/`new`.
+
+---
+
 
