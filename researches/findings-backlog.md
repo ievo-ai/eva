@@ -2821,3 +2821,136 @@ location: plugins/ievo/skills/overlay-status/SKILL.md Step 3 (summary extraction
 ---
 
 
+
+## S-2026-08-15-001 — scan_repo.mjs .claude-plugin/hooks intermediate-directory symlink bypass
+
+```yaml
+id: S-2026-08-15-001
+discovered_at: 2026-08-15T07:00:00Z
+run_id: 31870162057
+target_repo: ievo-ai/skills
+title: scan_repo.mjs's enumerateOnePlugin builds manifestPath/hooksJsonPath through an unchecked .claude-plugin/hooks intermediate directory, bypassing the lstat-based symlink guard fixed for #363
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/631
+cwe: CWE-59
+confidence: medium
+location: plugins/ievo/scripts/scan_repo.mjs:408,479 (enumerateOnePlugin, enumerateHooks)
+```
+
+`enumeratePlugins` (scan_repo.mjs:393-404) and the single-segment `agentsDir`/`skillsDir`/`commandsDir` reads inside `enumerateOnePlugin` all call `isDir()` (lstat-based since the #363 fix) directly on the directory about to be descended into. But `manifestPath = join(pluginPath, ".claude-plugin", "plugin.json")` (line 408) and `enumerateHooks(join(pluginPath, "hooks", "hooks.json"))` (line 479) build TWO-segment joins and never lstat the intermediate `.claude-plugin`/`hooks` segment on its own — `fileExists()`/`isOversized()` lstat only the FULL path's FINAL component, and `lstat()` transparently resolves every ancestor path segment through the OS exactly like `stat()` would. A malicious repo committing `plugins/<name>/hooks` (or `.claude-plugin`) as a symlink to an arbitrary path (e.g. a predictable sibling checkout under the shared `~/.ievo/checkouts` cache, per the same cross-checkout scenario #363 already established) causes `readFileSync`/`JSON.parse` to read a `plugin.json`/`hooks.json` that exists at the symlink target, with its `description`/`version`/`author`/`license`/hook fields written verbatim into the public `community-index` artifact.
+
+Independently re-verified 2026-08-15 by direct read of current `main` @ 03e86c7: confirmed `isDir(skillsDir)` guard at line 442 for the single-segment case, confirmed absence of any `isDir`/lstat check on the `.claude-plugin`/`hooks` segments before `manifestPath`/`hooksJsonPath` are built and read.
+
+---
+
+## S-2026-08-15-002 — evolution_candidates.mjs never adopted the CONTROL_CHAR_RE log-injection guard its four sibling scripts share
+
+```yaml
+id: S-2026-08-15-002
+discovered_at: 2026-08-15T07:00:00Z
+run_id: 31870162057
+target_repo: ievo-ai/skills
+title: evolution_candidates.mjs has no CONTROL_CHAR_RE at all — error/log paths echo unfiltered attacker-influenceable CLI values (--text-file path, session id, flag values)
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/632
+cwe: CWE-117
+confidence: medium
+location: plugins/ievo/scripts/evolution_candidates.mjs:216,393,487,494,581-583 (sanitizeSessionId, appendCandidate, requireValue, parseCount, main)
+```
+
+`discover.mjs`, `scan_repo.mjs`, `validate_agents.mjs`, and `validate_skills.mjs` all define and apply a `CONTROL_CHAR_RE` (ANSI/control-character/Unicode-bidi-override strip) before echoing any attacker-influenceable value into stderr/stdout. `evolution_candidates.mjs` — whose own header comment (lines 69-72) explicitly documents the SAME threat model (`--text-file` "can be influenced by a compromised or prompt-injected agent turn") — defines no such constant anywhere in the file. Several error paths embed raw untrusted values: `main`'s outer catch (`errLog(\`Error: ${err.message}\`)`, lines 581-583), `appendCandidate`'s re-thrown message embedding the raw `textFile` path (line 393), `requireValue`'s embedded flag value (line 487), `parseCount` (line 494), and `sanitizeSessionId`'s error, which embeds the RAW `id` rather than the already-sanitized value (line 216). This was independently flagged as a deferred/still-outstanding gap in Eva's 2026-08-09 audit (explicitly named as a deliberately-deferred follow-up in the v0.80.4/v0.80.5 CHANGELOG entries at the time) and remains unfixed as of 2026-08-15 — re-verified by direct grep of current `main` @ 03e86c7 (`CONTROL_CHAR_RE` has zero occurrences in this file).
+
+---
+
+## S-2026-08-15-003 — deep-reviewer.md report template's File: field has no excerpt-containment fencing, unlike the adjacent Issue:/Suggestion: fields
+
+```yaml
+id: S-2026-08-15-003
+discovered_at: 2026-08-15T07:00:00Z
+run_id: 31870162057
+target_repo: ievo-ai/skills
+title: agents/deep-reviewer.md's Step 3 report template wraps the untrusted File: path in a fixed single-backtick span, unlike the dynamic-width fencing its own Excerpt containment note requires for Issue:/Suggestion:
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/633
+cwe: CWE-79
+confidence: medium
+location: plugins/ievo/agents/deep-reviewer.md:180,204-242 (Step 3 report template, Excerpt containment note)
+```
+
+`agents/deep-reviewer.md` Step 3's report template (line 180) writes `- **File:** \`<path>\`` — a fixed, single-backtick pair — while the same file's own "Excerpt containment for `Issue:`/`Suggestion:`" note (lines 204-242) requires a dynamic backtick-run-sizing + both-side-padding rule for those two adjacent fields, explicitly because the report is rendered as live Markdown by `deep-review/SKILL.md` Step 5 (including the Claude Code chat UI). `<path>` is drawn from `changed_files`, which per this file's own Input documentation can include attacker-influenced paths (a crafted PR branch under review, or an untracked working-tree file). A path containing a single backtick followed by `![x](https://attacker.example/beacon.png)` breaks the fixed span and renders the remainder as live Markdown. This is distinct from the already-open ievo-ai/skills#628 (deep-reviewer.md's separate `coverage_caveats` Coverage-section echo, line ~188) — confirmed by direct read that lines 180 (Step 3 report template File: field) and 188 (coverage_caveats echo) are two different fields in two different sections of the same file, neither covering the other.
+
+---
+
+## F-2026-08-15-001 — scan_repo.mjs / discover.mjs / index-repos are hardcoded to github.com, can't discover or audit GitLab-hosted skill/plugin repos
+
+```yaml
+id: F-2026-08-15-001
+discovered_at: 2026-08-15T07:00:00Z
+run_id: 31870162057
+target_repo: ievo-ai/skills
+title: Add GitLab-hosted repo support to scan_repo.mjs/discover.mjs/index-repos, matching Claude Code v2.1.232's native GitLab marketplace support
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/634
+effort: medium
+scope: multi-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases (v2.1.232, Aug 12 2026): "Added GitLab support to plugin marketplaces: bare gitlab.com repo URLs (including nested subgroups) now clone like github.com URLs, and clone auth-failure hints name your actual git host" — independently re-verified via WebFetch of the releases page.
+```
+
+## Summary
+
+Claude Code now natively supports GitLab-hosted plugin marketplaces (v2.1.232), but iEvo's own repo-scanning/indexing pipeline — the thing that DISCOVERS and AUDITS candidate skills/agents/plugins before install — only understands `github.com`.
+
+## Problem / Capability gap
+
+`scan_repo.mjs` (the deterministic scanner `index-repos`/`security-auditor`/the `community-index` GitHub Action all delegate to) hardcodes `` `https://github.com/${ownerRepo}.git` `` for its clone URL (scan_repo.mjs:209) and validates the `<owner>/<repo>` argument against a GitHub-specific username/repo charset (`OWNER_REPO_RE`, scan_repo.mjs:86-88 — "owner is GitHub's actual username charset"). `discover.mjs` and `index-repos/SKILL.md` likewise only reason about `github.com` (confirmed by direct grep across all three files: zero `gitlab` occurrences). A user who wants to install or audit a skill/plugin hosted on `gitlab.com` — now a first-class, natively-supported marketplace source in the very Claude Code runtime iEvo's own skills execute inside — cannot: `/ievo:inspect`, `/ievo:index-repos`, `/ievo:init`'s discovery flow, and the security-auditor's own vetting pipeline all assume a GitHub slug and will either error or silently mis-clone.
+
+## Evidence
+
+- https://github.com/anthropics/claude-code/releases: v2.1.232 (Aug 12 2026) — "Added GitLab support to plugin marketplaces: bare `gitlab.com` repo URLs (including nested subgroups) now clone like `github.com` URLs, and clone auth-failure hints name your actual git host." Also same release: `additionalMarketplaces`/`allowedMarketplaces` settings aliases, both host-agnostic.
+
+## Proposed solution
+
+Generalize `scan_repo.mjs`'s git-host handling: replace the single hardcoded `github.com` clone-URL template and the GitHub-specific `OWNER_REPO_RE` with a small host-aware resolver — accept an explicit `--host gitlab.com` flag (or a `<host>/<owner>/<repo>` / full-URL form for nested GitLab subgroups, which GitHub slugs never have), defaulting to `github.com` for backward compatibility. Clone URL construction becomes `https://${host}/${ownerRepoOrGroupPath}.git`. `discover.mjs` and `index-repos/SKILL.md` gain the same host parameter, threaded through to `scan_repo.mjs`. GitHub-specific `gh api` calls used for supplementary metadata (e.g. anything beyond the git clone itself) need either a GitLab REST API equivalent or a documented "reduced metadata" fallback for non-GitHub hosts.
+
+## Files affected
+
+| File | Change | Notes |
+|------|--------|-------|
+| plugins/ievo/scripts/scan_repo.mjs | modified | host-aware clone URL + slug validation (nested-subgroup-aware for GitLab) |
+| plugins/ievo/scripts/discover.mjs | modified | thread `--host` / full-URL form through to scan_repo.mjs |
+| plugins/ievo/skills/index-repos/SKILL.md | modified | document GitLab usage, update examples |
+| plugins/ievo/skills/inspect/SKILL.md | modified | same host-awareness for pre-install inspection |
+| AGENTS.md | modified | note universal git-host support in the discovery/audit pipeline description |
+
+## API / UX surface
+
+`node scan_repo.mjs gitlab.com/owner/repo` or `node scan_repo.mjs owner/repo --host gitlab.com`; `/ievo:index-repos`, `/ievo:inspect`, and `/ievo:init`'s discovery flow accept a GitLab URL/slug the same way they accept a GitHub one today.
+
+## Acceptance criteria
+
+- [ ] `scan_repo.mjs` clones and enumerates a real public GitLab repo (including one with a nested subgroup path) correctly
+- [ ] Existing GitHub-slug behavior is unchanged (regression-free) when `--host` is omitted
+- [ ] `discover.mjs` and `index-repos`/`inspect` skills pass a GitLab target through end-to-end
+- [ ] AGENTS.md / README no longer imply GitHub-only discovery
+
+## Effort estimate
+
+- Scope: multi-file
+- Effort: medium
+- Risk: low
+
+## Open questions for the operator
+
+- Does `security-auditor`'s vetting pipeline need any GitLab-specific metadata (e.g. GitLab's own security-advisory API) beyond raw file content, or is a content-only audit sufficient parity with the GitHub path?
+- Should Codex's own manifest-precedence handling (a separate, already-tracked caveat in AGENTS.md) also be checked for GitLab-host assumptions, or is that out of scope for this proposal?
+
+## Related
+
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/31870162057
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: F-2026-08-15-001`
+
+---
+Filed by Eva research run 31870162057 against `ievo-ai/eva` (research repo). Triage with `accepted` / `rejected` / `needs-discussion` labels.
+
+---
