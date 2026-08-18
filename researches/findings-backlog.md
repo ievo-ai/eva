@@ -2881,6 +2881,63 @@ location: plugins/ievo/agents/deep-reviewer.md:180,204-242 (Step 3 report templa
 
 ---
 
+## S-2026-08-18-001 — commands/update.md's re-audit AskUserQuestion prompt has no excerpt-containment fencing for the flagged content summary
+
+```yaml
+id: S-2026-08-18-001
+discovered_at: 2026-08-18T00:00:00Z
+run_id: manual-research-session-2026-08-18
+target_repo: ievo-ai/skills
+title: commands/update.md Step 2.5's re-audit AskUserQuestion interpolates the security-auditor flag summary into the Question field with no excerpt-containment fencing, unlike the structurally identical construct in agents/evolution.md Step 5
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/642
+cwe: CWE-79
+confidence: medium
+location: plugins/ievo/commands/update.md:237 (Step 2.5 re-audit AskUserQuestion)
+```
+
+`security-auditor.md`'s own "Excerpt containment" note scopes its fencing requirement to `report_template.body` only, explicitly exempting flags that never reach it (the GREEN/YELLOW case) — but `commands/update.md` Step 2.5 builds `` **Question:** `<scope>/<name> changed upstream and was flagged <verdict> on re-audit: <top 1-2 flags — category + one-line explanation>. Apply the refresh?` `` and interpolates that same flag summary directly into the `AskUserQuestion` prompt with no fencing anywhere in the file, a second rendered surface the auditor's containment note doesn't account for. `agents/evolution.md`'s Step 5 fences the structurally identical construct. Independently re-verified 2026-08-18 by direct read of `commands/update.md` around line 237 — confirmed no containment/backtick guidance exists anywhere in the file.
+
+---
+
+## S-2026-08-18-002 — evolution_candidates.mjs's listSessions/readSessionCandidates has no symlink or size guard, unlike the --text-file path
+
+```yaml
+id: S-2026-08-18-002
+discovered_at: 2026-08-18T00:00:00Z
+run_id: manual-research-session-2026-08-18
+target_repo: ievo-ai/skills
+title: evolution_candidates.mjs's readSessionCandidates does a bare readFileSync with no lstat symlink check and no size cap, unlike this same file's assertTextFileAllowed/assertTextFileReadable guard on --text-file; reachable automatically via the SessionStart auto-evolution hook's count/prune calls
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/643
+cwe: CWE-59
+confidence: medium
+location: plugins/ievo/scripts/evolution_candidates.mjs:273 (readSessionCandidates), ~440 (listSessions)
+```
+
+`listSessions` always scans the legacy `<projectRoot>/.ievo/evolution-candidates/` location — a normal, fully git-committable path inside the checked-out working tree, unlike the git-common-dir location under `.git/` which git does not track. For every `*.jsonl` entry `readdir()` returns, `readSessionCandidates` does a bare `readFileSync(filePath, "utf-8")` with no `lstatSync` pre-check and no size cap, in contrast to this same file's own `assertTextFileAllowed`/`assertTextFileReadable` guard on `--text-file` (lstat, reject non-regular files, 256 KB cap, realpath containment). A repo committing a symlink at `.ievo/evolution-candidates/*.jsonl` (git tracks symlinks as blob mode 120000) is followed straight through the next time the victim's `SessionStart` auto-evolution hook (`/ievo:evo-auto-enable`) runs `count`/`prune` — no Bash/tool-call compromise required, just checking out the repo. A non-EOF-terminating target (e.g. `/dev/zero`) hangs/OOMs the process (DoS, re-triggers every session); a readable JSONL-shaped target elsewhere on the filesystem can have its content disclosed via a later `list` call. Independently re-verified 2026-08-18 by direct read of `evolution_candidates.mjs` lines 260-285 and 435-465.
+
+---
+
+## S-2026-08-18-003 — .pre-commit-config.yaml's check-merge-conflict hook is tag-pinned (v6.0.0), not SHA-pinned like every other repo reference
+
+```yaml
+id: S-2026-08-18-003
+discovered_at: 2026-08-18T00:00:00Z
+run_id: manual-research-session-2026-08-18
+target_repo: ievo-ai/skills
+title: .pre-commit-config.yaml's pre-commit/pre-commit-hooks entry resolves by mutable tag rev v6.0.0 instead of an immutable commit SHA, breaking this repo's own SHA-pinning discipline used for every GitHub Actions uses: reference
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/644
+cwe: CWE-829
+confidence: medium
+location: .pre-commit-config.yaml:87 (pre-commit/pre-commit-hooks repo entry, check-merge-conflict hook)
+```
+
+Every third-party GitHub Action in `.github/workflows/*.yml` is pinned by full commit SHA with the version kept only as a trailing comment. `.pre-commit-config.yaml`'s `pre-commit/pre-commit-hooks` entry instead resolves by mutable tag name (`rev: v6.0.0`), which upstream can force-move without the checked-in string changing. `pre-commit-gate.yml` (itself SHA-pinned) clones this repo at that tag on every `pull_request` run, including from forks. First flagged as a deferred candidate in the 2026-08-12 audit report (not filed at the time, lost the 3-slot cap to higher-priority picks); independently re-derived and re-verified 2026-08-18 by direct read of `.pre-commit-config.yaml:87` — still tag-pinned, unchanged.
+
+---
+
 ## F-2026-08-15-001 — scan_repo.mjs / discover.mjs / index-repos are hardcoded to github.com, can't discover or audit GitLab-hosted skill/plugin repos
 
 ```yaml
