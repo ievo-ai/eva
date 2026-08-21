@@ -2938,6 +2938,25 @@ Every third-party GitHub Action in `.github/workflows/*.yml` is pinned by full c
 
 ---
 
+## S-2026-08-21-001 — validate_agents.mjs/validate_skills.mjs interpolate raw newlines into CI log messages (workflow-command forgery)
+
+```yaml
+id: S-2026-08-21-001
+discovered_at: 2026-08-21T07:00:00Z
+run_id: 32456237667
+target_repo: ievo-ai/skills
+title: validate_agents.mjs's checkModelField and validate_skills.mjs's checkModelField/checkEffortField/name-invalid-format/name-dir-mismatch branches interpolate raw, newline-carrying frontmatter values into printed violation messages — CONTROL_CHAR_RE deliberately excludes \n (to preserve legitimate block-scalar bodies) and the "shown stripped" guard only fires when a non-newline control char is also present, so a crafted multi-line model:/effort:/name: value can smuggle a GitHub Actions workflow command (::add-mask::/::stop-commands::) into the pre-commit-gate.yml CI log
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/648
+cwe: CWE-117
+confidence: medium
+location: plugins/ievo/scripts/validate_agents.mjs:196-211 (checkModelField); plugins/ievo/scripts/validate_skills.mjs:220-233 (checkModelField), ~264 (checkEffortField), ~334 (name-invalid-format), ~350 (name-dir-mismatch)
+```
+
+Both validators run in CI via `pre-commit-gate.yml`'s `pre-commit/action@v3.0.1` step (verified this run: `.pre-commit-config.yaml`'s `validate_agents`/`validate_skills` hook entries invoke `node plugins/ievo/scripts/validate_agents.mjs`/`validate_skills.mjs` directly, stdout streamed into the Actions job log). Found by this run's `/ievo:vuln-scan --module /tmp/skills` dogfooding pass (scripts module dispatch), independently re-verified by direct re-read of both files' cited branches plus the workflow YAML before filing. Distinct from open `ievo-ai/skills#495` (ANSI/control-char stripping missing on the `rel` file-path variable, CWE-150, different call sites) — this finding is the newline-specific gap `CONTROL_CHAR_RE` deliberately leaves open, applied inconsistently to the `model`/`effort`/`name` frontmatter values themselves.
+
+---
+
 ## F-2026-08-15-001 — scan_repo.mjs / discover.mjs / index-repos are hardcoded to github.com, can't discover or audit GitLab-hosted skill/plugin repos
 
 ```yaml
