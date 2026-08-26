@@ -36,14 +36,15 @@ run_id: <GitHub Actions run ID or null>
 ## https://www.anthropic.com/news
 
 ```yaml
-last_scan: 2026-08-24T07:14:49Z
+last_scan: 2026-08-26T00:00:00Z
 status: unchanged
-run_id: 32699971736
+run_id: 32940276912
 ```
 
 **Summary:** Re-fetched — no items newer than Aug 14 ("How Claude's text watermark works" still newest). No Claude Code API or skill-format change.
 
 History:
+- 2026-08-26T00:00:00Z — unchanged: re-fetched, no items newer than Aug 14; no iEvo action
 - 2026-08-24T07:14:49Z — unchanged: re-fetched, no items newer than Aug 14; no iEvo action
 - 2026-08-23T00:00:00Z — unchanged: re-fetched, no items newer than Aug 14; no iEvo action
 - 2026-08-21T06:58:19Z — unchanged: re-fetched, no items newer than Aug 14; no iEvo action
@@ -95,14 +96,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-08-24T07:14:49Z
-status: unchanged
-run_id: 32699971736
+last_scan: 2026-08-26T00:00:00Z
+status: changed
+run_id: 32940276912
 ```
 
-**Summary:** `gh api` confirms v2.1.241 (Aug 23) still latest — no new release in the ~1-day gap. Prior scan already covered v2.1.239-241's content in full (marketplace `pluginRoot` resolution fix, UTF-8 BOM skill-load fix); nothing new to add.
+**Summary:** v2.1.245 (Aug 25, glibc 2.44 startup-crash fix) + v2.1.246 (Aug 25, large bugfix/QoL release — 50+ items). No new SKILL.md/agent/sub-agent frontmatter fields, no marketplace-manifest schema change. Items checked against iEvo's own surface: "fixed `/reload-plugins` reporting 0 skills for plugins that define skills under `skills/*/SKILL.md`" is exactly iEvo's own layout — a pre-existing upstream bug now fixed, not a gap iEvo needs to close (informational only). "Fixed plugin skills whose frontmatter `name` already includes the `<plugin>:` prefix showing it doubled in the slash menu" — none of iEvo's 22 `SKILL.md` `name:` fields carry the `ievo:` prefix, not applicable. "Added a startup warning for Bash allow rules with a wildcard before the subcommand (e.g. `Bash(git * main)`)" — checked against iEvo's own `Bash(rm*)`/`Bash(mv*)`/etc. agent-frontmatter denylist patterns (AGENTS.md § Security model); those wildcards trail the subcommand, not precede it, so this specific new warning doesn't fire for iEvo's existing patterns. No genuine capability gap surfaced.
 
 History:
+- 2026-08-26T00:00:00Z — changed: v2.1.245 (glibc crash fix) + v2.1.246 (50+ item bugfix/QoL release — plugin-cache dedup, `/reload-plugins` skills/*/SKILL.md fix, Bash-wildcard-before-subcommand warning, plugin name-prefix doubling fix, BOM fix); no new frontmatter fields, no iEvo action
 - 2026-08-24T07:14:49Z — unchanged: `gh api` confirms v2.1.241 (Aug 23) still latest; no new release
 - 2026-08-23T00:00:00Z — changed: v2.1.239 (Aug 21, large bugfix/QoL release — marketplace `pluginRoot` resolution fix, UTF-8 BOM skill-load fix, cost-estimate/proxy/session-title/hooks bugfixes) + v2.1.240/v2.1.241 (Aug 22-23, bugfix-only, no changelog detail); no new frontmatter fields, no iEvo action
 - 2026-08-21T06:58:19Z — changed: v2.1.235 (Aug 18, spellcheck setting, misc TUI/perf fixes) + v2.1.236 (Aug 19, `ANTHROPIC_DEFAULT_MODEL`, cross-session `notify_when_idle`, macOS sandbox wildcard-read-deny precedence fix) + v2.1.237 (Aug 20, prompt-caching-under-gateway fix, "Concise" output style) + v2.1.238 (Aug 20, plugin-marketplace `headersHelper` install/update confirmation dialog, MCP `headersHelper`/inline-MCP trust-dialog requirement, `claude self-hosted-runner` proxy-auth flags, bundled `claude-api` skill updated for Managed Agents Aug 19); no new SKILL.md/agent/sub-agent frontmatter fields; marketplace headersHelper confirmation is hardening of an existing feature, not a new schema surface iEvo needs to adopt
@@ -158,14 +160,15 @@ History:
 ## https://github.com/anthropics/claude-code-action/releases
 
 ```yaml
-last_scan: 2026-08-24T07:14:49Z
-status: unchanged
-run_id: 32699971736
+last_scan: 2026-08-26T00:00:00Z
+status: changed
+run_id: 32940276912
 ```
 
-**Summary:** `gh api` confirms v1.0.201 (Aug 23) still latest (floating `v1` tag excluded per established practice) — no new release in the ~1-day gap. eva#65 stays closed.
+**Summary:** v1.0.204/205/206 (Aug 25) — v1.0.206's only substantive changes are `delete_files` prompt-example path fix, branch-name-with-parentheses validation fix, `download_job_log` bounded against a stalled fetch, and branch-name URL-encoding in generated GitHub links; v1.0.204/205 are empty-body compare-link-only patches. No input schema changes; eva#65 stays closed.
 
 History:
+- 2026-08-26T00:00:00Z — changed: v1.0.204/205/206 (Aug 25) — bugfix-only (delete_files prompt path fix, branch-name-parentheses validation, log-fetch stall bound, branch-name URL encoding); no input schema changes; eva#65 stays closed
 - 2026-08-24T07:14:49Z — unchanged: `gh api` confirms v1.0.201 (Aug 23) still latest; no new release; eva#65 stays closed
 - 2026-08-23T00:00:00Z — changed: v1.0.199 (Aug 21, GITHUB_GRAPHQL_URL fix, base-branch-revert-leak fix, mcp__github aggregate-selector fix, claude_args --allowedTools signed-prompt fix) + v1.0.200/v1.0.201 (Aug 22-23, empty-body patches); no input schema changes; eva#65 stays closed
 - 2026-08-21T06:58:19Z — changed: v1.0.195 (Aug 18, empty-body patch) + v1.0.196 (Aug 19, unify secret redaction in public comment outputs #1693, strip unused ALL_INPUTS env var #1692, bot-actor GraphQL __typename matching fix #1616) + v1.0.197 (Aug 20, neutralize checkout credential under actions/checkout v6+ include layout #1526 — security-relevant, adjacent to GH-Actions-hardening tracking) + v1.0.198 (Aug 20, empty-body patch); no input schema changes; eva#65 stays closed
@@ -276,14 +279,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-08-24T07:14:49Z
-status: changed
-run_id: 32699971736
+last_scan: 2026-08-26T00:00:00Z
+status: unchanged
+run_id: 32940276912
 ```
 
-**Summary:** rust-v0.149.1 shipped today (Aug 24) — confirmed empty-body (`## Changelog` + compare link only, `gh api repos/openai/codex/releases/tags/rust-v0.149.1 --jq '.body'`), no skill-format signal. No other stable release since v0.149.0.
+**Summary:** `gh api` confirms rust-v0.149.1 (Aug 24) still latest stable; no new stable release in the 2-day gap. Pre-release line active through 0.150.0-alpha.8 through alpha.11 (Aug 24-25), not fetched for content (established low-signal precedent for alpha tags).
 
 History:
+- 2026-08-26T00:00:00Z — unchanged: `gh api` confirms rust-v0.149.1 still latest stable; no new stable release; 0.150.0-alpha.8-11 (Aug 24-25) pre-release line, no content fetched
 - 2026-08-24T07:14:49Z — changed: rust-v0.149.1 (Aug 24) — confirmed empty-body patch release, no skill-format signal
 - 2026-08-23T00:00:00Z — unchanged: `gh api` confirms rust-v0.149.0 (Aug 20) still latest stable; no new stable release in the 3-day gap; pre-release line at rust-v0.150.0-alpha.7.2 (Aug 22), not fetched for content (established low-signal precedent for alpha tags)
 - 2026-08-21T06:58:19Z — changed: rust-v0.148.0 (Aug 18) — skill-creator guide refocused + validation rejects unfinished TODO placeholders (possible capability-gap signal, see report), async/MCP-capable hooks, Bedrock provider; rust-v0.149.0 (Aug 20) — `codex agents` dashboard, `codex queue`, SDK `max`/`ultra` reasoning effort; no confirmed SKILL.md/frontmatter change
@@ -372,14 +376,15 @@ History:
 ## https://agentskills.io/specification
 
 ```yaml
-last_scan: 2026-08-24T07:14:49Z
+last_scan: 2026-08-26T00:00:00Z
 status: unchanged
-run_id: 32699971736
+run_id: 32940276912
 ```
 
-**Summary:** `gh api` PR check only (no full spec re-fetch — no new merges to trigger one) — still no new merges since #492 (Aug 9, now 15-day gap); same open PR set (#508/#506/#500/#486/#380/#386/#345/#254) all still open+unmerged.
+**Summary:** `gh api` PR check only (no full spec re-fetch — no new merges to trigger one) — still no new merges since #492 (Aug 9, now 17-day gap); two new open docs-only PRs since Aug 24 (#524 "guide clients on handling skill-to-skill references", #525 "guidance on depending on other skills"), both unmerged, watch-only per established precedent.
 
 History:
+- 2026-08-26T00:00:00Z — unchanged: `gh api` PR check — no new merges since #492 (17-day gap); 2 new open PRs (#524, #525, both docs-only, unmerged); not deep-re-fetched (no merge to trigger one)
 - 2026-08-24T07:14:49Z — unchanged: `gh api` PR check — no new merges since #492 (15-day gap); same open PR set unchanged, not deep-re-fetched (no signal to trigger one)
 - 2026-08-23T00:00:00Z — unchanged: full spec re-fetched, same 6 fields and constraints confirmed field-by-field; no new merges since #492 (14-day gap); no new open PRs since #508
 - 2026-08-21T06:58:19Z — unchanged: full spec re-read, same 6 fields and constraints confirmed field-by-field; no new merges since #492; new open PR #508 (cosmetic client showcase, unmerged)
@@ -429,12 +434,16 @@ History:
 ## https://github.com/agentskills/agentskills
 
 ```yaml
-last_scan: 2026-08-24T07:14:49Z
-status: unchanged
-run_id: 32699971736
+last_scan: 2026-08-26T00:00:00Z
+status: changed
+run_id: 32940276912
 ```
 
-**Summary:** No new merges since #492 (Aug 9) — now a 15-day gap. No new open PRs beyond #508 (Aug 18, cosmetic client showcase). All previously-tracked substantive open PRs unchanged: #506 (eval-rubric rename, docs-only), #500 (reference Python SDK + schema validator), #486 (`name` field constraint clarification), #380 (versioning), #386/#345 (UTF-8/Unicode name), #254 (`.well-known` spec).
+**Summary:** No new merges since #492 (Aug 9) — now a 17-day gap. Two new open PRs since Aug 24: #524 "Docs: guide clients on handling skill-to-skill references" and #525 "Docs: guidance on depending on other skills", both docs-only, unmerged. All previously-tracked substantive open PRs unchanged: #508 (cosmetic client showcase), #506 (eval-rubric rename, docs-only), #500 (reference Python SDK + schema validator), #486 (`name` field constraint clarification), #380 (versioning), #386/#345 (UTF-8/Unicode name), #254 (`.well-known` spec).
+
+History:
+- 2026-08-26T00:00:00Z — changed: 2 new open PRs (#524, #525 — both docs guidance on skill dependencies/references, unmerged); no new merges since #492 (17-day gap)
+- 2026-08-24T07:14:49Z — unchanged: no new merges since #492 (15-day gap); no new open PRs beyond #508
 
 History:
 - 2026-08-24T07:14:49Z — unchanged: `gh api` PR check — no new merges since #492 (15-day gap); no new open PRs since #508; #506/#500/#486/#380/#386/#345/#254 all still open+unmerged
@@ -484,14 +493,15 @@ History:
 ## https://www.cursor.com/changelog
 
 ```yaml
-last_scan: 2026-08-24T07:14:49Z
+last_scan: 2026-08-26T00:00:00Z
 status: unchanged
-run_id: 32699971736
+run_id: 32940276912
 ```
 
-**Summary:** Re-fetched — still "Cloud Agents and Cursor Harness Improvements" (Aug 19, Custom Modes/Subscriptions/Subagents-on-own-machines/`/goal`/Steering) as the newest entry; no new entries in the 5-day gap.
+**Summary:** Re-fetched — still "Cloud Agents and Cursor Harness Improvements" (Aug 19, Custom Modes/Subscriptions/Subagents-on-own-machines/`/goal`/Steering) as the newest entry; no new entries in the 7-day gap.
 
 History:
+- 2026-08-26T00:00:00Z — unchanged: re-fetched, still Aug 19 "Cloud Agents and Cursor Harness Improvements" as newest entry; no new plugin/MCP/skills capability shipped since
 - 2026-08-24T07:14:49Z — unchanged: re-fetched, still Aug 19 "Cloud Agents and Cursor Harness Improvements" as newest entry; no new plugin/MCP/skills capability shipped since
 - 2026-08-23T00:00:00Z — unchanged: re-fetched, still Aug 19 "Custom Modes" as newest entry; no new plugin/MCP/skills capability shipped since
 - 2026-08-21T06:58:19Z — changed: "Custom Modes" (Aug 19) — pin any skill as an "always on" mode for the session; client-runtime UX feature, no known Claude Code equivalent, not a packaging-format signal — considered, not filed (see report)
@@ -541,14 +551,15 @@ History:
 ## https://news.ycombinator.com
 
 ```yaml
-last_scan: 2026-08-24T07:14:49Z
-status: changed
-run_id: 32699971736
+last_scan: 2026-08-26T00:00:00Z
+status: unchanged
+run_id: 32940276912
 ```
 
-**Summary:** Different top-story set from Aug 23. "My agent.md to improve LLM-assisted code quality" (289pts) — a prompting/AGENTS.md-authoring guide, not a packaging/skill-format capability iEvo lacks; "Anthropic's best AI model struggles to attract users as cheaper tools thrive" (438pts) — market-adoption commentary, not actionable. No Claude Code/Codex/MCP/agent-skills-format capability items in the top 20. Nothing filed.
+**Summary:** Different top-story set from Aug 24 (Apple hardware announcements, Dolly Parton obituary, Nitter cease-and-desist, Python security vulnerabilities, "Agentic Context Management" arxiv paper at 25pts) — none Claude Code/Codex/MCP/agent-skills-format actionable. Quiet day for this beat.
 
 History:
+- 2026-08-26T00:00:00Z — unchanged: different top-story set (Apple hardware, Dolly Parton, Nitter C&D, Python CVEs, "Agentic Context Management" arxiv paper 25pts); nothing agent-skill-format actionable, nothing filed
 - 2026-08-24T07:14:49Z — changed: different top-story set; "My agent.md to improve LLM-assisted code quality" (289pts, prompting-style guide, not a format gap) + "Anthropic's best AI model struggles to attract users" (438pts, market commentary); none agent-skill-format actionable, nothing filed
 - 2026-08-23T00:00:00Z — changed: different top-story set; "A week of using Codex more than Claude" (179pts, just outside top 20, comparative usage) + "How a Texas student blew the whistle on a rogue AI hacking attempt" (148pts, AI-safety incident); none agent-skill-format actionable, nothing filed
 - 2026-08-21T06:58:19Z — changed: different top-story set; "Codex on AWS Bedrock bug causing 10x charges" (billing, not format), "Malicious Rust crate Arrayref build-time payload" (465pts, supply-chain, corroborates known risk class not a new mechanism); none agent-skill-format actionable, nothing filed
@@ -593,14 +604,15 @@ History:
 ## https://github.com/DenisSergeevitch/agents-best-practices
 
 ```yaml
-last_scan: 2026-08-24T07:14:49Z
+last_scan: 2026-08-26T00:00:00Z
 status: unchanged
-run_id: 32699971736
+run_id: 32940276912
 ```
 
-**Summary:** No new commits since `47c5590a` (Aug 10, "Add environment-adaptive tool guidance") — 14-day gap now. Confirmed via direct `gh api` commit check.
+**Summary:** No new commits since `47c5590a` (Aug 10, "Add environment-adaptive tool guidance") — 16-day gap now. Confirmed via direct `gh api` commit check.
 
 History:
+- 2026-08-26T00:00:00Z — unchanged: direct `gh api` commit check — latest commit still `47c5590a` (Aug 10); 16 days without activity
 - 2026-08-24T07:14:49Z — unchanged: direct `gh api` commit check — latest commit still `47c5590a` (Aug 10); 14 days without activity
 - 2026-08-23T00:00:00Z — unchanged: direct `gh api` commit check — latest commit still `47c5590a` (Aug 10); 13 days without activity
 - 2026-08-21T06:58:19Z — unchanged: direct `gh api` commit check — latest commit still `47c5590a` (Aug 10); 11 days without activity
@@ -842,14 +854,15 @@ History:
 ## https://agent-plugins.org
 
 ```yaml
-last_scan: 2026-08-24T07:14:49Z
+last_scan: 2026-08-26T00:00:00Z
 status: unchanged
-run_id: 32699971736
+run_id: 32940276912
 ```
 
-**Summary:** No new activity since PR #65 (Aug 19, 1.1.0 working draft) — `#66`/`#67` (the two feature proposals against the 1.1.0 draft) both still open, unmerged; #67 last updated Aug 22, #66 last updated Aug 21 (comment activity only, no merge). Still watch-only.
+**Summary:** No new commits since PR #65 merged (Aug 19, 1.1.0 working draft) — `#66`/`#67` (the two feature proposals against the 1.1.0 draft) both still open, unmerged; #66 last updated Aug 25, #67 last updated Aug 22 (comment activity only, no merge). Still watch-only.
 
 History:
+- 2026-08-26T00:00:00Z — unchanged: `gh api` commit + PR check — no new commits since the #65 merge (Aug 19); #66 (updated Aug 25)/#67 (updated Aug 22) still open+unmerged, comment activity only
 - 2026-08-24T07:14:49Z — unchanged: `gh api` PR check — #66 (updated Aug 21)/#67 (updated Aug 22) still open+unmerged, comment activity only; no new PRs against the 1.1.0 draft
 - 2026-08-23T00:00:00Z — unchanged: `gh api` PR check — #66/#67 still open+unmerged, no new activity since Aug 19; no new PRs against the 1.1.0 draft
 - 2026-08-21T06:58:19Z — changed: Agent Plugins 1.1.0 working draft started (PR #65 merged Aug 19) — spec/schemas forked from 1.0.0 into spec/1.1.0.md; two open proposal PRs against it same day: #67 namespaced skill discovery (skills/<namespace>/<skill>/ to avoid name collisions), #66 displayName + assets/icon.<format> convention for plugin.json; both unmerged, first confirmed spec movement since Aug 6 — see report for capability-gap read

