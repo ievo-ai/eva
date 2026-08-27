@@ -3146,3 +3146,39 @@ location: plugins/ievo/skills/version/SKILL.md (Step 4 "Fetch and window the cha
 ```
 
 Directly re-read this run: Step 4 fetches `CHANGELOG.md` from `main` via unauthenticated `curl` and its own "Robustness notes" instruct `Present the selected sections verbatim and in file order... Do not summarise or rewrite them`; Step 5's render templates splice `<verbatim changelog body for vX.Y.Z>` straight into the assistant's printed output. A full-file grep (`grep -in "containment\|backtick\|fenc" plugins/ievo/skills/version/SKILL.md`, 189 lines total) returns zero matches — confirming no excerpt-containment treatment exists anywhere in this file, unlike every sibling skill in `plugins/ievo/skills/` that touches externally-sourced text. `/ievo:version` is a routine, frequently-invoked, ostensibly read-only command ("am I up to date"), making this a broad-reach vector: any content landing in `ievo-ai/skills`'s public `CHANGELOG.md` on `main` (compromised maintainer credential, a merged-then-reverted malicious PR, or an unsanitized auto-generated changelog entry quoting untrusted PR text) that carries a crafted `![...](...)`/`[...](...)` renders live — with a tracking-beacon or spoofed-link effect — the instant any user behind latest asks "am I up to date".
+
+---
+
+## S-2026-08-27-001 — security-report-flow.md's RED-report preview scans only the Findings body for un-fenced Markdown, never the Title: line
+
+```yaml
+id: S-2026-08-27-001
+discovered_at: 2026-08-27T17:38:50Z
+run_id: 33098604738
+target_repo: ievo-ai/skills
+title: init/references/security-report-flow.md Step 1's un-fenced-Markdown preview scan is explicitly scoped to report_template.body's Findings section only; report_template.title is a separate field, never scanned, rendered raw in the AskUserQuestion preview's Title: line
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/665
+cwe: CWE-79
+confidence: medium
+location: plugins/ievo/skills/init/references/security-report-flow.md:9-32 (Step 1 "Preview")
+```
+
+Directly re-read this run (4-module `/ievo:vuln-scan` dogfooding, skills-module dispatch, full 29-file pass): Step 1's scan instruction reads "scan the `## Findings` section of `report_template.body` ... Do NOT scan the template's fixed `## Request` section or its ... footer" — `report_template.title` is a wholly separate field from `body`, named nowhere in the scan, then rendered raw as `Title: <report_template.title>` in the `AskUserQuestion` preview text two paragraphs below. `report_template.title` is built by `security-auditor.md` from the candidate's own name/identifier, which `discover.mjs`'s `typeof === "string"`-only validation leaves charset-unconstrained. Distinct CWE (79, rendering injection) from the already-tracked closed/`eva-rejected` `#393` (CWE-78, shell injection via the same field's unquoted use in Step 2's `gh issue create` command) — same field, two independent, non-overlapping vulnerability classes in the same file.
+
+## S-2026-08-27-002 — security-auditor.md's candidate/alternative_suggestion output fields have no excerpt-containment rule, unlike report_template.body
+
+```yaml
+id: S-2026-08-27-002
+discovered_at: 2026-08-27T17:38:50Z
+run_id: 33098604738
+target_repo: ievo-ai/skills
+title: security-auditor.md's Step 2 output schema echoes candidate (<owner>/<repo>@<item-name>, charset-unconstrained per discover.mjs) and alternative_suggestion verbatim with no excerpt-containment rule, unlike the file's own report_template.body treatment
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/666
+cwe: CWE-116
+confidence: medium
+location: plugins/ievo/agents/security-auditor.md:159,184-189,238,254
+```
+
+Directly re-read this run (4-module `/ievo:vuln-scan` dogfooding, agents+commands-module dispatch): `security-auditor.md`'s `## Input` (line 159) documents `candidate: "<owner>/<repo>@<item-name>"`; Step 2's output schema echoes it verbatim (worked example line 238: `"candidate": "someone/badrepo@malicious-skill"`) and separately populates `alternative_suggestion` (line 254) from the equally-unconstrained `alternatives` input. The file's only "Excerpt containment" rule (lines 192-197) is explicitly scoped to `report_template.body` (RED-only) and says nothing about these two fields, present on every verdict. Corroborated by `feedback/SKILL.md`'s own "Identifier containment" note for the structurally identical `<owner/repo@skill>` shape, and independently re-verified this run against `discover.mjs:416`'s `typeof c.name === "string"`-only filter — no charset constraint. Distinct from `ievo-ai/skills#662` (covers `init/SKILL.md`'s own downstream consumer templates, a different file — the display side) and `ievo-ai/skills#556` (covers `flags[].excerpt` secret redaction, a different field/risk) — this finding is the producer-side gap in `security-auditor.md`'s own output-schema documentation.
