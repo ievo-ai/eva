@@ -3146,3 +3146,60 @@ location: plugins/ievo/skills/version/SKILL.md (Step 4 "Fetch and window the cha
 ```
 
 Directly re-read this run: Step 4 fetches `CHANGELOG.md` from `main` via unauthenticated `curl` and its own "Robustness notes" instruct `Present the selected sections verbatim and in file order... Do not summarise or rewrite them`; Step 5's render templates splice `<verbatim changelog body for vX.Y.Z>` straight into the assistant's printed output. A full-file grep (`grep -in "containment\|backtick\|fenc" plugins/ievo/skills/version/SKILL.md`, 189 lines total) returns zero matches — confirming no excerpt-containment treatment exists anywhere in this file, unlike every sibling skill in `plugins/ievo/skills/` that touches externally-sourced text. `/ievo:version` is a routine, frequently-invoked, ostensibly read-only command ("am I up to date"), making this a broad-reach vector: any content landing in `ievo-ai/skills`'s public `CHANGELOG.md` on `main` (compromised maintainer credential, a merged-then-reverted malicious PR, or an unsanitized auto-generated changelog entry quoting untrusted PR text) that carries a crafted `![...](...)`/`[...](...)` renders live — with a tracking-beacon or spoofed-link effect — the instant any user behind latest asks "am I up to date".
+
+---
+
+## S-2026-08-28-001 — scan_repo.mjs's enumeratePlugins() never scans a single-plugin-layout repo's own root, hiding its hooks/MCP servers from the community index
+
+```yaml
+id: S-2026-08-28-001
+discovered_at: 2026-08-28T18:27:07Z
+run_id: 33199032374
+target_repo: ievo-ai/skills
+title: scan_repo.mjs enumeratePlugins() single-plugin layout blind spot for hooks.json/.mcp.json
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/669
+cwe: CWE-693
+confidence: high
+location: plugins/ievo/scripts/scan_repo.mjs (detectLayout ~line 409-421, enumeratePlugins ~line 432-443, main() ~line 945-958)
+```
+
+Independently re-verified this run by direct read: `detectLayout()` correctly identifies a repo as `"single-plugin"` when `.claude-plugin/` exists at repo root with no top-level `plugins/` directory. But `enumeratePlugins()` checks only `isDir(join(repo, "plugins")))` and returns `[]` immediately when absent — it never falls back to treating the repo root itself as the plugin path via `enumerateOnePlugin(repo)`, even though `detectLayout()` a few lines above already identified this exact shape. `main()` calls `enumeratePlugins(repo)` unconditionally with no layout-conditional fallback. `enumerateStandaloneAgents`/`Skills`/`Commands` DO read `agents/`/`skills/`/`commands/` at repo root regardless of layout, but there is no equivalent `enumerateStandaloneHooks`/`enumerateStandaloneMcp` — so a `single-plugin`-layout repo's `hooks/hooks.json` and `.mcp.json` at repo root (the natural location, mirroring where a nested plugin keeps them) are read by nothing. With `plugins` staying `[]`, `hasHooks`/`hasMcp` are always `false` and `renderIndexMd()`'s "Structural signals" section prints `Hooks total: 0`, `PreToolUse: no`, `MCP servers total: 0` regardless of the repo's actual content — defeating this file's own stated design intent ("Raw facts only... Reputation is not security") for the layout shape most representative of an independent, lower-reputation single-plugin contributor.
+
+---
+
+## S-2026-08-28-002 — scan_repo.mjs's enumerateStandaloneSkills() never checks allowed-tools, missing the broad-bash/oversized flags enumerateOnePlugin() already applies to nested skills
+
+```yaml
+id: S-2026-08-28-002
+discovered_at: 2026-08-28T18:27:07Z
+run_id: 33199032374
+target_repo: ievo-ai/skills
+title: scan_repo.mjs enumerateStandaloneSkills() missing broad-bash/oversized detection for non-plugin-nested skills
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/670
+cwe: CWE-693
+confidence: high
+location: plugins/ievo/scripts/scan_repo.mjs (enumerateStandaloneSkills ~line 647-681, enumerateOnePlugin's skill loop ~line 495-516)
+```
+
+Independently re-verified this run by direct read: `enumerateOnePlugin()`'s skill loop reads `fm["allowed-tools"]`, computes `broadBash = /Bash\(\*\)|Bash\(rm:|Bash\(sudo:|Bash\(curl:/.test(allowedTools)`, and sets `skill.oversized = true` when `parseFrontmatter` short-circuited on a padded file — for a skill nested under `plugins/<name>/skills/`. `enumerateStandaloneSkills()` — used for a top-level `skills/` directory in a `flat-skills`/`mixed`/`single-plugin` layout repo — parses frontmatter via the same `parseFrontmatter()` but only reads `name`/`description`/`license`/`compatibility`; it never computes `broadBash` and never checks `fm.oversized`. Both the plugin-skills table and the top-level `broadBashSkills`/`skillsUnscanned` summary loops in `renderIndexMd()` only iterate `plugins[].skills[]` — `data.standalone_skills` renders in its own table with no broad-bash column at all. A standalone skill granting itself unrestricted `Bash(*)`/`rm`/`sudo`/`curl` — the single riskiest capability this scanner explicitly tracks — is therefore indistinguishable in the published index from a skill with no shell access, and a standalone SKILL.md padded past the 256 KB cap silently renders with blank fields instead of the "not scanned, oversized" warning a plugin-nested skill would get.
+
+---
+
+## S-2026-08-28-003 — discover.mjs's readStdin() buffers its primary input with no size cap, unlike every other attacker-influenceable file input in this plugin
+
+```yaml
+id: S-2026-08-28-003
+discovered_at: 2026-08-28T18:27:07Z
+run_id: 33199032374
+target_repo: ievo-ai/skills
+title: discover.mjs readStdin() uncapped memory buffering on its documented default input path
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/671
+cwe: CWE-400
+confidence: medium
+location: plugins/ievo/scripts/discover.mjs (readStdin ~line 585-593, main()'s stdin call ~line 727-729)
+```
+
+Independently re-verified this run by direct read: `discover.mjs`'s documented default invocation (`echo '{"languages":[...]}' | node discover.mjs`) reads the stack JSON from stdin. `readStdin()` accumulates every chunk from `stdinStream` into an array and only `Buffer.concat`s once the stream ends — no length check during accumulation, no cap analogous to `MAX_STACK_FILE_BYTES` (256 KB, applied to the secondary `--stack-file` path via `assertStackFileReadable()`). `main()` calls `readStdin(stdinStream)` unconditionally whenever `--stack-file` is not supplied — the primary, documented path — then `.trim()`s and `JSON.parse()`s the full buffered text. A compromised or prompt-injected agent turn (the same threat actor this codebase already models for the `--stack-file` cap) piping a multi-hundred-MB-to-GB payload into stdin forces the process to buffer it all in memory before any size or shape validation runs, risking OOM/crash of the invoking CI job or local session — the same DoS class this plugin explicitly defends against for `--stack-file`, `evolution_candidates.mjs`'s `--text-file`, and every frontmatter/manifest file `scan_repo.mjs` reads, but left unbounded on the one path that is actually this script's primary input method.
