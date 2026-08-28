@@ -443,9 +443,6 @@ run_id: 32940276912
 
 History:
 - 2026-08-26T00:00:00Z — changed: 2 new open PRs (#524, #525 — both docs guidance on skill dependencies/references, unmerged); no new merges since #492 (17-day gap)
-- 2026-08-24T07:14:49Z — unchanged: no new merges since #492 (15-day gap); no new open PRs beyond #508
-
-History:
 - 2026-08-24T07:14:49Z — unchanged: `gh api` PR check — no new merges since #492 (15-day gap); no new open PRs since #508; #506/#500/#486/#380/#386/#345/#254 all still open+unmerged
 - 2026-08-23T00:00:00Z — unchanged: `gh api` PR check — no new merges since #492 (14-day gap); no new open PRs since #508; #506/#500/#486/#380/#386/#345/#254 all still open+unmerged
 - 2026-08-21T06:58:19Z — unchanged: `gh api` PR check — no new merges since #492 (12-day gap); new open PR #508 (client showcase, cosmetic); #506/#500/#486/#380/#386/#345/#254 still open+unmerged
