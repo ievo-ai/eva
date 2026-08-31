@@ -56,6 +56,19 @@ URL that shows the premise doesn't hold>.
 
 <!-- Rejections go below this line, newest last. -->
 
+## R-2026-08-31-001 — repo-indexer.md's Step 4 "Other nonzero" branch echoes scan_repo.mjs stderr verbatim with no excerpt containment
+
+```yaml
+id: R-2026-08-31-001
+rejected_at: 2026-08-31T13:22:30Z
+run_id: 33395461927
+source_step: audit
+category: security
+title: repo-indexer.md Step 4 "Other nonzero" branch returns FAILED <owner>/<repo> — <stderr first line> verbatim with no backtick-fencing, letting a crafted scan_repo.mjs stderr line render live Markdown
+```
+
+Premise (from this run's `/ievo:vuln-scan` module dispatch on `plugins/ievo/agents`+`plugins/ievo/commands`): `repo-indexer.md`'s Step 4 "Other nonzero" branch returns `FAILED: <owner>/<repo> — <stderr first line>` as its entire unwrapped response, so if `scan_repo.mjs` ever exits with a code other than 0/2 carrying attacker-influenced stderr, that text renders unfenced. Disproved by direct re-read of `/tmp/skills/plugins/ievo/scripts/scan_repo.mjs` in full: the script has exactly three exit paths — `exit(1)` (line 913, invalid `<owner>/<repo>` format, whose echoed value is `args.repo` itself, constrained to the Markdown-inert `OWNER_REPO_RE` charset), `exit(2)` (lines 925/932, inside `main()`'s own try/catch), and `exit(2)` again via `mainSafe()`'s outer catch-all (line 1037), which wraps every call to `main()` including the enumeration functions (`enumerateStandaloneSkills`, `listDirSorted`) the premise's exploit chain depends on. `repo-indexer.md` Step 4 branches only on exit code `0` / `2` / "other nonzero" — the `2` branch returns a **fixed, hardcoded string** ("network unreachable") that never reads or echoes stderr, and no code path in `scan_repo.mjs` can ever produce an "other nonzero" exit. The "Other nonzero" branch this candidate cites is dead code under the script's own current exit-code behavior. This exact premise, exact file/line, was independently filed and same-run-rejected by a prior Eva run (`skills#659`, closed `eva-rejected`) on identical grounds — this run's vuln-scan dispatch re-derived it without checking `scan_repo.mjs`'s actual exit-code surface first, the same verification gap the original rejection's own comment already documents. No new evidence changes this; premise does not hold.
+
 ## R-2026-07-15-001 — scan_repo.mjs / security-auditor.md lack bundled-binary/executable detection in candidate repos
 
 ```yaml

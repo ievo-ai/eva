@@ -3216,3 +3216,54 @@ location: plugins/ievo/skills/handoff/SKILL.md:67 (Step 1: Determine output path
 Directly re-read this run (4-module `/ievo:vuln-scan` dogfooding, skills-module dispatch, independently re-verified against current source): Step 1 builds the output path as `<temp-dir>/ievo-handoff-<YYYYMMDD-HHMMSS>.md` — a deterministic, second-granularity-timestamped name under `TMPDIR`/`TEMP`/`TMP`/`/tmp`, none of which are guaranteed private to the invoking user on a shared multi-user devbox, shared CI runner, or multi-tenant container. Step 4 then Writes to that exact path with no documented check that the target doesn't already exist, isn't a symlink, or is created with owner-only permissions — in contrast to `deep-review/SKILL.md`'s explicit `[ -L "$p" ]` symlink-skip guard for untracked files in the very same plugin, showing the authors are otherwise alert to this exact risk class elsewhere. The document itself (git branch, PR/issue URLs, project internals, and Step 3's own acknowledged "best-effort" secret redaction that "cannot catch every secret") is sensitive by design. On a shared host, another local user can read the file at its default/inherited permissions by guessing the near-certain timestamp window or polling for new `ievo-handoff-*.md` entries; if the write path follows an existing symlink (platform-dependent, not verified either way by this finding), a pre-planted symlink at a guessed near-future timestamp could redirect the write to overwrite a file the victim can write to.
 
 Recommendation: add a high-entropy random component to the filename in addition to the timestamp, refuse/regenerate if the target path already exists, and set owner-only permissions (`chmod 600`-equivalent) after writing — documented the same way `deep-review/SKILL.md`'s symlink-skip guard is documented.
+
+## S-2026-08-31-001 — evo/SKILL.md's vendor-fetch path lacks the symlink-containment check install-protocol.md implements for the identical operation
+
+```yaml
+id: S-2026-08-31-001
+discovered_at: 2026-08-31T13:22:30Z
+run_id: 33395461927
+target_repo: ievo-ai/skills
+title: evo/SKILL.md Step 2's "How to fetch source" (agent + skill sub-steps) shallow-clones and Glob-enumerates/Reads a vendor target with no symlink-containment check, unlike init/references/install-protocol.md's hardened version of the identical clone-then-Glob-then-Read operation — a malicious upstream repo can ship a symlinked asset resolving to a local secret file, which the security-auditor re-audit may miss
+status: rejected
+issue_url: https://github.com/ievo-ai/skills/issues/678
+cwe: CWE-59
+confidence: medium
+location: plugins/ievo/skills/evo/SKILL.md Step 2 "How to fetch source" (~lines 500-511); compare plugins/ievo/skills/init/references/install-protocol.md §9a sub-step 4 (lines 125-217)
+```
+
+**SELF-CAUGHT DUPLICATE, closed same-run.** Directly re-read this run (`/ievo:vuln-scan` skills-module dogfooding, full 32-file pass) and independently re-verified — but this dispatch's already-known-open-issues list omitted `skills#588` ("evo/SKILL.md's own agent/skill vendor-fetch fallback has no per-file symlink containment check", open, `eva-hold-high-risk`), which already tracks this exact gap under older line numbers (202-251) that predate this file's growth to 1140+ lines. Closed #678 as a duplicate of #588 immediately after filing, before any Router triage — see #678's closing comment. Not a disproof of the underlying vulnerability (which remains real and open at #588), only of the need for a second issue. Lesson: cross-check candidate file+gap-class against the FULL open security-finding list, not just the subset named in a dispatch prompt's "already-known" callouts.
+
+## S-2026-08-31-002 — evolution.md's overlay-title header and review-retrospective.md's cluster header render unfenced — their own containment notes name every other field but not the header
+
+```yaml
+id: S-2026-08-31-002
+discovered_at: 2026-08-31T13:22:30Z
+run_id: 33395461927
+target_repo: ievo-ai/skills
+title: evolution.md Step 4's "Excerpt containment" note covers the lesson body but never names the derived "<short title derived from lesson>" header it writes at line 723 (echoed again at Step 5's "Section title:" line 1018); review-retrospective.md's Step 4 containment note enumerates Findings/PR-title/Coverage fields but never names the "#### Cluster <k>: <short title>" header at line 161 — same "existing rule doesn't name every field" pattern as skills#652/#675, now in two more files
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/679
+cwe: CWE-79
+confidence: medium
+location: plugins/ievo/agents/evolution.md (Step 4 template line ~723, Step 5 report line ~1018); plugins/ievo/agents/review-retrospective.md (Step 3 cluster template line ~161)
+```
+
+Directly re-read this run (`/ievo:vuln-scan` agents+commands-module dogfooding, independently re-verified against current source): both files' "Excerpt containment" notes are explicit and detailed enumerations of covered fields — `evolution.md`'s scopes to `<full lesson text — verbatim>` only; `review-retrospective.md`'s explicitly lists `Findings` excerpt, `### PR summary` `- Title:`, and `### Coverage` observations "for the same reason," field by field. Neither note names the short-title header each file synthesizes from the same untrusted source text and renders on the identical Markdown surfaces (chat UI, park file, and for evolution.md's upstream-relevant path, a public GitHub issue) their covered fields render on.
+
+## S-2026-08-31-003 — cut-release.yml's App token mint has no owner:/repositories: scoping, unlike every sibling workflow
+
+```yaml
+id: S-2026-08-31-003
+discovered_at: 2026-08-31T13:22:30Z
+run_id: 33395461927
+target_repo: ievo-ai/skills
+title: cut-release.yml's "Generate App token" step omits owner:/repositories: input, minting a token scoped to every repo the ievo-eva App installation covers rather than just ievo-ai/skills, unlike notify-release.yml and all three App-token steps in forward-to-eva.yml which are explicitly scoped
+status: rejected
+issue_url: https://github.com/ievo-ai/skills/issues/680
+cwe: CWE-269
+confidence: medium
+location: .github/workflows/cut-release.yml "Generate App token" step (~line 139-144); compare notify-release.yml line ~89-96, forward-to-eva.yml lines ~61-68/109-116/190-197
+```
+
+**SELF-CAUGHT FACTUALLY-WRONG DUPLICATE, closed same-run.** This finding's core premise — "omitting `owner`/`repositories` mints a token scoped to every repo the App installation covers" — is factually wrong, verified directly against `actions/create-github-app-token`'s `action.yml`: the `repositories` input's own description states "(defaults to current repository if owner is unset)". The exact same claim about this exact same workflow was already filed and rejected once before at `skills#411`, whose rejection comment already demonstrated this same verification. Closed #680 same-run citing #411. This is exactly the "verify before asserting tool/library behavior" failure CLAUDE.md's own rule exists to catch — the vuln-scanner dispatch asserted the action's default-scoping behavior from training-memory recall instead of checking the action's actual docs before the finding was filed.
