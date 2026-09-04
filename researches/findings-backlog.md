@@ -3216,3 +3216,20 @@ location: plugins/ievo/skills/handoff/SKILL.md:67 (Step 1: Determine output path
 Directly re-read this run (4-module `/ievo:vuln-scan` dogfooding, skills-module dispatch, independently re-verified against current source): Step 1 builds the output path as `<temp-dir>/ievo-handoff-<YYYYMMDD-HHMMSS>.md` — a deterministic, second-granularity-timestamped name under `TMPDIR`/`TEMP`/`TMP`/`/tmp`, none of which are guaranteed private to the invoking user on a shared multi-user devbox, shared CI runner, or multi-tenant container. Step 4 then Writes to that exact path with no documented check that the target doesn't already exist, isn't a symlink, or is created with owner-only permissions — in contrast to `deep-review/SKILL.md`'s explicit `[ -L "$p" ]` symlink-skip guard for untracked files in the very same plugin, showing the authors are otherwise alert to this exact risk class elsewhere. The document itself (git branch, PR/issue URLs, project internals, and Step 3's own acknowledged "best-effort" secret redaction that "cannot catch every secret") is sensitive by design. On a shared host, another local user can read the file at its default/inherited permissions by guessing the near-certain timestamp window or polling for new `ievo-handoff-*.md` entries; if the write path follows an existing symlink (platform-dependent, not verified either way by this finding), a pre-planted symlink at a guessed near-future timestamp could redirect the write to overwrite a file the victim can write to.
 
 Recommendation: add a high-entropy random component to the filename in addition to the timestamp, refuse/regenerate if the target path already exists, and set owner-only permissions (`chmod 600`-equivalent) after writing — documented the same way `deep-review/SKILL.md`'s symlink-skip guard is documented.
+
+## S-2026-09-04-001 — evolution.md Step 5's Scope+target/Overlay-file lines echo <name> unfenced, unlike the adjacent Section-title line
+
+```yaml
+id: S-2026-09-04-001
+discovered_at: 2026-09-04T00:00:00Z
+run_id: 33865507886
+target_repo: ievo-ai/skills
+title: agents/evolution.md Step 5's report template writes <name> bare into the Scope + target and Overlay file lines (1023-1024), with no excerpt-containment instruction, unlike the adjacent Section title line (1026) which the file explicitly requires to be backtick-fenced — distinct from already-closed skills#679, which covers the <title> field derived from lesson text, not the plugin-authored filename <name>
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/688
+cwe: CWE-79
+confidence: medium
+location: plugins/ievo/agents/evolution.md (Step 5 report template, lines 1023-1024)
+```
+
+Directly re-read this run (4-module `/ievo:vuln-scan` dogfooding, agents+commands dispatch, independently re-verified against current source): Step 1's target-discovery list includes `.claude/plugins/*/agents/*.md` and `.claude/plugins/*/skills/*/SKILL.md` — a filename chosen by the plugin author, not filtered through iEvo's own install-time naming validation. Step 5's report template (line 1023) writes `- Scope + target: project | agents/<name> | skills/<name>` and (line 1024) `- Overlay file: path` (resolving to `.ievo/evolution/agents/<name>.md` / `.ievo/evolution/skills/<name>.md`) with `<name>` unfenced, while line 1026's `- Section title: "<title, ... code-fenced per Step 4's Excerpt containment note>"` explicitly requires fencing for the adjacent field. The only charset validation of `<name>` anywhere in the file (`^[A-Za-z0-9._-]+$`, Step 4.4) applies to the constructed overlay-file-path string used for the Bash auto-commit, not to the Step 5 report content, and runs after Step 5. Checked against closed `skills#679` (covers the `<title>` field derived from lesson text, Step 4 line ~723 / Step 5's "Section title" line) — confirmed distinct: different field, different provenance (plugin-authored filename vs. user-authored lesson text).
