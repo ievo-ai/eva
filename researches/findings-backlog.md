@@ -3232,4 +3232,19 @@ confidence: medium
 location: plugins/ievo/agents/evolution.md (Step 5 report template, lines 1023-1024)
 ```
 
+## S-2026-09-10-001 — scrub.mjs's defaultReadStdin() buffers its entire stdin input with no size cap, unlike every sibling script's stdin/file read path
+
+```yaml
+id: S-2026-09-10-001
+discovered_at: 2026-09-10T00:00:00Z
+run_id: 34468683529
+target_repo: ievo-ai/skills
+title: plugins/ievo/scripts/scrub.mjs's defaultReadStdin() (line 682-684) does a bare readFileSync(0, "utf-8") with no upstream byte cap before running the full 5-pass redaction regex chain over the buffered content, unlike every sibling script's own capped read path (discover.mjs's MAX_STDIN_BYTES=256KB chunked readStdin, closing skills#671 for that file; scan_repo.mjs's MAX_SCAN_FILE_BYTES; evolution_candidates.mjs's MAX_TEXT_FILE_BYTES; validate_agents.mjs/validate_skills.mjs's MAX_VALIDATE_FILE_BYTES) — a CWE-400 resource-exhaustion gap, distinct from and compounding the already-open skills#637 ReDoS in one of the five regex passes this unbounded buffer feeds
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/697
+cwe: CWE-400
+confidence: medium
+location: plugins/ievo/scripts/scrub.mjs (defaultReadStdin, lines 682-684)
+```
+
 Directly re-read this run (4-module `/ievo:vuln-scan` dogfooding, agents+commands dispatch, independently re-verified against current source): Step 1's target-discovery list includes `.claude/plugins/*/agents/*.md` and `.claude/plugins/*/skills/*/SKILL.md` — a filename chosen by the plugin author, not filtered through iEvo's own install-time naming validation. Step 5's report template (line 1023) writes `- Scope + target: project | agents/<name> | skills/<name>` and (line 1024) `- Overlay file: path` (resolving to `.ievo/evolution/agents/<name>.md` / `.ievo/evolution/skills/<name>.md`) with `<name>` unfenced, while line 1026's `- Section title: "<title, ... code-fenced per Step 4's Excerpt containment note>"` explicitly requires fencing for the adjacent field. The only charset validation of `<name>` anywhere in the file (`^[A-Za-z0-9._-]+$`, Step 4.4) applies to the constructed overlay-file-path string used for the Bash auto-commit, not to the Step 5 report content, and runs after Step 5. Checked against closed `skills#679` (covers the `<title>` field derived from lesson text, Step 4 line ~723 / Step 5's "Section title" line) — confirmed distinct: different field, different provenance (plugin-authored filename vs. user-authored lesson text).
