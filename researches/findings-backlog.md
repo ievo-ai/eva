@@ -3232,6 +3232,8 @@ confidence: medium
 location: plugins/ievo/agents/evolution.md (Step 5 report template, lines 1023-1024)
 ```
 
+Directly re-read this run (4-module `/ievo:vuln-scan` dogfooding, agents+commands dispatch, independently re-verified against current source): Step 1's target-discovery list includes `.claude/plugins/*/agents/*.md` and `.claude/plugins/*/skills/*/SKILL.md` — a filename chosen by the plugin author, not filtered through iEvo's own install-time naming validation. Step 5's report template (line 1023) writes `- Scope + target: project | agents/<name> | skills/<name>` and (line 1024) `- Overlay file: path` (resolving to `.ievo/evolution/agents/<name>.md` / `.ievo/evolution/skills/<name>.md`) with `<name>` unfenced, while line 1026's `- Section title: "<title, ... code-fenced per Step 4's Excerpt containment note>"` explicitly requires fencing for the adjacent field. The only charset validation of `<name>` anywhere in the file (`^[A-Za-z0-9._-]+$`, Step 4.4) applies to the constructed overlay-file-path string used for the Bash auto-commit, not to the Step 5 report content, and runs after Step 5. Checked against closed `skills#679` (covers the `<title>` field derived from lesson text, Step 4 line ~723 / Step 5's "Section title" line) — confirmed distinct: different field, different provenance (plugin-authored filename vs. user-authored lesson text).
+
 ## S-2026-09-10-001 — scrub.mjs's defaultReadStdin() buffers its entire stdin input with no size cap, unlike every sibling script's stdin/file read path
 
 ```yaml
@@ -3246,5 +3248,3 @@ cwe: CWE-400
 confidence: medium
 location: plugins/ievo/scripts/scrub.mjs (defaultReadStdin, lines 682-684)
 ```
-
-Directly re-read this run (4-module `/ievo:vuln-scan` dogfooding, agents+commands dispatch, independently re-verified against current source): Step 1's target-discovery list includes `.claude/plugins/*/agents/*.md` and `.claude/plugins/*/skills/*/SKILL.md` — a filename chosen by the plugin author, not filtered through iEvo's own install-time naming validation. Step 5's report template (line 1023) writes `- Scope + target: project | agents/<name> | skills/<name>` and (line 1024) `- Overlay file: path` (resolving to `.ievo/evolution/agents/<name>.md` / `.ievo/evolution/skills/<name>.md`) with `<name>` unfenced, while line 1026's `- Section title: "<title, ... code-fenced per Step 4's Excerpt containment note>"` explicitly requires fencing for the adjacent field. The only charset validation of `<name>` anywhere in the file (`^[A-Za-z0-9._-]+$`, Step 4.4) applies to the constructed overlay-file-path string used for the Bash auto-commit, not to the Step 5 report content, and runs after Step 5. Checked against closed `skills#679` (covers the `<title>` field derived from lesson text, Step 4 line ~723 / Step 5's "Section title" line) — confirmed distinct: different field, different provenance (plugin-authored filename vs. user-authored lesson text).
