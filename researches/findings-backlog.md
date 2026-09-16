@@ -3233,3 +3233,54 @@ location: plugins/ievo/agents/evolution.md (Step 5 report template, lines 1023-1
 ```
 
 Directly re-read this run (4-module `/ievo:vuln-scan` dogfooding, agents+commands dispatch, independently re-verified against current source): Step 1's target-discovery list includes `.claude/plugins/*/agents/*.md` and `.claude/plugins/*/skills/*/SKILL.md` — a filename chosen by the plugin author, not filtered through iEvo's own install-time naming validation. Step 5's report template (line 1023) writes `- Scope + target: project | agents/<name> | skills/<name>` and (line 1024) `- Overlay file: path` (resolving to `.ievo/evolution/agents/<name>.md` / `.ievo/evolution/skills/<name>.md`) with `<name>` unfenced, while line 1026's `- Section title: "<title, ... code-fenced per Step 4's Excerpt containment note>"` explicitly requires fencing for the adjacent field. The only charset validation of `<name>` anywhere in the file (`^[A-Za-z0-9._-]+$`, Step 4.4) applies to the constructed overlay-file-path string used for the Bash auto-commit, not to the Step 5 report content, and runs after Step 5. Checked against closed `skills#679` (covers the `<title>` field derived from lesson text, Step 4 line ~723 / Step 5's "Section title" line) — confirmed distinct: different field, different provenance (plugin-authored filename vs. user-authored lesson text).
+
+## S-2026-09-07-001 — security-check/SKILL.md's antivirus fetch flow has no symlink-containment check, unlike the sibling vendor-fetch paths
+
+```yaml
+id: S-2026-09-07-001
+discovered_at: 2026-09-07T12:13:09Z
+run_id: manual-research-session-2026-09-07
+target_repo: ievo-ai/skills
+title: security-check/SKILL.md Step 2's "How to fetch files" clone-then-Glob/Read flow (sub-steps 4-5) has no git-index symlink check before enumerating/reading a candidate's files, unlike evolution.md Step 2, commands/update.md Step 2, and init/references/install-protocol.md § 9a, which each explicitly refuse a target whose path is equal to, under, or an ancestor of a 120000 tree entry before reading anything
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/690
+cwe: CWE-59
+confidence: medium
+location: plugins/ievo/skills/security-check/SKILL.md (Step 2 "How to fetch files — clone once, read with the Read tool", sub-steps 4-5, ~lines 190-254)
+```
+
+Directly re-read this run (4-module `/ievo:vuln-scan` dogfooding, skills-module dispatch, independently re-verified against current source): confirmed by full read of `security-check/SKILL.md`'s "How to fetch files" section (lines 190-254) — it documents the CWE-78 command-injection risk of interpolating an untrusted candidate path into a shell command in detail (and correctly avoids it via Glob/Read direct-parameter calls), but contains no symlink-containment check anywhere, unlike `evolution.md`/`commands/update.md`/`install-protocol.md`'s near-identical clone-then-enumerate flows, each of which runs `git -c core.quotePath=false ls-files -s | grep '^120000'` and refuses a target whose path collides with a symlink entry before any Read/Glob. `security-check` is the primary trust gate for every third-party install candidate (`/ievo:init` Step 8, `/ievo:update` refresh, standalone `/ievo:security-check`), making this the highest-reach fetch flow in the plugin to be missing the check its own siblings already carry.
+
+## S-2026-09-07-002 — review-retrospective/SKILL.md's Step 2 dispatch passes the PR's own title into the "trusted" reference block, contradicting its own stated policy one line above
+
+```yaml
+id: S-2026-09-07-002
+discovered_at: 2026-09-07T12:13:09Z
+run_id: manual-research-session-2026-09-07
+target_repo: ievo-ai/skills
+title: review-retrospective/SKILL.md Step 2's dispatch instruction states "never anything read from the PR's own title/body/comments" and the very next line's ## PR reference dispatch template includes title <title> as one of the fields presented to the sub-agent as validated/trusted context
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/691
+cwe: CWE-501
+confidence: medium
+location: plugins/ievo/skills/review-retrospective/SKILL.md (Step 2, "On Claude Code or Codex with the iEvo plugin" — policy line ~105, dispatch template line ~113; title sourced from Step 1's `gh pr view ... --json ...,title,...` at line ~91)
+```
+
+Directly re-read this run (4-module `/ievo:vuln-scan` dogfooding, skills-module dispatch, independently re-verified against current source): confirmed the contradiction verbatim — line 105 reads "Pass only the values Step 1 already validated — never anything read from the PR's own title/body/comments, which are untrusted content the sub-agent will be handling", and the code block immediately following (line 113) includes `title: <title>` in the `## PR reference` dispatch block alongside owner/repo/number/url/merged_at/merge_commit_sha. Step 1's own `gh pr view` call (line 91) confirms `title` is fetched straight from the PR's own metadata with no validation applied anywhere in Step 1, unlike `OWNER`/`REPO`/`NUMBER` (regex-validated). Any GitHub contributor can merge a PR with an attacker-chosen title; a later `/ievo:review-retrospective <PR>` run then dispatches that title framed as trusted reference data to the sub-agent, ahead of the point where an untrusted-content posture is meant to apply.
+
+## S-2026-09-07-003 — scrub.mjs's NAME_ALT camelCase alternative is still ReDoS-vulnerable, a third untracked member of the same unbounded-quantifier family
+
+```yaml
+id: S-2026-09-07-003
+discovered_at: 2026-09-07T12:13:09Z
+run_id: manual-research-session-2026-09-07
+target_repo: ievo-ai/skills
+title: scrub.mjs NAME_ALT's camelCase alternative (line 264) has an unbounded [A-Za-z0-9_]* run before its required suffix, the same quadratic-backtracking ReDoS shape already tracked for the snake-case alternative under skills#637 and already fixed for the kebab-case alternative — a distinct array member skills#637's title does not cover
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/692
+cwe: CWE-1333
+confidence: medium
+location: plugins/ievo/scripts/scrub.mjs (NAME_ALT array, line 264, consumed by redactNamedSecrets() via ASSIGNMENT_RE)
+```
+
+Directly re-read this run (4-module `/ievo:vuln-scan` dogfooding, scripts-module dispatch, independently re-verified against current source): confirmed `NAME_ALT`'s three alternatives at lines 262-264 — snake-case (line 262, unbounded, already tracked as `skills#637` per the file's own comment), kebab-case (line 263, bounded to `{0,254}`, already fixed), and camelCase (line 264, `[A-Za-z0-9][A-Za-z0-9_]*(?<=[a-z0-9])(?:<CAMEL_SUFFIXES>)` — still unbounded, not itself named by `skills#637`'s title, and not yet fixed). Same quadratic-backtracking mechanism as the snake-case case, reachable via the same two call sites (evo-auto failure-capture hook stdin, `evolution_candidates.mjs`'s `--text-file` path) `skills#637` already documents, with `scrub()`'s own final-step-only truncation (`truncateScrubbed`) leaving the full untruncated input exposed to this pass.
