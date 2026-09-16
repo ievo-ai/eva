@@ -191,6 +191,251 @@ Filed by Eva research run <$GITHUB_RUN_ID> via `/ievo:vuln-scan` dogfooding (eva
 
 ---
 
+## F-2026-09-16-001 — Add a `claude plugin eval` suite (evals/) wiring iEvo's skill-activation routing into CI, fulfilling skills#267's reopen condition
+
+```yaml
+id: F-2026-09-16-001
+discovered_at: 2026-09-16T11:16:00Z
+run_id: 35088840758
+target_repo: ievo-ai/skills
+title: Add a claude plugin eval suite (evals/) testing skill-activation routing, wired into pre-commit-gate.yml CI
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/699
+effort: medium
+scope: multi-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases/tag/v2.1.269: "Added claude plugin eval: run a plugin's eval suite against Claude Code and get scored, reproducible results (JSON + HTML report); see claude plugin eval --help" — shipped 2026-09-11, this run's Step 4 scan (baseline: Sep 10 report last reviewed through v2.1.267)
+  - https://code.claude.com/docs/en/plugin-evals: full doc page, verified directly against a live `claude plugin eval --help` run this session — confirms the `tool_used: Skill` grader type exists specifically to check "the skill was invoked at least once during the run" via `input_match` on the skill's namespaced name, and confirms `--json results.json --threshold N` plus a documented CI exit-code contract (0/1/2/130/143) for gating a build
+  - https://github.com/ievo-ai/skills/issues/267: closed 2026-07-24 by the operator with an explicit reopen condition — "a concrete Phase 2 eval runner proposal (executable check that a prompt routes to the intended skill, wired into CI). If that lands, fixtures become real tests and this becomes worth building — fixtures and runner in the same PR." This proposal is that Phase 2: the fixtures-without-a-runner shape #267 rejected is no longer the only option, because Claude Code now ships the runner itself.
+```
+
+# Proposal: Add a `claude plugin eval` suite (evals/) testing skill-activation routing, wired into CI
+
+## Summary
+
+Claude Code v2.1.269 (2026-09-11) shipped `claude plugin eval` — a first-party plugin eval runner with a `tool_used: Skill` grader specifically designed to check whether a prompt actually routes to the intended skill. This is the missing "executable check ... wired into CI" the operator named as the reopen condition when closing `skills#267`. Add an `evals/` suite to `plugins/ievo/` with one case per iEvo skill (a natural-language prompt that should trigger it, graded by `tool_used: Skill` with `input_match` on the skill's name), and wire `claude plugin eval . --trust-plugin --json results.json --threshold <N>` into `pre-commit-gate.yml` (or a new dedicated workflow) so a future SKILL.md description edit that silently breaks routing fails CI instead of drifting unnoticed.
+
+## Problem / Capability gap
+
+iEvo has 22 skills whose entire invocation mechanism is semantic description-match — Claude decides which skill fires based on how well a user's natural-language prompt matches each `SKILL.md`'s `description` field. This routing is load-bearing (a misrouted or non-firing skill is a silent capability loss, not a crash) but today it is completely untested. `skills#267` proposed hand-written `evals/activation.yaml` fixture files in 2026-07; the operator rejected that shape specifically because nothing executed them — "documentation pretending to be tests" that "drifts silently... while signalling test coverage that doesn't exist." Two months later, that missing executor now exists as a documented, GA Claude Code CLI command. Users of iEvo (and iEvo's own maintainers) currently have no way to know if a SKILL.md description rewrite — like the trigger-first rewrite already tracked under `skills#205` — accidentally breaks activation for an ambiguous prompt pair, until a human notices the skill silently didn't fire.
+
+## Evidence
+
+External signal triggering this proposal (from this run's Step 4 source scan):
+- https://github.com/anthropics/claude-code/releases/tag/v2.1.269: "Added `claude plugin eval`: run a plugin's eval suite against Claude Code and get scored, reproducible results (JSON + HTML report)" — new in the Sep 9→16 gap since the last-reviewed baseline (v2.1.267).
+- https://code.claude.com/docs/en/plugin-evals: full page fetched and read this run. Confirms the exact mechanism: a case is a `prompt.md` (the user-facing prompt) plus `graders/*.md`; the `tool_used` grader type with `tool: Skill` and an `input_match` regex against the skill's namespaced name (`"skill"\s*:\s*"(?:[\w-]+:)?your-skill-name"`) "passes when Claude invoked that skill at least once during the run" — this is a routing/activation check, not an output-quality check, matching exactly what `skills#267`'s reopen condition asked for. The doc also documents `--ablation with-without` (a no-plugin baseline, useful to prove the skill wouldn't fire without iEvo installed) and a versioned `aggregate-result.json`/exit-code contract built for CI gating.
+- https://github.com/ievo-ai/skills/issues/267 (closed, this repo): the operator's own closing comment states the reopen condition verbatim: "Reopen condition: a concrete Phase 2 eval runner proposal (executable check that a prompt routes to the intended skill, wired into CI). If that lands, fixtures become real tests and this becomes worth building — fixtures and runner in the same PR." Verified via `gh issue view 267 --json comments` this run — not re-derived from memory.
+- Cross-checked live against this session's own Claude Code install: `claude plugin eval --help` (v2.1.269+, this session's CLI) confirms the command, its `--json`/`--threshold`/`--trust-plugin`/`--concurrency` flags, and the `tool_used: Skill` "plugin-fired indicator" grader all exist as documented — this is not a speculative or pre-release feature.
+
+## Proposed solution
+
+1. Add `plugins/ievo/evals/` (the plugin's own eval directory — no `experimental.evals` override needed, `evals/` is the default and doesn't collide with anything already in `plugins/ievo/`).
+2. One case subdirectory per skill likely to need activation-routing coverage — prioritize skills with documented disambiguation risk first (the ambiguous pairs `skills#205`'s trigger-first rewrite was designed to fix are the highest-value initial cases), not all 22 at once. Each case:
+   - `prompt.md`: a natural phrasing a user would type that should trigger the skill (per the docs, NOT naming the skill directly — this is the actual test of description-match quality), with `allowed_tools: [Read, Glob, Grep, Skill]` frontmatter.
+   - `graders/skill-fired.md`: `type: tool_used`, `tool: Skill`, `input_match: '"skill"\s*:\s*"(?:[\w-]+:)?<skill-name>"'`.
+   - Optionally a second `graders/no-collision.md` on a sibling case (a prompt that should NOT fire this skill, e.g. one of `disable-model-invocation: true` skills' near-neighbors) with `min: 0, max: 0` and `arm: both`, to regression-test the specific disambiguation pairs `skills#205` was designed to fix.
+3. Wire it into CI: add a step to `.github/workflows/pre-commit-gate.yml` (or a new `eval-gate.yml`, given the different cost/trust profile — eval runs make real model calls billed against the CI credential, unlike the free static validators) running `claude plugin eval plugins/ievo --trust-plugin --json results.json --threshold 0.8 --ablation none --no-publish --max-cost-usd <ceiling>`. Recommend `--ablation none` (skip the no-plugin baseline) for the routine CI gate to control cost — the baseline comparison is more useful for periodic/manual review than every PR.
+4. Document the new `evals/` directory and its CI gate in `AGENTS.md` § Skills format (the file already documents `disable-model-invocation`/`paths`/`argument-hint` conventions in the same section) and in `README.md`'s test/CI description.
+5. `results/` must be `.gitignore`d per the doc's own convention.
+
+## Files affected
+
+| File | Change | Notes |
+|------|--------|-------|
+| `plugins/ievo/evals/<case>/prompt.md` | new (×N cases) | one per prioritized skill |
+| `plugins/ievo/evals/<case>/graders/skill-fired.md` | new (×N cases) | `tool_used: Skill` grader |
+| `.github/workflows/eval-gate.yml` (or an added step in `pre-commit-gate.yml`) | new/modified | CI gate — needs `ANTHROPIC_API_KEY` or equivalent credential in the runner |
+| `AGENTS.md` | modified | § Skills format — document the `evals/` convention |
+| `README.md` | modified | mention the eval gate alongside existing test/CI description |
+| `.gitignore` | modified | add `plugins/ievo/evals/**/results/` |
+
+## API / UX surface
+
+- New CI gate: `claude plugin eval plugins/ievo --trust-plugin --json results.json --threshold <N> --ablation none --no-publish --max-cost-usd <ceiling>`, gated by exit code (0 = pass, 1 = a case missed the threshold or failed to load).
+- No new user-facing `/ievo:*` surface — this is purely a maintainer-side CI/quality mechanism.
+
+## Acceptance criteria
+
+- [ ] `plugins/ievo/evals/` exists with at least the highest-disambiguation-risk cases (starting set — not all 22 skills required for v1)
+- [ ] Each case's `tool_used: Skill` grader passes locally via `claude plugin eval plugins/ievo --case <name>`
+- [ ] CI workflow runs the suite and gates the build on `--threshold`
+- [ ] `AGENTS.md` documents the convention for adding a new case when a new skill ships
+- [ ] `results/` is gitignored
+
+## Effort estimate
+
+- Scope: multi-file (new `evals/` tree + one CI workflow + two doc updates)
+- Effort: medium (~2hr for an initial 5-8 case starting set + CI wiring; scaling to all 22 skills is a follow-up, not part of this PR)
+- Risk: low — additive only, no runtime plugin behavior changes; the only operational cost is the CI credential's real model-call spend per PR (mitigated by `--max-cost-usd` and `--ablation none`)
+
+## Open questions for the operator
+
+- Which skills get v1 eval cases first? Recommend starting with the descriptions `skills#205` already rewrote trigger-first with mutual negative examples (shipped via PR #437) — those are the exact disambiguation pairs #267 originally worried about, and they're the most recently-changed descriptions, so they're both the highest-value and lowest-effort starting set (the negative-example prompts #205's own PR body describes are ready-made candidate eval prompts).
+- Should the eval gate be a required check on every PR (cost per PR, catches regressions immediately) or a scheduled/manual gate (cheaper, catches regressions on a lag)? The doc explicitly supports both usage patterns.
+- What CI credential (Anthropic API key vs. an existing GitHub App-minted token path) should back the eval runs, given `claude plugin eval` bills real model calls against the CI credential's plan/API usage?
+
+## Related
+
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/35088840758
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: F-2026-09-16-001`
+- **Reopens the direction of:** `ievo-ai/skills#267` (closed 2026-07-24, Phase 1 fixtures-only shape rejected, explicit Phase 2 reopen condition now satisfiable)
+- **Already shipped, natural first test subject:** `ievo-ai/skills#205` (trigger-first description rewrite with mutual negative examples, implemented via `ievo-ai/skills#437`, closed 2026-07-24) — the disambiguation pairs that rewrite designed in are the natural first eval cases to regression-test, since nothing currently verifies they still disambiguate correctly after this or any future description edit
+
+---
+Filed by Eva research run 35088840758 against `ievo-ai/eva` (research repo). Triage with `accepted` / `rejected` / `needs-discussion` labels.
+
+---
+
+## S-2026-09-16-001 — scan_repo.mjs's MAX_SCAN_ITEMS cap is enforced during the processing loop, after an unbounded readdirSync().sort() of the raw directory
+
+```yaml
+id: S-2026-09-16-001
+discovered_at: 2026-09-16T12:10:00Z
+run_id: 35088840758
+target_repo: ievo-ai/skills
+title: scan_repo.mjs's listDirSorted() does an unbounded readdirSync().sort() before any caller enforces MAX_SCAN_ITEMS, so the enumeration cost is paid in full regardless of the cap
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/700
+cwe: CWE-400
+confidence: medium
+location: plugins/ievo/scripts/scan_repo.mjs:438-441 (listDirSorted), call sites at lines 451, 507, 526, 561, 703, 733, 785
+```
+
+# Security: scan_repo.mjs's item cap is enforced after, not before, an unbounded directory listing
+
+## Summary
+
+medium confidence — CWE-400 — `plugins/ievo/scripts/scan_repo.mjs:438-441`
+
+## Exploit chain
+
+`listDirSorted(dir)` at lines 438-441 unconditionally calls `readdirSync(dir)` and then `.sort()` over the **entire** entry list before returning it to any caller. Every caller that enumerates plugins/agents/skills/commands from a scanned candidate repo (`enumeratePlugins` at line 451, the agents/skills/commands loops inside `enumerateOnePlugin` at lines 507/526/561, and the standalone enumerators at lines 703/733/785) then applies the documented `MAX_SCAN_ITEMS` cap — but only *during* its own iteration over the already-fully-listed-and-sorted array, via an `if (items.length >= MAX_SCAN_ITEMS) { ...; break; }` check. `MAX_SCAN_ITEMS`'s own comment (lines 202-215) states it exists specifically to close a "how many items a repo can contribute" resource-exhaustion gap — but the cap only bounds how many entries get *processed*, not how many get *read and sorted* first. A candidate repository submitted to the community-index scanning pipeline (via the `index-repos` skill's Bash invocation, or the `ievo-ai/community-index` GitHub Actions workflow) that ships a `plugins/`, `agents/`, `skills/`, or `commands/` directory containing an extremely large number of tree entries — cheaply constructible via `git fast-import` with minimal/empty blobs — forces `scan_repo.mjs` to build a full in-memory array via `readdirSync` and perform an O(n log n) `.sort()` over the entire raw entry count on every scan of that repo, regardless of how small `MAX_SCAN_ITEMS` is set. This can stall or OOM-kill the scanner process, denying scanning service for the rest of a batch/queue of repositories being indexed in the same run.
+
+## Preconditions
+
+- Attacker can get an arbitrary repository scanned by this pipeline (the pipeline's normal input surface — public repo submission/discovery).
+- The attacker's repo contains a directory (`plugins/`, `agents/`, `skills/`, or `commands/`, at top level or under a `plugins/<name>/` subtree) with a very large number of tree entries.
+
+## Blast radius
+
+- Confidentiality: none
+- Integrity: none
+- Availability: high
+
+## Recommendation
+
+Enforce the item cap at the raw directory-listing step itself, not only during the subsequent processing loop. Give `listDirSorted`/`listFilesSorted` an optional cap parameter and bound the raw `readdirSync` entry count (with a generous margin above `MAX_SCAN_ITEMS`) before the `.sort()` runs, surfacing a `truncated: true` fact consistently at every one of `listDirSorted`'s call sites (`scan_repo.mjs:451, 507, 526, 561, 703, 733, 785`) the same way `enumeratePlugins`'s existing `plugins.truncated` field already does for its own array.
+
+## Related
+
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/35088840758
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: S-2026-09-16-001`
+
+---
+Filed by Eva research run 35088840758 via `/ievo:vuln-scan` dogfooding (eva#165). Triage with `accepted` / `rejected` / `needs-discussion` labels.
+
+---
+
+## S-2026-09-16-002 — discover.mjs's buildQueries() has no cap on derived search-query count, enabling unbounded outbound fan-out to skills.sh
+
+```yaml
+id: S-2026-09-16-002
+discovered_at: 2026-09-16T12:12:00Z
+run_id: 35088840758
+target_repo: ievo-ai/skills
+title: discover.mjs's buildQueries() derives one skills.sh search query per element of an attacker-influenceable stack.languages/deps/categories/frameworks array with no count cap, only a byte-size cap on the whole payload
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/701
+cwe: CWE-400
+confidence: medium
+location: plugins/ievo/scripts/discover.mjs:231-299 (buildQueries), called from runDiscover at line 649 via mapWithConcurrency
+```
+
+# Security: discover.mjs has no cap on the number of search queries a stack payload can generate
+
+## Summary
+
+medium confidence — CWE-400 — `plugins/ievo/scripts/discover.mjs:231-299`
+
+## Exploit chain
+
+`discover.mjs`'s `--stack-file <path>` input (contained to `<project>/.ievo/`, capped at `MAX_STACK_FILE_BYTES` = 256 KB) or stdin (capped at `MAX_STDIN_BYTES` = 256 KB) is documented in this file's own header comment as reachable by a compromised or prompt-injected agent turn. `main()` parses the JSON stack payload and calls `runDiscover(stack, ...)`, which calls `buildQueries(stack)` (line 231). `buildQueries` adds one query to a `Set` per element of `stack.languages`, `stack.deps`, `stack.categories`, and `stack.frameworks`, with no limit on array length or total distinct-query count anywhere in the function — only the combined JSON payload's total *byte size* is capped, and 256 KB is enough room for tens of thousands of short unique strings (e.g. `{"deps":["a0","a1",...,"a19999"]}`). `runDiscover` then calls `mapWithConcurrency(queries, (q) => searchSkillsSh(q, perQuery, fetchImpl), concurrency)` (line 649) — `concurrency` (default `DEFAULT_CONCURRENCY = 8`) bounds how many requests run in parallel at once, not the total number of sequential batches. A stack payload with N unique dep/language/category/framework strings therefore drives N outbound HTTP GET requests to `https://skills.sh/api/search`, each awaited with no per-request timeout beyond the platform `fetch` default.
+
+## Preconditions
+
+- Attacker can influence the content of the `--stack-file` JSON (e.g. via a compromised/prompt-injected agent turn writing to the fixed `.ievo/` path per `init/SKILL.md` Step 5b) or the stdin payload piped into `discover.mjs` — both already treated as untrusted input by this file's own existing threat model (hence the byte-size caps that already exist).
+
+## Blast radius
+
+- Confidentiality: none
+- Integrity: none
+- Availability: high
+
+## Recommendation
+
+Cap the total number of derived queries in `buildQueries` — e.g. a `MAX_QUERIES` constant (around 100) applied via `[...queries].slice(0, MAX_QUERIES)` before returning, or cap each input array (`languages`/`deps`/`categories`/`frameworks`) to a small bound (e.g. 20 entries each) before building queries — at `plugins/ievo/scripts/discover.mjs:231-299`. Surface a `queries_capped: true` fact in the output the same way `scan_repo.mjs` surfaces `plugins.truncated`/`has_truncated_items`, so a legitimately large stack degrades visibly instead of silently fanning out to tens of thousands of outbound requests against a third-party API.
+
+## Related
+
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/35088840758
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: S-2026-09-16-002`
+
+---
+Filed by Eva research run 35088840758 via `/ievo:vuln-scan` dogfooding (eva#165). Triage with `accepted` / `rejected` / `needs-discussion` labels.
+
+---
+
+## S-2026-09-16-003 — extract-best-practices/SKILL.md Phase 5's upstream-sharing body embeds the authored package content with no dynamic fence-sizing, unlike the codebase's other three outer-fence call sites
+
+```yaml
+id: S-2026-09-16-003
+discovered_at: 2026-09-16T12:14:00Z
+run_id: 35088840758
+target_repo: ievo-ai/skills
+title: extract-best-practices/SKILL.md Phase 5 embeds authored SKILL.md/agent.md content in a plain, unsized outer code fence when sharing upstream, missing the backtick-run-sizing rule feedback/SKILL.md and version/SKILL.md already apply at their own outer-fence sites
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/702
+cwe: CWE-79
+confidence: medium
+location: plugins/ievo/skills/extract-best-practices/SKILL.md:181 (Phase 5)
+```
+
+# Security: extract-best-practices/SKILL.md's upstream-sharing body has no fence-containment sizing
+
+## Summary
+
+medium confidence — CWE-79 — `plugins/ievo/skills/extract-best-practices/SKILL.md:181`
+
+## Exploit chain
+
+A user runs `/ievo:extract-best-practices` after a session that processed attacker-influenced content (e.g. a malicious third-party skill/plugin inspected via `/ievo:inspect`, a crafted PR review body, or a compromised dependency's docs), which gets folded — even indirectly, as ordinary documentation prose describing bash/JSON usage — into a newly authored, "marketplace-worthy" skill or agent body during Phases 1-4. The user then accepts Phase 5's optional offer to share that new package upstream to `ievo-ai/skills`. Phase 5 (line 181) instructs: pass a pre-filled body consisting of a short paragraph "followed by the full authored `SKILL.md` (and `agent.md`, if a pair) content in a fenced code block, verbatim from the Step 5 write." Unlike every other place this codebase embeds untrusted multi-line content into an outer Markdown fence — `feedback/SKILL.md` Step 3.85's init-log attachment, Step 3.9's tool-failure-record attachment, and `version/SKILL.md` Step 4's changelog-body attachment, all of which explicitly scan the content for its longest existing backtick run and size the wrapping fence one character longer (minimum 3) — Phase 5 gives no such instruction. A freshly authored `SKILL.md` documenting bash/JSON templates (exactly the kind of content this flow routinely produces) very plausibly already contains a literal triple-backtick sequence internally. `feedback/SKILL.md`'s flow C then builds the public issue body from this pre-filled content (its own Step 4) and files it via `gh issue create --body-file` once the user clears Step 5's confirmation gate. If the authored package body contains an internal triple-backtick run, the plain outer fence closes prematurely at that point, and any text positioned after it in the body — a spoofed link or an image-based exfiltration beacon — renders live the instant the resulting public GitHub issue in `ievo-ai/skills` is viewed by anyone.
+
+## Preconditions
+
+- The newly authored package body — having already passed Phase 5's own content re-audit (Step 5 item 4, which screens for malicious intent, not Markdown-syntax hazards) — still contains a literal triple-backtick run, a common, non-malicious occurrence in skill documentation describing shell/JSON usage.
+- Text capable of rendering as a live link/image/HTML sits after that embedded triple-backtick run in the body.
+- The user opts in to Phase 5's upstream-sharing offer and confirms the post at `feedback/SKILL.md` Step 5.
+
+## Blast radius
+
+- Confidentiality: low
+- Integrity: low
+- Availability: none
+
+## Recommendation
+
+Apply the same fence-containment rule already established at `feedback/SKILL.md` Step 3.85/Step 3.9 and `version/SKILL.md` Step 4: before embedding the authored `SKILL.md`/`agent.md` content into the feedback body's code block, scan it for the longest run of consecutive backticks it contains and fence it with a backtick run one character longer (minimum 3, i.e. plain triple-backtick when none is found). Add this instruction explicitly to `extract-best-practices/SKILL.md` Phase 5's body-construction text (line 181), matching the wording already used at the other three call sites.
+
+## Related
+
+- **Eva research run:** https://github.com/ievo-ai/eva/actions/runs/35088840758
+- **Backlog entry (ievo-ai/eva):** https://github.com/ievo-ai/eva/blob/main/researches/findings-backlog.md — search for `id: S-2026-09-16-003`
+
+---
+Filed by Eva research run 35088840758 via `/ievo:vuln-scan` dogfooding (eva#165). Triage with `accepted` / `rejected` / `needs-discussion` labels.
+
+---
+
 ## F-2026-05-22-001 — hooks-setup Stop hook for background-agents-complete notification
 
 ```yaml

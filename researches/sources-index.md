@@ -36,14 +36,15 @@ run_id: <GitHub Actions run ID or null>
 ## https://www.anthropic.com/news
 
 ```yaml
-last_scan: 2026-09-04T09:05:00Z
+last_scan: 2026-09-16T11:20:00Z
 status: changed
-run_id: 33865507886
+run_id: 35088840758
 ```
 
-**Summary:** 1 new item since the Sep-3 baseline — "Introducing Claude Fable 5.1 and Claude Mythos 5.1" (Sep 1, new default coding/knowledge-work models; corroborated by `claude-code` v2.1.260's Fable-5.1-related bugfixes). Non-CC-specific model release, no skill-format or marketplace change; no iEvo action.
+**Summary:** 2 new items since the Sep-4 baseline — "Detecting and countering misuse of AI: September 2026" (Sep 10, threat-intelligence case studies) and "Developing Enterprise Frontier Safeguards with our customers" (Sep 1, already noted by the Sep 8 stuck-PR report). Both non-technical/safety-framing, no CC-specific or skill-format signal, no iEvo action.
 
 History:
+- 2026-09-16T11:20:00Z — changed: 2 new items since Sep-4 baseline — "Detecting and countering misuse of AI: September 2026" (Sep 10) and "Developing Enterprise Frontier Safeguards" (Sep 1); both non-technical, no iEvo action
 - 2026-09-04T09:05:00Z — changed: 1 new item since Sep-3 baseline — "Introducing Claude Fable 5.1 and Claude Mythos 5.1" (Sep 1) new default models; no CC-specific or skill-format change, no iEvo action
 - 2026-08-30T00:00:00Z — changed: catch-up scan across the Aug27/Aug28 unmerged-PR gap — 3 new items (Model Hardware Standard, scientist support, AI-wellbeing eval funding), all non-technical, no iEvo action; no items newer than Aug 27 as of this run
 - 2026-08-26T00:00:00Z — unchanged: re-fetched, no items newer than Aug 14; no iEvo action
@@ -98,12 +99,16 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-09-04T09:10:00Z
+last_scan: 2026-09-16T11:25:00Z
 status: changed
-run_id: 33865507886
+run_id: 35088840758
 ```
 
-**Summary:** New since Sep-3 baseline: **v2.1.260 (Sep 3, latest)** — large 70+-item bugfix/QoL release (diff panel `/diff`, prompt-cache-miss cause surfaced in `/cost`, `/reload-plugins` in headless sessions, text-form `/advisor`, zsh REPORTTIME/REPORTMEMORY/DIRSTACKSIZE Bash-permission-bypass fix, permission-rule parenthesis/regex fixes, `skillOverrides` alias/nested-skill deny-rule fixes, Fable 5.1 handling fixes, reverts the 2.1.259 change applying `Read()` deny rules to Bash arguments, plus many more). Fully reviewed — no new SKILL.md/agent/sub-agent frontmatter field, no plugin-marketplace schema change. v2.1.257's `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` (already flagged as an `AGENTS.md` staleness item, still unaddressed) re-confirmed present via the sub-agents doc re-fetch; no new action here.
+**Summary:** New since Sep-4 baseline: v2.1.261 through **v2.1.273 (Sep 15, latest)**. Highlights fully reviewed: `/skill-doctor` (v2.1.261, shows unused loaded skills + context cost), `claude plugin eval` (**v2.1.269, Sep 11** — new plugin eval-suite runner, `experimental.evals` manifest field, `tool_used: Skill` grader — see Findings filed, this satisfies `skills#267`'s reopen condition), `omitClaudeMd` agent frontmatter (v2.1.271), per-command `allowed_domains` for sandboxed auto-mode Bash (v2.1.271). No new SKILL.md/agent-frontmatter field beyond `omitClaudeMd` (not applicable to iEvo's agents — none currently need to omit CLAUDE.md), no marketplace-manifest schema change beyond the already-actioned `experimental.evals`. `code.claude.com/docs/en/sub-agents` re-confirmed this run: `CLAUDE_CODE_SUBAGENT_MODEL` precedence is per-invocation → frontmatter → env var → main conversation (env var does NOT override frontmatter, contrary to `AGENTS.md`'s still-stale table) and `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` (v2.1.257) forces every subagent to one model — both still undocumented/wrong in `AGENTS.md`, unchanged since first flagged 2026-08-28/09-03, still blocked on lack of push access.
+
+History:
+- 2026-09-16T11:25:00Z — changed: v2.1.261-273 (Sep15, latest) — claude plugin eval (v2.1.269) triggered F-2026-09-16-001; omitClaudeMd frontmatter (v2.1.271) reviewed, not applicable; AGENTS.md subagent-model-precedence staleness re-confirmed via sub-agents doc, still unfixed
+- 2026-09-04T09:10:00Z — changed: New since Sep-3 baseline: **v2.1.260 (Sep 3, latest)** — large 70+-item bugfix/QoL release (diff panel `/diff`, prompt-cache-miss cause surfaced in `/cost`, `/reload-plugins` in headless sessions, text-form `/advisor`, zsh REPORTTIME/REPORTMEMORY/DIRSTACKSIZE Bash-permission-bypass fix, permission-rule parenthesis/regex fixes, `skillOverrides` alias/nested-skill deny-rule fixes, Fable 5.1 handling fixes, reverts the 2.1.259 change applying `Read()` deny rules to Bash arguments, plus many more). Fully reviewed — no new SKILL.md/agent/sub-agent frontmatter field, no plugin-marketplace schema change. v2.1.257's `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` (already flagged as an `AGENTS.md` staleness item, still unaddressed) re-confirmed present via the sub-agents doc re-fetch; no new action here.
 
 History:
 - 2026-09-04T09:10:00Z — changed: v2.1.260 (Sep3, latest) — 70+ item bugfix/QoL release; no new frontmatter fields, no marketplace schema change; no iEvo action
@@ -164,14 +169,15 @@ History:
 ## https://github.com/anthropics/claude-code-action/releases
 
 ```yaml
-last_scan: 2026-09-04T09:12:00Z
+last_scan: 2026-09-16T11:26:00Z
 status: changed
-run_id: 33865507886
+run_id: 35088840758
 ```
 
-**Summary:** New since Sep-3 baseline: v1.0.211 through v1.0.215 (Aug 31 - Sep 3, latest), all empty-body compare-link-only patches (`gh api` confirms each release body is just the Full-Changelog link). No input schema changes; eva#65 stays closed.
+**Summary:** New since Sep-4 baseline: v1.0.216 through **v1.0.226 (Sep 15, latest)** — a `v1` floating tag also moved (excluded per established precedent). All 5 individually verified as empty-body compare-link-only patches via `gh api`. No input schema changes; eva#65 stays closed.
 
 History:
+- 2026-09-16T11:26:00Z — changed: v1.0.216-226 (Sep15, latest), all empty-body patches; no input schema changes; eva#65 stays closed
 - 2026-09-04T09:12:00Z — changed: v1.0.211-215 (Aug31-Sep3, latest), all empty-body patches; no input schema changes; eva#65 stays closed
 - 2026-08-30T00:00:00Z — changed: catch-up scan — v1.0.207-210 (Aug27-28), all empty-body patches; no input schema changes; eva#65 stays closed
 - 2026-08-26T00:00:00Z — changed: v1.0.204/205/206 (Aug 25) — bugfix-only (delete_files prompt path fix, branch-name-parentheses validation, log-fetch stall bound, branch-name URL encoding); no input schema changes; eva#65 stays closed
@@ -226,14 +232,15 @@ History:
 ## https://docs.anthropic.com/en/docs/claude-code/overview
 
 ```yaml
-last_scan: 2026-09-04T09:14:00Z
+last_scan: 2026-09-16T11:27:00Z
 status: unchanged
-run_id: 33865507886
+run_id: 35088840758
 ```
 
-**Summary:** Not re-fetched (low cadence, redirect-only; v2.1.260 release notes reviewed directly, no overview-relevant product-surface change mentioned).
+**Summary:** Not re-fetched (low cadence, redirect-only; v2.1.261-273 release notes reviewed directly, no overview-relevant product-surface change mentioned beyond the already-actioned `claude plugin eval`).
 
 History:
+- 2026-09-16T11:27:00Z — unchanged: not re-fetched (low cadence, redirect-only); v2.1.261-273 reviewed directly
 - 2026-09-04T09:14:00Z — unchanged: not re-fetched (low cadence, redirect-only); v2.1.260 release notes reviewed directly, no new product surface
 - 2026-08-21T06:58:19Z — unchanged: not re-fetched (low cadence, redirect-only); v2.1.235-238 release notes reviewed directly, no new product surface
 - 2026-08-18T00:00:00Z — unchanged: not re-fetched (low cadence, redirect-only)
@@ -257,14 +264,15 @@ History:
 ## https://openai.com/index/news/
 
 ```yaml
-last_scan: 2026-09-04T09:15:00Z
+last_scan: 2026-09-16T11:30:00Z
 status: error
-run_id: 33865507886
+run_id: 35088840758
 ```
 
 **Summary:** Not re-attempted this run (persistent 403 across many consecutive prior attempts, low cadence, well-established). Use `github.com/openai/codex/releases` as the Codex signal source instead.
 
 History:
+- 2026-09-16T11:30:00Z — error: not re-attempted (persistent 403, low cadence, well-established across many prior runs)
 - 2026-09-04T09:15:00Z — error: not re-attempted (persistent 403, low cadence, well-established across many prior runs)
 - 2026-08-24T07:14:49Z — error: not re-attempted (persistent 403, low cadence)
 - 2026-08-21T06:58:19Z — error: re-attempted, still HTTP 403 Forbidden
@@ -287,14 +295,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-09-04T09:18:00Z
+last_scan: 2026-09-16T11:32:00Z
 status: changed
-run_id: 33865507886
+run_id: 35088840758
 ```
 
-**Summary:** New since Sep-3 baseline: rust-v0.153.1 (Sep 3) and rust-v0.153.2 (Sep 3, latest stable) — both narrow patches backporting/fixing the GPT-6-Astra model catalog entry (tier description wording only). Not a skill-format or plugin-packaging change. Pre-release line at rust-v0.154.0-alpha.1-3 (Sep 3-4), empty-body per established alpha-tag precedent, not fetched for content.
+**Summary:** New since Sep-4 baseline: rust-v0.154.0 STABLE (Sep 9, latest) — full notes reviewed: GPT-6-Astra model-picker/Bedrock catalog entry, experimental `--worktree`/`/worktree` isolated-checkout support, inline question-answering mid-run, Windows shared background server, Vim replace mode, deprecated `codex mcp-server` entry point removed. No skill-format/marketplace-schema signal. python-v0.154.0 companion release same day, SDK-only.
 
 History:
+- 2026-09-16T11:32:00Z — changed: rust-v0.154.0 STABLE (Sep9, latest) — GPT-6-Astra, --worktree, inline Q&A; no skill-format signal
 - 2026-09-04T09:18:00Z — changed: rust-v0.153.1/0.153.2 (Sep3, latest stable) — GPT-6-Astra model-catalog backport + tier-description text fix, no skill-format signal; 0.154.0-alpha.1-3 pre-release line not fetched (established precedent)
 - 2026-08-30T00:00:00Z — changed: catch-up scan — rust-v0.150.0/0.150.1 (Aug26-27, already reviewed) + rust-v0.151.0 (Aug29, latest — MCP/extension/sandbox reliability work, no skill-format signal)
 - 2026-08-26T00:00:00Z — unchanged: `gh api` confirms rust-v0.149.1 still latest stable; no new stable release; 0.150.0-alpha.8-11 (Aug 24-25) pre-release line, no content fetched
@@ -353,14 +362,15 @@ History:
 ## https://blog.google/technology/google-deepmind/
 
 ```yaml
-last_scan: 2026-09-04T09:20:00Z
-status: unchanged
-run_id: 33865507886
+last_scan: 2026-09-16T11:34:00Z
+status: changed
+run_id: 35088840758
 ```
 
-**Summary:** Re-fetched — newest visible post is now "Introducing WeatherNext 3" (weather-forecasting model); not agent-skill-format relevant. No robotics/agent-tooling post newer than previously known.
+**Summary:** Re-fetched — newest visible post is now "AlphaGenome Atlas: a high-resolution map of human DNA" (genomics research); not agent-skill-format relevant. No robotics/agent-tooling post newer than previously known.
 
 History:
+- 2026-09-16T11:34:00Z — changed: newest post now "AlphaGenome Atlas" (genomics); not agent-skill-format relevant
 - 2026-09-04T09:20:00Z — unchanged: re-fetched, newest visible post "Introducing WeatherNext 3" (weather model); not agent-skill-format relevant
 - 2026-08-21T06:58:19Z — unchanged: re-fetched, only "Introducing Gemini Robotics ER 2" visible; not agent-skill-format relevant
 - 2026-08-18T00:00:00Z — unchanged: not re-fetched (low cadence)
@@ -387,14 +397,15 @@ History:
 ## https://agentskills.io/specification
 
 ```yaml
-last_scan: 2026-09-04T09:22:00Z
+last_scan: 2026-09-16T11:36:00Z
 status: unchanged
-run_id: 33865507886
+run_id: 35088840758
 ```
 
-**Summary:** `gh api` PR check (sorted by creation date) — still no new merges since #492 (Aug 9, now a **26-day gap**); open PR count grew to 37 (includes the spam/vandalism #542, confirmed still open, ignored per established precedent); still all unmerged, still watch-only. Not deep-re-fetched (no merge to trigger one) — same 6 core frontmatter fields stand.
+**Summary:** `gh api` PR check (sorted by creation date) — still no new merges since #492 (Aug 9, now a **38-day gap**); watch-only. Not deep-re-fetched (no merge to trigger one) — same 6 core frontmatter fields stand.
 
 History:
+- 2026-09-16T11:36:00Z — unchanged: no new merges since #492, 38-day gap
 - 2026-09-04T09:22:00Z — unchanged: `gh api` PR check — no new merges since #492 (26-day gap); 37 open PRs (incl. spam #542, still open+ignored); not deep-re-fetched
 - 2026-08-30T00:00:00Z — unchanged: `gh api` PR check — no new merges since #492 (21-day gap); 30 open PRs total, same wave, no new activity beyond what Aug 27/28 already recorded; not deep-re-fetched
 - 2026-08-26T00:00:00Z — unchanged: `gh api` PR check — no new merges since #492 (17-day gap); 2 new open PRs (#524, #525, both docs-only, unmerged); not deep-re-fetched (no merge to trigger one)
@@ -447,14 +458,15 @@ History:
 ## https://github.com/agentskills/agentskills
 
 ```yaml
-last_scan: 2026-09-04T09:24:00Z
+last_scan: 2026-09-16T11:38:00Z
 status: unchanged
-run_id: 33865507886
+run_id: 35088840758
 ```
 
-**Summary:** No new merges since #492 (Aug 9) — now a **26-day gap**, directly reconfirmed via `gh api search/issues` sorted by creation date (most recent merges still #492/#491/#479, all Aug 4-9, all cosmetic client-showcase/docs). Open-PR count grew to **37**, including a new spam/vandalism PR **#542** ("Rename README.md to Straccion.md+52 666666") — ignored, not a legitimate proposal, per established precedent. No new merges means no spec/schema impact regardless.
+**Summary:** No new merges since #492 (Aug 9) — now a **38-day gap**, reconfirmed via `gh api search/issues` sorted by creation date. Watch-only.
 
 History:
+- 2026-09-16T11:38:00Z — unchanged: no new merges since #492, 38-day gap
 - 2026-09-04T09:24:00Z — unchanged: `gh api` merged-PR check (by creation date) — no new merges since #492 (26-day gap); 37 open PRs incl. new spam PR #542 (ignored)
 - 2026-08-30T00:00:00Z — unchanged: `gh api` merged-PR check — no new merges since #492 (21-day gap, directly reconfirmed); 30 open PRs (Aug 24-27 wave), no new activity beyond what Aug 27/28 already recorded
 - 2026-08-26T00:00:00Z — changed: 2 new open PRs (#524, #525 — both docs guidance on skill dependencies/references, unmerged); no new merges since #492 (17-day gap)
@@ -505,14 +517,15 @@ History:
 ## https://www.cursor.com/changelog
 
 ```yaml
-last_scan: 2026-09-04T09:26:00Z
-status: unchanged
-run_id: 33865507886
+last_scan: 2026-09-16T11:40:00Z
+status: changed
+run_id: 35088840758
 ```
 
-**Summary:** Re-fetched — "Self-hosted machines" (Sep 2) still the newest entry; no entries after Sep 2 as of this run.
+**Summary:** Re-fetched — "Cursor Projects" (Sep 10) is now newest: a feature for managing larger bodies of work (features/migrations) with extended context and automatic multi-subagent delegation. Cloud-agent/session-management feature, not a skill-packaging/discovery-format capability — no iEvo action.
 
 History:
+- 2026-09-16T11:40:00Z — changed: "Cursor Projects" (Sep 10) — extended-context multi-subagent work delegation; cloud-agent infra, not skill-format-actionable
 - 2026-09-04T09:26:00Z — unchanged: re-fetched, "Self-hosted machines" (Sep2) still newest entry; no new entries
 - 2026-08-30T00:00:00Z — changed: catch-up scan — "Start from scratch, without a repo" (Aug27) newest entry, cloud-agent infra only, not iEvo-actionable; no entries after Aug27
 - 2026-08-26T00:00:00Z — unchanged: re-fetched, still Aug 19 "Cloud Agents and Cursor Harness Improvements" as newest entry; no new plugin/MCP/skills capability shipped since
@@ -565,14 +578,15 @@ History:
 ## https://news.ycombinator.com
 
 ```yaml
-last_scan: 2026-09-04T09:28:00Z
+last_scan: 2026-09-16T11:42:00Z
 status: changed
-run_id: 33865507886
+run_id: 35088840758
 ```
 
-**Summary:** Different top-story set: "Which tools do Claude, Codex and Cursor choose? We measured 17k runs to find out" (232 pts, comparative tool-selection benchmark, not a shipped capability) + "Ask HN: Who is using MCP in production?" (83 pts, discussion) + "GPT-6 Astra" (1856 pts, OpenAI's new frontier model — major but not skills/packaging-format relevant) + "K2 Horizon" open-model fleet (303 pts) + Qwen 3.8 27B on Cerebras (575 pts). None agent-skill-format actionable; nothing filed.
+**Summary:** Different top-story set: "Introducing System One Models and Jev" (1458 pts — Typesafe.ai model/framework announcement, reviewed and judged not skill-packaging/discovery-format relevant) + "Datamimic — don't let your coding agent invent its own test world" (44 pts, coding-agent test-data tool) + "Learning Programming in an Age of LLMs" (61 pts) + "Mistral X Mozilla: Private, Multilingual AI Browsing" (72 pts). None agent-skill-format actionable; nothing filed.
 
 History:
+- 2026-09-16T11:42:00Z — changed: different top-story set — "System One Models and Jev" (1458pts, model/framework announcement) + Datamimic (44pts, agent test-data tool); neither skill-packaging-format actionable, nothing filed
 - 2026-09-04T09:28:00Z — changed: different top-story set — "Which tools do Claude/Codex/Cursor choose" benchmark (232pts) + "Who is using MCP in production" (83pts) + GPT-6 Astra launch (1856pts) + K2 Horizon (303pts) + Qwen3.8 on Cerebras (575pts); none agent-skill-format actionable, nothing filed
 - 2026-08-30T00:00:00Z — unchanged: quiet day, no Claude Code/Codex/MCP/agent-skills-format items in top 20; nothing filed
 - 2026-08-26T00:00:00Z — unchanged: different top-story set (Apple hardware, Dolly Parton, Nitter C&D, Python CVEs, "Agentic Context Management" arxiv paper 25pts); nothing agent-skill-format actionable, nothing filed
@@ -620,14 +634,15 @@ History:
 ## https://github.com/DenisSergeevitch/agents-best-practices
 
 ```yaml
-last_scan: 2026-09-04T09:30:00Z
-status: unchanged
-run_id: 33865507886
+last_scan: 2026-09-16T11:44:00Z
+status: changed
+run_id: 35088840758
 ```
 
-**Summary:** Direct `gh api` commit check — latest commit still `dace8b70` (Aug 26, "Add speculative tool execution profile"); 9 days without further activity as of this run. Already reviewed and found not iEvo-actionable.
+**Summary:** Direct `gh api` commit check — latest commit now `8ae08504` (Sep 5, "Document interactive record and user-memory contracts"), already reviewed by the Sep 10 stuck-PR report and judged not iEvo-actionable (describes this repo's own agent-authoring framework concepts — no equivalent gap in iEvo). 11 days without further activity since.
 
 History:
+- 2026-09-16T11:44:00Z — changed (catch-up): latest commit `8ae08504` (Sep5) already reviewed by Sep10 stuck report, not iEvo-actionable; 11-day gap since
 - 2026-09-04T09:30:00Z — unchanged: direct `gh api` commit check — latest commit still `dace8b70` (Aug 26); 9 days without activity
 - 2026-08-30T00:00:00Z — unchanged: direct `gh api` commit check — latest commit still `dace8b70` (Aug 26, speculative tool execution profile); 4 days without further activity; already reviewed and found not iEvo-actionable
 - 2026-08-26T00:00:00Z — unchanged: direct `gh api` commit check — latest commit still `47c5590a` (Aug 10); 16 days without activity
@@ -680,14 +695,15 @@ History:
 ## https://code.claude.com/docs/en/skills.md
 
 ```yaml
-last_scan: 2026-09-04T09:32:00Z
-status: unchanged
-run_id: 33865507886
+last_scan: 2026-09-16T11:46:00Z
+status: changed
+run_id: 35088840758
 ```
 
-**Summary:** Not re-fetched; v2.1.260 release notes reviewed directly (diff panel, `/advisor`, `skillOverrides` alias/nested-skill fixes, permission-rule fixes, etc.), none mention a SKILL.md frontmatter change.
+**Summary:** Full re-fetch this run (triggered by `claude plugin eval`'s new manifest field): frontmatter table now includes an "About Evals" note — no `evals`/`eval` frontmatter field on SKILL.md itself, but documents the separate `evals/evals.json` skill-creator eval format (distinct from the plugin-level `claude plugin eval` case format documented on `plugin-evals`). No SKILL.md frontmatter field added/changed beyond what's already tracked.
 
 History:
+- 2026-09-16T11:46:00Z — changed: full re-fetch, "About Evals" note confirms skill-creator's own `evals/evals.json` format is distinct from `claude plugin eval`'s case format (see F-2026-09-16-001); no frontmatter field change
 - 2026-09-04T09:32:00Z — unchanged: not re-fetched; v2.1.260 release notes reviewed directly, no SKILL.md frontmatter change mentioned
 - 2026-08-21T06:58:19Z — unchanged: not re-fetched; v2.1.235-238 release notes reviewed directly, no SKILL.md frontmatter change mentioned
 - 2026-08-18T00:00:00Z — unchanged: not re-fetched; v2.1.234 release notes reviewed directly, no SKILL.md frontmatter change mentioned
@@ -728,14 +744,15 @@ History:
 ## https://code.claude.com/docs/en/routines.md
 
 ```yaml
-last_scan: 2026-09-04T09:34:00Z
+last_scan: 2026-09-16T11:48:00Z
 status: unchanged
-run_id: 33865507886
+run_id: 35088840758
 ```
 
-**Summary:** Not re-fetched (low cadence, no signal expected — v2.1.260 doesn't mention Routines).
+**Summary:** Full re-fetch this run — same mechanics as the Aug 15 full read (schedule/API/GitHub triggers, `/schedule` CLI, connectors, environments, usage limits). No new trigger type or manifest surface since; still no `claude schedule create` shell subcommand (F-2026-07-04-001 still stands, already shipped as skills#310).
 
 History:
+- 2026-09-16T11:48:00Z — unchanged: full re-fetch, same mechanics as Aug15 read, no new trigger type or manifest surface
 - 2026-09-04T09:34:00Z — unchanged: not re-fetched (low cadence, no signal expected — v2.1.260 doesn't mention Routines)
 - 2026-08-21T06:58:19Z — unchanged: not re-fetched (low cadence, no signal expected — none of v2.1.235-238 mention Routines)
 - 2026-08-18T00:00:00Z — unchanged: not re-fetched (low cadence, no signal expected — v2.1.234 doesn't mention Routines)
@@ -765,14 +782,15 @@ History:
 ## https://code.claude.com/docs/en/channels.md
 
 ```yaml
-last_scan: 2026-09-04T09:36:00Z
+last_scan: 2026-09-16T11:50:00Z
 status: unchanged
-run_id: 33865507886
+run_id: 35088840758
 ```
 
-**Summary:** Not re-fetched (low cadence, no signal expected — v2.1.260 doesn't mention Channels).
+**Summary:** Full re-fetch this run — still research preview, same Telegram/Discord/iMessage/fakechat plugin set, same `channelsEnabled`/`allowedChannelPlugins` managed-settings gates. No GA, no new plugin, no iEvo-relevant surface.
 
 History:
+- 2026-09-16T11:50:00Z — unchanged: full re-fetch, still research preview, same plugin set and enterprise controls
 - 2026-09-04T09:36:00Z — unchanged: not re-fetched (low cadence, no signal expected — v2.1.260 doesn't mention Channels)
 - 2026-08-21T06:58:19Z — unchanged: not re-fetched (low cadence, no signal expected — none of v2.1.235-238 mention Channels)
 - 2026-08-18T00:00:00Z — unchanged: not re-fetched (low cadence, no signal expected — v2.1.234 doesn't mention Channels)
@@ -801,14 +819,15 @@ History:
 ## https://code.claude.com/docs/en/sub-agents
 
 ```yaml
-last_scan: 2026-09-04T09:38:00Z
+last_scan: 2026-09-16T11:52:00Z
 status: unchanged
-run_id: 33865507886
+run_id: 35088840758
 ```
 
-**Summary:** Full re-fetch — confirms the doc matches v2.1.251's model-precedence flip (per-invocation → frontmatter `model:` → `CLAUDE_CODE_SUBAGENT_MODEL` → main conversation) and documents `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` (requires v2.1.257+) in full, including its override-everything behavior. Corroborates item 2's (claude-code/releases) `AGENTS.md` staleness finding — no action needed here. Frontmatter field table re-confirmed, no new fields since last full check.
+**Summary:** Full re-fetch this run — re-confirms the same precedence order (per-invocation param → frontmatter `model:` → `CLAUDE_CODE_SUBAGENT_MODEL` env var → main conversation) and `CLAUDE_CODE_SUBAGENT_MODEL_FORCE`'s override-everything behavior, including the doc's own explicit note that pre-v2.1.251 the env var came first and overrode both the per-invocation parameter and frontmatter. `AGENTS.md`'s "Model bypass vectors" table is STILL stale on both counts (wrong precedence order + missing `_FORCE` row) — unchanged since first flagged 2026-08-28/09-03, still blocked on lack of push access this run.
 
 History:
+- 2026-09-16T11:52:00Z — unchanged: full re-fetch, precedence order + _FORCE behavior re-confirmed identical; AGENTS.md staleness still unfixed, still blocked on push access
 - 2026-09-04T09:38:00Z — unchanged: full re-fetch, doc confirmed to match v2.1.251 precedence flip + documents CLAUDE_CODE_SUBAGENT_MODEL_FORCE in full; corroborates AGENTS.md staleness finding (no new action); no new frontmatter fields
 - 2026-08-21T06:58:19Z — unchanged: not re-fetched; v2.1.235-238 release notes reviewed directly, no sub-agent frontmatter change mentioned
 - 2026-08-18T00:00:00Z — unchanged: not re-fetched; v2.1.234 release notes reviewed directly, no sub-agent frontmatter change mentioned
@@ -876,14 +895,15 @@ History:
 ## https://agent-plugins.org
 
 ```yaml
-last_scan: 2026-09-04T09:40:00Z
+last_scan: 2026-09-16T11:54:00Z
 status: unchanged
-run_id: 33865507886
+run_id: 35088840758
 ```
 
-**Summary:** `gh api` commit + PR check — still no new commits/merges to the spec repo since PR #65 (Aug 19, 1.1.0 working draft); `#66`/`#67` still open+unmerged. Three new open PRs against the still-unmerged 1.1.0 draft since the Sep-3 baseline: `#79` (Aug 31, "Make plugin name validation regex-portable"), `#80` (Sep 1, "Make MCP working-directory validation regex-portable"), `#82` (Sep 1, "Make malformed extensions fatal in Agent Plugins 1.1") — all portability/hardening proposals against an unmerged draft, not a shipped spec change. Landing page still shows 1.0.0. Still watch-only.
+**Summary:** `gh api` commit + PR check — still no new commits/merges to the spec repo since PR #65 (Aug 19, now a 28-day gap); `#66`/`#67`/`#79`/`#80`/`#82` all still open+unmerged against the 1.1.0 working draft, no update since Sep 1 (15-day gap). Landing page still 1.0.0. Still watch-only.
 
 History:
+- 2026-09-16T11:54:00Z — unchanged: no new commits/merges since #65 (28-day gap); #66/#67/#79/#80/#82 all still open+unmerged, no activity since Sep1
 - 2026-09-04T09:40:00Z — unchanged: `gh api` commit+PR check — no new merges since #65 (Aug19); 3 new open PRs (#79/#80/#82, Aug31-Sep1) against still-unmerged 1.1.0 draft, portability/hardening proposals only; landing page still 1.0.0
 - 2026-08-30T00:00:00Z — unchanged: `gh api` PR check — no new merges since #65 (Aug19); #66/#67 still open+unmerged, no update since Aug25/Aug22 respectively
 - 2026-08-26T00:00:00Z — unchanged: `gh api` commit + PR check — no new commits since the #65 merge (Aug 19); #66 (updated Aug 25)/#67 (updated Aug 22) still open+unmerged, comment activity only
