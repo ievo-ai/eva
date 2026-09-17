@@ -3233,3 +3233,22 @@ location: plugins/ievo/agents/evolution.md (Step 5 report template, lines 1023-1
 ```
 
 Directly re-read this run (4-module `/ievo:vuln-scan` dogfooding, agents+commands dispatch, independently re-verified against current source): Step 1's target-discovery list includes `.claude/plugins/*/agents/*.md` and `.claude/plugins/*/skills/*/SKILL.md` — a filename chosen by the plugin author, not filtered through iEvo's own install-time naming validation. Step 5's report template (line 1023) writes `- Scope + target: project | agents/<name> | skills/<name>` and (line 1024) `- Overlay file: path` (resolving to `.ievo/evolution/agents/<name>.md` / `.ievo/evolution/skills/<name>.md`) with `<name>` unfenced, while line 1026's `- Section title: "<title, ... code-fenced per Step 4's Excerpt containment note>"` explicitly requires fencing for the adjacent field. The only charset validation of `<name>` anywhere in the file (`^[A-Za-z0-9._-]+$`, Step 4.4) applies to the constructed overlay-file-path string used for the Bash auto-commit, not to the Step 5 report content, and runs after Step 5. Checked against closed `skills#679` (covers the `<title>` field derived from lesson text, Step 4 line ~723 / Step 5's "Section title" line) — confirmed distinct: different field, different provenance (plugin-authored filename vs. user-authored lesson text).
+
+## S-2026-09-17-001 — check-coverage.mjs resolves REQUIRED coverage records by basename only, letting a same-named decoy elsewhere in the repo satisfy the 100% gate while the real script goes untested
+
+```yaml
+id: S-2026-09-17-001
+discovered_at: 2026-09-17T11:28:01Z
+run_id: 35214999513
+target_repo: ievo-ai/skills
+title: .github/scripts/check-coverage.mjs's findRequiredRecord() matches lcov SF: records by basename() only (not scoped to plugins/ievo/scripts/), and findScripts()'s non-recursive readdirSync(SCRIPTS_DIR) can't catch a same-named decoy nested elsewhere — a PR that guts a REQUIRED script's real tests and adds a fully-covered decoy with the same filename passes the Coverage Gate at 100/100/100 while the real script ships untested
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/705
+cwe: CWE-706
+confidence: medium
+location: .github/scripts/check-coverage.mjs:72-88 (findRequiredRecord), :103-107 (findScripts)
+```
+
+Directly re-read this run (4-module `/ievo:vuln-scan` dogfooding, workflows-module dispatch, independently re-verified against current source): `findRequiredRecord(records, name)` (lines 72-88) filters `records` — parsed from the WHOLE lcov file, not scoped to `SCRIPTS_DIR` — by `basename(sf) === name`, and treats exactly-one-match as authoritative. `findScripts()` (lines 103-107) does a non-recursive `readdirSync(SCRIPTS_DIR)`, so it only lists `.mjs` files directly inside `plugins/ievo/scripts/` — a same-named file anywhere else in the repo (a subdirectory of `SCRIPTS_DIR`, or entirely outside it) never appears in `findScripts()`'s output and so can never trip the "untracked scripts" orphan check (lines 132-142) that would otherwise flag it. A PR that (1) removes or weakens the real test coverage for a `REQUIRED` script (e.g. `discover.mjs`) so it produces no `SF:` record, and (2) adds an elsewhere-located decoy `.mjs` file sharing that exact basename plus a test under `plugins/ievo/scripts/tests/*.test.mjs` that fully exercises the decoy, causes `findRequiredRecord` to resolve the REQUIRED name to the decoy's fully-covered record (the real script produced none, so `matches.length === 1` and the collision-detection branch at lines 80-87 never fires) — `check-coverage.mjs` reports `discover.mjs: ... 100/100/100 (OK)` even though the real, shipped `plugins/ievo/scripts/discover.mjs` has zero test exercise in that PR. This directly weakens the invariant the repo's own AGENTS.md calls "the security model" ("these scripts ARE the security model... untested code in the security path is unacceptable") and the CI gate that both human reviewers and Eva's own cross-principal auto-approve path treat as authoritative.
+
+Recommendation: scope `findRequiredRecord` to only match `SF:` records whose path starts with `${SCRIPTS_DIR}/` (or exact-equals `${SCRIPTS_DIR}/${name}`) before the basename comparison, and make `findScripts()` recurse into subdirectories of `SCRIPTS_DIR` (e.g. `readdirSync(SCRIPTS_DIR, { recursive: true })`) so a nested same-named decoy is caught by the existing orphan check instead of being invisible to it.
