@@ -82,3 +82,29 @@ title: review-retrospective/SKILL.md Step 3 renders the sub-agent's cluster repo
 
 Premise (from this run's `/ievo:vuln-scan` module dispatch on `plugins/ievo/skills`): `review-retrospective/SKILL.md` Step 3 (`plugins/ievo/skills/review-retrospective/SKILL.md:134`) instructs "Present the sub-agent's cluster report to the user **as-is**" with no accompanying excerpt-containment/backtick-fencing instruction, so a crafted `![...](...)`/`[...](...)` in a quoted PR review/comment excerpt could render live in the Claude Code chat UI. Disproved by direct re-read of `/tmp/skills/plugins/ievo/agents/review-retrospective.md:176-236`: the **dispatched sub-agent** (out of the flagging vuln-scanner's module scope, which covered `plugins/ievo/skills` only) carries its own explicit "Excerpt containment for verbatim untrusted text in the report" rule, which the file's own text names as covering exactly the two surfaces the candidate worried about — "rendered as Markdown on two surfaces — the chat preview and the park file, both in `review-retrospective/SKILL.md` (Steps 3 and 4)". This is the same paired pattern `deep-review/SKILL.md`/`deep-reviewer.md` already use elsewhere in this plugin (agent applies backtick-run-sizing before returning; skill's own "display verbatim, don't unwrap" instruction means don't strip the already-applied fencing, not "no fencing exists"). The candidate's own flagging agent noted this gap in its preconditions ("The dispatched review-retrospective sub-agent... does not independently apply the same excerpt-fencing deep-reviewer applies — unverifiable from this file alone") — cross-module re-read (Step 3c.1's `vuln-scan` Phase 3 cross-module correlation, applied manually here since the module dispatches ran independently) resolves that open precondition: the sub-agent DOES apply it. No live gap — premise does not hold.
 
+## R-2026-09-19-001 — handoff/SKILL.md's non-mktemp fallback path lacks a random component and creation-atomicity
+
+```yaml
+id: R-2026-09-19-001
+rejected_at: 2026-09-19T10:46:00Z
+run_id: 35437809910
+source_step: audit
+category: security
+title: handoff/SKILL.md Step 1's fallback branch (Bash unavailable, or mktemp failed) builds a predictable, non-atomic <temp-dir>/ievo-handoff-<YYYYMMDD-HHMMSS>.md path, the same CWE-377 class already-closed skills#676 covered
+```
+
+Premise (from this run's `/ievo:vuln-scan` module dispatch on `plugins/ievo/skills`): the non-`mktemp` fallback branch of `handoff/SKILL.md` Step 1 still builds a predictable, second-granularity-timestamped filename with no random component, letting a co-located attacker on a shared temp directory pre-plant or race the write — the same vulnerability class `skills#676` (closed/shipped) fixed for the primary path via `mktemp`. Disproved by direct re-read of `plugins/ievo/skills/handoff/SKILL.md`'s current Step 1 text: the primary path IS hardened exactly as `#676`'s fix describes (`mktemp` with a 12-char random suffix, exclusive-creation semantics), and the fallback branch's residual risk is not an oversight — the file's own text explicitly discloses it in the same paragraph: "This fallback lacks the random component and creation-atomicity of the `mktemp` path above — best-effort only, same spirit as Step 2f/Step 3's degrade-gracefully posture elsewhere in this skill." A deliberately-disclosed, accepted-tradeoff residual for an unavoidable no-Bash/no-mktemp platform gap is not a hidden vulnerability the way `#676`'s originally-filed universal gap was — premise does not hold as a new finding.
+
+## R-2026-09-19-002 — review-retrospective/SKILL.md Step 4's non-atomic read-then-write on retrospective-pending.md
+
+```yaml
+id: R-2026-09-19-002
+rejected_at: 2026-09-19T10:46:00Z
+run_id: 35437809910
+source_step: audit
+category: security
+title: review-retrospective/SKILL.md Step 4's Read-then-Write on retrospective-pending.md can silently drop a parked cluster under two concurrent invocations (CWE-362)
+```
+
+Premise (from this run's `/ievo:vuln-scan` module dispatch on `plugins/ievo/skills`): two concurrent `/ievo:review-retrospective` invocations against different PRs can race on `.ievo/evolution-candidates/retrospective-pending.md` — both Read the same prior snapshot, merge in memory, and Write back, so whichever Write lands second silently overwrites the first, dropping a confirmed cluster with no error. Disproved by direct re-read of `plugins/ievo/skills/review-retrospective/SKILL.md` Step 4: the file's own text already discloses this exact residual, verbatim, under a paragraph headed "Known limitation, stated honestly" — confirming there is no append primitive available through this skill's declared tool surface and the race is a deliberate, acknowledged tradeoff rather than an overlooked gap. A self-documented, explicitly-labeled known limitation is by-design per Step 3b's vet criteria ("not by-design — check code comments/ADRs for an explicit rationale") — premise does not hold as a new finding.
+
