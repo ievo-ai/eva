@@ -3233,3 +3233,41 @@ location: plugins/ievo/agents/evolution.md (Step 5 report template, lines 1023-1
 ```
 
 Directly re-read this run (4-module `/ievo:vuln-scan` dogfooding, agents+commands dispatch, independently re-verified against current source): Step 1's target-discovery list includes `.claude/plugins/*/agents/*.md` and `.claude/plugins/*/skills/*/SKILL.md` — a filename chosen by the plugin author, not filtered through iEvo's own install-time naming validation. Step 5's report template (line 1023) writes `- Scope + target: project | agents/<name> | skills/<name>` and (line 1024) `- Overlay file: path` (resolving to `.ievo/evolution/agents/<name>.md` / `.ievo/evolution/skills/<name>.md`) with `<name>` unfenced, while line 1026's `- Section title: "<title, ... code-fenced per Step 4's Excerpt containment note>"` explicitly requires fencing for the adjacent field. The only charset validation of `<name>` anywhere in the file (`^[A-Za-z0-9._-]+$`, Step 4.4) applies to the constructed overlay-file-path string used for the Bash auto-commit, not to the Step 5 report content, and runs after Step 5. Checked against closed `skills#679` (covers the `<title>` field derived from lesson text, Step 4 line ~723 / Step 5's "Section title" line) — confirmed distinct: different field, different provenance (plugin-authored filename vs. user-authored lesson text).
+
+## S-2026-09-19-001 — deep-reviewer.md and vuln-scanner.md read attacker-influenceable content with no symlink-containment check, unlike every other agent that reads externally-sourced content in this plugin
+
+```yaml
+id: S-2026-09-19-001
+discovered_at: 2026-09-19T10:46:00Z
+run_id: 35437809910
+target_repo: ievo-ai/skills
+title: agents/deep-reviewer.md Step 1 and agents/vuln-scanner.md Step 1 both use Read on attacker-influenceable file lists (a reviewed diff's changed_files, or a scanned module_path that can be a PR/module under audit) with no symlink-containment pre-check, unlike evolution.md/update.md/security-auditor.md's documented git-index symlink checks before any equivalent Read/Glob call in this same plugin
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/706
+effort: low
+scope: multi-file
+cwe: CWE-59
+confidence: high
+location: plugins/ievo/agents/deep-reviewer.md:52 (Step 1: Read the full context of every changed file); plugins/ievo/agents/vuln-scanner.md:80 (Step 1: Apply the preloaded vuln-scan methodology)
+```
+
+Directly re-read this run (4-module `/ievo:vuln-scan` dogfooding, agents+commands dispatch, independently re-verified against current source): both agents' entire purpose is reading potentially-adversarial content — `deep-reviewer.md` reviews a diff whose `changed_files` list can include a malicious PR's tracked paths or a working-tree supplement's untracked paths; `vuln-scanner.md` is dispatched by `/ievo:vuln-scan --pr <N>`/`--diff`/`--module <path>` specifically to scan incoming/untrusted code, including PR content before merge. Neither file's Step 1 documents any check for whether a path in its input list (or a path component on the way to it) is a git-tracked symlink (mode `120000`) pointing outside the intended source tree — in contrast to `evolution.md` (Step 2 sub-step 4) and `update.md` (Step 2 sub-step 4) in this same repository, both of which run an explicit `git ls-files -s | grep '^120000'` containment check before ever calling Read/Glob on vendored content, and `security-auditor.md`, which the #690 fix extended with an equivalent `git ls-files -s` check. A crafted PR/module can add a tracked symlink (e.g. pointing at `~/.ssh/id_rsa`, a `.env` file, or another sensitive path readable by the process) as one of the reviewed/scanned files; the Read tool follows it transparently, and the target's contents flow into the agent's context as if they were the reviewed diff's or module's own source — potentially surfacing in the returned report (an "Issue" excerpt, a finding's `exploit_chain`/`title` field) or simply persisting in the transcript. Independently re-derived by the same module dispatch as two separate findings against two files sharing the identical missing-check pattern; combined into one issue per this repo's own precedent for same-root-cause, two-file findings (`skills#648`).
+
+## S-2026-09-19-002 — extract-best-practices/SKILL.md Phase 3's CHECKPOINT 1 renders session-mined pattern summaries unfenced, a different field/location than the already-open Phase 5 fence-sizing gap
+
+```yaml
+id: S-2026-09-19-002
+discovered_at: 2026-09-19T10:46:00Z
+run_id: 35437809910
+target_repo: ievo-ai/skills
+title: extract-best-practices/SKILL.md Phase 3 Step 4/CHECKPOINT 1 interpolates <pattern summary> and Phase 5's upstream-offer interpolates a candidate <name> into AskUserQuestion text with no excerpt-containment rule anywhere in the file, distinct from already-open skills#702 which covers Phase 5's fenced-code-block body (a different field, line 181)
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/707
+effort: low
+scope: single-file
+cwe: CWE-79
+confidence: medium
+location: plugins/ievo/skills/extract-best-practices/SKILL.md:108-114 (Phase 3 CHECKPOINT 1); Phase 5 upstream-offer question (candidate <name>)
+```
+
+Directly re-read this run (4-module `/ievo:vuln-scan` dogfooding, skills-module dispatch, independently re-verified against current source): this file's own Phase 4 Step 5 explicitly names its threat model — "the session content it was distilled from can carry attacker-influenced text (e.g. a malicious skill's SKILL.md body surfaced via `/ievo:inspect`/`/ievo:index-repos`, or a crafted PR reviewed via `/ievo:deep-review`)". Phase 3 Step 4 proposes a disposition per session-mined pattern; CHECKPOINT 1 (line 108-114) presents each via `` Question: `<pattern summary> — <proposed disposition>. Proceed?` `` with no containment note anywhere in this file, unlike `review-retrospective/SKILL.md`'s and `init/SKILL.md` Step 8a's explicit, detailed excerpt-containment notes for structurally identical `AskUserQuestion` interpolations of untrusted, session/repo-derived text in this same plugin. The same gap recurs in Phase 5's upstream-sharing offer, which names the candidate `<name>` in its own question text. Checked against already-open `skills#702` (filed 2026-09-16, covers Phase 5's fenced-code-block body at line 181 — the authored package content itself, a different field and a different rendering surface) — confirmed distinct: #702 is about an outer code-fence sizing gap for the package body; this finding is about `AskUserQuestion` text interpolation with no fencing at all, at two earlier points in the same file's flow.
