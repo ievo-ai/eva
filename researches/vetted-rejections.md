@@ -108,3 +108,16 @@ title: review-retrospective/SKILL.md Step 4's Read-then-Write on retrospective-p
 
 Premise (from this run's `/ievo:vuln-scan` module dispatch on `plugins/ievo/skills`): two concurrent `/ievo:review-retrospective` invocations against different PRs can race on `.ievo/evolution-candidates/retrospective-pending.md` — both Read the same prior snapshot, merge in memory, and Write back, so whichever Write lands second silently overwrites the first, dropping a confirmed cluster with no error. Disproved by direct re-read of `plugins/ievo/skills/review-retrospective/SKILL.md` Step 4: the file's own text already discloses this exact residual, verbatim, under a paragraph headed "Known limitation, stated honestly" — confirming there is no append primitive available through this skill's declared tool surface and the race is a deliberate, acknowledged tradeoff rather than an overlooked gap. A self-documented, explicitly-labeled known limitation is by-design per Step 3b's vet criteria ("not by-design — check code comments/ADRs for an explicit rationale") — premise does not hold as a new finding.
 
+## R-2026-09-24-001 — cut-release.yml's App token mint has no owner:/repositories: scoping (third occurrence)
+
+```yaml
+id: R-2026-09-24-001
+rejected_at: 2026-09-24T11:30:00Z
+run_id: 35992774085
+source_step: audit
+category: security
+title: cut-release.yml's "Generate App token" step omits owner:/repositories: on its actions/create-github-app-token call, unlike every sibling App-token mint in .github/workflows/
+```
+
+Premise (from this run's `/ievo:vuln-scan --module` workflows-module dispatch, independently re-derived a third time with no knowledge of the prior two filings): omitting `owner:`/`repositories:` on the App-token mint in `cut-release.yml`'s "Generate App token" step (unlike `notify-release.yml`/`notify-eva.yml`/`forward-to-eva.yml`, which all pin both) lets the resulting `$GH_TOKEN` carry org-wide `ievo-eva` App scope rather than being confined to `ievo-ai/skills`, widening the blast radius of any future leak of that token. This run's own dispatch flagged the same open precondition the two prior filings also carried: whether the action's own default (no `owner`/`repositories` given) actually resolves to installation-wide scope was "NOT independently confirmed" by the scanning agent. Disproved — already refuted twice on this exact premise: `skills#411` (closed `eva-rejected`) and `skills#680` (closed `eva-rejected`, 2026-09-XX) both cite `actions/create-github-app-token`'s own README verbatim: "If `owner` and `repositories` are empty, access will be scoped to only the current repository." The org-wide-scope behavior this finding's exploit chain depends on requires `owner:` to be SET with `repositories:` omitted — the opposite of `cut-release.yml`'s actual (both-omitted) configuration. The current unscoped `with:` block already produces single-repo (`ievo-ai/skills`-only) token scope by the action's own documented default; adding explicit `owner:`/`repositories:` would be a defense-in-depth/consistency improvement matching the sibling workflows' style, not a fix for a live vulnerability. Per eva#132, a twice-`eva-rejected` premise stays dead until a human unlocks it via `approved` — not re-filed a third time.
+

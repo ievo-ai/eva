@@ -3271,3 +3271,156 @@ location: plugins/ievo/skills/extract-best-practices/SKILL.md:108-114 (Phase 3 C
 ```
 
 Directly re-read this run (4-module `/ievo:vuln-scan` dogfooding, skills-module dispatch, independently re-verified against current source): this file's own Phase 4 Step 5 explicitly names its threat model — "the session content it was distilled from can carry attacker-influenced text (e.g. a malicious skill's SKILL.md body surfaced via `/ievo:inspect`/`/ievo:index-repos`, or a crafted PR reviewed via `/ievo:deep-review`)". Phase 3 Step 4 proposes a disposition per session-mined pattern; CHECKPOINT 1 (line 108-114) presents each via `` Question: `<pattern summary> — <proposed disposition>. Proceed?` `` with no containment note anywhere in this file, unlike `review-retrospective/SKILL.md`'s and `init/SKILL.md` Step 8a's explicit, detailed excerpt-containment notes for structurally identical `AskUserQuestion` interpolations of untrusted, session/repo-derived text in this same plugin. The same gap recurs in Phase 5's upstream-sharing offer, which names the candidate `<name>` in its own question text. Checked against already-open `skills#702` (filed 2026-09-16, covers Phase 5's fenced-code-block body at line 181 — the authored package content itself, a different field and a different rendering surface) — confirmed distinct: #702 is about an outer code-fence sizing gap for the package body; this finding is about `AskUserQuestion` text interpolation with no fencing at all, at two earlier points in the same file's flow.
+
+## S-2026-09-22-001 — scan_repo.mjs's frontmatter parser silently drops nested keys, hiding allowed-tools:Bash(*) from the broad_bash signal
+
+```yaml
+id: S-2026-09-22-001
+discovered_at: 2026-09-22T00:00:00Z
+run_id: 35720356100
+target_repo: ievo-ai/skills
+title: scan_repo.mjs's parseFrontmatter still carries the indent-skip that its sibling parsers (validate_agents.mjs/validate_skills.mjs) explicitly removed and documented as a security fix, letting a malicious skill nest allowed-tools:Bash(*) under an innocuous empty-valued key and vanish from the parsed frontmatter, making the published broad_bash signal falsely report false
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/708
+cwe: CWE-20
+confidence: medium
+location: plugins/ievo/scripts/scan_repo.mjs:338 (parseFrontmatter)
+```
+
+Catch-up entry (backfilled from the Sep 22 run's stuck report PR #480, which never merged — same content Eva's Sep 22 run itself filed as `skills#708`). Not independently re-derived this run; recorded here so main's backlog reflects the true state of already-filed issues for future dedup.
+
+## S-2026-09-22-002 — handoff/SKILL.md is the one skill in the plugin with zero excerpt-containment treatment despite curating prior-session excerpts
+
+```yaml
+id: S-2026-09-22-002
+discovered_at: 2026-09-22T00:00:00Z
+run_id: 35720356100
+target_repo: ievo-ai/skills
+title: handoff/SKILL.md curates and writes prior-session excerpts — including content traceable to /ievo:inspect/index-repos/deep-review/review-retrospective runs against untrusted external targets — into a document designed to seed a fresh agent session with zero shared history, with no excerpt-containment rule anywhere in the file
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/709
+cwe: CWE-1427
+confidence: medium
+location: plugins/ievo/skills/handoff/SKILL.md
+```
+
+Catch-up entry (backfilled from the Sep 22 run's stuck report PR #480, which never merged — same content Eva's Sep 22 run itself filed as `skills#709`). Not independently re-derived this run; recorded here so main's backlog reflects the true state of already-filed issues for future dedup.
+
+## S-2026-09-22-003 — review-retrospective.md's own excerpt-containment note omits the Step 4 template's Target/Target reason/Root cause bullets
+
+```yaml
+id: S-2026-09-22-003
+discovered_at: 2026-09-22T00:00:00Z
+run_id: 35720356100
+target_repo: ievo-ai/skills
+title: review-retrospective.md's own enumerated Excerpt containment note names exactly four protected surfaces (cluster header, Findings excerpt, PR-summary Title line, Coverage observations) but never the Step 4 template's Target:/Target reason:/Root cause: bullets, which routinely quote attacker-influenceable text
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/710
+cwe: CWE-79
+confidence: medium
+location: plugins/ievo/agents/review-retrospective.md (Step 4 report template, Target/Target reason/Root cause bullets)
+```
+
+Catch-up entry (backfilled from the Sep 22 run's stuck report PR #480, which never merged — same content Eva's Sep 22 run itself filed as `skills#710`). Not independently re-derived this run; recorded here so main's backlog reflects the true state of already-filed issues for future dedup.
+
+## S-2026-09-23-001 — review-retrospective.md's Coverage section renders a truncated thread's path/line with no excerpt-containment
+
+```yaml
+id: S-2026-09-23-001
+discovered_at: 2026-09-23T00:00:00Z
+run_id: 35852690250
+target_repo: ievo-ai/skills
+title: review-retrospective.md's Coverage section pagination-truncation note ("give its path/line and 20 of <totalCount> collected") writes an attacker-influenceable git file path with no excerpt-containment, distinct from already-open skills#710 (covers Target/Target reason/Root cause bullets, different fields)
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/711
+cwe: CWE-79
+confidence: medium
+location: plugins/ievo/agents/review-retrospective.md (~line 103, pagination-cap note; template's ### Coverage section, ~line 173)
+```
+
+Directly re-read this run (`/ievo:vuln-scan --module /tmp/skills` dogfooding, agents+commands dispatch, independently re-verified against current source): the file's own "Excerpt containment" note enumerates exactly four protected surfaces — the `#### Cluster <k>` header, the `Findings` symptom+evidence excerpt, the `### PR summary` `- Title:` line, and the Coverage section's refused-instruction/debug-log-mention observations — and never mentions the pagination-cap paragraph's `path`/`line` values, which are separately instructed (Step 1 and the Step 4 template) to be written into the same Coverage section verbatim. `path` is GraphQL's raw diff-anchor field, sourced from a git-tracked file path an arbitrary PR contributor chooses — the same "almost any byte except `/` and NUL" reasoning already applied elsewhere in this codebase to `file`/`function`/`module` fields. Confirmed distinct from `skills#710` (different fields in the same file, filed two days earlier).
+
+## S-2026-09-23-002 — _safe-read.mjs's sanitizeForLog preserves real newlines, letting a crafted PR path forge GitHub Actions workflow commands
+
+```yaml
+id: S-2026-09-23-002
+discovered_at: 2026-09-23T00:00:00Z
+run_id: 35852690250
+target_repo: ievo-ai/skills
+title: .github/scripts/validators/_safe-read.mjs's sanitizeForLog deliberately preserves \n/\r for readability, but a crafted PR file path containing a literal newline followed by ::add-mask::/::error:: syntax forges real GitHub Actions workflow commands once echoed via the shared ${path}: error-reporting pattern in all six pre-commit validators — same sanitizeForLog root cause as already-open skills#608, but a distinct call site (file paths, not version strings)
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/712
+cwe: CWE-117
+confidence: medium
+location: .github/scripts/validators/_safe-read.mjs:87 (sanitizeForLog), reached via nested-fences.mjs/crlf-frontmatter.mjs/machine-local-paths.mjs/placeholder-leakage.mjs/utf8-validate.mjs/yaml-frontmatter.mjs
+```
+
+Directly re-read this run (`/ievo:vuln-scan --module /tmp/skills` dogfooding, workflows-module dispatch, independently re-verified against current source): `LOG_UNSAFE_RE` strips ESC, bare CR, Bidi/zero-width characters, and the Unicode line-separator trio, but by explicit documented design does not strip real `\t`/`\n` bytes "so ordinary multi-line messages read naturally." A git-tracked path can legally embed a literal `\n` byte; `console.error(sanitizeForLog(\`${path}:${e}\`))` then writes that byte straight through, splitting the log statement into two physical lines — the second of which can be a syntactically valid `::add-mask::`/`::error::`/`::endgroup::` workflow command at column 0, which the Actions runner recognizes regardless of which subprocess produced it. The file's own header comment reasons that workflow commands "are parsed line-anchored on real `\n` bytes" to explain why CR injection is a mere visual spoof, not a gate-bypass — without drawing out that the *preserved* real `\n` is exactly the forgery vector. First surfaced as a held candidate in the Sep 22 run's report (deprioritized under that run's 3-slot cap, not disproven); independently re-derived and filed this run.
+
+## S-2026-09-23-003 — commands/uninstall.md's marker-discovery summary echoes vendored agent/skill filenames with zero excerpt-containment
+
+```yaml
+id: S-2026-09-23-003
+discovered_at: 2026-09-23T00:00:00Z
+run_id: 35852690250
+target_repo: ievo-ai/skills
+title: commands/uninstall.md Step 2's "Show the user what was found" summary prints Agent overlays:/Skill overlays:/Files modified: lists sourced directly from vendored .claude/agents/*.md and .claude/skills/*/SKILL.md filenames, with zero excerpt-containment instruction anywhere in the file — unlike every sibling skill/command that renders vendored filenames
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/713
+cwe: CWE-79
+confidence: medium
+location: plugins/ievo/commands/uninstall.md (Step 2, "Show the user what was found")
+```
+
+Directly re-read this run (`/ievo:vuln-scan --module /tmp/skills` dogfooding, agents+commands dispatch flagged it; independently re-verified by this run's own full re-read of the file): a direct grep for "containment"/"backtick"/"fenc" across the entire file returns zero matches — no excerpt-containment instruction exists anywhere in `uninstall.md`, in contrast to `evo/SKILL.md`, `inspect/SKILL.md`, and `evolution.md`, all of which render the same class of vendored-filename data with explicit fencing. First surfaced as a held candidate in the Sep 22 run's report (deprioritized under that run's 3-slot cap, not disproven); independently re-derived and filed this run.
+
+## S-2026-09-24-001 — evolution.md's unvalidated <name> is used to build both overlay-write and agent/skill-vendoring destination paths
+
+```yaml
+id: S-2026-09-24-001
+discovered_at: 2026-09-24T11:30:00Z
+run_id: 35992774085
+target_repo: ievo-ai/skills
+title: agents/evolution.md Step 4 (overlay-file write) and Step 2.5 GREEN-verdict branch (agent/skill vendoring write) both build a Write-tool destination path from an unvalidated free-text <name>, with the only existing charset check (the <overlay-file-path> regex) scoped to Step 4.4's Bash commit templates and running strictly after Step 4's write already occurred
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/714
+cwe: CWE-22
+confidence: medium
+location: plugins/ievo/agents/evolution.md:641 (Step 4 overlay write), :555-580 (Step 2.5 GREEN vendoring write), :515-518 (existing regex, scoped to Step 4.4 only)
+```
+
+Directly re-read this run (`/ievo:vuln-scan --module /tmp/skills` dogfooding, agents+commands dispatch, independently re-verified against current source): confirmed Step 1's target-name resolution ("determine the target name explicitly (from user) or by matching the lesson against available targets") states no charset restriction for the explicit-from-user path; confirmed the `^\.ievo/evolution/(project\.md|(agents|skills)/[A-Za-z0-9._-]+\.md)$` regex lives only in the § "Bash command allowlist" section, gating Step 4.4's `git add`/`git commit --only` templates, whose own text states it validates "the exact path Step 4 wrote to" — i.e. after the write; confirmed Step 2.5's GREEN-verdict write instruction (`.claude/agents/<name>.md` / `.claude/skills/<name>/`) carries no name validation anywhere in the file. Distinct from `commands/update.md`, which validates its own analogous `<name>` against `^[A-Za-z0-9_-]+$` before any Bash/Read/Write/cp use — the fix pattern this file's two write sites omit.
+
+## S-2026-09-24-002 — overlay-status/SKILL.md's Step 3 Read follows a git symlink checked into .ievo/evolution/, disclosing local secrets
+
+```yaml
+id: S-2026-09-24-002
+discovered_at: 2026-09-24T11:30:00Z
+run_id: 35992774085
+target_repo: ievo-ai/skills
+title: overlay-status/SKILL.md Step 3's Read call on each enumerated .ievo/evolution/*.md file has no git-index symlink-containment check, unlike the equivalent check this same plugin already applies to remote-fetch flows (install-protocol.md, evo/SKILL.md Step 2, security-check/SKILL.md Step 2) — a tracked git symlink under .ievo/evolution/ pointing at a local secret file (e.g. ~/.ssh/id_rsa) gets its content Read and summarized into the chat transcript
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/715
+cwe: CWE-59
+confidence: medium
+location: plugins/ievo/skills/overlay-status/SKILL.md:85 (Step 3)
+```
+
+Directly re-read this run (`/ievo:vuln-scan --module /tmp/skills` dogfooding, skills-module dispatch, independently re-verified against current source): confirmed Step 1/Step 2 enumerate `.ievo/evolution/*.md` + `**/*.md` via Glob with no symlink distinction, and Step 3's Read call carries no `git ls-files -s | grep '^120000'`-style containment check, unlike the three sibling sites in this plugin that already implement exactly that check for a structurally identical threat on a remote clone. Distinct from closed `skills#683` (missing untrusted-data/prompt-injection framing, CWE-1427) and open `skills#622` (rendered-summary excerpt containment, CWE-79) — both address different surfaces of this same file; this is the local Read-path symlink gap, covered by neither.
+
+## S-2026-09-24-003 — scan_repo.mjs's version/author/license/model/tools fields skip the file's own truncation scheme
+
+```yaml
+id: S-2026-09-24-003
+discovered_at: 2026-09-24T11:30:00Z
+run_id: 35992774085
+target_repo: ievo-ai/skills
+title: scan_repo.mjs's enumerateOnePlugin/enumerateStandaloneAgents/enumerateStandaloneSkills leave version/author/license (plugin) and model/tools/license (agent/skill frontmatter) unwrapped by truncate(), unlike every sibling field (description, matcher, event, cmd, url, name) this file already bounds to 80-200 chars — a crafted repo can bloat these five fields toward the 256KB per-file cap across up to 500 items, inflating the published community index
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/716
+cwe: CWE-400
+confidence: medium
+location: plugins/ievo/scripts/scan_repo.mjs:516-592 (enumerateOnePlugin), enumerateStandaloneAgents/enumerateStandaloneSkills, :882-915 (renderIndexMd)
+```
+
+Directly re-read this run (`/ievo:vuln-scan --module /tmp/skills` dogfooding, scripts-module dispatch, independently re-verified against current source): confirmed `version`/`author`/`license` in `enumerateOnePlugin` and `model`/`tools`/`license` in the agents/skills loops and their standalone counterparts are assigned via bare `?? "—"`/`?? "unset"` fallbacks with no `truncate()` wrapper, in contrast to every sibling field this file already bounds. Distinct from closed `skills#684` (fixed `matcher`/`event`/`name` + item-count cap, did not touch these five fields), open `skills#700` (item-cap ordering), closed `skills#413` (hardcoded license value), and closed `skills#412` (`truncate()` TypeError).
