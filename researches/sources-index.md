@@ -36,14 +36,15 @@ run_id: <GitHub Actions run ID or null>
 ## https://www.anthropic.com/news
 
 ```yaml
-last_scan: 2026-09-19T00:00:00Z
+last_scan: 2026-09-30T12:15:00Z
 status: changed
-run_id: 35437809910
+run_id: 36713262044
 ```
 
-**Summary:** 4 new items since the Sep-4 baseline: "Partnering with Accenture on embedded evaluation" (Sep 18), "Introducing the Life Sciences Verification Program" (Sep 17), "Detecting and countering misuse of AI: September 2026" (Sep 10, already noted by the Sep16/17 stuck-report catch-up), "Developing Enterprise Frontier Safeguards with our customers" (Sep 1, also already noted). All general-company/enterprise/safety announcements, none CC-specific or skill-format-relevant; no iEvo action.
+**Summary:** Sep 22 Claude Opus 5.5, Sep 28 Claude Sonnet 5.5, Sep 22-23 science/health features; model launches only, no iEvo action
 
 History:
+- 2026-09-30T12:15:00Z — changed: Sep 22 Claude Opus 5.5, Sep 28 Claude Sonnet 5.5, Sep 22-23 science/health features; model launches only, no iEvo action
 - 2026-09-19T00:00:00Z — changed: 2 genuinely new items — Accenture evaluation partnership (Sep18), Life Sciences Verification Program (Sep17); both non-technical, no iEvo action
 - 2026-09-08T00:00:00Z — changed (catch-up, read from stuck PRs #471/#475): "Detecting and countering misuse of AI: September 2026" (Sep10) + "Developing Enterprise Frontier Safeguards" (Sep1); both non-technical, no iEvo action
 - 2026-09-04T09:05:00Z — changed: 1 new item since Sep-3 baseline — "Introducing Claude Fable 5.1 and Claude Mythos 5.1" (Sep 1) new default models; no CC-specific or skill-format change, no iEvo action
@@ -100,14 +101,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-09-19T00:00:00Z
+last_scan: 2026-09-30T12:15:00Z
 status: changed
-run_id: 35437809910
+run_id: 36713262044
 ```
 
-**Summary:** v2.1.274 (Sep 17) through **v2.1.278 (Sep 19, latest)** — full release-note review across the range. Headline items: `AGENTS.md` support (v2.1.277 — when a project has no CLAUDE.md, Claude Code reads `AGENTS.md` instead; opt-in via `/config`, not a marketplace/skill-format change), npm-sourced plugin installs now use `npm pack --ignore-scripts` + integrity verification (v2.1.276, a supply-chain hardening to Claude Code's own plugin loader, not an iEvo-actionable surface), server-side auto-mode classifier billing change (v2.1.278), subagent-result framing as untrusted "subagent output" to the main agent + workflow `agent()` prompts framed as script-authored text on managed platforms (v2.1.277 — prompt-injection hardening on Claude Code's own dispatch layer). No new SKILL.md/agent/sub-agent frontmatter field, no plugin-marketplace manifest schema change across the full range. `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` / the v2.1.251 precedence flip (already flagged as an `AGENTS.md` staleness item, still unaddressed — blocked on push access) not mentioned in this range, no new information either way.
+**Summary:** v2.1.279-285 (Sep 20-29, latest v2.1.285): Opus 5.5 (v2.1.280), Sonnet 5.5 (v2.1.284), `claude plugin validate` now checks bundled MCP server URLs/${user_config.*} refs (v2.1.281), fork subagents inherit parent permission mode (v2.1.281), symlink write fixes (v2.1.280), new CLAUDE_CODE_DISABLE_WEB_FETCH env var (v2.1.285); no new SKILL.md/agent frontmatter field; no iEvo action
 
 History:
+- 2026-09-30T12:15:00Z — changed: v2.1.279-285 (Sep 20-29, latest v2.1.285): Opus 5.5 (v2.1.280), Sonnet 5.5 (v2.1.284), `claude plugin validate` now checks bundled MCP server URLs/${user_config.*} refs (v2.1.281), fork subagents inherit parent permission mode (v2.1.281), symlink write fixes (v2.1.280), new CLAUDE_CODE_DISABLE_WEB_FETCH env var (v2.1.285); no new SKILL.md/agent frontmatter field; no iEvo action
 - 2026-09-19T00:00:00Z — changed: v2.1.274-278 (Sep17-19) — AGENTS.md-as-fallback support, npm plugin install script-blocking + integrity check, subagent-output untrusted-framing hardening, auto-mode billing change; no new SKILL.md/agent/marketplace-manifest schema field; no iEvo action
 - 2026-09-08T00:00:00Z — changed (catch-up, read from stuck audit-report PRs #466/#471/#474/#475/#478 which never merged to `main`): v2.1.261 (Sep4, `/skill-doctor` unused-skill/context-cost diagnostic + `--append-subagent-system-prompt-file`) through v2.1.273 (Sep15) — `omitClaudeMd` subagent frontmatter (v2.1.271), per-command `allowed_domains` for sandboxed auto-mode Bash (v2.1.271), `maxEffortLevel` setting, `claude plugin eval` native plugin eval-suite runner with `tool_used: Skill` grader (v2.1.269 — triggered F-2026-09-16-001/skills#699), plugin symlink-containment hardening. No new SKILL.md/agent/marketplace-manifest schema field beyond `omitClaudeMd` (an audit-fix-shaped hardening candidate for iEvo's own 6 agents, still blocked on push access — see findings-backlog.md Deferred notes).
 - 2026-09-04T09:10:00Z — changed: v2.1.260 (Sep3, latest) — 70+ item bugfix/QoL release; no new frontmatter fields, no marketplace schema change; no iEvo action
@@ -168,14 +170,15 @@ History:
 ## https://github.com/anthropics/claude-code-action/releases
 
 ```yaml
-last_scan: 2026-09-19T00:00:00Z
+last_scan: 2026-09-30T12:15:00Z
 status: changed
-run_id: 35437809910
+run_id: 36713262044
 ```
 
-**Summary:** v1.0.216 through **v1.0.231 (Sep 19, latest)** — `gh api` confirms v1.0.230/v1.0.231 are empty-body compare-link-only patches; the Sep7-17 catch-up (read from stuck audit-report PRs, per those runs' own scans) already confirmed v1.0.216-227 were the same pattern. No input schema changes across the full range; eva#65 stays closed.
+**Summary:** v1.0.232-237 (Sep 23-29, latest v1.0.237): empty-body patches, no input changes; eva#65 stays closed
 
 History:
+- 2026-09-30T12:15:00Z — changed: v1.0.232-237 (Sep 23-29, latest v1.0.237): empty-body patches, no input changes; eva#65 stays closed
 - 2026-09-19T00:00:00Z — changed: v1.0.230/231 (Sep18-19, latest), both empty-body patches; no input schema changes; eva#65 stays closed
 - 2026-09-08T00:00:00Z — changed (catch-up, read from stuck PRs #466/#471/#474/#475/#478): v1.0.216 (Sep4) through v1.0.227 (Sep17), all individually verified empty-body compare-link-only patches; no input schema changes; eva#65 stays closed
 - 2026-09-04T09:12:00Z — changed: v1.0.211-215 (Aug31-Sep3, latest), all empty-body patches; no input schema changes; eva#65 stays closed
@@ -295,14 +298,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-09-19T00:00:00Z
+last_scan: 2026-09-30T12:15:00Z
 status: changed
-run_id: 35437809910
+run_id: 36713262044
 ```
 
-**Summary:** rust-v0.154.0 STABLE (Sep 9, the Sep8/10 stuck-report catch-up already reviewed in full: GPT-6-Astra model-picker/Bedrock catalog, `--worktree`/`/worktree`, inline mid-run Q&A, deprecated `codex mcp-server` entry point removed) through **rust-v0.155.1 (Sep 18, latest stable)** — v0.155.1 is a narrow bugfix (TUI reasoning-summary default restored to `none` for providers that reject the field, #46467). Pre-release line at rust-v0.156.0-alpha.4-7 (Sep 18-19), empty-body per established alpha-tag precedent, not fetched for content. No skill-format/marketplace-schema signal in the reviewed range.
+**Summary:** rust-v0.158.0-0.159.2 (Sep 28-29): GPT-6.1 Sol default, input steering, bundled plugin-creator skill removed in 0.159.0; no skill-format signal
 
 History:
+- 2026-09-30T12:15:00Z — changed: rust-v0.158.0-0.159.2 (Sep 28-29): GPT-6.1 Sol default, input steering, bundled plugin-creator skill removed in 0.159.0; no skill-format signal
 - 2026-09-19T00:00:00Z — changed: rust-v0.155.1 (Sep18, latest stable) — TUI reasoning-summary-default bugfix only, no skill-format signal; 0.156.0-alpha.4-7 pre-release line not fetched (established precedent)
 - 2026-09-08T00:00:00Z — changed (catch-up, read from stuck PRs #471/#474/#475/#478): rust-v0.153.3/0.153.4 (Sep5-6, GPT-6-Astra hotfixes) and **rust-v0.154.0 STABLE (Sep9)** — GPT-6-Astra model-picker/Bedrock catalog entry, `--worktree`/`/worktree` isolated-checkout, inline mid-run question-answering, Windows shared background server, Vim replace mode, deprecated `codex mcp-server` entry point removed; also noted (Sep17 report): 3 merged codex PRs (#42284/#42593/#42990) whose "Why" sections describe the exact symptom `AGENTS.md`'s "plugin auto-upgrade — stale skill-cache root" gotcha documents, but the cited upstream tracking issues (openai/codex#24390/#31383) remain open — unconfirmed fix, do not relax AGENTS.md's mitigation guidance without a live repro. No skill-format/marketplace-schema signal.
 - 2026-09-04T09:18:00Z — changed: rust-v0.153.1/0.153.2 (Sep3, latest stable) — GPT-6-Astra model-catalog backport + tier-description text fix, no skill-format signal; 0.154.0-alpha.1-3 pre-release line not fetched (established precedent)
@@ -459,14 +463,15 @@ History:
 ## https://github.com/agentskills/agentskills
 
 ```yaml
-last_scan: 2026-09-19T00:00:00Z
+last_scan: 2026-09-30T12:15:00Z
 status: unchanged
-run_id: 35437809910
+run_id: 36713262044
 ```
 
 **Summary:** No new merges since #492 (Aug 9) — now a **41-day gap**, directly reconfirmed via `gh api search/issues` (most recent merged PR still #492). No new merges means no spec/schema impact regardless. Open-PR list continues to grow (docs/client-showcase proposals, e.g. #565/#558/#550/#546 all still open per `gh api repos/.../pulls` — none merged).
 
 History:
+- 2026-09-30T12:15:00Z — unchanged: repo landing page fetched only (no merged-PR API check this run); no spec change surfaced
 - 2026-09-19T00:00:00Z — unchanged: `gh api search/issues` merged-PR check — no new merges since #492 (41-day gap); several more open docs/showcase PRs accumulated (#546/#550/#558/#565), none merged
 - 2026-09-04T09:24:00Z — unchanged: `gh api` merged-PR check (by creation date) — no new merges since #492 (26-day gap); 37 open PRs incl. new spam PR #542 (ignored)
 - 2026-08-30T00:00:00Z — unchanged: `gh api` merged-PR check — no new merges since #492 (21-day gap, directly reconfirmed); 30 open PRs (Aug 24-27 wave), no new activity beyond what Aug 27/28 already recorded
