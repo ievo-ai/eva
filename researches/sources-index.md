@@ -705,14 +705,15 @@ History:
 ## https://code.claude.com/docs/en/skills.md
 
 ```yaml
-last_scan: 2026-09-19T00:00:00Z
+last_scan: 2026-10-01T12:47:00Z
 status: unchanged
-run_id: 35437809910
+run_id: 36864032645
 ```
 
-**Summary:** Not re-fetched; v2.1.274-278 release notes reviewed directly (AGENTS.md-as-fallback, npm plugin install hardening, subagent-output framing, auto-mode billing), none mention a SKILL.md frontmatter change. The Sep16/17 catch-up already confirmed the field table stands at 20 fields (no new field from `claude plugin eval`, which uses a separate `evals/evals.json`/`plugin-evals` format, not SKILL.md frontmatter).
+**Summary:** Re-fetched Oct 1. Field table has 19 documented fields (name, description, when_to_use, argument-hint, arguments, disable-model-invocation, user-invocable, allowed-tools, disallowed-tools, model, effort, context, agent, background, hooks, paths, shell, metadata, license, compatibility) plus `skillOverrides` setting; no new field versus prior notes.
 
 History:
+- 2026-10-01T12:47:00Z — unchanged: re-fetched, no new frontmatter field
 - 2026-09-19T00:00:00Z — unchanged: not re-fetched; v2.1.274-278 release notes reviewed directly, no SKILL.md frontmatter change mentioned
 - 2026-09-04T09:32:00Z — unchanged: not re-fetched; v2.1.260 release notes reviewed directly, no SKILL.md frontmatter change mentioned
 - 2026-08-21T06:58:19Z — unchanged: not re-fetched; v2.1.235-238 release notes reviewed directly, no SKILL.md frontmatter change mentioned
@@ -829,14 +830,15 @@ History:
 ## https://code.claude.com/docs/en/sub-agents
 
 ```yaml
-last_scan: 2026-09-19T00:00:00Z
+last_scan: 2026-10-01T12:47:00Z
 status: unchanged
-run_id: 35437809910
+run_id: 36864032645
 ```
 
-**Summary:** Not re-fetched this run (the Sep16/17 catch-up already did two full re-fetches, both re-confirming the precedence order and `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` behavior exactly as previously recorded — no new drift; `omitClaudeMd` subagent field now documented, 18-field table). v2.1.274-278 reviewed directly, no sub-agent frontmatter change mentioned. `AGENTS.md`'s "Model bypass vectors" table staleness (both the precedence-flip wording and the missing `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` row) remains uncorrected — still blocked on push access.
+**Summary:** Re-fetched Oct 1: 16-field table incl. `omitClaudeMd`, `initialPrompt`, `experimental.cacheTtl`; `model` accepts sonnet/opus/haiku/fable/inherit (matches validators); v2.1.267 subagents can no longer declare `bypassPermissions`. No new drift. Prior note: (the Sep16/17 catch-up already did two full re-fetches, both re-confirming the precedence order and `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` behavior exactly as previously recorded — no new drift; `omitClaudeMd` subagent field now documented, 18-field table). v2.1.274-278 reviewed directly, no sub-agent frontmatter change mentioned. `AGENTS.md`'s "Model bypass vectors" table staleness (both the precedence-flip wording and the missing `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` row) remains uncorrected — still blocked on push access.
 
 History:
+- 2026-10-01T12:47:00Z — unchanged: re-fetched, no new drift
 - 2026-09-19T00:00:00Z — unchanged: not re-fetched; v2.1.274-278 release notes reviewed directly, no sub-agent frontmatter change; AGENTS.md staleness item still open, still blocked on push access
 - 2026-09-08T00:00:00Z — unchanged (catch-up, read from stuck PRs #475/#478): two full re-fetches both re-confirmed precedence order + `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` unchanged; `omitClaudeMd` field newly documented (18-field table, v2.1.271) — see claude-code/releases entry
 - 2026-09-04T09:38:00Z — unchanged: full re-fetch, doc confirmed to match v2.1.251 precedence flip + documents CLAUDE_CODE_SUBAGENT_MODEL_FORCE in full; corroborates AGENTS.md staleness finding (no new action); no new frontmatter fields
