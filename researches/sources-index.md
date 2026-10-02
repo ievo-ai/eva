@@ -101,14 +101,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-09-30T12:15:00Z
+last_scan: 2026-10-02T12:10:00Z
 status: changed
-run_id: 36713262044
+run_id: 37005104545
 ```
 
-**Summary:** v2.1.279-285 (Sep 20-29, latest v2.1.285): Opus 5.5 (v2.1.280), Sonnet 5.5 (v2.1.284), `claude plugin validate` now checks bundled MCP server URLs/${user_config.*} refs (v2.1.281), fork subagents inherit parent permission mode (v2.1.281), symlink write fixes (v2.1.280), new CLAUDE_CODE_DISABLE_WEB_FETCH env var (v2.1.285); no new SKILL.md/agent frontmatter field; no iEvo action
+**Summary:** v2.1.286-287 (Sep 30-Oct 1) since v2.1.285: "Claude Mods" plugin hooks into deeper behavior (v2.1.287, built-in `cc-plugin-you-should-know`), `claude plugin configure`/`install --config` (v2.1.285), `--sparse`/`git-subdir` installs refuse git repos/folders, skill names recognized mid-message (v2.1.286), `allowedProviders`/`deniedModels` managed settings; no new SKILL.md/agent frontmatter field; no iEvo action
 
 History:
+- 2026-10-02T12:10:00Z — changed: v2.1.286-287 — Claude Mods, plugin configure, sparse/git-subdir install tightening, mid-message skill names; no frontmatter change, no iEvo action
 - 2026-09-30T12:15:00Z — changed: v2.1.279-285 (Sep 20-29, latest v2.1.285): Opus 5.5 (v2.1.280), Sonnet 5.5 (v2.1.284), `claude plugin validate` now checks bundled MCP server URLs/${user_config.*} refs (v2.1.281), fork subagents inherit parent permission mode (v2.1.281), symlink write fixes (v2.1.280), new CLAUDE_CODE_DISABLE_WEB_FETCH env var (v2.1.285); no new SKILL.md/agent frontmatter field; no iEvo action
 - 2026-09-19T00:00:00Z — changed: v2.1.274-278 (Sep17-19) — AGENTS.md-as-fallback support, npm plugin install script-blocking + integrity check, subagent-output untrusted-framing hardening, auto-mode billing change; no new SKILL.md/agent/marketplace-manifest schema field; no iEvo action
 - 2026-09-08T00:00:00Z — changed (catch-up, read from stuck audit-report PRs #466/#471/#474/#475/#478 which never merged to `main`): v2.1.261 (Sep4, `/skill-doctor` unused-skill/context-cost diagnostic + `--append-subagent-system-prompt-file`) through v2.1.273 (Sep15) — `omitClaudeMd` subagent frontmatter (v2.1.271), per-command `allowed_domains` for sandboxed auto-mode Bash (v2.1.271), `maxEffortLevel` setting, `claude plugin eval` native plugin eval-suite runner with `tool_used: Skill` grader (v2.1.269 — triggered F-2026-09-16-001/skills#699), plugin symlink-containment hardening. No new SKILL.md/agent/marketplace-manifest schema field beyond `omitClaudeMd` (an audit-fix-shaped hardening candidate for iEvo's own 6 agents, still blocked on push access — see findings-backlog.md Deferred notes).
