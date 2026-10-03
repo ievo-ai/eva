@@ -101,14 +101,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-10-02T12:10:00Z
+last_scan: 2026-10-03T11:21:00Z
 status: changed
-run_id: 37005104545
+run_id: 37119349295
 ```
 
-**Summary:** v2.1.286-287 (Sep 30-Oct 1) since v2.1.285: "Claude Mods" plugin hooks into deeper behavior (v2.1.287, built-in `cc-plugin-you-should-know`), `claude plugin configure`/`install --config` (v2.1.285), `--sparse`/`git-subdir` installs refuse git repos/folders, skill names recognized mid-message (v2.1.286), `allowedProviders`/`deniedModels` managed settings; no new SKILL.md/agent frontmatter field; no iEvo action
+**Summary:** v2.1.288 (Oct 2, latest) since v2.1.287: plugin-defined agents in agent teams now run with their own prompt/tools/disallowedTools/effort, plugin LSP placeholder-substitution fix, bash -c/sh -c `rm` safeguard fix under bypassPermissions; v2.1.287 introduced Claude Mods (plugin hooks into deeper behavior, built-in `cc-plugin-you-should-know`); no new SKILL.md/agent frontmatter field; no iEvo action
 
 History:
+- 2026-10-03T11:21:00Z — changed: v2.1.288 (Oct 2) — plugin-defined agents honor own prompt/tools/effort in agent teams, LSP placeholder fix, rm safeguard fixes; no frontmatter change, no iEvo action (fetch tool reports wrong year; dates taken as 2026)
 - 2026-10-02T12:10:00Z — changed: v2.1.286-287 — Claude Mods, plugin configure, sparse/git-subdir install tightening, mid-message skill names; no frontmatter change, no iEvo action
 - 2026-09-30T12:15:00Z — changed: v2.1.279-285 (Sep 20-29, latest v2.1.285): Opus 5.5 (v2.1.280), Sonnet 5.5 (v2.1.284), `claude plugin validate` now checks bundled MCP server URLs/${user_config.*} refs (v2.1.281), fork subagents inherit parent permission mode (v2.1.281), symlink write fixes (v2.1.280), new CLAUDE_CODE_DISABLE_WEB_FETCH env var (v2.1.285); no new SKILL.md/agent frontmatter field; no iEvo action
 - 2026-09-19T00:00:00Z — changed: v2.1.274-278 (Sep17-19) — AGENTS.md-as-fallback support, npm plugin install script-blocking + integrity check, subagent-output untrusted-framing hardening, auto-mode billing change; no new SKILL.md/agent/marketplace-manifest schema field; no iEvo action
@@ -524,14 +525,15 @@ History:
 ## https://www.cursor.com/changelog
 
 ```yaml
-last_scan: 2026-09-19T00:00:00Z
+last_scan: 2026-10-03T11:21:00Z
 status: unchanged
-run_id: 35437809910
+run_id: 37119349295
 ```
 
 **Summary:** Re-fetched — "Cursor Projects" (Sep 10, already noted by the Sep16/17 catch-up: long-term work management with a coordinator agent delegating to subagents, shared context across cloud/local) still the newest entry; no entries after Sep 10. Client-orchestration/session-management feature, not a packaging/discovery-format capability iEvo lacks.
 
 History:
+- 2026-10-03T11:21:00Z — unchanged: re-fetched; newest entries still Custom Modes / Projects (Sep 10) already recorded; no new packaging/discovery capability
 - 2026-09-19T00:00:00Z — unchanged: re-fetched, "Cursor Projects" (Sep10) still newest entry; no new entries
 - 2026-09-04T09:26:00Z — unchanged: re-fetched, "Self-hosted machines" (Sep2) still newest entry; no new entries
 - 2026-08-30T00:00:00Z — changed: catch-up scan — "Start from scratch, without a repo" (Aug27) newest entry, cloud-agent infra only, not iEvo-actionable; no entries after Aug27
