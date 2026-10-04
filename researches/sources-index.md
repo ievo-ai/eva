@@ -101,14 +101,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-10-03T11:21:00Z
+last_scan: 2026-10-04T12:02:00Z
 status: changed
-run_id: 37119349295
+run_id: 37200727430
 ```
 
-**Summary:** v2.1.288 (Oct 2, latest) since v2.1.287: plugin-defined agents in agent teams now run with their own prompt/tools/disallowedTools/effort, plugin LSP placeholder-substitution fix, bash -c/sh -c `rm` safeguard fix under bypassPermissions; v2.1.287 introduced Claude Mods (plugin hooks into deeper behavior, built-in `cc-plugin-you-should-know`); no new SKILL.md/agent frontmatter field; no iEvo action
+**Summary:** v2.1.289 (Oct 3, latest) since v2.1.288: `claude plugin validate` fixes (manifest-folder skip, Anthropic marketplace plugin), mod hardening (`ui.fault`, `agent.spawn`), plugin hook agent id unification; no new SKILL.md/agent frontmatter field; no iEvo action
 
 History:
+- 2026-10-04T12:02:00Z — changed: v2.1.289 (Oct 3) — `claude plugin validate` fixes, mod error isolation, `agent.spawn`; no frontmatter change, no iEvo action (fetch tool reports wrong year)
 - 2026-10-03T11:21:00Z — changed: v2.1.288 (Oct 2) — plugin-defined agents honor own prompt/tools/effort in agent teams, LSP placeholder fix, rm safeguard fixes; no frontmatter change, no iEvo action (fetch tool reports wrong year; dates taken as 2026)
 - 2026-10-02T12:10:00Z — changed: v2.1.286-287 — Claude Mods, plugin configure, sparse/git-subdir install tightening, mid-message skill names; no frontmatter change, no iEvo action
 - 2026-09-30T12:15:00Z — changed: v2.1.279-285 (Sep 20-29, latest v2.1.285): Opus 5.5 (v2.1.280), Sonnet 5.5 (v2.1.284), `claude plugin validate` now checks bundled MCP server URLs/${user_config.*} refs (v2.1.281), fork subagents inherit parent permission mode (v2.1.281), symlink write fixes (v2.1.280), new CLAUDE_CODE_DISABLE_WEB_FETCH env var (v2.1.285); no new SKILL.md/agent frontmatter field; no iEvo action
@@ -404,14 +405,15 @@ History:
 ## https://agentskills.io/specification
 
 ```yaml
-last_scan: 2026-09-19T00:00:00Z
+last_scan: 2026-10-04T12:02:00Z
 status: unchanged
-run_id: 35437809910
+run_id: 37200727430
 ```
 
-**Summary:** `gh api search/issues` (merged PRs, sorted by update desc) — still no new merges since #492 (Aug 9, now a **41-day gap**); most recent merged PR remains #492. Not deep-re-fetched (no merge to trigger one) — same 6 core frontmatter fields stand.
+**Summary:** full spec re-fetched Oct 4: same 6 frontmatter fields (name, description, license, compatibility, metadata, allowed-tools[experimental]); `name` now documented as unicode-lowercase alphanumerics, no consecutive hyphens, must match directory; body <500 lines / <5000 tokens guidance. No new field.
 
 History:
+- 2026-10-04T12:02:00Z — unchanged: full spec re-fetched, same 6 fields confirmed; no iEvo action
 - 2026-09-19T00:00:00Z — unchanged: `gh api search/issues` merged-PR check — no new merges since #492 (41-day gap); not deep-re-fetched
 - 2026-09-04T09:22:00Z — unchanged: `gh api` PR check — no new merges since #492 (26-day gap); 37 open PRs (incl. spam #542, still open+ignored); not deep-re-fetched
 - 2026-08-30T00:00:00Z — unchanged: `gh api` PR check — no new merges since #492 (21-day gap); 30 open PRs total, same wave, no new activity beyond what Aug 27/28 already recorded; not deep-re-fetched
