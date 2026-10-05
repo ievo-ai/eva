@@ -101,14 +101,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-10-04T12:02:00Z
-status: changed
-run_id: 37200727430
+last_scan: 2026-10-05T14:05:00Z
+status: unchanged
+run_id: 37321828241
 ```
 
-**Summary:** v2.1.289 (Oct 3, latest) since v2.1.288: `claude plugin validate` fixes (manifest-folder skip, Anthropic marketplace plugin), mod hardening (`ui.fault`, `agent.spawn`), plugin hook agent id unification; no new SKILL.md/agent frontmatter field; no iEvo action
+**Summary:** v2.1.289 (Oct 3) still latest; v2.1.283-289 recap: `/doctor prompt-audit`, `claude plugin configure`, plugin-defined agents honor own prompt/tools/effort, `verify` skill pre-commit guidance; no SKILL.md/agent frontmatter change; no iEvo action
 
 History:
+- 2026-10-05T14:05:00Z — unchanged: no new release since v2.1.289; no frontmatter change (fetch tool misreports year)
 - 2026-10-04T12:02:00Z — changed: v2.1.289 (Oct 3) — `claude plugin validate` fixes, mod error isolation, `agent.spawn`; no frontmatter change, no iEvo action (fetch tool reports wrong year)
 - 2026-10-03T11:21:00Z — changed: v2.1.288 (Oct 2) — plugin-defined agents honor own prompt/tools/effort in agent teams, LSP placeholder fix, rm safeguard fixes; no frontmatter change, no iEvo action (fetch tool reports wrong year; dates taken as 2026)
 - 2026-10-02T12:10:00Z — changed: v2.1.286-287 — Claude Mods, plugin configure, sparse/git-subdir install tightening, mid-message skill names; no frontmatter change, no iEvo action
@@ -301,14 +302,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-09-30T12:15:00Z
+last_scan: 2026-10-05T14:05:00Z
 status: changed
-run_id: 36713262044
+run_id: 37321828241
 ```
 
-**Summary:** rust-v0.158.0-0.159.2 (Sep 28-29): GPT-6.1 Sol default, input steering, bundled plugin-creator skill removed in 0.159.0; no skill-format signal
+**Summary:** rust-v0.162.0-alpha.9-15 (Oct 3-5) rapid alpha cadence; release notes did not load; no skill-format signal
 
 History:
+- 2026-10-05T14:05:00Z — changed: alpha series 0.162.0; notes unavailable, no skill/plugin signal
 - 2026-09-30T12:15:00Z — changed: rust-v0.158.0-0.159.2 (Sep 28-29): GPT-6.1 Sol default, input steering, bundled plugin-creator skill removed in 0.159.0; no skill-format signal
 - 2026-09-19T00:00:00Z — changed: rust-v0.155.1 (Sep18, latest stable) — TUI reasoning-summary-default bugfix only, no skill-format signal; 0.156.0-alpha.4-7 pre-release line not fetched (established precedent)
 - 2026-09-08T00:00:00Z — changed (catch-up, read from stuck PRs #471/#474/#475/#478): rust-v0.153.3/0.153.4 (Sep5-6, GPT-6-Astra hotfixes) and **rust-v0.154.0 STABLE (Sep9)** — GPT-6-Astra model-picker/Bedrock catalog entry, `--worktree`/`/worktree` isolated-checkout, inline mid-run question-answering, Windows shared background server, Vim replace mode, deprecated `codex mcp-server` entry point removed; also noted (Sep17 report): 3 merged codex PRs (#42284/#42593/#42990) whose "Why" sections describe the exact symptom `AGENTS.md`'s "plugin auto-upgrade — stale skill-cache root" gotcha documents, but the cited upstream tracking issues (openai/codex#24390/#31383) remain open — unconfirmed fix, do not relax AGENTS.md's mitigation guidance without a live repro. No skill-format/marketplace-schema signal.
