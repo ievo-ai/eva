@@ -36,14 +36,15 @@ run_id: <GitHub Actions run ID or null>
 ## https://www.anthropic.com/news
 
 ```yaml
-last_scan: 2026-09-30T12:15:00Z
-status: changed
-run_id: 36713262044
+last_scan: 2026-10-06T13:10:00Z
+status: unchanged
+run_id: 37467806123
 ```
 
 **Summary:** Sep 22 Claude Opus 5.5, Sep 28 Claude Sonnet 5.5, Sep 22-23 science/health features; model launches only, no iEvo action
 
 History:
+- 2026-10-06T13:10:00Z — unchanged: no items newer than Sep 28; no iEvo action
 - 2026-09-30T12:15:00Z — changed: Sep 22 Claude Opus 5.5, Sep 28 Claude Sonnet 5.5, Sep 22-23 science/health features; model launches only, no iEvo action
 - 2026-09-19T00:00:00Z — changed: 2 genuinely new items — Accenture evaluation partnership (Sep18), Life Sciences Verification Program (Sep17); both non-technical, no iEvo action
 - 2026-09-08T00:00:00Z — changed (catch-up, read from stuck PRs #471/#475): "Detecting and countering misuse of AI: September 2026" (Sep10) + "Developing Enterprise Frontier Safeguards" (Sep1); both non-technical, no iEvo action
@@ -101,14 +102,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-10-05T14:05:00Z
-status: unchanged
-run_id: 37321828241
+last_scan: 2026-10-06T13:10:00Z
+status: changed
+run_id: 37467806123
 ```
 
-**Summary:** v2.1.289 (Oct 3) still latest; v2.1.283-289 recap: `/doctor prompt-audit`, `claude plugin configure`, plugin-defined agents honor own prompt/tools/effort, `verify` skill pre-commit guidance; no SKILL.md/agent frontmatter change; no iEvo action
+**Summary:** v2.1.290-291 (Oct 5-6): `serverToolUses` in `turn.step` hook results, `agentId` in `tool.check`, permission `ceiling` field, WebFetch `offset` param, subagents retain prompt cache; no SKILL.md/agent frontmatter change, no iEvo action. Prior recap: v2.1.289 (Oct 3); v2.1.283-289 recap: `/doctor prompt-audit`, `claude plugin configure`, plugin-defined agents honor own prompt/tools/effort, `verify` skill pre-commit guidance; no SKILL.md/agent frontmatter change; no iEvo action
 
 History:
+- 2026-10-06T13:10:00Z — changed: v2.1.290 (Oct 5) + v2.1.291 (Oct 6) — plugin hook fields (`serverToolUses`, `agentId`, `ceiling`), WebFetch `offset`, cloud-session fixes; no frontmatter change, no iEvo action
 - 2026-10-05T14:05:00Z — unchanged: no new release since v2.1.289; no frontmatter change (fetch tool misreports year)
 - 2026-10-04T12:02:00Z — changed: v2.1.289 (Oct 3) — `claude plugin validate` fixes, mod error isolation, `agent.spawn`; no frontmatter change, no iEvo action (fetch tool reports wrong year)
 - 2026-10-03T11:21:00Z — changed: v2.1.288 (Oct 2) — plugin-defined agents honor own prompt/tools/effort in agent teams, LSP placeholder fix, rm safeguard fixes; no frontmatter change, no iEvo action (fetch tool reports wrong year; dates taken as 2026)
