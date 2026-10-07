@@ -102,14 +102,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-10-06T13:10:00Z
+last_scan: 2026-10-07T13:00:00Z
 status: changed
-run_id: 37467806123
+run_id: 37624818698
 ```
 
-**Summary:** v2.1.290-291 (Oct 5-6): `serverToolUses` in `turn.step` hook results, `agentId` in `tool.check`, permission `ceiling` field, WebFetch `offset` param, subagents retain prompt cache; no SKILL.md/agent frontmatter change, no iEvo action. Prior recap: v2.1.289 (Oct 3); v2.1.283-289 recap: `/doctor prompt-audit`, `claude plugin configure`, plugin-defined agents honor own prompt/tools/effort, `verify` skill pre-commit guidance; no SKILL.md/agent frontmatter change; no iEvo action
+**Summary:** v2.1.292 (Oct 6): `claude plugin install --marketplace <source>`, Agent-tool `effort` param, mods `cache: true`, symlink/UNC permission-bypass security fixes; no SKILL.md/agent frontmatter or manifest schema change, no iEvo action. Prior: v2.1.290-291 (Oct 5-6): `serverToolUses` in `turn.step` hook results, `agentId` in `tool.check`, permission `ceiling` field, WebFetch `offset` param, subagents retain prompt cache; no SKILL.md/agent frontmatter change, no iEvo action. Prior recap: v2.1.289 (Oct 3); v2.1.283-289 recap: `/doctor prompt-audit`, `claude plugin configure`, plugin-defined agents honor own prompt/tools/effort, `verify` skill pre-commit guidance; no SKILL.md/agent frontmatter change; no iEvo action
 
 History:
+- 2026-10-07T13:00:00Z — changed: v2.1.292 (Oct 6) — plugin install `--marketplace` flag, Agent `effort` param, security fixes; no frontmatter change, no iEvo action
 - 2026-10-06T13:10:00Z — changed: v2.1.290 (Oct 5) + v2.1.291 (Oct 6) — plugin hook fields (`serverToolUses`, `agentId`, `ceiling`), WebFetch `offset`, cloud-session fixes; no frontmatter change, no iEvo action
 - 2026-10-05T14:05:00Z — unchanged: no new release since v2.1.289; no frontmatter change (fetch tool misreports year)
 - 2026-10-04T12:02:00Z — changed: v2.1.289 (Oct 3) — `claude plugin validate` fixes, mod error isolation, `agent.spawn`; no frontmatter change, no iEvo action (fetch tool reports wrong year)
@@ -714,14 +715,15 @@ History:
 ## https://code.claude.com/docs/en/skills.md
 
 ```yaml
-last_scan: 2026-10-01T12:47:00Z
+last_scan: 2026-10-07T13:00:00Z
 status: unchanged
-run_id: 36864032645
+run_id: 37624818698
 ```
 
-**Summary:** Re-fetched Oct 1. Field table has 19 documented fields (name, description, when_to_use, argument-hint, arguments, disable-model-invocation, user-invocable, allowed-tools, disallowed-tools, model, effort, context, agent, background, hooks, paths, shell, metadata, license, compatibility) plus `skillOverrides` setting; no new field versus prior notes.
+**Summary:** Re-fetched Oct 7: field table unchanged (20 fields listed, same set as prior); no new field. Prior: Re-fetched Oct 1. Field table has 19 documented fields (name, description, when_to_use, argument-hint, arguments, disable-model-invocation, user-invocable, allowed-tools, disallowed-tools, model, effort, context, agent, background, hooks, paths, shell, metadata, license, compatibility) plus `skillOverrides` setting; no new field versus prior notes.
 
 History:
+- 2026-10-07T13:00:00Z — unchanged: re-fetched, same field set, no new field
 - 2026-10-01T12:47:00Z — unchanged: re-fetched, no new frontmatter field
 - 2026-09-19T00:00:00Z — unchanged: not re-fetched; v2.1.274-278 release notes reviewed directly, no SKILL.md frontmatter change mentioned
 - 2026-09-04T09:32:00Z — unchanged: not re-fetched; v2.1.260 release notes reviewed directly, no SKILL.md frontmatter change mentioned
