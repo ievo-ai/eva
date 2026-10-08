@@ -102,14 +102,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-10-07T13:00:00Z
+last_scan: 2026-10-08T13:08:00Z
 status: changed
-run_id: 37624818698
+run_id: 37781686967
 ```
 
-**Summary:** v2.1.292 (Oct 6): `claude plugin install --marketplace <source>`, Agent-tool `effort` param, mods `cache: true`, symlink/UNC permission-bypass security fixes; no SKILL.md/agent frontmatter or manifest schema change, no iEvo action. Prior: v2.1.290-291 (Oct 5-6): `serverToolUses` in `turn.step` hook results, `agentId` in `tool.check`, permission `ceiling` field, WebFetch `offset` param, subagents retain prompt cache; no SKILL.md/agent frontmatter change, no iEvo action. Prior recap: v2.1.289 (Oct 3); v2.1.283-289 recap: `/doctor prompt-audit`, `claude plugin configure`, plugin-defined agents honor own prompt/tools/effort, `verify` skill pre-commit guidance; no SKILL.md/agent frontmatter change; no iEvo action
+**Summary:** v2.1.293-294 (Oct 7-8): Haiku 5.5 default haiku model, `agentType` in `subagentStatusLine`, subagent tool-list messaging fixes, prompt/agent Stop-hook fixes; no frontmatter or manifest schema change, no iEvo action. Prior: v2.1.292 (Oct 6): `claude plugin install --marketplace <source>`, Agent-tool `effort` param, mods `cache: true`, symlink/UNC permission-bypass security fixes; no SKILL.md/agent frontmatter or manifest schema change, no iEvo action. Prior: v2.1.290-291 (Oct 5-6): `serverToolUses` in `turn.step` hook results, `agentId` in `tool.check`, permission `ceiling` field, WebFetch `offset` param, subagents retain prompt cache; no SKILL.md/agent frontmatter change, no iEvo action. Prior recap: v2.1.289 (Oct 3); v2.1.283-289 recap: `/doctor prompt-audit`, `claude plugin configure`, plugin-defined agents honor own prompt/tools/effort, `verify` skill pre-commit guidance; no SKILL.md/agent frontmatter change; no iEvo action
 
 History:
+- 2026-10-08T13:08:00Z — changed: v2.1.293 (Oct 7) + v2.1.294 (Oct 8) — Haiku 5.5 default, `agentType` in subagentStatusLine, hook/subagent fixes; no frontmatter change, no iEvo action
 - 2026-10-07T13:00:00Z — changed: v2.1.292 (Oct 6) — plugin install `--marketplace` flag, Agent `effort` param, security fixes; no frontmatter change, no iEvo action
 - 2026-10-06T13:10:00Z — changed: v2.1.290 (Oct 5) + v2.1.291 (Oct 6) — plugin hook fields (`serverToolUses`, `agentId`, `ceiling`), WebFetch `offset`, cloud-session fixes; no frontmatter change, no iEvo action
 - 2026-10-05T14:05:00Z — unchanged: no new release since v2.1.289; no frontmatter change (fetch tool misreports year)
@@ -901,15 +902,16 @@ History:
 ## https://code.claude.com/docs/en/sub-agents.md
 
 ```yaml
-last_scan: 2026-06-01T08:08:22Z
-status: first-scan
-run_id: 26742668563
+last_scan: 2026-10-08T13:08:00Z
+status: unchanged
+run_id: 37781686967
 note: duplicate of https://code.claude.com/docs/en/sub-agents (no .md suffix) tracked above — merge/dedupe candidate for a future run, both scanned together 2026-07-01
 ```
 
 **Summary:** Sub-agents documentation for Claude Code. Model resolution order: (1) `CLAUDE_CODE_SUBAGENT_MODEL` env var if set, (2) per-invocation parameter, (3) agent frontmatter `model:`, (4) main-conversation model. Dispatch via Task tool. `agent:` field in `settings.json` (v2.1.157) adds a fourth override path: if `agent: <name>` is set, dispatched sessions use the specified agent profile, potentially overriding skill-dispatched sub-agents. Key security implication: `security-auditor.md` model frontmatter can be silently bypassed by env var OR `agent:` in settings.json.
 
 History:
+- 2026-10-08T13:08:00Z — unchanged: frontmatter table (18 fields incl. `omitClaudeMd` v2.1.271, `experimental.cacheTtl` v2.1.248, `effort`, `isolation`); already-known fields, no new proposal
 - 2026-06-01T08:08:22Z — first-scan: sub-agent model resolution order documented; agent: settings.json field identified as new bypass vector → triggered F-2026-06-01-003
 - 2026-05-30T07:15:49Z — first-scan: sub-agent model resolution order documented; context:fork frontmatter; settings.json agent field; CLAUDE_CODE_SUBAGENT_MODEL precedence confirmed
 - 2026-05-27T07:38:00Z — first-scan: confirmed CLAUDE_CODE_SUBAGENT_MODEL resolution order; disallowedTools and isolation: worktree documented; model resolution security note in AGENTS.md is accurate
