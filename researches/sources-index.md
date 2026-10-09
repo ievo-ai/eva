@@ -102,14 +102,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-10-08T13:08:00Z
+last_scan: 2026-10-09T12:55:00Z
 status: changed
-run_id: 37781686967
+run_id: 37932894105
 ```
 
-**Summary:** v2.1.293-294 (Oct 7-8): Haiku 5.5 default haiku model, `agentType` in `subagentStatusLine`, subagent tool-list messaging fixes, prompt/agent Stop-hook fixes; no frontmatter or manifest schema change, no iEvo action. Prior: v2.1.292 (Oct 6): `claude plugin install --marketplace <source>`, Agent-tool `effort` param, mods `cache: true`, symlink/UNC permission-bypass security fixes; no SKILL.md/agent frontmatter or manifest schema change, no iEvo action. Prior: v2.1.290-291 (Oct 5-6): `serverToolUses` in `turn.step` hook results, `agentId` in `tool.check`, permission `ceiling` field, WebFetch `offset` param, subagents retain prompt cache; no SKILL.md/agent frontmatter change, no iEvo action. Prior recap: v2.1.289 (Oct 3); v2.1.283-289 recap: `/doctor prompt-audit`, `claude plugin configure`, plugin-defined agents honor own prompt/tools/effort, `verify` skill pre-commit guidance; no SKILL.md/agent frontmatter change; no iEvo action
+**Summary:** v2.1.295 (Oct 8): hook `onFailure: "block"`, `claude plugin marketplace add` refuses uninstallable marketplace names, `claude plugin validate` suggests README install line, --tools/--restricted security fixes; no SKILL.md/agent frontmatter or manifest schema change, no iEvo action. Prior: v2.1.293-294 (Oct 7-8): Haiku 5.5 default haiku model, `agentType` in `subagentStatusLine`, subagent tool-list messaging fixes, prompt/agent Stop-hook fixes; no frontmatter or manifest schema change, no iEvo action. Prior: v2.1.292 (Oct 6): `claude plugin install --marketplace <source>`, Agent-tool `effort` param, mods `cache: true`, symlink/UNC permission-bypass security fixes; no SKILL.md/agent frontmatter or manifest schema change, no iEvo action. Prior: v2.1.290-291 (Oct 5-6): `serverToolUses` in `turn.step` hook results, `agentId` in `tool.check`, permission `ceiling` field, WebFetch `offset` param, subagents retain prompt cache; no SKILL.md/agent frontmatter change, no iEvo action. Prior recap: v2.1.289 (Oct 3); v2.1.283-289 recap: `/doctor prompt-audit`, `claude plugin configure`, plugin-defined agents honor own prompt/tools/effort, `verify` skill pre-commit guidance; no SKILL.md/agent frontmatter change; no iEvo action
 
 History:
+- 2026-10-09T12:55:00Z — changed: v2.1.295, no schema change, no iEvo action
 - 2026-10-08T13:08:00Z — changed: v2.1.293 (Oct 7) + v2.1.294 (Oct 8) — Haiku 5.5 default, `agentType` in subagentStatusLine, hook/subagent fixes; no frontmatter change, no iEvo action
 - 2026-10-07T13:00:00Z — changed: v2.1.292 (Oct 6) — plugin install `--marketplace` flag, Agent `effort` param, security fixes; no frontmatter change, no iEvo action
 - 2026-10-06T13:10:00Z — changed: v2.1.290 (Oct 5) + v2.1.291 (Oct 6) — plugin hook fields (`serverToolUses`, `agentId`, `ceiling`), WebFetch `offset`, cloud-session fixes; no frontmatter change, no iEvo action
@@ -306,14 +307,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-10-05T14:05:00Z
+last_scan: 2026-10-09T12:55:00Z
 status: changed
-run_id: 37321828241
+run_id: 37932894105
 ```
 
-**Summary:** rust-v0.162.0-alpha.9-15 (Oct 3-5) rapid alpha cadence; release notes did not load; no skill-format signal
+**Summary:** 0.161.0 (Oct 7), 0.162.0 stable (Oct 8), 0.163.0-alpha.2 (Oct 9): plugin/skill snapshots scoped per step, repo-local Codex guidance removal (#49713); no manifest/marketplace change, no iEvo action. Prior: rust-v0.162.0-alpha.9-15 (Oct 3-5) rapid alpha cadence; release notes did not load; no skill-format signal
 
 History:
+- 2026-10-09T12:55:00Z — changed: 0.161-0.163-alpha, no skill-format signal
 - 2026-10-05T14:05:00Z — changed: alpha series 0.162.0; notes unavailable, no skill/plugin signal
 - 2026-09-30T12:15:00Z — changed: rust-v0.158.0-0.159.2 (Sep 28-29): GPT-6.1 Sol default, input steering, bundled plugin-creator skill removed in 0.159.0; no skill-format signal
 - 2026-09-19T00:00:00Z — changed: rust-v0.155.1 (Sep18, latest stable) — TUI reasoning-summary-default bugfix only, no skill-format signal; 0.156.0-alpha.4-7 pre-release line not fetched (established precedent)
