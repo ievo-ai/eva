@@ -102,14 +102,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-10-09T12:55:00Z
+last_scan: 2026-10-10T12:10:00Z
 status: changed
-run_id: 37932894105
+run_id: 38050987995
 ```
 
-**Summary:** v2.1.295 (Oct 8): hook `onFailure: "block"`, `claude plugin marketplace add` refuses uninstallable marketplace names, `claude plugin validate` suggests README install line, --tools/--restricted security fixes; no SKILL.md/agent frontmatter or manifest schema change, no iEvo action. Prior: v2.1.293-294 (Oct 7-8): Haiku 5.5 default haiku model, `agentType` in `subagentStatusLine`, subagent tool-list messaging fixes, prompt/agent Stop-hook fixes; no frontmatter or manifest schema change, no iEvo action. Prior: v2.1.292 (Oct 6): `claude plugin install --marketplace <source>`, Agent-tool `effort` param, mods `cache: true`, symlink/UNC permission-bypass security fixes; no SKILL.md/agent frontmatter or manifest schema change, no iEvo action. Prior: v2.1.290-291 (Oct 5-6): `serverToolUses` in `turn.step` hook results, `agentId` in `tool.check`, permission `ceiling` field, WebFetch `offset` param, subagents retain prompt cache; no SKILL.md/agent frontmatter change, no iEvo action. Prior recap: v2.1.289 (Oct 3); v2.1.283-289 recap: `/doctor prompt-audit`, `claude plugin configure`, plugin-defined agents honor own prompt/tools/effort, `verify` skill pre-commit guidance; no SKILL.md/agent frontmatter change; no iEvo action
+**Summary:** v2.1.296 (Oct 9): new subagent frontmatter `autoCompactWindow`, `--debug` names unrecognized agent frontmatter fields, `CLAUDE_CODE_WORKFLOW_SUBAGENT_MODEL`, BASH_ARGV0 permission fix, broader transcript secret redaction; no SKILL.md frontmatter or manifest schema change. Prior: v2.1.295 (Oct 8): hook `onFailure: "block"`, `claude plugin marketplace add` refuses uninstallable marketplace names, `claude plugin validate` suggests README install line, --tools/--restricted security fixes; no SKILL.md/agent frontmatter or manifest schema change, no iEvo action. Prior: v2.1.293-294 (Oct 7-8): Haiku 5.5 default haiku model, `agentType` in `subagentStatusLine`, subagent tool-list messaging fixes, prompt/agent Stop-hook fixes; no frontmatter or manifest schema change, no iEvo action. Prior: v2.1.292 (Oct 6): `claude plugin install --marketplace <source>`, Agent-tool `effort` param, mods `cache: true`, symlink/UNC permission-bypass security fixes; no SKILL.md/agent frontmatter or manifest schema change, no iEvo action. Prior: v2.1.290-291 (Oct 5-6): `serverToolUses` in `turn.step` hook results, `agentId` in `tool.check`, permission `ceiling` field, WebFetch `offset` param, subagents retain prompt cache; no SKILL.md/agent frontmatter change, no iEvo action. Prior recap: v2.1.289 (Oct 3); v2.1.283-289 recap: `/doctor prompt-audit`, `claude plugin configure`, plugin-defined agents honor own prompt/tools/effort, `verify` skill pre-commit guidance; no SKILL.md/agent frontmatter change; no iEvo action
 
 History:
+- 2026-10-10T12:10:00Z — changed: v2.1.296 (Oct 9) — `autoCompactWindow` subagent frontmatter (single release-note signal, below threshold), no SKILL.md/manifest change, no iEvo action
 - 2026-10-09T12:55:00Z — changed: v2.1.295, no schema change, no iEvo action
 - 2026-10-08T13:08:00Z — changed: v2.1.293 (Oct 7) + v2.1.294 (Oct 8) — Haiku 5.5 default, `agentType` in subagentStatusLine, hook/subagent fixes; no frontmatter change, no iEvo action
 - 2026-10-07T13:00:00Z — changed: v2.1.292 (Oct 6) — plugin install `--marketplace` flag, Agent `effort` param, security fixes; no frontmatter change, no iEvo action
