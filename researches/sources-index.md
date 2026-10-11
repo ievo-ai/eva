@@ -102,14 +102,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-10-10T12:10:00Z
-status: changed
-run_id: 38050987995
+last_scan: 2026-10-11T12:24:00Z
+status: unchanged
+run_id: 38139126851
 ```
 
 **Summary:** v2.1.296 (Oct 9): new subagent frontmatter `autoCompactWindow`, `--debug` names unrecognized agent frontmatter fields, `CLAUDE_CODE_WORKFLOW_SUBAGENT_MODEL`, BASH_ARGV0 permission fix, broader transcript secret redaction; no SKILL.md frontmatter or manifest schema change. Prior: v2.1.295 (Oct 8): hook `onFailure: "block"`, `claude plugin marketplace add` refuses uninstallable marketplace names, `claude plugin validate` suggests README install line, --tools/--restricted security fixes; no SKILL.md/agent frontmatter or manifest schema change, no iEvo action. Prior: v2.1.293-294 (Oct 7-8): Haiku 5.5 default haiku model, `agentType` in `subagentStatusLine`, subagent tool-list messaging fixes, prompt/agent Stop-hook fixes; no frontmatter or manifest schema change, no iEvo action. Prior: v2.1.292 (Oct 6): `claude plugin install --marketplace <source>`, Agent-tool `effort` param, mods `cache: true`, symlink/UNC permission-bypass security fixes; no SKILL.md/agent frontmatter or manifest schema change, no iEvo action. Prior: v2.1.290-291 (Oct 5-6): `serverToolUses` in `turn.step` hook results, `agentId` in `tool.check`, permission `ceiling` field, WebFetch `offset` param, subagents retain prompt cache; no SKILL.md/agent frontmatter change, no iEvo action. Prior recap: v2.1.289 (Oct 3); v2.1.283-289 recap: `/doctor prompt-audit`, `claude plugin configure`, plugin-defined agents honor own prompt/tools/effort, `verify` skill pre-commit guidance; no SKILL.md/agent frontmatter change; no iEvo action
 
 History:
+- 2026-10-11T12:24:00Z — unchanged: v2.1.296 still latest; no SKILL.md/manifest schema change, no iEvo action
 - 2026-10-10T12:10:00Z — changed: v2.1.296 (Oct 9) — `autoCompactWindow` subagent frontmatter (single release-note signal, below threshold), no SKILL.md/manifest change, no iEvo action
 - 2026-10-09T12:55:00Z — changed: v2.1.295, no schema change, no iEvo action
 - 2026-10-08T13:08:00Z — changed: v2.1.293 (Oct 7) + v2.1.294 (Oct 8) — Haiku 5.5 default, `agentType` in subagentStatusLine, hook/subagent fixes; no frontmatter change, no iEvo action
@@ -924,14 +925,15 @@ History:
 ## https://agent-plugins.org
 
 ```yaml
-last_scan: 2026-09-19T00:00:00Z
+last_scan: 2026-10-11T12:24:00Z
 status: unchanged
-run_id: 35437809910
+run_id: 38139126851
 ```
 
-**Summary:** Landing page re-fetched — still shows spec version 1.0.0, no mention of a 1.1.0 release/draft going final. `gh api` commit+PR check: no new commits/merges to the spec repo since PR #65 (Aug 19, 1.1.0 working draft), now a 31-day gap; the Aug31-Sep1 wave (#79/#80/#82) plus #66/#67 all still open+unmerged, no activity since Sep 1 per the Sep16/17 catch-up. Still watch-only.
+**Summary:** Landing page re-fetched 2026-10-11: still spec 1.0.0, no changelog on page, no 1.1.0 mention. Prior: Landing page re-fetched — still shows spec version 1.0.0, no mention of a 1.1.0 release/draft going final. `gh api` commit+PR check: no new commits/merges to the spec repo since PR #65 (Aug 19, 1.1.0 working draft), now a 31-day gap; the Aug31-Sep1 wave (#79/#80/#82) plus #66/#67 all still open+unmerged, no activity since Sep 1 per the Sep16/17 catch-up. Still watch-only.
 
 History:
+- 2026-10-11T12:24:00Z — unchanged: landing page still 1.0.0, no changelog or 1.1.0 mention
 - 2026-09-19T00:00:00Z — unchanged: landing page re-fetched, still 1.0.0, no 1.1.0 mention; `gh api` commit check — no new merges since #65 (31-day gap); #66/#67/#79/#80/#82 still open+unmerged
 - 2026-09-04T09:40:00Z — unchanged: `gh api` commit+PR check — no new merges since #65 (Aug19); 3 new open PRs (#79/#80/#82, Aug31-Sep1) against still-unmerged 1.1.0 draft, portability/hardening proposals only; landing page still 1.0.0
 - 2026-08-30T00:00:00Z — unchanged: `gh api` PR check — no new merges since #65 (Aug19); #66/#67 still open+unmerged, no update since Aug25/Aug22 respectively
