@@ -102,14 +102,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-10-17T10:22:00Z
-status: changed
-run_id: 39024642362
+last_scan: 2026-10-18T10:40:00Z
+status: unchanged
+run_id: 39120138365
 ```
 
 **Summary:** v2.1.302 (Oct 16): fork subagents on by default outside terminal (`CLAUDE_CODE_FORK_SUBAGENT=0` opt-out), plugin load-speed and marketplace re-clone fixes; no SKILL.md/manifest/subagent frontmatter change, no iEvo action. Prior: v2.1.301 hook-behavior fixes only.
 
 History:
+- 2026-10-18T10:40:00Z — unchanged: v2.1.302 still latest; no SKILL.md/manifest/subagent frontmatter change, no iEvo action
 - 2026-10-17T10:22:00Z — changed: v2.1.302 (Oct 16) fork subagents default-on in -p/SDK/desktop/VS Code (`CLAUDE_CODE_FORK_SUBAGENT=0` opt-out), plugin load/marketplace fixes; no SKILL.md/manifest/subagent frontmatter change, no iEvo action
 - 2026-10-16T11:02:00Z — changed: v2.1.301 hook-behavior fixes only; no skills/manifest schema change; no action
 - 2026-10-15T11:07:00Z — changed: v2.1.300 hook-validation + mod-hook changes only; no skills/manifest schema change; no action
