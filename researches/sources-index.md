@@ -102,14 +102,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-10-19T12:38:00Z
+last_scan: 2026-10-20T11:11:00Z
 status: changed
-run_id: 39253598328
+run_id: 39413107279
 ```
 
-**Summary:** v2.1.302 (Oct 16): fork subagents on by default outside terminal (`CLAUDE_CODE_FORK_SUBAGENT=0` opt-out), plugin load-speed and marketplace re-clone fixes; no SKILL.md/manifest/subagent frontmatter change, no iEvo action. Prior: v2.1.301 hook-behavior fixes only.
+**Summary:** v2.1.304 (Oct 19): per-source skill hook caps (1,024 hooks / 16,384 matcher chars per session), `/reload-skills` sends only changed skills, `once`-hook fix, `/auto-mode-setup`; no SKILL.md frontmatter or manifest change, no iEvo action. Prior: v2.1.302 fork subagents default-on; v2.1.303 generic bug fixes.
 
 History:
+- 2026-10-20T11:11:00Z — changed: v2.1.304 (Oct 19) adds per-source skill hook caps and skill-listing resend changes; single signal, no iEvo action. Last ~3KB of page not read.
 - 2026-10-19T12:38:00Z — changed: v2.1.303 (Oct 18) shows only a generic bug-fix line; no SKILL.md/manifest/subagent frontmatter change, no iEvo action
 - 2026-10-18T10:40:00Z — unchanged: v2.1.302 still latest; no SKILL.md/manifest/subagent frontmatter change, no iEvo action
 - 2026-10-17T10:22:00Z — changed: v2.1.302 (Oct 16) fork subagents default-on in -p/SDK/desktop/VS Code (`CLAUDE_CODE_FORK_SUBAGENT=0` opt-out), plugin load/marketplace fixes; no SKILL.md/manifest/subagent frontmatter change, no iEvo action
