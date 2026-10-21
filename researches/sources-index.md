@@ -102,14 +102,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-10-20T11:11:00Z
+last_scan: 2026-10-21T11:27:00Z
 status: changed
-run_id: 39413107279
+run_id: 39591991036
 ```
 
-**Summary:** v2.1.304 (Oct 19): per-source skill hook caps (1,024 hooks / 16,384 matcher chars per session), `/reload-skills` sends only changed skills, `once`-hook fix, `/auto-mode-setup`; no SKILL.md frontmatter or manifest change, no iEvo action. Prior: v2.1.302 fork subagents default-on; v2.1.303 generic bug fixes.
+**Summary:** v2.1.305 (Oct 20) and v2.1.306 (Oct 21): 305 drops `allowed-tools` for path-mounted Desktop plugins under `allowManagedPermissionRulesOnly`; 306 two unrelated fixes. No SKILL.md/manifest/subagent frontmatter change, no iEvo action. Prior: v2.1.304 per-source skill hook caps.
 
 History:
+- 2026-10-21T11:27:00Z — changed: v2.1.305 (managed-settings `allowed-tools` drop for Desktop path-mounted plugins) + v2.1.306 (2 unrelated fixes); single niche signal, no iEvo action
 - 2026-10-20T11:11:00Z — changed: v2.1.304 (Oct 19) adds per-source skill hook caps and skill-listing resend changes; single signal, no iEvo action. Last ~3KB of page not read.
 - 2026-10-19T12:38:00Z — changed: v2.1.303 (Oct 18) shows only a generic bug-fix line; no SKILL.md/manifest/subagent frontmatter change, no iEvo action
 - 2026-10-18T10:40:00Z — unchanged: v2.1.302 still latest; no SKILL.md/manifest/subagent frontmatter change, no iEvo action
@@ -318,14 +319,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-10-09T12:55:00Z
+last_scan: 2026-10-21T11:27:00Z
 status: changed
-run_id: 37932894105
+run_id: 39591991036
 ```
 
-**Summary:** 0.161.0 (Oct 7), 0.162.0 stable (Oct 8), 0.163.0-alpha.2 (Oct 9): plugin/skill snapshots scoped per step, repo-local Codex guidance removal (#49713); no manifest/marketplace change, no iEvo action. Prior: rust-v0.162.0-alpha.9-15 (Oct 3-5) rapid alpha cadence; release notes did not load; no skill-format signal
+**Summary:** 0.163.0 stable (Oct 15): plugin mentions no longer suppress same-name skills, configurable default plugin activation policy, plugin-toggle UI fixes; 0.164.0-alpha.1-8 (Oct 16-20) no notes. No manifest/marketplace format change, no iEvo action.
 
 History:
+- 2026-10-21T11:27:00Z — changed: 0.163.0 stable (Oct 15) plugin-UX/activation-policy changes, no format change; 0.164.0 alphas have no notes
 - 2026-10-09T12:55:00Z — changed: 0.161-0.163-alpha, no skill-format signal
 - 2026-10-05T14:05:00Z — changed: alpha series 0.162.0; notes unavailable, no skill/plugin signal
 - 2026-09-30T12:15:00Z — changed: rust-v0.158.0-0.159.2 (Sep 28-29): GPT-6.1 Sol default, input steering, bundled plugin-creator skill removed in 0.159.0; no skill-format signal
