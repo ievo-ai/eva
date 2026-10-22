@@ -102,14 +102,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-10-21T11:27:00Z
+last_scan: 2026-10-22T11:27:00Z
 status: changed
-run_id: 39591991036
+run_id: 39770608100
 ```
 
-**Summary:** v2.1.305 (Oct 20) and v2.1.306 (Oct 21): 305 drops `allowed-tools` for path-mounted Desktop plugins under `allowManagedPermissionRulesOnly`; 306 two unrelated fixes. No SKILL.md/manifest/subagent frontmatter change, no iEvo action. Prior: v2.1.304 per-source skill hook caps.
+**Summary:** v2.1.307 (Oct 21): `/claude-api api-version`, bundled-skill short descriptions in `/help`, fork subagents told which launch is theirs, `claude_code.safety_event` OTel event; v2.1.308 (Oct 22) generic bug fixes. No SKILL.md/manifest/subagent frontmatter change, no iEvo action. Prior: v2.1.305 managed-settings allowed-tools drop.
 
 History:
+- 2026-10-22T11:27:00Z — changed: v2.1.307 (fork-subagent launch awareness, safety_event OTel, bundled-skill help descriptions) + v2.1.308 generic; no frontmatter/manifest change, no iEvo action
 - 2026-10-21T11:27:00Z — changed: v2.1.305 (managed-settings `allowed-tools` drop for Desktop path-mounted plugins) + v2.1.306 (2 unrelated fixes); single niche signal, no iEvo action
 - 2026-10-20T11:11:00Z — changed: v2.1.304 (Oct 19) adds per-source skill hook caps and skill-listing resend changes; single signal, no iEvo action. Last ~3KB of page not read.
 - 2026-10-19T12:38:00Z — changed: v2.1.303 (Oct 18) shows only a generic bug-fix line; no SKILL.md/manifest/subagent frontmatter change, no iEvo action
@@ -319,14 +320,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-10-21T11:27:00Z
+last_scan: 2026-10-22T11:27:00Z
 status: changed
-run_id: 39591991036
+run_id: 39770608100
 ```
 
-**Summary:** 0.163.0 stable (Oct 15): plugin mentions no longer suppress same-name skills, configurable default plugin activation policy, plugin-toggle UI fixes; 0.164.0-alpha.1-8 (Oct 16-20) no notes. No manifest/marketplace format change, no iEvo action.
+**Summary:** 0.164.0-alpha.5-12 (Oct 19-22) listed with generic "Release" messages only; no notes, no skill/plugin/manifest signal. Prior: 0.163.0 stable plugin-UX changes.
 
 History:
+- 2026-10-22T11:27:00Z — unchanged: only 0.164.0 alphas with no notes; no iEvo action
 - 2026-10-21T11:27:00Z — changed: 0.163.0 stable (Oct 15) plugin-UX/activation-policy changes, no format change; 0.164.0 alphas have no notes
 - 2026-10-09T12:55:00Z — changed: 0.161-0.163-alpha, no skill-format signal
 - 2026-10-05T14:05:00Z — changed: alpha series 0.162.0; notes unavailable, no skill/plugin signal
