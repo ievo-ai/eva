@@ -102,14 +102,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-10-22T11:27:00Z
+last_scan: 2026-10-23T11:17:00Z
 status: changed
-run_id: 39770608100
+run_id: 39944937857
 ```
 
-**Summary:** v2.1.307 (Oct 21): `/claude-api api-version`, bundled-skill short descriptions in `/help`, fork subagents told which launch is theirs, `claude_code.safety_event` OTel event; v2.1.308 (Oct 22) generic bug fixes. No SKILL.md/manifest/subagent frontmatter change, no iEvo action. Prior: v2.1.305 managed-settings allowed-tools drop.
+**Summary:** v2.1.309 (Oct 22): `--add-dir` same-name skills now offered as `<folder>:<name>`, `/claude-api` moved to `multiagent_20261001`, dataviz APCA helper, hook/plugin-sync fixes. No SKILL.md/manifest/subagent frontmatter change, no iEvo action. Prior: v2.1.307 safety_event OTel.
 
 History:
+- 2026-10-23T11:17:00Z — changed: v2.1.309 (add-dir skill name disambiguation, claude-api multiagent, hook fixes); no frontmatter/manifest change, no iEvo action
 - 2026-10-22T11:27:00Z — changed: v2.1.307 (fork-subagent launch awareness, safety_event OTel, bundled-skill help descriptions) + v2.1.308 generic; no frontmatter/manifest change, no iEvo action
 - 2026-10-21T11:27:00Z — changed: v2.1.305 (managed-settings `allowed-tools` drop for Desktop path-mounted plugins) + v2.1.306 (2 unrelated fixes); single niche signal, no iEvo action
 - 2026-10-20T11:11:00Z — changed: v2.1.304 (Oct 19) adds per-source skill hook caps and skill-listing resend changes; single signal, no iEvo action. Last ~3KB of page not read.
@@ -320,14 +321,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-10-22T11:27:00Z
+last_scan: 2026-10-23T11:17:00Z
 status: changed
-run_id: 39770608100
+run_id: 39944937857
 ```
 
-**Summary:** 0.164.0-alpha.5-12 (Oct 19-22) listed with generic "Release" messages only; no notes, no skill/plugin/manifest signal. Prior: 0.163.0 stable plugin-UX changes.
+**Summary:** 0.164.0 stable (Oct 23): /presets, inline /model and /permissions args, skill refreshes scoped to explicit dirs (#54050), capability discovery includes plugin/skill metadata (#53763). No skill/plugin format change visible. Prior: 0.163.0 stable Oct 15.
 
 History:
+- 2026-10-23T11:17:00Z — changed: 0.164.0 stable; skill refresh scoping + plugin metadata discovery, no format change, no iEvo action
 - 2026-10-22T11:27:00Z — unchanged: only 0.164.0 alphas with no notes; no iEvo action
 - 2026-10-21T11:27:00Z — changed: 0.163.0 stable (Oct 15) plugin-UX/activation-policy changes, no format change; 0.164.0 alphas have no notes
 - 2026-10-09T12:55:00Z — changed: 0.161-0.163-alpha, no skill-format signal
