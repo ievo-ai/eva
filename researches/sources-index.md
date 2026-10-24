@@ -102,14 +102,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-10-23T11:17:00Z
+last_scan: 2026-10-24T10:36:00Z
 status: changed
-run_id: 39944937857
+run_id: 40086540440
 ```
 
-**Summary:** v2.1.309 (Oct 22): `--add-dir` same-name skills now offered as `<folder>:<name>`, `/claude-api` moved to `multiagent_20261001`, dataviz APCA helper, hook/plugin-sync fixes. No SKILL.md/manifest/subagent frontmatter change, no iEvo action. Prior: v2.1.307 safety_event OTel.
+**Summary:** v2.1.310 (Oct 23): Monitor tool and plugin monitors now on Bedrock/Vertex/Foundry, symlink targets shown in Read prompts, gateway retry fixes. No SKILL.md/manifest/subagent frontmatter change, no iEvo action. Prior: v2.1.309 add-dir skill disambiguation.
 
 History:
+- 2026-10-24T10:36:00Z — changed: v2.1.310 (plugin monitors on Bedrock/Vertex/Foundry, Read prompt symlink targets, cleanup/compaction fixes); no frontmatter/manifest change, no iEvo action
 - 2026-10-23T11:17:00Z — changed: v2.1.309 (add-dir skill name disambiguation, claude-api multiagent, hook fixes); no frontmatter/manifest change, no iEvo action
 - 2026-10-22T11:27:00Z — changed: v2.1.307 (fork-subagent launch awareness, safety_event OTel, bundled-skill help descriptions) + v2.1.308 generic; no frontmatter/manifest change, no iEvo action
 - 2026-10-21T11:27:00Z — changed: v2.1.305 (managed-settings `allowed-tools` drop for Desktop path-mounted plugins) + v2.1.306 (2 unrelated fixes); single niche signal, no iEvo action
@@ -321,14 +322,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-10-23T11:17:00Z
+last_scan: 2026-10-24T10:36:00Z
 status: changed
-run_id: 39944937857
+run_id: 40086540440
 ```
 
-**Summary:** 0.164.0 stable (Oct 23): /presets, inline /model and /permissions args, skill refreshes scoped to explicit dirs (#54050), capability discovery includes plugin/skill metadata (#53763). No skill/plugin format change visible. Prior: 0.163.0 stable Oct 15.
+**Summary:** 0.165.0-alpha.1 (Oct 23) pre-release only, no notes. 0.164.0 stable remains latest. No signal.
 
 History:
+- 2026-10-24T10:36:00Z — changed: 0.165.0-alpha.1 pre-release with no notes; no signal
 - 2026-10-23T11:17:00Z — changed: 0.164.0 stable; skill refresh scoping + plugin metadata discovery, no format change, no iEvo action
 - 2026-10-22T11:27:00Z — unchanged: only 0.164.0 alphas with no notes; no iEvo action
 - 2026-10-21T11:27:00Z — changed: 0.163.0 stable (Oct 15) plugin-UX/activation-policy changes, no format change; 0.164.0 alphas have no notes
