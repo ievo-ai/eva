@@ -102,14 +102,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-10-24T10:36:00Z
-status: changed
-run_id: 40086540440
+last_scan: 2026-10-25T11:00:00Z
+status: unchanged
+run_id: 40187041736
 ```
 
 **Summary:** v2.1.310 (Oct 23): Monitor tool and plugin monitors now on Bedrock/Vertex/Foundry, symlink targets shown in Read prompts, gateway retry fixes. No SKILL.md/manifest/subagent frontmatter change, no iEvo action. Prior: v2.1.309 add-dir skill disambiguation.
 
 History:
+- 2026-10-25T11:00:00Z — unchanged: v2.1.310 still latest; no frontmatter/manifest change, no iEvo action
 - 2026-10-24T10:36:00Z — changed: v2.1.310 (plugin monitors on Bedrock/Vertex/Foundry, Read prompt symlink targets, cleanup/compaction fixes); no frontmatter/manifest change, no iEvo action
 - 2026-10-23T11:17:00Z — changed: v2.1.309 (add-dir skill name disambiguation, claude-api multiagent, hook fixes); no frontmatter/manifest change, no iEvo action
 - 2026-10-22T11:27:00Z — changed: v2.1.307 (fork-subagent launch awareness, safety_event OTel, bundled-skill help descriptions) + v2.1.308 generic; no frontmatter/manifest change, no iEvo action
@@ -322,14 +323,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-10-24T10:36:00Z
-status: changed
-run_id: 40086540440
+last_scan: 2026-10-25T11:00:00Z
+status: unchanged
+run_id: 40187041736
 ```
 
 **Summary:** 0.165.0-alpha.1 (Oct 23) pre-release only, no notes. 0.164.0 stable remains latest. No signal.
 
 History:
+- 2026-10-25T11:00:00Z — unchanged: 0.165.0-alpha.1 / 0.164.0 stable still latest; no signal
 - 2026-10-24T10:36:00Z — changed: 0.165.0-alpha.1 pre-release with no notes; no signal
 - 2026-10-23T11:17:00Z — changed: 0.164.0 stable; skill refresh scoping + plugin metadata discovery, no format change, no iEvo action
 - 2026-10-22T11:27:00Z — unchanged: only 0.164.0 alphas with no notes; no iEvo action
