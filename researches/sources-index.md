@@ -102,14 +102,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-10-28T12:30:00Z
-status: changed
-run_id: 40687634565
+last_scan: 2026-10-29T12:36:00Z
+status: unchanged
+run_id: 40874518987
 ```
 
 **Summary:** v2.1.312 (Oct 27): prompt/agent hooks capped at 24 concurrent per session incl. sub-agents. v2.1.311: SubagentStop hooks fire once per subagent finish (was ~2/min). No SKILL.md/manifest frontmatter change; single signals only, no iEvo action.
 
 History:
+- 2026-10-29T12:36:00Z — unchanged: v2.1.312 still latest; no frontmatter/manifest change, no iEvo action
 - 2026-10-28T12:30:00Z — changed: v2.1.311/v2.1.312 hook behavior (SubagentStop once; 24-hook concurrency cap); not filed (single signal, joins hook-cap note from v2.1.304)
 - 2026-10-25T11:00:00Z — unchanged: v2.1.310 still latest; no frontmatter/manifest change, no iEvo action
 - 2026-10-24T10:36:00Z — changed: v2.1.310 (plugin monitors on Bedrock/Vertex/Foundry, Read prompt symlink targets, cleanup/compaction fixes); no frontmatter/manifest change, no iEvo action
@@ -324,14 +325,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-10-28T12:30:00Z
-status: changed
-run_id: 40687634565
+last_scan: 2026-10-29T12:36:00Z
+status: unchanged
+run_id: 40874518987
 ```
 
 **Summary:** 0.165.0 stable (Oct 27): Guardian review timeout setting, marketplace URL validation fix. 0.166.0-alpha.3-5 pre-releases without notes. No iEvo action.
 
 History:
+- 2026-10-29T12:36:00Z — unchanged: 0.165.0 stable still latest; 0.166.0-alpha.1-6 pre-releases without notes; no signal
 - 2026-10-28T12:30:00Z — changed: 0.165.0 stable shipped; marketplace URL validation fix noted, no action
 - 2026-10-25T11:00:00Z — unchanged: 0.165.0-alpha.1 / 0.164.0 stable still latest; no signal
 - 2026-10-24T10:36:00Z — changed: 0.165.0-alpha.1 pre-release with no notes; no signal
