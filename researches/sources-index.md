@@ -102,14 +102,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-10-29T12:36:00Z
-status: unchanged
-run_id: 40874518987
+last_scan: 2026-10-30T12:27:00Z
+status: changed
+run_id: 41055366934
 ```
 
-**Summary:** v2.1.312 (Oct 27): prompt/agent hooks capped at 24 concurrent per session incl. sub-agents. v2.1.311: SubagentStop hooks fire once per subagent finish (was ~2/min). No SKILL.md/manifest frontmatter change; single signals only, no iEvo action.
+**Summary:** v2.1.314 (Oct 30): hook output capped at 10,000 chars (PreCompact); Bash-matching hooks now run on Monitor-tool commands (block/ask only); skills/plugins .trash capped at ~1,024 entries; broken --plugin-dir manifest no longer blocks model switching. v2.1.312: prompt/agent hooks capped at 24 concurrent. No SKILL.md/manifest frontmatter change; single signals, no iEvo action.
 
 History:
+- 2026-10-30T12:27:00Z — changed: v2.1.313/314 hook-output cap, Monitor-tool hook matching, .trash caps; no frontmatter/manifest change, no iEvo action
 - 2026-10-29T12:36:00Z — unchanged: v2.1.312 still latest; no frontmatter/manifest change, no iEvo action
 - 2026-10-28T12:30:00Z — changed: v2.1.311/v2.1.312 hook behavior (SubagentStop once; 24-hook concurrency cap); not filed (single signal, joins hook-cap note from v2.1.304)
 - 2026-10-25T11:00:00Z — unchanged: v2.1.310 still latest; no frontmatter/manifest change, no iEvo action
@@ -325,14 +326,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-10-29T12:36:00Z
-status: unchanged
-run_id: 40874518987
+last_scan: 2026-10-30T12:27:00Z
+status: changed
+run_id: 41055366934
 ```
 
-**Summary:** 0.165.0 stable (Oct 27): Guardian review timeout setting, marketplace URL validation fix. 0.166.0-alpha.3-5 pre-releases without notes. No iEvo action.
+**Summary:** 0.166.0 stable (Oct 29): incremental skill catalogs behind `skill_catalog_deltas` flag, plugin discovery prefetch toggle, marketplace auto-update failures surface as startup warnings, hook cwd reporting. 0.165.0: marketplace URL userinfo backslash rejection. Flag-gated/internal; no iEvo action.
 
 History:
+- 2026-10-30T12:27:00Z — changed: 0.166.0 stable shipped (skill_catalog_deltas flag, plugin prefetch, hook cwd); flag-gated, no format change, no iEvo action
 - 2026-10-29T12:36:00Z — unchanged: 0.165.0 stable still latest; 0.166.0-alpha.1-6 pre-releases without notes; no signal
 - 2026-10-28T12:30:00Z — changed: 0.165.0 stable shipped; marketplace URL validation fix noted, no action
 - 2026-10-25T11:00:00Z — unchanged: 0.165.0-alpha.1 / 0.164.0 stable still latest; no signal
