@@ -102,14 +102,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-10-30T12:27:00Z
+last_scan: 2026-10-31T11:56:00Z
 status: changed
-run_id: 41055366934
+run_id: 41198858388
 ```
 
-**Summary:** v2.1.314 (Oct 30): hook output capped at 10,000 chars (PreCompact); Bash-matching hooks now run on Monitor-tool commands (block/ask only); skills/plugins .trash capped at ~1,024 entries; broken --plugin-dir manifest no longer blocks model switching. v2.1.312: prompt/agent hooks capped at 24 concurrent. No SKILL.md/manifest frontmatter change; single signals, no iEvo action.
+**Summary:** v2.1.316 (Oct 31): adds CLAUDE_CODE_SUBAGENT_EFFORT env var and CLAUDE_CODE_DISABLE_ULTRATHINK; fixes PowerShell hook exit-code-2 blocking and plugin MCP headersHelper CLAUDE_PLUGIN_ROOT corruption. No frontmatter/manifest change; no iEvo action. Prior: v2.1.314 (Oct 30): hook output capped at 10,000 chars (PreCompact); Bash-matching hooks now run on Monitor-tool commands (block/ask only); skills/plugins .trash capped at ~1,024 entries; broken --plugin-dir manifest no longer blocks model switching. v2.1.312: prompt/agent hooks capped at 24 concurrent. No SKILL.md/manifest frontmatter change; single signals, no iEvo action.
 
 History:
+- 2026-10-31T11:56:00Z — changed: v2.1.316 (CLAUDE_CODE_SUBAGENT_EFFORT, CLAUDE_CODE_DISABLE_ULTRATHINK, PS hook exit-2 fix, headersHelper fix); no frontmatter/manifest change
 - 2026-10-30T12:27:00Z — changed: v2.1.313/314 hook-output cap, Monitor-tool hook matching, .trash caps; no frontmatter/manifest change, no iEvo action
 - 2026-10-29T12:36:00Z — unchanged: v2.1.312 still latest; no frontmatter/manifest change, no iEvo action
 - 2026-10-28T12:30:00Z — changed: v2.1.311/v2.1.312 hook behavior (SubagentStop once; 24-hook concurrency cap); not filed (single signal, joins hook-cap note from v2.1.304)
@@ -326,14 +327,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-10-30T12:27:00Z
-status: changed
-run_id: 41055366934
+last_scan: 2026-10-31T11:56:00Z
+status: unchanged
+run_id: 41198858388
 ```
 
-**Summary:** 0.166.0 stable (Oct 29): incremental skill catalogs behind `skill_catalog_deltas` flag, plugin discovery prefetch toggle, marketplace auto-update failures surface as startup warnings, hook cwd reporting. 0.165.0: marketplace URL userinfo backslash rejection. Flag-gated/internal; no iEvo action.
+**Summary:** unchanged from previous. 0.166.0 stable (Oct 29): incremental skill catalogs behind `skill_catalog_deltas` flag, plugin discovery prefetch toggle, marketplace auto-update failures surface as startup warnings, hook cwd reporting. 0.165.0: marketplace URL userinfo backslash rejection. Flag-gated/internal; no iEvo action.
 
 History:
+- 2026-10-31T11:56:00Z — unchanged: 0.166.0 still latest stable
 - 2026-10-30T12:27:00Z — changed: 0.166.0 stable shipped (skill_catalog_deltas flag, plugin prefetch, hook cwd); flag-gated, no format change, no iEvo action
 - 2026-10-29T12:36:00Z — unchanged: 0.165.0 stable still latest; 0.166.0-alpha.1-6 pre-releases without notes; no signal
 - 2026-10-28T12:30:00Z — changed: 0.165.0 stable shipped; marketplace URL validation fix noted, no action
