@@ -102,14 +102,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-11-02T15:12:00Z
-status: unchanged
-run_id: 41469157432
+last_scan: 2026-11-03T13:53:00Z
+status: changed
+run_id: 41648393480
 ```
 
-**Summary:** v2.1.316 (Oct 31): adds CLAUDE_CODE_SUBAGENT_EFFORT env var and CLAUDE_CODE_DISABLE_ULTRATHINK; fixes PowerShell hook exit-code-2 blocking and plugin MCP headersHelper CLAUDE_PLUGIN_ROOT corruption. No frontmatter/manifest change; no iEvo action. Prior: v2.1.314 (Oct 30): hook output capped at 10,000 chars (PreCompact); Bash-matching hooks now run on Monitor-tool commands (block/ask only); skills/plugins .trash capped at ~1,024 entries; broken --plugin-dir manifest no longer blocks model switching. v2.1.312: prompt/agent hooks capped at 24 concurrent. No SKILL.md/manifest frontmatter change; single signals, no iEvo action.
+**Summary:** v2.1.317 (Nov 3): Agent SDK hook callbacks gain `onFailure: "block"`; fixes claude.ai-synced skills re-downloading every 10 min when unwritable. SDK-only, no iEvo action. Prior: v2.1.316 (Oct 31): adds CLAUDE_CODE_SUBAGENT_EFFORT env var and CLAUDE_CODE_DISABLE_ULTRATHINK; fixes PowerShell hook exit-code-2 blocking and plugin MCP headersHelper CLAUDE_PLUGIN_ROOT corruption. No frontmatter/manifest change; no iEvo action. Prior: v2.1.314 (Oct 30): hook output capped at 10,000 chars (PreCompact); Bash-matching hooks now run on Monitor-tool commands (block/ask only); skills/plugins .trash capped at ~1,024 entries; broken --plugin-dir manifest no longer blocks model switching. v2.1.312: prompt/agent hooks capped at 24 concurrent. No SKILL.md/manifest frontmatter change; single signals, no iEvo action.
 
 History:
+- 2026-11-03T13:53:00Z — changed: v2.1.317 (Nov 3) Agent SDK hook callback `onFailure: "block"`, claude.ai skill re-download fix; no frontmatter/manifest change, no iEvo action
 - 2026-11-02T15:12:00Z — unchanged: v2.1.316 still latest; no new releases
 - 2026-11-01T12:55:00Z — unchanged: v2.1.316 still latest; no new releases since previous scan
 - 2026-10-31T11:56:00Z — changed: v2.1.316 (CLAUDE_CODE_SUBAGENT_EFFORT, CLAUDE_CODE_DISABLE_ULTRATHINK, PS hook exit-2 fix, headersHelper fix); no frontmatter/manifest change
@@ -329,14 +330,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-11-02T15:12:00Z
-status: unchanged
-run_id: 41469157432
+last_scan: 2026-11-03T13:53:00Z
+status: changed
+run_id: 41648393480
 ```
 
 **Summary:** unchanged from previous. 0.166.0 stable (Oct 29): incremental skill catalogs behind `skill_catalog_deltas` flag, plugin discovery prefetch toggle, marketplace auto-update failures surface as startup warnings, hook cwd reporting. 0.165.0: marketplace URL userinfo backslash rejection. Flag-gated/internal; no iEvo action.
 
 History:
+- 2026-11-03T13:53:00Z — changed (pre-release only): 0.167.0-alpha.4 (Nov 3), no notes; 0.166.0 still latest stable; no iEvo action
 - 2026-11-02T15:12:00Z — changed (pre-release only): 0.167.0-alpha.2/3 published Nov 1 with no notes; 0.166.0 still latest stable; no iEvo action
 - 2026-11-01T12:55:00Z — unchanged: 0.166.0 still latest stable; no change
 - 2026-10-31T11:56:00Z — unchanged: 0.166.0 still latest stable
