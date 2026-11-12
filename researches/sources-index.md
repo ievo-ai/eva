@@ -102,14 +102,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-11-11T13:51:00Z
-status: changed
-run_id: 43032801382
+last_scan: 2026-11-12T14:53:00Z
+status: unchanged
+run_id: 43241765674
 ```
 
 **Summary:** v2.1.321 (Nov 9): Fable 5.2 default model; security fixes (MCP OAuth secret redirect leak, Bash permission/sandbox bypass cases, cp/mv deny rules); project skills/agents missing after folder removed and restored mid-session fixed; hook ask/defer fixes. v2.1.322 (Nov 10): fast mode on Vertex. No frontmatter/manifest change; no iEvo action. Prior: v2.1.319 (Nov 6): adds permissions.denyInsteadOfPrompting setting (subagents/teammates), claude plugin eval warning fix, plugin auto-update dependency fix, /claude-api latency-optimize. No frontmatter/manifest change; single signal, no iEvo action. Prior: v2.1.318 (Nov 4): background subagents move shell commands to background after 3 min; mod `turn.step` hook headless fix; failing/Claude-only custom slash commands no longer print nothing in `claude -p`. No frontmatter/manifest change; no iEvo action. Prior: v2.1.317 (Nov 3): Agent SDK hook callbacks gain `onFailure: "block"`; fixes claude.ai-synced skills re-downloading every 10 min when unwritable. SDK-only, no iEvo action. Prior: v2.1.316 (Oct 31): adds CLAUDE_CODE_SUBAGENT_EFFORT env var and CLAUDE_CODE_DISABLE_ULTRATHINK; fixes PowerShell hook exit-code-2 blocking and plugin MCP headersHelper CLAUDE_PLUGIN_ROOT corruption. No frontmatter/manifest change; no iEvo action. Prior: v2.1.314 (Oct 30): hook output capped at 10,000 chars (PreCompact); Bash-matching hooks now run on Monitor-tool commands (block/ask only); skills/plugins .trash capped at ~1,024 entries; broken --plugin-dir manifest no longer blocks model switching. v2.1.312: prompt/agent hooks capped at 24 concurrent. No SKILL.md/manifest frontmatter change; single signals, no iEvo action.
 
 History:
+- 2026-11-12T14:53:00Z — unchanged: v2.1.322 still latest; no iEvo action
 - 2026-11-11T13:51:00Z — changed: v2.1.321/322 (Fable 5.2, permission/sandbox fixes, skills reload fix, Vertex fast mode); no frontmatter/manifest change, no iEvo action
 - 2026-11-09T15:41:00Z — unchanged: v2.1.319 still latest; no iEvo action
 - 2026-11-08T13:00:00Z — unchanged: v2.1.319 still latest; no iEvo action
@@ -337,14 +338,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-11-11T13:51:00Z
+last_scan: 2026-11-12T14:53:00Z
 status: unchanged
-run_id: 43032801382
+run_id: 43241765674
 ```
 
-**Summary:** 0.167.1 stable patch (Nov 10, no notes beyond compare link); 0.169.0-alpha.9-11 pre-release only. No skill/plugin format change. Prior: 0.167.0 still latest stable (plugin config app-settings, TUI plugin mentions); no format change. Prior: 0.167.0 stable (Nov 6): TUI-only features (agent command center `codex agents --no-daemon`, backend switching, Vertex AI setup wizard, system proxy opt-in), app-server README covers `[permissions.network]`/`prompt-user` rules, compaction fix. No skill/plugin format change; no iEvo action. Prior: unchanged from previous. 0.166.0 stable (Oct 29): incremental skill catalogs behind `skill_catalog_deltas` flag, plugin discovery prefetch toggle, marketplace auto-update failures surface as startup warnings, hook cwd reporting. 0.165.0: marketplace URL userinfo backslash rejection. Flag-gated/internal; no iEvo action.
+**Summary:** 0.167.2 stable patch (Nov 11, no notes); 0.170.0-alpha.1/2 pre-release only. No skill/plugin format change. Prior: 0.167.1 stable patch (Nov 10, no notes beyond compare link); 0.169.0-alpha.9-11 pre-release only. No skill/plugin format change. Prior: 0.167.0 still latest stable (plugin config app-settings, TUI plugin mentions); no format change. Prior: 0.167.0 stable (Nov 6): TUI-only features (agent command center `codex agents --no-daemon`, backend switching, Vertex AI setup wizard, system proxy opt-in), app-server README covers `[permissions.network]`/`prompt-user` rules, compaction fix. No skill/plugin format change; no iEvo action. Prior: unchanged from previous. 0.166.0 stable (Oct 29): incremental skill catalogs behind `skill_catalog_deltas` flag, plugin discovery prefetch toggle, marketplace auto-update failures surface as startup warnings, hook cwd reporting. 0.165.0: marketplace URL userinfo backslash rejection. Flag-gated/internal; no iEvo action.
 
 History:
+- 2026-11-12T14:53:00Z — unchanged: 0.167.2 patch; 0.170.0-alpha.1/2 pre-release only; no iEvo action
 - 2026-11-11T13:51:00Z — unchanged: 0.167.1 patch; 0.169.0-alpha.11 pre-release only; no iEvo action
 - 2026-11-09T15:41:00Z — unchanged: 0.167.0 still latest stable (0.169.0-alpha.3 pre-release only); no iEvo action
 - 2026-11-08T13:00:00Z — unchanged: 0.167.0 still latest stable (0.169.0-alpha.2/3 pre-release only); no iEvo action
