@@ -3271,3 +3271,21 @@ location: plugins/ievo/skills/extract-best-practices/SKILL.md:108-114 (Phase 3 C
 ```
 
 Directly re-read this run (4-module `/ievo:vuln-scan` dogfooding, skills-module dispatch, independently re-verified against current source): this file's own Phase 4 Step 5 explicitly names its threat model — "the session content it was distilled from can carry attacker-influenced text (e.g. a malicious skill's SKILL.md body surfaced via `/ievo:inspect`/`/ievo:index-repos`, or a crafted PR reviewed via `/ievo:deep-review`)". Phase 3 Step 4 proposes a disposition per session-mined pattern; CHECKPOINT 1 (line 108-114) presents each via `` Question: `<pattern summary> — <proposed disposition>. Proceed?` `` with no containment note anywhere in this file, unlike `review-retrospective/SKILL.md`'s and `init/SKILL.md` Step 8a's explicit, detailed excerpt-containment notes for structurally identical `AskUserQuestion` interpolations of untrusted, session/repo-derived text in this same plugin. The same gap recurs in Phase 5's upstream-sharing offer, which names the candidate `<name>` in its own question text. Checked against already-open `skills#702` (filed 2026-09-16, covers Phase 5's fenced-code-block body at line 181 — the authored package content itself, a different field and a different rendering surface) — confirmed distinct: #702 is about an outer code-fence sizing gap for the package body; this finding is about `AskUserQuestion` text interpolation with no fencing at all, at two earlier points in the same file's flow.
+
+## F-2026-11-18-001 — Declare `engines["claude-code"]` in the iEvo plugin.json at the documented v2.1.198 floor
+
+```yaml
+id: F-2026-11-18-001
+discovered_at: 2026-11-18T15:30:00Z
+run_id: 44335015919
+target_repo: ievo-ai/skills
+title: Declare engines["claude-code"] semver range in plugins/ievo/.claude-plugin/plugin.json
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/717
+effort: low
+scope: multi-file
+evidence:
+  - https://code.claude.com/docs/en/plugins-reference: Fields table now lists `engines` with a semver range under the `claude-code` key (v2.1.323+); v2.0.15-v2.1.75 reject the key
+```
+
+AGENTS.md already documents a recommended minimum (v2.1.198) in prose only; plugin.json has no `engines` key. Proposal: add `"engines": {"claude-code": ">=2.1.198"}`, a matrix row in AGENTS.md, and a version bump in both manifests. Full body in ievo-ai/skills#717. Previously deferred (runs 2026-11-14 to 2026-11-17) because the range syntax was undocumented; the docs now cover it.
