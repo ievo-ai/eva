@@ -102,14 +102,15 @@ History:
 ## https://github.com/anthropics/claude-code/releases
 
 ```yaml
-last_scan: 2026-11-17T15:43:00Z
+last_scan: 2026-11-18T15:23:00Z
 status: changed
-run_id: 44117573191
+run_id: 44335015919
 ```
 
-**Summary:** v2.1.325 (Nov 13): fixes only (subagent model handling under opusplan/haiku, `/security-review` and skill inline git in bare/separate-git-dir worktrees, slash-command `allowed-tools` leaking to background agents, plugin MCP deny-rule case matching); no manifest/frontmatter change. Prior: v2.1.323 (Nov 12): adds `engines["claude-code"]` to plugin.json (plugins outside their stated Claude Code version range are not installed/updated/loaded; install picks newest fitting version); `claude plugin validate` type-checks a plugin TypeScript hooks module; start-up warning for Bash allow rules with `*` in a variable value; experimental Code Mode opt-in; `unsetOptionCount` in `plugin install --json`. The plugins-reference docs page did not yet list `engines` (syntax undocumented as of scan) - deferred until docs publish the range format. Prior: v2.1.321 (Nov 9): Fable 5.2 default model; security fixes (MCP OAuth secret redirect leak, Bash permission/sandbox bypass cases, cp/mv deny rules); project skills/agents missing after folder removed and restored mid-session fixed; hook ask/defer fixes. v2.1.322 (Nov 10): fast mode on Vertex. No frontmatter/manifest change; no iEvo action. Prior: v2.1.319 (Nov 6): adds permissions.denyInsteadOfPrompting setting (subagents/teammates), claude plugin eval warning fix, plugin auto-update dependency fix, /claude-api latency-optimize. No frontmatter/manifest change; single signal, no iEvo action. Prior: v2.1.318 (Nov 4): background subagents move shell commands to background after 3 min; mod `turn.step` hook headless fix; failing/Claude-only custom slash commands no longer print nothing in `claude -p`. No frontmatter/manifest change; no iEvo action. Prior: v2.1.317 (Nov 3): Agent SDK hook callbacks gain `onFailure: "block"`; fixes claude.ai-synced skills re-downloading every 10 min when unwritable. SDK-only, no iEvo action. Prior: v2.1.316 (Oct 31): adds CLAUDE_CODE_SUBAGENT_EFFORT env var and CLAUDE_CODE_DISABLE_ULTRATHINK; fixes PowerShell hook exit-code-2 blocking and plugin MCP headersHelper CLAUDE_PLUGIN_ROOT corruption. No frontmatter/manifest change; no iEvo action. Prior: v2.1.314 (Oct 30): hook output capped at 10,000 chars (PreCompact); Bash-matching hooks now run on Monitor-tool commands (block/ask only); skills/plugins .trash capped at ~1,024 entries; broken --plugin-dir manifest no longer blocks model switching. v2.1.312: prompt/agent hooks capped at 24 concurrent. No SKILL.md/manifest frontmatter change; single signals, no iEvo action.
+**Summary:** v2.1.327 (Nov 17): `/status` lists broken agent/skill/command/output-style files; fixes for `--agents` agents lost on plugin reload and plugin agent dropped on `--resume`. No manifest/frontmatter change. Prior: v2.1.325 (Nov 13): fixes only (subagent model handling under opusplan/haiku, `/security-review` and skill inline git in bare/separate-git-dir worktrees, slash-command `allowed-tools` leaking to backgr
 
 History:
+- 2026-11-18T15:23:00Z — changed: v2.1.327, no schema change
 - 2026-11-17T15:43:00Z — changed: v2.1.326 (Nov 16): malformed plugin.json fields (author/homepage) now noted in /plugin and `plugin list`; plugins-reference Fields table STILL lacks `engines` (fetched this run); engines proposal stays deferred; no iEvo action
 - 2026-11-16T15:18:00Z — unchanged: v2.1.325 still latest (fetched this run); no new releases; plugins-reference Fields table STILL lacks `engines` (fetched this run); engines proposal stays deferred; no iEvo action
 - 2026-11-15T13:42:00Z — unchanged: v2.1.325 still latest; plugins-reference Fields table STILL lacks `engines` (fetched this run); engines proposal stays deferred; no iEvo action
@@ -343,14 +344,15 @@ History:
 ## https://github.com/openai/codex/releases
 
 ```yaml
-last_scan: 2026-11-17T15:43:00Z
-status: unchanged
-run_id: 44117573191
+last_scan: 2026-11-18T15:23:00Z
+status: changed
+run_id: 44335015919
 ```
 
-**Summary:** unchanged from previous (0.169.0 still latest stable; notes add: bundled `openai-docs` skill narrowed to Codex/ChatGPT questions; no format change). Prior: 0.169.0 stable (Nov 13): TUI side-chat tabs, custom model provider onboarding, `codex exec` keeps project config/MCP disabled in untrusted dirs (`--trust` flag), plugin marketplace upgrades reuse git objects; 0.168.0 stable (Nov 13): `features.multi_agent` now warns and points to `agents.enabled`. No skill/plugin format change; 0.171.0-alpha.1/2 pre-release only. Prior: 0.167.2 stable patch (Nov 11, no notes); 0.170.0-alpha.1/2 pre-release only. No skill/plugin format change. Prior: 0.167.1 stable patch (Nov 10, no notes beyond compare link); 0.169.0-alpha.9-11 pre-release only. No skill/plugin format change. Prior: 0.167.0 still latest stable (plugin config app-settings, TUI plugin mentions); no format change. Prior: 0.167.0 stable (Nov 6): TUI-only features (agent command center `codex agents --no-daemon`, backend switching, Vertex AI setup wizard, system proxy opt-in), app-server README covers `[permissions.network]`/`prompt-user` rules, compaction fix. No skill/plugin format change; no iEvo action. Prior: unchanged from previous. 0.166.0 stable (Oct 29): incremental skill catalogs behind `skill_catalog_deltas` flag, plugin discovery prefetch toggle, marketplace auto-update failures surface as startup warnings, hook cwd reporting. 0.165.0: marketplace URL userinfo backslash rejection. Flag-gated/internal; no iEvo action.
+**Summary:** 0.170.0 stable (Nov 18); only plugin note is cache-refresh simplification for non-curated plugins (#61129); no skill/plugin format change. Prior: unchanged from previous (0.169.0 still latest stable; notes add: bundled `openai-docs` skill narrowed to Codex/ChatGPT questions; no format change). Prior: 0.169.0 stable (Nov 13): TUI side-chat tabs,
 
 History:
+- 2026-11-18T15:23:00Z — changed: 0.170.0 stable
 - 2026-11-17T15:43:00Z — unchanged: 0.169.0 still latest stable; no skill/plugin format change
 - 2026-11-16T15:18:00Z — unchanged: 0.169.0 still latest stable; 0.171.0-alpha.1..7 pre-release only (no notes); no skill/plugin format change; no iEvo action
 - 2026-11-15T13:42:00Z — unchanged: 0.169.0 still latest stable; 0.170/0.171 alphas only (no notes); no skill/plugin format change; no iEvo action
@@ -1011,3 +1013,17 @@ History:
 - 2026-07-31T00:00:00Z — unchanged: spec repo governance-only activity (DCO removal, maintainer selection) since Jul 29; no schema change; no new confirmed consumer
 - 2026-07-30T08:45:00Z — unchanged: `gh api` commit check on agentplugins/agent-plugins-spec — latest commit still 2026-07-27 push, no new activity; no new consumer-adoption signal
 - 2026-07-29T00:00:00Z — first-scan: Agent Plugins 1.0.0 spec discovered via Codex rust-v0.146.0's new root plugin.json support; TSC = Amazon/Cursor/Microsoft/OpenAI/Vercel; triggered F-2026-07-29-001
+
+## https://code.claude.com/docs/en/plugins-reference
+
+```yaml
+last_scan: 2026-11-18T15:23:00Z
+status: changed
+run_id: 44335015919
+```
+
+**Summary:** The plugin.json Fields table NOW lists `engines`: an Object with a semver range under the `claude-code` key (e.g. `">=2.1.400"`), requires Claude Code v2.1.323+; v2.0.15-v2.1.75 reject a manifest containing it with `Unrecognized key`. Unblocks the long-deferred proposal (filed as ievo-ai/skills#717).
+
+History:
+- 2026-11-18T15:23:00Z — changed: `engines` range syntax documented; proposal F-2026-11-18-001 filed.
+- 2026-11-17T15:43:00Z — unchanged: `engines` still absent from the Fields table.
