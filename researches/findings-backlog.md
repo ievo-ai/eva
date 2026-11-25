@@ -3271,3 +3271,22 @@ location: plugins/ievo/skills/extract-best-practices/SKILL.md:108-114 (Phase 3 C
 ```
 
 Directly re-read this run (4-module `/ievo:vuln-scan` dogfooding, skills-module dispatch, independently re-verified against current source): this file's own Phase 4 Step 5 explicitly names its threat model — "the session content it was distilled from can carry attacker-influenced text (e.g. a malicious skill's SKILL.md body surfaced via `/ievo:inspect`/`/ievo:index-repos`, or a crafted PR reviewed via `/ievo:deep-review`)". Phase 3 Step 4 proposes a disposition per session-mined pattern; CHECKPOINT 1 (line 108-114) presents each via `` Question: `<pattern summary> — <proposed disposition>. Proceed?` `` with no containment note anywhere in this file, unlike `review-retrospective/SKILL.md`'s and `init/SKILL.md` Step 8a's explicit, detailed excerpt-containment notes for structurally identical `AskUserQuestion` interpolations of untrusted, session/repo-derived text in this same plugin. The same gap recurs in Phase 5's upstream-sharing offer, which names the candidate `<name>` in its own question text. Checked against already-open `skills#702` (filed 2026-09-16, covers Phase 5's fenced-code-block body at line 181 — the authored package content itself, a different field and a different rendering surface) — confirmed distinct: #702 is about an outer code-fence sizing gap for the package body; this finding is about `AskUserQuestion` text interpolation with no fencing at all, at two earlier points in the same file's flow.
+
+## F-2026-11-25-001 — hooks-setup optional PreSkillShellCommand guard for injected skill shell commands
+
+```yaml
+id: F-2026-11-25-001
+discovered_at: 2026-11-25T16:59:00Z
+run_id: 45659558965
+target_repo: ievo-ai/skills
+title: hooks-setup optional PreSkillShellCommand guard for injected skill shell commands
+status: issued
+issue_url: https://github.com/ievo-ai/skills/issues/718
+effort: low
+scope: single-file
+evidence:
+  - https://github.com/anthropics/claude-code/releases: v2.1.332 adds the PreSkillShellCommand hook event
+  - https://code.claude.com/docs/en/hooks.md: PreSkillShellCommand section (matcher Bash|PowerShell, exit 2 / deny blocks, v2.1.332+)
+```
+
+Full body in ievo-ai/skills#718. Add Step 5.8 to hooks-setup: opt-in log-only or block mode for ``!`cmd`` injected commands, which do not trigger PreToolUse. Official Anthropic feature, so no credit comment. Deferred sibling signal: `optionalDependencies` in plugin manifests (v2.1.331) is not yet in the plugins-reference Fields table.
